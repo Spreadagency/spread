@@ -1,0 +1,10 @@
+# Block PHP execution in uploads folder (Apache 2.4 + 2.2 fallback)
+<FilesMatch "\.(php|phtml|php3|php4|php5|phps|pht|pl|py|sh|cgi)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
