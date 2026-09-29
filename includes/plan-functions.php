@@ -345,6 +345,11 @@ function resolve_style_ref(string $ref, int $userId, ?array $brand): ?string
             }
             return $row['image_path'] ?? null;
         }
+        // تصميم عاجب العميل (Brand Brain ← تصميمات بتعجبك)
+        if (preg_match('/^insp:(\d+)$/', $ref, $m) && $brand) {
+            $row = db_one('SELECT image_path FROM brand_inspirations WHERE id = ? AND brand_profile_id = ?', [(int) $m[1], $brand['id']]);
+            return $row['image_path'] ?? null;
+        }
         // تصميم سابق للمستخدم نفسه (تعديل تصميم بالكلام — المرحلة ④-ب)
         if (preg_match('/^design:(\d+)$/', $ref, $m)) {
             $row = db_one('SELECT image_path FROM content_designs WHERE id = ? AND user_id = ?', [(int) $m[1], $userId]);

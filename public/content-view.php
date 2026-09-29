@@ -24,6 +24,9 @@ require_once __DIR__ . '/../includes/social.php';
 $socialOn = feature_allows((int) $user['id']);
 $myConnections = $socialOn ? user_connections((int) $user['id'], 'active') : [];
 $designCost = cost_for('content_design_cost');
+$aiEditCost = cost_for('ai_edit_cost');
+$__locked = in_array((string) ($content['publish_status'] ?? ''), ['published', 'scheduled', 'processing'], true) || !empty($content['published_at']);
+$__selDesign = (int) ($content['selected_image_id'] ?? 0) ?: (int) ($designs[0]['id'] ?? 0);
 // ⑦-ج أشكال المحتوى
 require_once __DIR__ . '/../includes/content-formats.php';
 $__fmt = content_format_key($content['format'] ?? 'post');
@@ -31,6 +34,7 @@ $__prog = content_design_progress($content);
 
 $active = 'history';
 $page_title = 'عرض المنشور #' . $id;
+$use_app = true;   // SpreadAPI: التعديل بتعليق وتعديل التصميم بيستخدموا نفس API مكتبة المحتوى
 include __DIR__ . '/../templates/header.php';
 ?>
 
@@ -83,6 +87,41 @@ include __DIR__ . '/../templates/header.php';
                     </div>
                 </div>
 
+                <!-- ✨ تعديل المنشور بالكلام / بناءً على تعليق (نفس مسار مكتبة المحتوى: اقتراح ← مقارنة ← اعتماد) -->
+                <div class="card mt-20 cv-ai" id="ai-edit">
+                    <div class="card-head"><h3>✨ عدّل المنشور بتعليق</h3></div>
+                    <?php if (!empty($content['published_at'])): ?>
+                        <div class="alert info" style="font-size:12.5px">المنشور ده اتنشر خلاص — التعديل هنا بيغيّر نسختك بس، مش المنشور اللي على فيسبوك.</div>
+                    <?php endif; ?>
+                    <div id="cv-ai-ask">
+                        <p class="text-mute" style="font-size:13px;margin:0 0 10px">اكتب تعليقك بالعربي — أو اختار ملاحظة من «الملاحظات» — والـ AI بيعدّل اللي طلبته بس، ومش هيتحفظ غير لما تعتمده.</p>
+                        <div class="cv-chips">
+                            <?php foreach (['خلّي الـ CTA أقوى', 'اختصره للنص', 'أضف إيموجي بسيطة', 'خلّيه رسمي أكتر', 'ابدأ بسؤال يشد'] as $ch): ?>
+                                <button type="button" class="chip" onclick="document.getElementById('cv-instr').value = this.textContent"><?= e($ch) ?></button>
+                            <?php endforeach; ?>
+                        </div>
+                        <textarea id="cv-instr" class="textarea" rows="2" maxlength="500" placeholder="مثلًا: خلّي الـ CTA أقوى وركّز على الخصم"></textarea>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+                            <button type="button" class="btn" id="cv-ai-btn" onclick="cvAiEdit()">عدّل ✨</button>
+                            <small class="text-mute"><span class="cr"><?= $aiEditCost ?> كريدت · </span>هتشوف مقارنة القديمة والجديدة قبل الحفظ</small>
+                        </div>
+                    </div>
+                    <div id="cv-ai-cmp" style="display:none">
+                        <div class="text-mute" style="font-size:12.5px;margin-bottom:8px">طلبك: «<span id="cv-cmp-instr"></span>»</div>
+                        <div class="cv-cmp">
+                            <div class="cv-cmp-old"><em>القديمة</em><p id="cv-cmp-old" dir="auto"></p></div>
+                            <div class="cv-cmp-new"><em>الجديدة</em><p id="cv-cmp-new" dir="auto"></p><small id="cv-cmp-cta" dir="auto"></small><small id="cv-cmp-tags" dir="auto"></small></div>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+                            <button type="button" class="btn" id="cv-approve-btn" onclick="cvApprove(false)">✓ اعتماد النسخة</button>
+                            <?php if ($designs && $__fmt !== 'video' && !$__locked): ?>
+                                <button type="button" class="btn soft" id="cv-approve2-btn" onclick="cvApprove(true)" style="display:none">اعتمد + عدّل التصميم كمان</button>
+                            <?php endif; ?>
+                            <button type="button" class="btn ghost" onclick="cvReject()">رجوع للقديمة</button>
+                        </div>
+                    </div>
+                </div>
+
                 <?php if ($__fmt === 'video'): ?>
                 <!-- ⑦-ج الفيديو مابيتصممش — سكريبت ← اعتماد ← تنفيذ يدوي -->
                 <div class="card mt-20" id="design">
@@ -92,7 +131,7 @@ include __DIR__ . '/../templates/header.php';
                 </div>
                 <?php else: ?>
                 <!-- Designs (feature 21) -->
-                <div class="card mt-20">
+                <div class="card mt-20" id="design">
                     <div class="card-head">
                         <h3>🎨 التصميمات</h3>
                         <button class="btn sm" id="design-btn" onclick="generateDesign()">＋ توليد تصميم (<?= $designCost ?> كريدت)</button>
@@ -131,22 +170,60 @@ include __DIR__ . '/../templates/header.php';
                     <?php endif; ?>
                     <?php if ($__fmt === 'story'): ?><p class="text-mute" style="font-size:12.5px">📱 ستوري — التصميم بيتعمل رأسي 9:16 تلقائيًا.</p><?php endif; ?>
                     <?php $ratioScope = 'post'; $ratioCurrent = '1:1'; if ($__fmt !== 'story') include __DIR__ . '/../templates/ratio-picker.php'; ?>
+                    <?php if ($designs && !$__locked): ?>
+                    <!-- ✏️ تعديل التصميم — 3 طرق -->
+                    <div class="cv-dedit" id="design-edit">
+                        <b>✏️ تعديل التصميم</b>
+                        <div class="seg cv-dtabs" role="tablist">
+                            <button type="button" class="on" data-dt="words" onclick="cvDesignTab(this)">① بالكلام</button>
+                            <button type="button" data-dt="pick" onclick="cvDesignTab(this)">② اختار نسخة</button>
+                            <button type="button" data-dt="upload" onclick="cvDesignTab(this)">③ ارفع تصميمك</button>
+                        </div>
+                        <div class="cv-dpane" data-pane="words">
+                            <p class="text-mute" style="font-size:12.5px;margin:0 0 8px">مش محتاج Prompt — اكتب طلبك، والـ AI ياخد التصميم الحالي (الغلاف) + هوية البراند ويعمل نسخة جديدة منه.</p>
+                            <div class="cv-chips">
+                                <?php foreach (['كبّر اللوجو', 'خلّي الخلفية أفتح', 'استخدم ألوان البراند أكتر', 'بسّط التصميم', 'كبّر العنوان'] as $ch): ?>
+                                    <button type="button" class="chip" onclick="document.getElementById('cv-dinstr').value = this.textContent"><?= e($ch) ?></button>
+                                <?php endforeach; ?>
+                            </div>
+                            <textarea id="cv-dinstr" class="textarea" rows="2" maxlength="600" placeholder="مثلًا: كبّر اللوجو وخلّي الخلفية أفتح"></textarea>
+                            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+                                <button type="button" class="btn" id="cv-dedit-btn" onclick="cvDesignEdit()">تعديل التصميم ✨</button>
+                                <small class="text-mute"><span class="cr"><?= $designCost ?> كريدت · </span>النسخة الجديدة هتبقى الغلاف، والقديمة بتفضل موجودة</small>
+                            </div>
+                        </div>
+                        <div class="cv-dpane" data-pane="pick" style="display:none">
+                            <p class="text-mute" style="font-size:12.5px;margin:0">اختار أي نسخة من التصميمات تحت تبقى الغلاف اللي هيتنشر — دوس «استخدام» تحت الصورة.</p>
+                        </div>
+                        <div class="cv-dpane" data-pane="upload" style="display:none">
+                            <p class="text-mute" style="font-size:12.5px;margin:0 0 8px">عندك تصميم جاهز (من مصمم أو Canva)؟ ارفعه وهيبقى الغلاف — من غير كريدت.</p>
+                            <input type="file" id="cv-dfile" class="input" accept="image/jpeg,image/png,image/webp">
+                            <button type="button" class="btn mt-10" id="cv-dup-btn" onclick="cvDesignUpload()">⬆ ارفع واستخدمه</button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <div id="designs-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
                         <?php if (empty($designs)): ?>
                             <div class="text-mute" id="no-designs" style="font-size:13px;grid-column:1/-1">مفيش تصميمات لسه — ولّد أول تصميم بالذكاء الاصطناعي مبني على نص المنشور وهوية البراند.</div>
                         <?php endif; ?>
-                        <?php foreach ($designs as $d): ?>
-                            <a href="<?= url('storage/' . $d['image_path']) ?>" data-lightbox style="display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)">
-                                <img src="<?= url('storage/' . $d['image_path']) ?>" style="width:100%;aspect-ratio:1;object-fit:cover" loading="lazy" alt="design">
-                                <?php if (!empty($d['slide_no'])): ?><small style="display:block;text-align:center;font-size:11.5px;padding:3px">شريحة <?= (int) $d['slide_no'] ?></small><?php endif; ?>
-                            </a>
+                        <?php foreach ($designs as $i => $d): $__cur = (int) $d['id'] === $__selDesign; ?>
+                            <figure class="cv-design<?= $__cur ? ' cur' : '' ?>" style="margin:0">
+                                <a href="<?= url('storage/' . $d['image_path']) ?>" data-lightbox style="display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)">
+                                    <img src="<?= url('storage/' . $d['image_path']) ?>" style="width:100%;aspect-ratio:1;object-fit:cover" loading="lazy" alt="design">
+                                </a>
+                                <figcaption>
+                                    <b>V<?= count($designs) - $i ?></b><?php if (!empty($d['slide_no'])): ?> · شريحة <?= (int) $d['slide_no'] ?><?php endif; ?>
+                                    <?php if ($__cur): ?><span class="cv-cur">الغلاف ✓</span>
+                                    <?php elseif (!$__locked): ?><button type="button" class="btn ghost sm" onclick="cvUseDesign(<?= (int) $d['id'] ?>, this)">استخدام</button><?php endif; ?>
+                                </figcaption>
+                            </figure>
                         <?php endforeach; ?>
                     </div>
                 </div>
                 <?php endif; ?>
 
                 <!-- Scheduling (feature 23) -->
-                <div class="card mt-20">
+                <div class="card mt-20" id="schedule">
                     <div class="card-head"><h3>🗓️ الجدولة والنشر</h3></div>
 
                     <?php if (!empty($content['published_at'])): ?>
@@ -333,7 +410,10 @@ include __DIR__ . '/../templates/header.php';
                         <?php foreach ($notes as $n): ?>
                             <div style="background:var(--surface-2);border-radius:12px;padding:12px;border-inline-start:3px solid var(--primary)">
                                 <div style="font-size:13px;line-height:1.6;color:var(--ink)"><?= nl2br(e($n['note'])) ?></div>
-                                <div style="font-size:10.5px;color:var(--mute);margin-top:6px"><?= e(time_ago($n['created_at'])) ?></div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">
+                                    <span style="font-size:10.5px;color:var(--mute)"><?= e(time_ago($n['created_at'])) ?></span>
+                                    <button type="button" class="btn ghost sm" data-note="<?= e(mb_substr($n['note'], 0, 500)) ?>" onclick="cvFromNote(this.dataset.note)">✨ عدّل المنشور بيها</button>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                         <?php if (empty($notes)): ?>
@@ -365,6 +445,111 @@ include __DIR__ . '/../templates/header.php';
 </div>
 
 <script>
+const CSRF = '<?= e(csrf_token()) ?>';
+const CV_ID = <?= (int) $id ?>;
+let cvRev = <?= json_encode((string) ($content['updated_at'] ?? ''), JSON_UNESCAPED_UNICODE) ?>;
+let cvProposal = null;
+
+/* ── ✨ تعديل المنشور بتعليق: اقتراح ← مقارنة ← اعتماد ── */
+function cvFromNote(t) {
+    document.getElementById('cv-instr').value = t;
+    document.getElementById('ai-edit').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    cvAiEdit();
+}
+async function cvAiEdit() {
+    const instr = document.getElementById('cv-instr').value.trim();
+    if (instr.length < 3) { showToast('اكتب عايز تعدّل إيه', 'danger'); return; }
+    const btn = document.getElementById('cv-ai-btn');
+    btn.disabled = true; btn.textContent = 'بيعدّل…';
+    if (window.SpreadThinking) SpreadThinking.start({ title: 'بعدّل المنشور', steps: ['بقرا المنشور الحالي', 'بفهم تعليقك', 'بعدّل اللي طلبته بس', 'بجهّز المقارنة'] });
+    const r = await SpreadAPI.post('contents', 'ai_edit', { id: CV_ID, instruction: instr });
+    btn.disabled = false; btn.textContent = 'عدّل ✨';
+    if (!r.ok) { if (window.SpreadThinking) SpreadThinking.fail(); showToast(r.error || 'تعذّر التعديل', 'danger'); return; }
+    if (window.SpreadThinking) SpreadThinking.done('جاهز للمقارنة ✓');
+    cvProposal = r;
+    document.getElementById('cv-cmp-instr').textContent = r.instruction;
+    document.getElementById('cv-cmp-old').textContent = r.old.text;
+    document.getElementById('cv-cmp-new').textContent = r.proposal.text;
+    document.getElementById('cv-cmp-cta').textContent = r.proposal.cta || '';
+    document.getElementById('cv-cmp-tags').textContent = r.proposal.hashtags !== r.old.hashtags ? r.proposal.hashtags : '';
+    const both = document.getElementById('cv-approve2-btn');
+    if (both) both.style.display = r.wants_design ? '' : 'none';
+    document.getElementById('cv-ai-ask').style.display = 'none';
+    document.getElementById('cv-ai-cmp').style.display = '';
+}
+function cvReject() {
+    cvProposal = null;
+    document.getElementById('cv-ai-cmp').style.display = 'none';
+    document.getElementById('cv-ai-ask').style.display = '';
+}
+async function cvApprove(alsoDesign) {
+    if (!cvProposal) return;
+    const btns = document.querySelectorAll('#cv-ai-cmp button');
+    btns.forEach(b => b.disabled = true);
+    const p = cvProposal;
+    const r = await SpreadAPI.post('contents', 'save', { id: CV_ID, rev: cvRev, text: p.proposal.text,
+        hashtags: p.proposal.hashtags, cta: p.proposal.cta, source: 'ai_edit', note: p.instruction });
+    btns.forEach(b => b.disabled = false);
+    if (!r.ok) { showToast(r.error || 'تعذّر الحفظ', 'danger'); return; }
+    if (r.rev) cvRev = r.rev;
+    showToast('اتعتمدت النسخة الجديدة ✓', 'success');
+    if (alsoDesign) {
+        document.getElementById('cv-dinstr').value = p.instruction;
+        await cvDesignEdit(true);
+        return;
+    }
+    setTimeout(() => location.reload(), 700);
+}
+
+/* ── ✏️ تعديل التصميم: ① بالكلام · ② اختار نسخة · ③ ارفع تصميمك ── */
+function cvDesignTab(btn) {
+    document.querySelectorAll('.cv-dtabs button').forEach(b => b.classList.toggle('on', b === btn));
+    document.querySelectorAll('.cv-dpane').forEach(p => p.style.display = p.dataset.pane === btn.dataset.dt ? '' : 'none');
+}
+async function cvDesignEdit(fromApprove) {
+    const instr = (document.getElementById('cv-dinstr')?.value || '').trim();
+    if (instr.length < 3) { showToast('اكتب عايز تعدّل إيه في التصميم', 'danger'); return; }
+    const btn = document.getElementById('cv-dedit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'بيصمّم…'; }
+    const b64 = s => { const by = new TextEncoder().encode(s); let bin = ''; for (let i = 0; i < by.length; i += 0x8000) bin += String.fromCharCode.apply(null, by.subarray(i, i + 0x8000)); return btoa(bin); };
+    const r = await ajaxPost('<?= url('ajax/generate-design.php') ?>', {
+        csrf: CSRF, content_id: CV_ID, style_ref: 'design:<?= $__selDesign ?>', include_logo: '1',
+        ratio: <?= json_encode((string) ($designs[0]['ratio'] ?? ''), JSON_UNESCAPED_UNICODE) ?>,
+        design_edit: '1', _b64: 'custom_prompt',
+        custom_prompt: b64('عدّل التصميم المرفق (الصورة المرجعية) — حافظ على نفس التكوين والعناصر والنصوص، وغيّر بس: ' + instr),
+    });
+    if (btn) { btn.disabled = false; btn.textContent = 'تعديل التصميم ✨'; }
+    if (!r || !r.ok) { showToast((r && r.error) || 'تعذّر تعديل التصميم', 'danger'); if (fromApprove) setTimeout(() => location.reload(), 1500); return; }
+    showToast('النسخة الجديدة بقت الغلاف ✓', 'success');
+    setTimeout(() => { location.hash = 'design'; location.reload(); }, 700);
+}
+async function cvUseDesign(did, btn) {
+    btn.disabled = true;
+    const r = await SpreadAPI.post('contents', 'use_design', { id: CV_ID, design_id: did });
+    if (!r.ok) { btn.disabled = false; showToast(r.error || 'تعذّر', 'danger'); return; }
+    showToast('بقى الغلاف ✓', 'success');
+    setTimeout(() => { location.hash = 'design'; location.reload(); }, 500);
+}
+async function cvDesignUpload() {
+    const f = document.getElementById('cv-dfile').files[0];
+    if (!f) { showToast('اختار صورة التصميم الأول', 'danger'); return; }
+    if (f.size > 5 * 1024 * 1024) { showToast('الصورة أكبر من 5 ميجا', 'danger'); return; }
+    const btn = document.getElementById('cv-dup-btn');
+    btn.disabled = true; btn.textContent = 'بيرفع…';
+    const fd = new FormData();
+    fd.append('action', 'upload_design'); fd.append('id', CV_ID); fd.append('design', f);
+    let d = null;
+    try {
+        const res = await fetch('<?= url('api/contents.php') ?>', { method: 'POST', body: fd, credentials: 'same-origin',
+            headers: { 'X-CSRF-Token': CSRF, 'X-Requested-With': 'XMLHttpRequest' } });
+        d = await res.json();
+    } catch (e) { d = { ok: false, error: 'خطأ في الاتصال' }; }
+    btn.disabled = false; btn.textContent = '⬆ ارفع واستخدمه';
+    if (!d || !d.ok) { showToast((d && d.error) || 'تعذّر الرفع', 'danger'); return; }
+    showToast('اترفع وبقى الغلاف ✓', 'success');
+    setTimeout(() => { location.hash = 'design'; location.reload(); }, 600);
+}
+
 function copyAll() {
     const t = [
         document.getElementById('main-text').textContent,
@@ -383,7 +568,7 @@ async function generateDesign() {
     let result;
     try {
         const fd = new FormData();
-        fd.append('csrf', '<?= e(csrf_token()) ?>');
+        fd.append('csrf', CSRF);
         fd.append('content_id', '<?= $id ?>');
         fd.append('custom_prompt', (document.getElementById('design-idea')?.value || '').trim());
         fd.append('include_logo', document.getElementById('design-use-logo')?.checked ? '1' : '0');
@@ -407,15 +592,9 @@ async function generateDesign() {
     btn.textContent = orig;
 
     if (result.ok) {
-        const no = document.getElementById('no-designs');
-        if (no) no.remove();
-        const a = document.createElement('a');
-        a.href = result.image_url;
-        a.target = '_blank';
-        a.style.cssText = 'display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)';
-        a.innerHTML = '<img src="' + result.image_url + '" style="width:100%;aspect-ratio:1;object-fit:cover" alt="design">';
-        document.getElementById('designs-grid').prepend(a);
         showToast('تم توليد التصميم ✓', 'success');
+        // إعادة تحميل علشان يظهر بنسخه وخيارات التعديل (بالكلام · اختيار نسخة · رفع)
+        setTimeout(() => { location.hash = 'design'; location.reload(); }, 700);
     } else {
         showToast(result.error || 'فشل توليد التصميم', 'danger');
     }

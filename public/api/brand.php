@@ -7,10 +7,15 @@
  *   POST action=apply_all                            تأكيد كل الاقتراحات
  *   POST action=logo_colors                          استخراج ألوان اللوجو (مقترحة)
  *   POST action=approve                              اعتماد الهوية
+ *   GET  ?action=overview                            اللي اتعمل + الناقص بالترتيب + آخر الأبحاث
+ *   POST action=save_field    {field, value}         تعديل حقل مباشرة من Brand Brain
+ *   POST action=upload_logo   (multipart: logo)      رفع اللوجو
+ *   GET  ?action=insp_list · POST insp_link {url, note} · insp_upload (multipart: file, note) · insp_delete {id}
  */
 require_once __DIR__ . '/../../includes/api.php';
 require_once __DIR__ . '/../../includes/brand-brain.php';
 require_once __DIR__ . '/../../includes/ai.php';
+require_once __DIR__ . '/../../includes/uploader.php';
 
 $user = api_boot();
 $uid = (int) $user['id'];
@@ -119,6 +124,52 @@ switch ($action) {
         }
         brand_fact_suggest($brand, $uid, 'colors', implode(', ', $colors), 'logo', 'اللوجو', 95);
         api_ok(['colors' => $colors, 'brand' => brand_to_api($reload())]);
+
+    /* ── نظرة عامة: اللي اتعمل + الناقص (المساعد بيبدأ منه) ── */
+    case 'overview':
+        api_ok(['overview' => brand_overview($brand, $uid), 'brand' => brand_to_api($brand)]);
+
+    case 'save_field':
+        if (!rate_limit('brand_save', 'u' . $uid, 120, 600)) api_fail('تعديلات كتير بسرعة — استنى لحظة', 'rate_limit', 429);
+        $in = api_input();
+        $r = brand_field_save($brand, $uid, api_str('field', 40), is_scalar($in['value'] ?? null) ? (string) $in['value'] : '');
+        if (!$r['ok']) api_fail($r['error'], 'invalid', 422);
+        $b = $reload();
+        api_ok(['brand' => brand_to_api($b), 'overview' => brand_overview($b, $uid)]);
+
+    case 'upload_logo':
+        if (!rate_limit('upload_image', 'u' . $uid, 20, 600)) api_fail('رفعت كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        if (empty($_FILES['logo']['name'])) api_fail('اختار صورة اللوجو', 'empty', 422);
+        $up = upload_image($_FILES['logo'], 'logos');
+        if (!$up['ok']) api_fail($up['error'], 'upload', 422);
+        if (!empty($brand['logo_path'])) delete_upload($brand['logo_path']);
+        db_run('UPDATE brand_profiles SET logo_path = ?, updated_at = NOW() WHERE id = ?', [$up['path'], $brand['id']]);
+        $b = $reload();
+        api_ok(['brand' => brand_to_api($b), 'overview' => brand_overview($b, $uid)]);
+
+    /* ── تصميمات بتعجبك ── */
+    case 'insp_list':
+        api_ok(['items' => brand_insp_list((int) $brand['id']), 'max' => brand_insp_max()]);
+
+    case 'insp_link':
+    case 'insp_upload':
+        if (!rate_limit('brand_insp', 'u' . $uid, 30, 600)) api_fail('ضفت كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        if (brand_insp_count((int) $brand['id']) >= brand_insp_max()) api_fail('وصلت للحد (' . brand_insp_max() . ') — امسح تصميم الأول', 'limit', 422);
+        $note = api_str('note', 300);
+        if ($action === 'insp_link') {
+            $url = api_str('url', 1000);
+            if ($url === '') api_fail('حط الرابط الأول', 'empty', 422);
+            $r = brand_insp_add_link($brand, $uid, $url, $note);
+        } else {
+            if (empty($_FILES['file']['name'])) api_fail('اختار صورة', 'empty', 422);
+            $r = brand_insp_add_upload($brand, $uid, $_FILES['file'], $note);
+        }
+        if (!$r['ok']) api_fail($r['error'], 'invalid', 422);
+        api_ok(['items' => brand_insp_list((int) $brand['id']), 'image' => $r['image'] ?? true]);
+
+    case 'insp_delete':
+        if (!brand_insp_delete($brand, api_int('id'))) api_fail('مش موجود', 'not_found', 404);
+        api_ok(['items' => brand_insp_list((int) $brand['id'])]);
 
     case 'approve':
         $h = brand_health($brand);

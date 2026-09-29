@@ -20,6 +20,7 @@ if (is_file(__DIR__ . '/../../includes/smart-ai.php')) {
 
 require_login();
 require_csrf();
+session_release();   // العملية طويلة — مانقفلش باقي صفحات العميل لحد ما تخلص
 decode_b64_fields();
 
 $user = current_user();
@@ -111,14 +112,35 @@ if (!rate_limit('studio_design', 'u' . $user['id'], 6, 600)) {
     json_response(['ok' => false, 'error' => 'وصلت للحد الأقصى لتوليد التصميمات — استنى شوية']);
 }
 
+// صور المشروع المحفوظ (مسودة): العميل رجع يكمّل — الصور اترفعت قبل كده ومش محتاج يرفعها تاني
+require_once __DIR__ . '/../../includes/studio-drafts.php';
+$draftFiles = [];
+if (!empty($_POST['draft_id'])) {
+    $draftFiles = studio_draft_files(studio_draft_get((int) $_POST['draft_id'], (int) $user['id']));
+}
+$draftSlot = function (string $field): string {
+    $map = ['before_image' => 'before', 'after_image' => 'after', 'source_image' => 'source', 'personal_image' => 'personal'];
+    return $map[$field] ?? (preg_match('/^custom_image_(\d+)$/', $field, $m) ? 'c' . $m[1] : $field);
+};
+$hasImage = function (string $field) use ($draftFiles, $draftSlot): bool {
+    if (!empty($_FILES[$field]['name'])) return true;
+    $p = $draftFiles[$draftSlot($field)] ?? '';
+    return $p !== '' && is_file(STORAGE_PATH . '/' . ltrim($p, '/'));
+};
+
 // رفع الصور حسب الوضع
 $uploads = [];  // [['path' => rel, 'role' => text]]
-$grab = function (string $field, string $role) use (&$uploads) {
+$grab = function (string $field, string $role) use (&$uploads, $draftFiles, $draftSlot) {
     if (!empty($_FILES[$field]['name'])) {
         $up = upload_image($_FILES[$field], 'references');
         if ($up['ok']) {
             $uploads[] = ['path' => $up['path'], 'role' => $role];
         }
+        return;
+    }
+    $p = $draftFiles[$draftSlot($field)] ?? '';
+    if ($p !== '' && is_file(STORAGE_PATH . '/' . ltrim($p, '/'))) {
+        $uploads[] = ['path' => $p, 'role' => $role];
     }
 };
 
@@ -141,7 +163,7 @@ if ($editOf) {
 } elseif ($mode === 'custom') {
     foreach ($method['uploads'] as $i => $u) {
         $grab('custom_image_' . $i, $u['role'] !== '' ? $u['role'] : ('the ' . $u['label'] . ' photo — use it in the design exactly as it is.'));
-        if ($u['required'] && empty($_FILES['custom_image_' . $i]['name'])) {
+        if ($u['required'] && !$hasImage('custom_image_' . $i)) {
             json_response(['ok' => false, 'error' => 'ارفع «' . $u['label'] . '»']);
         }
     }

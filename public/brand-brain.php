@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/uploader.php';
 require_once __DIR__ . '/../includes/brand-brain.php';
+require_once __DIR__ . '/../includes/ui-v2.php';
 
 require_login();
 $user = current_user();
@@ -28,6 +29,14 @@ $initial = [
     'files'   => $sourcesCount,
     'cost'    => max(0, (int) get_setting('brand_analyze_cost', 1)),
     'enabled' => get_setting('brand_analyze_enabled', '1') === '1',
+    // كله في الصفحة الأساسية: البحث العميق · تصميمات بتعجبك · بيانات الهوية · المساعد
+    'overview' => brand_overview($brand, (int) $user['id']),
+    'insp'     => brand_insp_list((int) $brand['id']),
+    'insp_max' => brand_insp_max(),
+    'research' => function_exists('ui_research_on') ? ui_research_on() : get_setting('research_enabled', '1') === '1',
+    'groups'   => array_map(fn($k, $g) => ['key' => $k, 'title' => $g[0], 'icon' => $g[1], 'hint' => $g[2]], array_keys(brand_groups()), brand_groups()),
+    'inputs'   => brand_field_inputs(),
+    'options'  => brand_field_options(),
 ];
 
 $active = 'brand-brain';
@@ -72,28 +81,7 @@ include __DIR__ . '/../templates/header.php';
                 </div>
             </section>
 
-            <!-- ═══ التحليل من رابط ═══ -->
-            <section class="card bb-analyze" v-if="enabled">
-                <h2>حلّل البراند من رابط ✨</h2>
-                <p class="sub">ابعت موقعك أو صفحتك على فيسبوك/انستجرام — Spread AI هيجمع المعلومات ويحط على كل معلومة مصدرها، وانت اللي بتأكد.</p>
-                <div class="bb-url">
-                    <input class="input" type="url" v-model="url" @keydown.enter.prevent="analyze" dir="ltr"
-                           placeholder="https://yourbrand.com" aria-label="رابط الموقع أو الصفحة" :disabled="busy">
-                    <button class="btn" @click="analyze" :disabled="busy || !url.trim()">
-                        <span v-if="!busy">حلّل البراند ✨</span>
-                        <span v-else><span class="btn-spin"></span> بيحلل...</span>
-                    </button>
-                </div>
-                <div class="bb-alt">
-                    <span class="sub">أو</span>
-                    <a :href="base + '/sources.php'" class="btn ghost sm">📄 ارفع ملف ({{ files }})</a>
-                    <a :href="base + '/brand-profile.php'" class="btn ghost sm">✎ اكتب بنفسك</a>
-                    <span class="sub bb-cost" v-if="cost">التحليل بـ {{ cost }} كريدت — بيرجع لو ماطلعش معلومات</span>
-                </div>
-                <div class="alert info" v-if="note" style="margin-top:12px">{{ note }}</div>
-            </section>
-
-            <!-- ═══ الاقتراحات ═══ -->
+            <!-- ═══ الاقتراحات (من التحليل · البحث العميق · اللوجو) ═══ -->
             <section class="card bb-sugs" v-if="b.suggestions.length">
                 <div class="bb-sugs-head">
                     <div>
@@ -107,6 +95,7 @@ include __DIR__ . '/../templates/header.php';
                         <b>{{ s.label }}</b>
                         <span class="bb-src" :style="{ '--c': s.source.color }">{{ s.source.label }}</span>
                         <a v-if="s.ref && s.ref.startsWith('http')" :href="s.ref" target="_blank" rel="noopener nofollow" class="bb-ref" dir="ltr">{{ shortRef(s.ref) }}</a>
+                        <small v-if="s.ref && !s.ref.startsWith('http')" class="sub">{{ s.ref }}</small>
                     </div>
                     <textarea v-if="editing === s.id" class="textarea" rows="3" v-model="draft"></textarea>
                     <div v-else class="bb-val" :dir="isLink(s.value) ? 'ltr' : 'auto'">
@@ -130,69 +119,176 @@ include __DIR__ . '/../templates/header.php';
                 </div>
             </section>
 
-            <!-- ═══ التبويبات ═══ -->
-            <div class="seg bb-tabs">
-                <button :class="{ on: tab === 'identity' }" @click="tab = 'identity'">الهوية</button>
-                <button :class="{ on: tab === 'assets' }" @click="tab = 'assets'">المصادر والأصول</button>
-            </div>
-
-            <!-- الهوية -->
-            <section v-if="tab === 'identity'" class="bb-groups">
-                <div class="card bb-group" v-for="g in groups" :key="g.key">
-                    <h3>{{ g.icon }} {{ g.title }}</h3>
-                    <div class="bb-row" v-for="f in fieldsOf(g.key)" :key="f.key">
-                        <div class="bb-row-lbl">{{ f.label }}</div>
-                        <div class="bb-row-val" v-if="f.filled">
-                            <span class="pv-c" v-if="f.key === 'logo_path'"><img :src="f.value" alt="اللوجو" class="bb-logo-sm"></span>
-                            <span class="pv-c" v-else-if="f.key === 'colors'">
-                                <span v-for="c in f.value.split(',')" class="bb-sw" :style="{ background: c.trim() }"></span>
-                            </span>
-                            <span v-else :dir="isLink(f.value) ? 'ltr' : 'auto'">{{ display(f) }}</span>
-                        </div>
-                        <div class="bb-row-val" v-else><span class="bb-missing">ناقص</span></div>
-                        <span v-if="f.source" class="bb-src" :style="{ '--c': f.source.color }">{{ f.source.label }}</span>
+            <!-- ═══ ① البحث العميق — صفحة مستقلة جوه Brand Brain: بيقرا الهوية وبيسجّل فيها ═══ -->
+            <section class="card bb-sec" v-if="researchOn" id="research">
+                <div class="bb-sec-head">
+                    <div>
+                        <h2>🔬 البحث العميق</h2>
+                        <p class="sub">بيقرا هويتك (المجال · الجمهور · الخدمات) ويبحث في السوق والمنافسين بمصادر حقيقية — واللي يلاقيه بيتسجّل في الهوية تلقائيًا.</p>
                     </div>
-                    <a :href="base + '/brand-profile.php'" class="bb-edit">تعديل ←</a>
+                    <a :href="base + '/research.php'" class="btn">＋ بحث جديد</a>
                 </div>
+                <div class="bb-rs-list" v-if="ov && ov.researches.length">
+                    <a v-for="r in ov.researches" :key="r.id" :href="base + '/research.php?id=' + r.id" class="bb-rs">
+                        <b>{{ r.title }}</b>
+                        <small>
+                            <span :class="'bb-rs-st st-' + r.status">{{ rsStatus(r.status) }}</span>
+                            <span v-if="r.in_brain" class="bb-rs-in">✓ في الهوية</span>
+                            <span class="sub">{{ r.ago }}</span>
+                        </small>
+                    </a>
+                </div>
+                <p class="sub" v-if="ov && !ov.researches.length">لسه ماعملتش بحث — ابدأ ببحث «المنافسين» أو «الجمهور» علشان الـ AI يفهم سوقك.</p>
             </section>
 
-            <!-- المصادر والأصول -->
-            <section v-else class="bb-assets">
-                <div class="card bb-asset">
-                    <h3>🎨 اللوجو</h3>
-                    <div v-if="logo()" class="bb-asset-body">
-                        <div class="bb-logo-box"><img :src="logo()" alt="اللوجو"></div>
-                        <div class="bb-sws" v-if="logoColors.length">
-                            <span class="sub">ألوان اللوجو:</span>
-                            <span v-for="c in logoColors" class="bb-sw lg" :style="{ background: c }" :title="c"></span>
-                        </div>
-                        <button class="btn sm" @click="extractColors" :disabled="busy">
-                            {{ logoColors.length ? '↻ استخرج تاني' : 'استخرج ألوان اللوجو' }}
+            <!-- ═══ ② تصميمات بتعجبك ═══ -->
+            <section class="card bb-sec" id="inspirations">
+                <div class="bb-sec-head">
+                    <div>
+                        <h2>💜 تصميمات بتعجبك</h2>
+                        <p class="sub">ارفع صور تصميمات عاجباك أو حط لينكاتها (Behance · Pinterest · إنستجرام) — بتظهر كمرجع ستايل في Design Studio.</p>
+                    </div>
+                    <small class="sub">{{ insp.length }} / {{ inspMax }}</small>
+                </div>
+                <div class="bb-insp-add">
+                    <label class="btn ghost sm bb-insp-up" :class="{ disabled: inspBusy }">
+                        <input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden @change="inspUpload($event)" :disabled="inspBusy">
+                        ⬆ ارفع صور
+                    </label>
+                    <input class="input" type="url" dir="ltr" v-model="inspUrl" @keydown.enter.prevent="inspLink" placeholder="https://www.behance.net/…" aria-label="لينك تصميم" :disabled="inspBusy">
+                    <button class="btn sm" @click="inspLink" :disabled="inspBusy || !inspUrl.trim()">{{ inspBusy ? 'لحظة…' : 'ضيف اللينك' }}</button>
+                </div>
+                <div class="bb-insp-grid" v-if="insp.length">
+                    <figure v-for="it in insp" :key="it.id" class="bb-insp">
+                        <a v-if="it.img" :href="it.img" data-lightbox><img :src="it.img" alt="" loading="lazy"></a>
+                        <a v-else :href="it.link" target="_blank" rel="noopener nofollow" class="bb-insp-link">🔗<span dir="ltr">{{ shortRef(it.link) }}</span></a>
+                        <figcaption>
+                            <a v-if="it.link && it.img" :href="it.link" target="_blank" rel="noopener nofollow" class="sub" dir="ltr">{{ shortRef(it.link) }}</a>
+                            <a v-if="it.ref" :href="base + '/design-studio.php?style_ref=' + encodeURIComponent(it.ref)" class="sub">صمّم بنفس الستايل ←</a>
+                            <button type="button" class="bb-insp-x" @click="inspDelete(it)" aria-label="مسح">✕</button>
+                        </figcaption>
+                    </figure>
+                </div>
+                <p class="sub" v-else>لسه مفيش — ضيف 3 لـ 6 تصميمات تحس إنها «انت».</p>
+            </section>
+
+            <!-- ═══ ③ بيانات الهوية — بالترتيب الأساسي ═══ -->
+            <section class="card bb-sec" id="identity">
+                <div class="bb-sec-head">
+                    <div>
+                        <h2>📋 بيانات الهوية</h2>
+                        <p class="sub">مترتبة من الأهم للأقل — دوس على أي معلومة وعدّلها هنا على طول.</p>
+                    </div>
+                </div>
+
+                <div class="bb-analyze-inline" v-if="enabled">
+                    <b>✨ املأها تلقائي من رابط</b>
+                    <div class="bb-url">
+                        <input class="input" type="url" v-model="url" @keydown.enter.prevent="analyze" dir="ltr"
+                               placeholder="https://yourbrand.com" aria-label="رابط الموقع أو الصفحة" :disabled="busy">
+                        <button class="btn" @click="analyze" :disabled="busy || !url.trim()">
+                            <span v-if="!busy">حلّل البراند ✨</span>
+                            <span v-else><span class="btn-spin"></span> بيحلل...</span>
                         </button>
-                        <p class="sub bb-hint" v-if="logoColors.length">الألوان ظهرت فوق في «وجدنا معلومات» — أكّدها علشان تتطبّق على الهوية.</p>
                     </div>
-                    <div v-else class="bb-asset-body">
-                        <p class="sub">ارفع اللوجو علشان نستخرج ألوانه وتتطبّق على كل تصميماتك.</p>
-                        <a :href="base + '/brand-profile.php'" class="btn sm">ارفع اللوجو</a>
+                    <div class="bb-alt">
+                        <a :href="base + '/sources.php'" class="btn ghost sm">📄 ارفع ملف ({{ files }})</a>
+                        <span class="sub bb-cost" v-if="cost"><span class="cr">التحليل بـ {{ cost }} كريدت — </span>بيرجع لو ماطلعش معلومات</span>
                     </div>
+                    <div class="alert info" v-if="note" style="margin-top:12px">{{ note }}</div>
                 </div>
 
-                <div class="card bb-asset">
-                    <h3>🔗 الموقع والسوشيال</h3>
-                    <div v-if="links().length" class="bb-links">
-                        <a v-for="l in links()" :key="l.key" :href="l.value" target="_blank" rel="noopener nofollow" class="bb-link">
-                            <b>{{ l.label }}</b><span dir="ltr">{{ shortRef(l.value) }}</span>
-                        </a>
-                    </div>
-                    <p class="sub" v-else>لسه مفيش روابط — حلّل رابط من فوق وهنتعرف على نوعه لوحدنا.</p>
-                </div>
+                <div class="bb-groups">
+                    <div class="bb-group" v-for="g in groups" :key="g.key">
+                        <div class="bb-group-head">
+                            <h3>{{ g.icon }} {{ g.title }}</h3>
+                            <small class="sub">{{ groupFilled(g.key) }} / {{ fieldsOf(g.key).length }}</small>
+                        </div>
+                        <p class="sub bb-group-hint">{{ g.hint }}</p>
+                        <div class="bb-row" v-for="f in fieldsOf(g.key)" :key="f.key" :class="{ editing: editKey === f.key }">
+                            <div class="bb-row-lbl">{{ f.label }}<small v-if="f.weight" class="bb-w">+{{ f.weight }}%</small></div>
 
-                <div class="card bb-asset">
-                    <h3>📄 الملفات</h3>
-                    <p class="sub">بروفايل الشركة · Brand Guide · منيو أو كتالوج — بتتقرا وتتضاف لمعرفة الـ AI.</p>
-                    <p><b>{{ files }}</b> ملف ومصدر</p>
-                    <a :href="base + '/sources.php'" class="btn ghost sm">إدارة الملفات ←</a>
+                            <div class="bb-row-val" v-if="editKey !== f.key" @click="startField(f)" role="button" tabindex="0" @keydown.enter="startField(f)">
+                                <span class="pv-c" v-if="f.key === 'logo_path' && f.filled"><img :src="f.value" alt="اللوجو" class="bb-logo-sm"></span>
+                                <span class="pv-c" v-else-if="f.key === 'colors' && f.filled">
+                                    <span v-for="c in f.value.split(',')" class="bb-sw" :style="{ background: c.trim() }"></span> <span dir="ltr">{{ f.value }}</span>
+                                </span>
+                                <span v-else-if="f.filled" :dir="isLink(f.value) ? 'ltr' : 'auto'">{{ display(f) }}</span>
+                                <span v-else class="bb-missing">ناقص — دوس للإضافة</span>
+                                <span v-if="f.source && f.filled" class="bb-src" :style="{ '--c': f.source.color }">{{ f.source.label }}</span>
+                            </div>
+
+                            <div class="bb-row-edit" v-if="editKey === f.key">
+                                <div class="pv-c" v-if="f.key === 'logo_path'">
+                                    <input type="file" accept="image/*" @change="uploadLogo($event)" :disabled="saving">
+                                    <div class="bb-edit-act">
+                                        <button class="btn ghost sm" @click="extractColors" :disabled="busy || !logo()" v-if="logo()">استخرج ألوان اللوجو</button>
+                                        <button class="btn ghost sm" @click="editKey = ''">إغلاق</button>
+                                    </div>
+                                </div>
+                                <div class="pv-c" v-if="f.key !== 'logo_path'">
+                                    <select v-if="inputOf(f) === 'select'" class="input" v-model="editVal">
+                                        <option value="">—</option>
+                                        <option v-for="(lbl, k) in optionsOf(f)" :key="k" :value="k">{{ lbl }}</option>
+                                    </select>
+                                    <textarea v-else-if="inputOf(f) === 'textarea'" class="textarea" rows="3" v-model="editVal" :placeholder="f.question" dir="auto"></textarea>
+                                    <input v-else class="input" v-model="editVal" :placeholder="inputOf(f) === 'colors' ? '#0C87EF, #10A8A0' : f.question" :dir="inputOf(f) === 'url' || inputOf(f) === 'colors' ? 'ltr' : 'auto'" @keydown.enter.prevent="saveField(f)">
+                                    <div class="bb-sws" v-if="inputOf(f) === 'colors' && editVal.trim()">
+                                        <span v-for="c in editVal.split(',')" class="bb-sw lg" :style="{ background: c.trim() }"></span>
+                                    </div>
+                                    <div class="bb-edit-act">
+                                        <button class="btn sm" @click="saveField(f)" :disabled="saving">{{ saving ? 'بنحفظ…' : 'حفظ' }}</button>
+                                        <button class="btn ghost sm" @click="editKey = ''" :disabled="saving">إلغاء</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                <p class="sub bb-adv">قواعد التصميم · الكلمات الممنوعة · صورك وصورتك الشخصية: <a :href="base + '/brand-profile.php'">التفاصيل المتقدمة ←</a></p>
+            </section>
+
+            <!-- ═══ ④ المساعد الذكي — اللي اتعمل + يبدأ من الناقص ═══ -->
+            <section class="card bb-sec bb-assist" id="assistant" v-if="ov">
+                <div class="bb-sec-head">
+                    <div>
+                        <h2>🤖 المساعد الذكي</h2>
+                        <p class="sub">ملخص اللي اتعمل في هويتك — وبنكمّل مع بعض من المعلومات الناقصة.</p>
+                    </div>
+                    <a :href="base + '/brand-agent.php'" class="btn ghost sm">محادثة كاملة ←</a>
+                </div>
+                <div class="bb-done">
+                    <div><b>{{ ov.done.pct }}%</b><small>صحة الهوية</small></div>
+                    <div><b>{{ ov.done.filled }}/{{ ov.done.total }}</b><small>معلومة جاهزة</small></div>
+                    <div><b>{{ ov.done.researches }}</b><small>بحث عميق</small></div>
+                    <div><b>{{ ov.done.inspirations }}</b><small>تصميم بيعجبك</small></div>
+                    <div><b>{{ ov.done.sources }}</b><small>ملف ومصدر</small></div>
+                    <div v-if="ov.done.pending"><b>{{ ov.done.pending }}</b><small>معلومة مستنية تأكيدك</small></div>
+                </div>
+                <div class="bb-done-tags" v-if="ov.done.filled_labels.length">
+                    <span class="sub">جاهز:</span>
+                    <span v-for="l in ov.done.filled_labels" :key="l" class="bb-tag">✓ {{ l }}</span>
+                </div>
+                <p class="bb-summary sub" v-if="ov.done.summary">{{ ov.done.summary }}</p>
+
+                <div class="bb-ask" v-if="ov.missing.length && askItem()">
+                    <div class="bb-ask-q">
+                        <span class="bb-ask-n">فاضل {{ ov.missing.length }}</span>
+                        <b>{{ askItem().question }}</b>
+                        <small class="sub">{{ askItem().label }}<span v-if="askItem().weight"> · +{{ askItem().weight }}% للهوية</span></small>
+                    </div>
+                    <select v-if="askItem().input === 'select'" class="input" v-model="askVal">
+                        <option value="">اختار…</option>
+                        <option v-for="(lbl, k) in askItem().options" :key="k" :value="k">{{ lbl }}</option>
+                    </select>
+                    <textarea v-else-if="askItem().input === 'textarea'" class="textarea" rows="3" v-model="askVal" dir="auto"></textarea>
+                    <input v-else class="input" v-model="askVal" :dir="askItem().input === 'url' || askItem().input === 'colors' ? 'ltr' : 'auto'" @keydown.enter.prevent="answer()">
+                    <div class="bb-edit-act">
+                        <button class="btn" @click="answer()" :disabled="saving || !askVal.trim()">{{ saving ? 'بنحفظ…' : 'حفظ والتالي ←' }}</button>
+                        <button class="btn ghost sm" @click="skipAsk()" v-if="ov.missing.length > 1">تخطّي</button>
+                    </div>
+                </div>
+                <div class="bb-ask ok" v-if="!ov.missing.length">✓ كل المعلومات الأساسية موجودة — تقدر تعدّل أي حاجة من «بيانات الهوية».</div>
             </section>
 
             <div class="toast-container" v-if="toast"><div class="toast" :class="toast.type">{{ toast.msg }}</div></div>
@@ -205,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var init = <?= json_encode($initial, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   var base = document.querySelector('meta[name="app-base"]').content;
   var TONES = { simple: 'بسيط', formal: 'رسمي', fun: 'مرح', professional: 'احترافي' };
-  var DIALECTS = { egyptian: 'مصري', khaleeji: 'خليجي', levantine: 'شامي' };
+  var DIALECTS = { egyptian: 'مصري', khaleeji: 'خليجي', levantine: 'شامي', msa: 'فصحى' };
 
   // ويدجت السايدبار بيترسم مع الصفحة — نحدّثه لحظيًا مع أي تغيير في الهوية
   function syncSidebar(h) {
@@ -228,19 +324,111 @@ document.addEventListener('DOMContentLoaded', function () {
     url: '',
     busy: false,
     note: null,
-    tab: 'identity',
     editing: null,
     draft: '',
     toast: null,
     logoColors: [],
-    groups: [
-      { key: 'basic', title: 'النشاط', icon: '🏷' },
-      { key: 'audience', title: 'الجمهور والخدمات', icon: '👥' },
-      { key: 'style', title: 'الأسلوب', icon: '🗣' },
-      { key: 'visual', title: 'الهوية البصرية', icon: '🎨' },
-      { key: 'contact', title: 'التواصل', icon: '📞' },
-      { key: 'links', title: 'الروابط', icon: '🔗' },
-    ],
+    groups: init.groups,
+    ov: init.overview,
+    researchOn: init.research,
+    insp: init.insp, inspMax: init.insp_max, inspUrl: '', inspBusy: false,
+    editKey: '', editVal: '', saving: false,
+    askSkip: 0, askVal: '',
+
+    /* ── بيانات الهوية: تعديل مباشر ── */
+    inputOf: function (f) { return init.inputs[f.key] || 'text'; },
+    optionsOf: function (f) { return init.options[f.key] || {}; },
+    groupFilled: function (g) { return this.fieldsOf(g).filter(function (f) { return f.filled; }).length; },
+    startField: function (f) {
+      this.editKey = f.key;
+      this.editVal = f.key === 'logo_path' ? '' : String(f.value || '');
+    },
+    async saveField(f) {
+      this.saving = true;
+      var before = this.b.health.pct;
+      var r = await SpreadAPI.post('brand', 'save_field', { field: f.key, value: this.editVal });
+      this.saving = false;
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.b = r.brand; this.ov = r.overview; this.editKey = '';
+      var d = this.b.health.pct - before;
+      this.notify(d > 0 ? 'اتحفظ ✓ · +' + d + '%' : 'اتحفظ ✓');
+    },
+    async uploadLogo(e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      this.saving = true;
+      var r = await this.postFile('upload_logo', { logo: file });
+      this.saving = false;
+      if (!r.ok) return this.notify(r.error || 'تعذّر الرفع', 'danger');
+      this.b = r.brand; this.ov = r.overview;
+      this.notify('اتحفظ اللوجو ✓ — استخرج ألوانه علشان تتطبّق');
+    },
+    async postFile(action, fields) {
+      var fd = new FormData();
+      fd.append('action', action);
+      Object.keys(fields).forEach(function (k) { fd.append(k, fields[k]); });
+      try {
+        var res = await fetch(base + '/api/brand.php', { method: 'POST', body: fd, credentials: 'same-origin',
+          headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content, 'X-Requested-With': 'XMLHttpRequest' } });
+        return await res.json();
+      } catch (err) { return { ok: false, error: 'خطأ في الاتصال' }; }
+    },
+
+    /* ── تصميمات بتعجبك ── */
+    async inspUpload(e) {
+      var list = Array.prototype.slice.call(e.target.files || []);
+      if (!list.length) return;
+      this.inspBusy = true;
+      var ok = 0, err = '';
+      for (var i = 0; i < list.length; i++) {
+        var r = await this.postFile('insp_upload', { file: list[i] });
+        if (r.ok) { ok++; this.insp = r.items; } else { err = r.error; break; }
+      }
+      this.inspBusy = false; e.target.value = '';
+      if (err) this.notify(err, ok ? 'warning' : 'danger'); else this.notify('اتضاف ' + ok + (ok === 1 ? ' تصميم' : ' تصميمات') + ' ✓');
+      this.refreshOverview();
+    },
+    async inspLink() {
+      if (!this.inspUrl.trim()) return;
+      this.inspBusy = true;
+      var r = await SpreadAPI.post('brand', 'insp_link', { url: this.inspUrl.trim() });
+      this.inspBusy = false;
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.insp = r.items; this.inspUrl = '';
+      this.notify(r.image ? 'اتضاف ✓' : 'اتحفظ اللينك — مالقيناش صورة فيه، فمش هيظهر كمرجع ستايل', r.image ? 'success' : 'info');
+      this.refreshOverview();
+    },
+    async inspDelete(it) {
+      if (!confirm('تمسح التصميم ده من «بتعجبك»؟')) return;
+      var r = await SpreadAPI.post('brand', 'insp_delete', { id: it.id });
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.insp = r.items;
+      this.refreshOverview();
+    },
+
+    /* ── المساعد: يبدأ من الناقص ── */
+    askItem: function () {
+      var m = this.ov ? this.ov.missing : [];
+      return m.length ? m[this.askSkip % m.length] : null;
+    },
+    skipAsk: function () { this.askSkip++; this.askVal = ''; },
+    async answer() {
+      var it = this.askItem();
+      if (!it || !this.askVal.trim()) return;
+      this.saving = true;
+      var before = this.b.health.pct;
+      var r = await SpreadAPI.post('brand', 'save_field', { field: it.key, value: this.askVal.trim() });
+      this.saving = false;
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.b = r.brand; this.ov = r.overview; this.askVal = ''; this.askSkip = 0;
+      var d = this.b.health.pct - before;
+      this.notify(d > 0 ? 'تمام ✓ · الهوية +' + d + '%' : 'تمام ✓');
+    },
+    async refreshOverview() {
+      var r = await SpreadAPI.get('brand', { action: 'overview' });
+      if (r.ok) this.ov = r.overview;
+    },
+    rsStatus: function (s) { return { done: 'خلص', running: 'شغّال…', failed: 'فشل', queued: 'مستني' }[s] || s; },
 
     // دالة مش getter — petite-vue مش بيقيّم الـ getters صح جوه الـ scope
     logo: function () {
@@ -284,6 +472,7 @@ document.addEventListener('DOMContentLoaded', function () {
       this.b = r.brand;
       this.note = r.note;
       this.url = '';
+      this.refreshOverview();
       if (!r.suggested) this.notify('ماطلعش معلومات جديدة — الكريدت رجعلك', 'info');
     },
     async decide(s, decision, value) {
@@ -293,6 +482,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!r.ok) return this.notify(r.error, 'danger');
       var before = this.b.health.pct;
       this.b = r.brand; this.editing = null;
+      this.refreshOverview();
       if (decision === 'apply') {
         var d = this.b.health.pct - before;
         this.notify(d > 0 ? 'اتضافت للهوية · +' + d + '%' : 'اتحدّثت ✓');
@@ -306,6 +496,7 @@ document.addEventListener('DOMContentLoaded', function () {
       this.busy = false;
       if (!r.ok) return this.notify(r.error, 'danger');
       this.b = r.brand;
+      this.refreshOverview();
       this.notify('اتأكدت ' + r.applied + ' معلومة · الهوية ' + this.b.health.pct + '%' + (this.b.health.pct > before ? ' ↑' : ''));
     },
     async extractColors() {
@@ -313,7 +504,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var r = await SpreadAPI.post('brand', 'logo_colors', {});
       this.busy = false;
       if (!r.ok) return this.notify(r.error, 'danger');
-      this.logoColors = r.colors; this.b = r.brand;
+      this.logoColors = r.colors; this.b = r.brand; this.editKey = '';
+      this.notify('ألوان اللوجو ظهرت فوق في «وجدنا معلومات» — أكّدها ✓');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     },
     async approve() {

@@ -391,8 +391,10 @@ body.v2-auth-page .gbtn:hover { border-color: rgba(12, 135, 239, .35); backgroun
 /* ═══════════════════════════════════════════════════════════
    الرئيسية الجديدة (زي التصميم)
    ═══════════════════════════════════════════════════════════ */
-.dh { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-    grid-template-areas: "act act" "hero camp" "quick month" "recent recent"; align-items: start; }
+/* الترتيب: «حملة غير مكتملة» جنب «يحتاج منك إجراء» فوق — والسلايدر مكان الحملة جنب الترحيب بنفس المقاس */
+.dh { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr) minmax(0, 1fr);
+    grid-template-areas: "camp act act" "hero hero slide" "quick quick month" "recent recent recent"; align-items: start; }
+.dh > .dh-camp, .dh > .dh-act { align-self: stretch; }
 .dh > .card { margin: 0; }
 .dh-title { margin: 0 0 12px; font-size: 18px; font-weight: 700; }
 
@@ -528,7 +530,7 @@ body.v2-auth-page .gbtn:hover { border-color: rgba(12, 135, 239, .35); backgroun
 
 /* ── موبايل: نفس ترتيب التصميم ── */
 @media (max-width: 980px) {
-    .dh { grid-template-columns: 1fr; grid-template-areas: "hero" "brand" "act" "camp" "quick" "recent" "month"; gap: 14px; }
+    .dh { grid-template-columns: 1fr; grid-template-areas: "hero" "brand" "camp" "slide" "act" "quick" "recent" "month"; gap: 14px; }
     .dh-hero { padding: 22px 18px; min-height: 0; }
     .dh-hero h2 { font-size: 24px; }
     .dh-hero p { font-size: 14px; margin-bottom: 16px; }
@@ -1175,3 +1177,45 @@ body.ui-v2 .cp-pop a { color: var(--ink); }
 
 /* 8-ب: حصص الشهر في كارت الباقة */
 .sx-quotas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin-top: 14px; }
+
+/* ═══ الاستوديو: مشاريع لسه مكملتش ═══ */
+.st-drafts { margin-bottom: 18px; }
+.st-drafts .dh-title small { font-weight: 500; font-size: 12.5px; }
+.st-drafts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.st-draft { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.st-draft-open { display: flex; gap: 10px; align-items: center; background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-align: start; cursor: pointer; }
+.st-draft-img { flex: 0 0 64px; width: 64px; height: 64px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: var(--surface-2, #f3f6fa); color: var(--mute); }
+.st-draft-img img { width: 100%; height: 100%; object-fit: cover; }
+.st-draft-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.st-draft-body b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-draft-body small { font-size: 12px; }
+.st-draft-act { display: flex; gap: 6px; justify-content: flex-end; }
+.st-saved { display: inline-block; margin-inline-start: 10px; font-size: 12px; }
+
+
+/* ═══ سلايدر الإعلانات في الرئيسية (مكان الحملة — نفس مقاس الكارت) ═══ */
+.dh-slides { padding: 0; position: relative; overflow: hidden; align-self: stretch; min-height: 250px; display: flex; flex-direction: column; }
+.dh-sl-track { position: relative; flex: 1; display: grid; }
+.dh-sl { grid-area: 1 / 1; display: flex; flex-direction: column; opacity: 0; visibility: hidden; transition: opacity .45s var(--ease), visibility .45s; }
+.dh-sl.on { opacity: 1; visibility: visible; }
+.dh-sl-img { display: block; height: 140px; overflow: hidden; background: var(--surface-2, #f3f6fa); }
+.dh-sl-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dh-sl-ic { margin: 20px 20px 0; width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; font-size: 26px;
+    color: var(--primary); background: var(--grad-soft, #EEF5FB); }
+.dh-sl-body { padding: 14px 20px 34px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.dh-sl-body b { font-size: 16px; line-height: 1.5; }
+.dh-sl-body small { font-size: 13px; color: var(--mute); line-height: 1.7; }
+.dh-sl-body .dh-follow { margin-top: auto; align-self: flex-start; }
+.dh-sl.is-default .dh-sl-body b { color: var(--teal-deep, #0B7E78); }
+.dh-sl-dots { position: absolute; bottom: 4px; inset-inline: 0; display: flex; justify-content: center; gap: 0; }
+/* منطقة لمس 24px (القاعدة العامة للأزرار كانت بتمطّ النقطة) — والنقطة نفسها مرسومة جوّه */
+.dh-sl-dots button { width: 20px; height: 24px; min-height: 24px !important; min-width: 0; border: 0; padding: 0; background: none; cursor: pointer;
+    display: grid; place-items: center; transition: width .25s; }
+.dh-sl-dots button::before { content: ''; width: 8px; height: 8px; border-radius: 999px; background: var(--line, #d6dfea); transition: width .25s, background .25s; }
+.dh-sl-dots button.on { width: 32px; }
+.dh-sl-dots button.on::before { width: 22px; background: var(--primary, #0C87EF); }
+@media (max-width: 980px) {
+    .dh-slides { min-height: 0; }
+    .dh-sl-img { height: 150px; }
+}
+@media (prefers-reduced-motion: reduce) { .dh-sl { transition: none; } }

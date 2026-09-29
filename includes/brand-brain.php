@@ -575,3 +575,249 @@ function brand_to_api(array $brand): array
         ], $sug),
     ];
 }
+
+/* ═══════════ ترتيب بيانات الهوية (الترتيب الأساسي) ═══════════ */
+
+/** المجموعات بالترتيب اللي بتتعرض بيه في Brand Brain */
+function brand_groups(): array
+{
+    return [
+        'basic'    => ['① الأساسيات',            '🏷', 'اسم النشاط ومجاله ووصفه — أول حاجة الـ AI بيقراها'],
+        'audience' => ['② الجمهور والخدمات',     '👥', 'مين عملاءك وبتقدملهم إيه'],
+        'style'    => ['③ أسلوب الكلام',          '🗣', 'النبرة واللهجة والكلمات المميزة'],
+        'visual'   => ['④ الهوية البصرية',        '🎨', 'اللوجو والألوان — كل تصميم بيستخدمهم'],
+        'contact'  => ['⑤ التواصل',               '📞', 'بيظهروا في الـ CTA والمنشورات'],
+        'links'    => ['⑥ الموقع والسوشيال',      '🔗', 'بيساعدوا في التحليل والبحث'],
+    ];
+}
+
+/** نوع حقل الإدخال لكل حقل (للتعديل من جوه Brand Brain) */
+function brand_field_inputs(): array
+{
+    return [
+        'description' => 'textarea', 'audience' => 'textarea', 'services' => 'textarea', 'address' => 'textarea',
+        'tone' => 'select', 'dialect' => 'select', 'logo_path' => 'file',
+        'website' => 'url', 'social_facebook' => 'url', 'social_instagram' => 'url', 'social_tiktok' => 'url', 'social_linkedin' => 'url',
+        'colors' => 'colors',
+    ];
+}
+
+function brand_field_options(): array
+{
+    return [
+        'tone'    => ['simple' => 'بسيط', 'formal' => 'رسمي', 'fun' => 'مرح', 'professional' => 'احترافي'],
+        'dialect' => ['egyptian' => 'مصري', 'khaleeji' => 'خليجي', 'levantine' => 'شامي', 'msa' => 'فصحى'],
+    ];
+}
+
+/** حدود أطوال الأعمدة */
+function brand_field_limits(): array
+{
+    return ['business_name' => 255, 'industry' => 150, 'tone' => 100, 'colors' => 100, 'dialect' => 50,
+            'address' => 500, 'phones' => 300, 'whatsapp' => 50, 'website' => 300, 'working_hours' => 300,
+            'social_facebook' => 300, 'social_instagram' => 300, 'social_tiktok' => 300, 'social_linkedin' => 300,
+            'description' => 3000, 'audience' => 3000, 'services' => 3000, 'keywords_use' => 1000];
+}
+
+/**
+ * حفظ حقل واحد من Brand Brain (تعديل مباشر من غير صفحة تانية) — المصدر بيبقى «مؤكد»
+ * @return array{ok:bool, error:?string}
+ */
+function brand_field_save(array $brand, int $userId, string $field, string $value): array
+{
+    $fields = brand_fields();
+    if (!array_key_exists($field, $fields) || $field === 'logo_path') {
+        return ['ok' => false, 'error' => 'الحقل ده مايتعدّلش من هنا'];
+    }
+    $value = trim(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', $value));
+    $opts = brand_field_options();
+    if (isset($opts[$field]) && $value !== '' && !isset($opts[$field][$value])) {
+        return ['ok' => false, 'error' => 'اختيار مش صحيح'];
+    }
+    if ((brand_field_inputs()[$field] ?? '') === 'url' && $value !== '' && !preg_match('#^https?://#i', $value)) {
+        $value = 'https://' . ltrim($value, '/');
+    }
+    if ($field === 'business_name' && $value === '') {
+        return ['ok' => false, 'error' => 'اسم النشاط مايبقاش فاضي'];
+    }
+    $max = brand_field_limits()[$field] ?? 2000;
+    $value = mb_substr($value, 0, $max);
+    db_run("UPDATE brand_profiles SET `{$field}` = ?, updated_at = NOW() WHERE id = ?", [$value, $brand['id']]);
+    if ($value !== '') {
+        $fresh = brand_for_user($userId);
+        if ($fresh) brand_mark_manual($fresh, $userId, [$field]);
+    }
+    // الاقتراحات القديمة لنفس الحقل بقت مالهاش لازمة
+    db_run('UPDATE brand_facts SET status = "rejected", decided_at = NOW() WHERE brand_profile_id = ? AND field = ? AND status = "suggested"',
+        [$brand['id'], $field]);
+    return ['ok' => true, 'error' => null];
+}
+
+/* ═══════════ تصميمات بتعجبك (إلهام) ═══════════ */
+
+function brand_insp_ensure(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        db()->query('SELECT 1 FROM brand_inspirations LIMIT 1');
+        return $ok = true;
+    } catch (\Throwable $e) {}
+    try {
+        db()->exec("CREATE TABLE IF NOT EXISTS `brand_inspirations` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `brand_profile_id` INT NOT NULL,
+            `user_id` INT NOT NULL,
+            `image_path` VARCHAR(255) NULL,
+            `link_url` VARCHAR(1000) NULL,
+            `note` VARCHAR(300) NULL,
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            KEY `idx_brand` (`brand_profile_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        return $ok = true;
+    } catch (\Throwable $e) {
+        error_log('[brand_inspirations] ' . $e->getMessage());
+        return $ok = false;
+    }
+}
+
+function brand_insp_max(): int
+{
+    return max(4, (int) (function_exists('get_setting') ? get_setting('max_brand_inspirations', 24) : 24));
+}
+
+function brand_insp_list(int $brandId): array
+{
+    if (!brand_insp_ensure()) return [];
+    return array_map(fn($r) => [
+        'id'   => (int) $r['id'],
+        'img'  => $r['image_path'] ? (function_exists('upload_url') ? upload_url($r['image_path']) : null) : null,
+        'link' => (string) ($r['link_url'] ?? ''),
+        'note' => (string) ($r['note'] ?? ''),
+        'ref'  => $r['image_path'] ? 'insp:' . (int) $r['id'] : null,
+    ], db_all('SELECT * FROM brand_inspirations WHERE brand_profile_id = ? ORDER BY id DESC LIMIT 60', [$brandId]));
+}
+
+/** حفظ صورة (بايتات) في مجلد الإلهام بعد التأكد إنها صورة فعلًا */
+function brand_insp_store_bytes(string $bin): ?string
+{
+    if ($bin === '' || strlen($bin) > 6 * 1024 * 1024) return null;
+    $info = @getimagesizefromstring($bin);
+    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'][$info['mime'] ?? ''] ?? null;
+    if (!$ext) return null;
+    $dir = UPLOADS_PATH . '/brand-images';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $name = 'insp-' . bin2hex(random_bytes(10)) . '.' . $ext;
+    if (!@file_put_contents($dir . '/' . $name, $bin)) return null;
+    return 'uploads/brand-images/' . $name;
+}
+
+/**
+ * لينك تصميم عاجبه (Behance · Pinterest · إنستجرام · صورة مباشرة):
+ * لو صورة بنحفظها — لو صفحة بنجيب صورتها الرئيسية (og:image) — ولو مالقيناش بنحفظ اللينك بس
+ * @return array{ok:bool, error:?string, image:bool}
+ */
+function brand_insp_add_link(array $brand, int $userId, string $url, string $note = ''): array
+{
+    if (!brand_insp_ensure()) return ['ok' => false, 'error' => 'الميزة مش متاحة دلوقتي', 'image' => false];
+    $url = trim($url);
+    if (!preg_match('#^https?://#i', $url)) $url = 'https://' . ltrim($url, '/');
+    if (!filter_var($url, FILTER_VALIDATE_URL)) return ['ok' => false, 'error' => 'الرابط مش صحيح', 'image' => false];
+    $path = null;
+    $g = safe_http_get($url, 3000000, 10, 3);
+    if ($g['ok']) {
+        if (stripos($g['content_type'], 'image/') === 0) {
+            $path = brand_insp_store_bytes($g['body']);
+        } elseif (preg_match('/<meta[^>]+(?:property|name)=["\'](?:og:image(?::secure_url)?|twitter:image)["\'][^>]*>/i', $g['body'], $m)
+                  && preg_match('/content=["\']([^"\']+)["\']/i', $m[0], $c)) {
+            $img = html_entity_decode($c[1], ENT_QUOTES);
+            if (strpos($img, '//') === 0) $img = 'https:' . $img;
+            elseif (!preg_match('#^https?://#i', $img)) $img = rtrim($g['final_url'], '/') . '/' . ltrim($img, '/');
+            $gi = safe_http_get($img, 6000000, 10, 3);
+            if ($gi['ok']) $path = brand_insp_store_bytes($gi['body']);
+        }
+    }
+    db_insert('INSERT INTO brand_inspirations (brand_profile_id, user_id, image_path, link_url, note) VALUES (?,?,?,?,?)',
+        [$brand['id'], $userId, $path, mb_substr($url, 0, 1000), $note !== '' ? mb_substr($note, 0, 300) : null]);
+    return ['ok' => true, 'error' => null, 'image' => (bool) $path];
+}
+
+function brand_insp_add_upload(array $brand, int $userId, array $file, string $note = ''): array
+{
+    if (!brand_insp_ensure()) return ['ok' => false, 'error' => 'الميزة مش متاحة دلوقتي'];
+    if (!function_exists('upload_image')) require_once __DIR__ . '/uploader.php';
+    $up = upload_image($file, 'brand-images');
+    if (!$up['ok']) return ['ok' => false, 'error' => $up['error']];
+    db_insert('INSERT INTO brand_inspirations (brand_profile_id, user_id, image_path, note) VALUES (?,?,?,?)',
+        [$brand['id'], $userId, $up['path'], $note !== '' ? mb_substr($note, 0, 300) : null]);
+    return ['ok' => true, 'error' => null];
+}
+
+function brand_insp_count(int $brandId): int
+{
+    if (!brand_insp_ensure()) return 0;
+    return (int) (db_one('SELECT COUNT(*) n FROM brand_inspirations WHERE brand_profile_id = ?', [$brandId])['n'] ?? 0);
+}
+
+function brand_insp_delete(array $brand, int $id): bool
+{
+    if (!brand_insp_ensure()) return false;
+    $r = db_one('SELECT * FROM brand_inspirations WHERE id = ? AND brand_profile_id = ?', [$id, $brand['id']]);
+    if (!$r) return false;
+    db_run('DELETE FROM brand_inspirations WHERE id = ?', [$id]);
+    if ($r['image_path'] && function_exists('delete_upload')) delete_upload($r['image_path']);
+    return true;
+}
+
+/* ═══════════ نظرة عامة: البحث العميق + المساعد ═══════════ */
+
+/**
+ * «اللي اتعمل» في الهوية لحد دلوقتي + الأسئلة الناقصة بالترتيب (المساعد بيبدأ منها)
+ */
+function brand_overview(array $brand, int $userId): array
+{
+    $h = brand_health($brand);
+    $fields = brand_fields();
+    $filled = [];
+    $missing = [];
+    foreach ($fields as $k => [$label, $w, $group, $q]) {
+        if (brand_filled($brand[$k] ?? '')) {
+            $filled[] = $label;
+        } elseif ($q !== '' && $k !== 'logo_path') {
+            $missing[] = ['key' => $k, 'label' => $label, 'question' => $q, 'group' => $group, 'weight' => $w,
+                          'input' => brand_field_inputs()[$k] ?? 'text', 'options' => brand_field_options()[$k] ?? null];
+        }
+    }
+    // التواصل والروابط: سؤال واحد لكل مجموعة لو كلها فاضية
+    foreach (['contact' => ['phones', 'رقم التواصل مع عملاءك إيه؟'], 'links' => ['website', 'عندك موقع أو صفحة؟ حط الرابط']] as $g => [$f, $q]) {
+        if (in_array($g, $h['filled'], true)) continue;
+        $missing[] = ['key' => $f, 'label' => $fields[$f][0], 'question' => $q, 'group' => $g, 'weight' => brand_group_weights()[$g]['weight'],
+                      'input' => brand_field_inputs()[$f] ?? 'text', 'options' => null];
+    }
+    // الترتيب الأساسي: حسب ترتيب المجموعات (الأساسيات الأول) — مش حسب الوزن
+    $order = array_flip(array_keys(brand_groups()));
+    usort($missing, fn($a, $b) => [$order[$a['group']] ?? 9, -$a['weight']] <=> [$order[$b['group']] ?? 9, -$b['weight']]);
+
+    $researches = [];
+    try {
+        foreach (db_all('SELECT id, title, question, status, completed_at, created_at, brain_json FROM researches
+                         WHERE user_id = ? AND status <> "draft" ORDER BY id DESC LIMIT 5', [$userId]) as $r) {
+            $b = json_decode((string) ($r['brain_json'] ?? ''), true) ?: [];
+            $researches[] = ['id' => (int) $r['id'], 'title' => (string) ($r['title'] ?: $r['question']), 'status' => (string) $r['status'],
+                             'in_brain' => !empty($b['cats']) || !empty($b['opps']),
+                             'ago' => function_exists('ui_time_ago') ? ui_time_ago($r['completed_at'] ?: $r['created_at']) : ''];
+        }
+    } catch (\Throwable $e) { /* جدول الأبحاث مش موجود */ }
+    $sources = (int) (db_one('SELECT COUNT(*) n FROM brand_sources WHERE brand_profile_id = ?', [$brand['id']])['n'] ?? 0);
+    $pending = (int) (db_one('SELECT COUNT(*) n FROM brand_facts WHERE brand_profile_id = ? AND status = "suggested"', [$brand['id']])['n'] ?? 0);
+    return [
+        'done' => [
+            'pct' => $h['pct'], 'filled' => count($h['filled']), 'total' => count($h['filled']) + count($h['missing']),
+            'filled_labels' => array_slice($filled, 0, 12), 'sources' => $sources, 'pending' => $pending,
+            'inspirations' => brand_insp_count((int) $brand['id']), 'researches' => count($researches),
+            'approved' => !empty($brand['brand_approved_at']), 'summary' => mb_substr((string) ($brand['ai_summary'] ?? ''), 0, 400),
+        ],
+        'missing' => $missing,
+        'researches' => $researches,
+    ];
+}

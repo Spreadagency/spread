@@ -111,7 +111,7 @@ function api_action(): string
  * تهيئة: جلسة + تسجيل دخول + CSRF + حد الطلبات + معالج أخطاء
  * @return array المستخدم الحالي
  */
-function api_boot(bool $requireAuth = true): array
+function api_boot(bool $requireAuth = true, bool $keepSession = false): array
 {
     set_exception_handler(function (\Throwable $e) {
         error_log('[api] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
@@ -152,6 +152,12 @@ function api_boot(bool $requireAuth = true): array
     $key = 'u' . ($user['id'] ?? ('ip' . ($_SERVER['REMOTE_ADDR'] ?? '')));
     if (!rate_limit('api', $key, max(10, $limit), 60)) {
         api_fail('طلبات كتير بسرعة — استنى لحظة', 'rate_limit', 429);
+    }
+
+    // الـ API مابيكتبش في الجلسة (غير الإعدادات وتوليد الحملة بالدفعات) — نفك القفل
+    // علشان طلب AI طويل مايوقّفش باقي صفحات العميل
+    if (!$keepSession && function_exists('session_release')) {
+        session_release();
     }
 
     return $user;

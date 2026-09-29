@@ -9,9 +9,11 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/credits.php';
 require_once __DIR__ . '/../../includes/ai.php';
 require_once __DIR__ . '/../../includes/rate-limit.php';
+require_once __DIR__ . '/../../includes/brand-brain.php';
 
 require_login();
 require_csrf();
+session_release();   // العملية طويلة — مانقفلش باقي صفحات العميل لحد ما تخلص
 decode_b64_fields();
 
 $user = current_user();
@@ -19,11 +21,44 @@ $action = $_POST['action'] ?? 'load';
 
 const AGENT_GREETING = "أهلًا بيك! 👋 أنا مساعد الهوية — هسألك شوية أسئلة بسيطة وأظبطلك هوية براندك كاملة على المنصة.\n\nخلينا نبدأ: **إيه اسم البيزنس بتاعك، وشغال في أنهي مجال؟** (مثلًا: عيادة أسنان، مطعم، براند ملابس...)";
 
+/**
+ * أول رسالة: ملخص اللي اتعمل في الهوية + يبدأ من أول معلومة ناقصة (بالترتيب الأساسي)
+ * — مش بيسأل من الأول عن حاجات العميل كاتبها قبل كده
+ */
+function agent_greeting(int $userId): string
+{
+    $brand = brand_for_user($userId);
+    if (!$brand || !brand_filled($brand['business_name'] ?? '')) {
+        return AGENT_GREETING;
+    }
+    $ov = brand_overview($brand, $userId);
+    $known = [];
+    foreach (brand_fields() as $k => [$label, $w]) {
+        if (!brand_filled($brand[$k] ?? '') || $k === 'logo_path') continue;
+        $v = trim(preg_replace('/\s+/u', ' ', (string) $brand[$k]));
+        $v = brand_field_options()[$k][$v] ?? $v;
+        $known[] = '• ' . $label . ': ' . (mb_strlen($v) > 70 ? mb_substr($v, 0, 70) . '…' : $v);
+        if (count($known) >= 8) break;
+    }
+    $d = $ov['done'];
+    $msg = "أهلًا بيك تاني! 👋 ده ملخص اللي اتعمل في هوية **" . $brand['business_name'] . "** لحد دلوقتي (" . $d['pct'] . "%):\n"
+        . implode("\n", $known)
+        . ($d['researches'] ? "\n• أبحاث عميقة: " . $d['researches'] : '')
+        . ($d['inspirations'] ? "\n• تصميمات بتعجبك: " . $d['inspirations'] : '')
+        . ($d['sources'] ? "\n• ملفات ومصادر: " . $d['sources'] : '');
+    if (!$ov['missing']) {
+        return $msg . "\n\n✅ كل المعلومات الأساسية موجودة. تحب نعدّل حاجة أو نضيف تفاصيل زيادة (قواعد التصميم · كلمات ممنوعة)؟";
+    }
+    $labels = array_map(fn($m) => $m['label'], array_slice($ov['missing'], 0, 4));
+    return $msg . "\n\nفاضل: " . implode('، ', $labels) . (count($ov['missing']) > 4 ? '…' : '')
+        . "\n\nخلينا نكمّل من الناقص: **" . $ov['missing'][0]['question'] . "**";
+}
+
 function agent_session(int $userId): array
 {
     $s = db_one('SELECT * FROM agent_sessions WHERE user_id = ? AND status = "active" ORDER BY id DESC LIMIT 1', [$userId]);
     if (!$s) {
-        $messages = [['role' => 'assistant', 'content' => AGENT_GREETING]];
+        $messages = [['role' => 'assistant', 'content' => agent_greeting($userId)]];
         $id = db_insert(
             'INSERT INTO agent_sessions (user_id, messages) VALUES (?, ?)',
             [$userId, json_encode($messages, JSON_UNESCAPED_UNICODE)]
@@ -44,6 +79,11 @@ function agent_save(int $sessionId, array $messages, string $status = 'active'):
 // ═══ load: رجّع المحادثة الحالية ═══
 if ($action === 'load') {
     $s = agent_session((int) $user['id']);
+    // محادثة لسه مابدأتش (التحية بس): نحدّث التحية باللي اتعمل في الهوية دلوقتي
+    if (count($s['messages']) === 1 && ($s['messages'][0]['role'] ?? '') === 'assistant') {
+        $s['messages'] = [['role' => 'assistant', 'content' => agent_greeting((int) $user['id'])]];
+        agent_save($s['id'], $s['messages']);
+    }
     json_response(['ok' => true, 'messages' => $s['messages'], 'status' => $s['status']]);
 }
 
@@ -78,7 +118,21 @@ foreach ($messages as $m) {
     $transcript .= ($m['role'] === 'user' ? "العميل: " : "المساعد: ") . $m['content'] . "\n\n";
 }
 
+// اللي معروف والناقص (بالترتيب الأساسي) — المساعد مايسألش عن حاجة موجودة
+$__brand = brand_for_user((int) $user['id']);
+$__known = [];
+$__missing = [];
+if ($__brand) {
+    foreach (brand_fields() as $k => [$label]) {
+        if ($k === 'logo_path') continue;
+        if (brand_filled($__brand[$k] ?? '')) $__known[] = '- ' . $label . ': ' . mb_substr(trim((string) $__brand[$k]), 0, 200);
+    }
+    foreach (brand_overview($__brand, (int) $user['id'])['missing'] as $m) $__missing[] = $m['label'];
+}
+
 $system = "أنت «مساعد الهوية» — خبير استراتيجية براندات مصري ودود على منصة محتوى بالذكاء الاصطناعي. مهمتك تبني هوية العميل بالكامل عبر المحادثة.\n\n"
+    . ($__known ? "المعلومات الموجودة فعلًا في هوية العميل (ماتسألش عنها تاني إلا لو طلب يعدّلها):\n" . implode("\n", $__known) . "\n\n" : '')
+    . ($__missing ? "المعلومات الناقصة — ابدأ منها بالترتيب ده: " . implode('، ', $__missing) . "\n\n" : '')
     . "القواعد:\n"
     . "1. اسأل سؤال واحد بس في كل رد — قصير وواضح بالعامية المصرية، وممكن تدي مثال يساعده.\n"
     . "2. لازم تجمع بالترتيب: اسم البيزنس والمجال، وصف النشاط وأهم الخدمات/المنتجات، الجمهور المستهدف، نبرة الكلام (رسمي/ودود/شبابي...)، الألوان المفضلة، اللهجة (مصري/فصحى/خليجي)، كلمات أو عبارات يحب تظهر، كلمات ممنوعة، شروط التصميم (مكان اللوجو، ألوان ممنوعة، الستايل).\n"

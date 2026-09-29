@@ -9,6 +9,7 @@ require_once __DIR__ . '/ui-v2.php';
 if (is_file(__DIR__ . '/lifecycle.php')) require_once __DIR__ . '/lifecycle.php';
 if (is_file(__DIR__ . '/brand-brain.php')) require_once __DIR__ . '/brand-brain.php';
 if (is_file(__DIR__ . '/social.php')) require_once __DIR__ . '/social.php';   // feature_allows
+require_once __DIR__ . '/announcements.php';   // سلايدر الإعلانات (مكان «حملة غير مكتملة» القديم)
 
 function dash_safe(callable $fn, $fallback)
 {
@@ -125,5 +126,7 @@ function dashboard_v2_data(array $user): array
         'month'    => ['posts' => (int) ($month['posts'] ?? 0), 'designs' => (int) ($month['designs'] ?? 0),
                        'active' => (int) ($month['active'] ?? 0), 'usage' => $usage],
         'recent'   => $recent,
+        // سلايدر الإعلانات: إعلانات الأدمن (للكل أو لباقة العميل) + الأساسي «تواصل مع خدمة العملاء»
+        'slides'   => dash_safe(fn() => ann_slides_for_user($uid), [ann_default_slide()]),
     ];
 }

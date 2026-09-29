@@ -66,6 +66,19 @@ function csrf_token(): string
     return $_SESSION['csrf'];
 }
 
+/**
+ * فك قفل الجلسة قبل العمليات الطويلة (توليد AI · تصميم · بحث)
+ * PHP بيقفل ملف الجلسة طول الطلب — فطلب تصميم بياخد دقيقة كان بيوقّف أي صفحة تانية
+ * لنفس العميل لحد ما يخلص («السيستم كله بيقف» على Apache). القراءة من $_SESSION بتفضل شغالة بعدها.
+ */
+function session_release(): void
+{
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        csrf_token();   // نتأكد إن التوكن متسجّل قبل القفل
+        session_write_close();
+    }
+}
+
 function csrf_field(): string
 {
     return '<input type="hidden" name="csrf" value="' . e(csrf_token()) . '">';

@@ -92,12 +92,11 @@ function ui_sections(): array
             ['استوديو التصميم', 'design-studio.php', 'design-studio', 'design-studio'],
             ['معرض الإلهام', 'studio.php', 'studio', 'studio'],
         ]],
-        // ⑦-ب البحث العميق (الأدمن يقدر يقفله أو يخبّيه من القائمة)
-        'research' => ['البحث العميق', 'research', 'research.php', ['research'], []],
         'analytics' => ['التحليلات', 'chart', 'analytics.php', ['analytics'], []],
-        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources'], [
+        // ⑦-ب البحث العميق: صفحة مستقلة زي ما هي — بس جوه Brand Brain (بيقرا الهوية وبيسجّل فيها)
+        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources', 'research'], [
             ['Brand Brain', 'brand-brain.php', 'brand-brain', null],
-            ['بيانات الهوية', 'brand-profile.php', 'brand', 'brand-profile'],
+            ['البحث العميق', 'research.php', 'research', 'research'],
             ['المساعد الذكي', 'brand-agent.php', 'brand-agent', 'brand-agent'],
             ['المستندات', 'sources.php', 'sources', 'sources'],
         ]],
@@ -143,7 +142,8 @@ function ui_subtabs(string $section): array
     if (!$s) return [];
     return array_values(array_filter($s[4], fn($t) =>
         ($t[3] === null || !function_exists('menu_visible') || menu_visible($t[3]))
-        && !($t[2] === 'campaigns' && !ui_campaigns_on())));
+        && !($t[2] === 'campaigns' && !ui_campaigns_on())
+        && !($t[2] === 'research' && !ui_research_on())));
 }
 
 /* ═══════════ نسبة الاستخدام ═══════════ */
@@ -242,15 +242,14 @@ function ui_notifications(int $userId): array
         'sub' => $u['days_left'] !== null ? (($show ? 'بتنتهي' : 'بتتجدد') . ' بعد ' . $u['days_left'] . ' يوم') : ('استخدمت ' . $u['pct'] . '%'),
     ];
 
-    // ③ إعلان سريع (آخر إعلان نشط)
+    // ③ إعلان سريع (آخر إعلان شغال للعميل — بيحترم «لكل العملاء / لباقة معيّنة»)
     try {
-        $a = db_one('SELECT * FROM announcements WHERE is_active = 1
-                     AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at >= NOW())
-                     ORDER BY sort_order ASC, id DESC LIMIT 1');
-        if ($a) {
+        require_once __DIR__ . '/announcements.php';
+        foreach (ann_slides_for_user($userId) as $a) {
+            if (!empty($a['default'])) continue;
             $items[] = ['type' => 'announcement', 'icon' => 'megaphone', 'tone' => 'brand',
-                        'url' => $a['link_url'] ?: '', 'title' => (string) $a['title'],
-                        'sub' => mb_substr(trim(strip_tags((string) $a['body'])), 0, 90)];
+                        'url' => $a['url'], 'title' => $a['title'], 'sub' => mb_substr($a['body'], 0, 90)];
+            break;
         }
     } catch (\Throwable $e) { /* مفيش جدول إعلانات */ }
 

@@ -9,6 +9,7 @@
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
+if (is_file(__DIR__ . '/../includes/ai-gateway.php')) require_once __DIR__ . '/../includes/ai-gateway.php';   // حالة البوابة (البحث العميق)
 
 require_admin();
 if (function_exists('admin_can') && !admin_can('site_settings')) {
@@ -129,6 +130,10 @@ if ($plansReady) {
     $feat[] = ['8-ب', 'باقات ليها حصص', $pq > 0 ? true : null, $pq . ' باقة مفعّلة'];
 }
 $feat[] = ['8-ج', 'مركز الإعدادات وسجل التغييرات', $tbl('settings_audit') ? true : false, $tbl('settings_audit') ? 'شغال' : 'مستني ترحيل 8-ج'];
+$feat[] = ['9', 'مشاريع الاستوديو اللي لسه مكملتش · تصميمات بتعجبك', $tbl('studio_drafts') && $tbl('brand_inspirations') ? true : null,
+    $tbl('studio_drafts') && $tbl('brand_inspirations') ? 'شغال' : 'بيتعمل تلقائيًا أول استخدام — أو شغّل ترحيل 9'];
+$feat[] = ['9', 'البحث العميق على الـ Smart Router', function_exists('ai_gw_enabled') && ai_gw_enabled() ? true : null,
+    function_exists('ai_gw_enabled') && ai_gw_enabled() ? 'شغال' : 'البحث متوقف لحد ما البوابة تشتغل من «الموديلات والـ Router» (المسار القديم اتشال من البحث)'];
 $optedIn = 0;
 try { $optedIn = (int) (db_one('SELECT COUNT(*) n FROM users WHERE ui_pref = "v2"')['n'] ?? 0); } catch (\Throwable $e) {}
 $modeLbl = ['off' => '🔒 مقفولة', 'optin' => '🧪 تجريبية', 'all' => '🚀 للكل'][$mode] ?? 'مش متحددة';

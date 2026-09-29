@@ -21,7 +21,7 @@ require_once __DIR__ . '/../../includes/social.php';
 require_once __DIR__ . '/../../includes/campaign-flow.php';
 require_once __DIR__ . '/../../includes/brand-brain.php';
 
-$user = api_boot();
+$user = api_boot(true, true);   // بيكتب في الجلسة
 $uid = (int) $user['id'];
 $action = api_action() ?: 'board';
 

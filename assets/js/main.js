@@ -348,8 +348,12 @@ window.safeFormData = function (fd, fields) {
     if (!max || max < 40 || !el.parentNode) return;
     var c = counterFor(el);
     var n = el.value.length;
-    c.textContent = n + ' / ' + max;
-    c.classList.toggle('near', n > max * 0.9);
+    var txt = n + ' / ' + max;
+    // نكتب بس لو اتغيّر: الكتابة بتعمل mutation، والـ MutationObserver بتاع SpreadApp.mount
+    // كان بيرجع يعدّ تاني ← لفّة لا نهائية كل 30ms بتتقّل الصفحة
+    if (c.textContent !== txt) c.textContent = txt;
+    var near = n > max * 0.9;
+    if (c.classList.contains('near') !== near) c.classList.toggle('near', near);
   }
   window.spreadRecountChars = function (root) {
     (root || document).querySelectorAll(SEL).forEach(upd);

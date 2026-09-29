@@ -9,6 +9,10 @@
  *   GET  ?action=size_hint&text=               المقاس اللي العميل كتبه (لو فيه) — من غير AI
  *   GET  ?action=trends                        الترندات الشغالة + «مناسب لبراندك %»
  *   POST action=trend_ideas {trend_id}         3 أفكار بالـ AI بتفصّل الترند على البراند
+ *   GET  ?action=drafts | ?action=draft&id=    المشاريع اللي لسه مكملتش (مسودات)
+ *   POST action=draft_save {id?, title, method, step, design_id?, state}   حفظ تلقائي للمشروع
+ *   POST action=draft_file (multipart: id, slot, file)                     صورة المشروع بتترفع أول ما تتختار
+ *   POST action=draft_delete {id}
  *
  * التوليد نفسه لسه في ajax/studio-design.php (الكريدت · حد المحاولات · العلامة المائية · سجل الـ AI)
  */
@@ -19,6 +23,7 @@ if (is_file(__DIR__ . '/../../includes/brand-brain.php')) require_once __DIR__ .
 require_once __DIR__ . '/../../includes/studio-config.php';
 require_once __DIR__ . '/../../includes/trends.php';
 require_once __DIR__ . '/../../includes/social.php';   // feature_allows · user_connections · default_publish_hour
+require_once __DIR__ . '/../../includes/studio-drafts.php';   // المشاريع اللي لسه مكملتش
 
 // منشور اتسلّم لفيسبوك (منشور · متجدول هناك · بيتبعت دلوقتي) — الاستوديو مايعدّلوش ولا يعيد نشره
 const STUDIO_POST_LOCKED = ['published', 'scheduled', 'processing'];
@@ -106,6 +111,12 @@ switch ($action) {
             if (!empty($brand['personal_image_path'])) {
                 $refs[] = ['ref' => 'personal', 'src' => upload_url($brand['personal_image_path']), 'tag' => 'صورتك الشخصية'];
             }
+            // تصميمات بتعجبك (من Brand Brain) — مرجع ستايل جاهز
+            if ($brand && function_exists('brand_insp_list')) {
+                foreach (array_slice(array_filter(brand_insp_list((int) $brand['id']), fn($x) => $x['ref']), 0, 12) as $ins) {
+                    $refs[] = ['ref' => $ins['ref'], 'src' => $ins['img'], 'tag' => 'بتعجبك'];
+                }
+            }
             foreach (db_all('SELECT m.id, m.image_path, m.image_url FROM user_media_selections s
                              JOIN media_library m ON m.id = s.media_id AND m.is_active = 1
                              WHERE s.user_id = ? ORDER BY s.id DESC LIMIT 12', [$uid]) as $f) {
@@ -135,7 +146,64 @@ switch ($action) {
             'methods' => array_map(fn($m) => array_merge(array_diff_key($m, ['prompt' => 1, 'uploads' => 1]), [
                 'uploads' => array_map(fn($u) => ['label' => $u['label'], 'required' => $u['required']], $m['uploads']),
             ]), studio_methods(true)),
+            'drafts'  => studio_drafts_list($uid),
         ]);
+
+    /* ── المشاريع اللي لسه مكملتش ── */
+    case 'drafts':
+        api_ok(['drafts' => studio_drafts_list($uid)]);
+
+    case 'draft':
+        $d = studio_draft_get(api_int('id'), $uid);
+        if (!$d) api_fail('المشروع ده مش موجود', 'not_found', 404);
+        $files = [];
+        foreach (studio_draft_files($d) as $slot => $path) $files[$slot] = upload_url($path);
+        api_ok(['draft' => studio_draft_row($d) + [
+            'state' => json_decode((string) $d['state_json'], true) ?: new \stdClass(),
+            'files' => $files ?: new \stdClass(),
+            'design_id' => $d['design_id'] ? (int) $d['design_id'] : null,
+        ]]);
+
+    case 'draft_save':
+        if (!studio_drafts_ensure()) api_fail('الحفظ التلقائي مش متاح دلوقتي', 'unavailable', 503);
+        if (!rate_limit('studio_draft', 'u' . $uid, 240, 600)) api_fail('حفظ كتير بسرعة', 'rate_limit', 429);
+        $in = api_input();
+        $state = json_encode(is_array($in['state'] ?? null) ? $in['state'] : [], JSON_UNESCAPED_UNICODE);
+        if (strlen($state) > STUDIO_DRAFT_STATE_MAX) api_fail('المشروع كبير جدًا للحفظ', 'too_big', 413);
+        $title = mb_substr(trim(preg_replace('/\s+/u', ' ', api_str('title', 300))), 0, 160);
+        $method = preg_replace('/[^a-z0-9_\-]/i', '', api_str('method', 40));
+        $step = in_array(api_str('step', 16), ['input', 'brief', 'result'], true) ? api_str('step', 16) : 'input';
+        $designId = api_int('design_id');
+        if ($designId && !db_one('SELECT id FROM studio_designs WHERE id = ? AND user_id = ?', [$designId, $uid])) $designId = 0;
+        $id = api_int('id');
+        if ($id && studio_draft_get($id, $uid)) {
+            db_run('UPDATE studio_drafts SET title = ?, method = ?, step = ?, state_json = ?, design_id = ? WHERE id = ? AND user_id = ?',
+                [$title, $method, $step, $state, $designId ?: null, $id, $uid]);
+        } else {
+            $id = db_insert('INSERT INTO studio_drafts (user_id, title, method, step, state_json, design_id) VALUES (?,?,?,?,?,?)',
+                [$uid, $title, $method, $step, $state, $designId ?: null]);
+            // الأقدم من الحد بيتمسح
+            $old = db_all('SELECT id FROM studio_drafts WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT 100 OFFSET ' . STUDIO_DRAFTS_MAX, [$uid]);
+            foreach ($old as $o) studio_draft_delete((int) $o['id'], $uid);
+        }
+        api_ok(['id' => (int) $id]);
+
+    case 'draft_file':
+        $d = studio_draft_get(api_int('id'), $uid);
+        if (!$d) api_fail('احفظ المشروع الأول', 'not_found', 404);
+        $slot = preg_replace('/[^a-z0-9_]/i', '', api_str('slot', 20));
+        if ($slot === '' || empty($_FILES['file']['name'])) api_fail('مفيش صورة', 'empty', 422);
+        if (!rate_limit('upload_image', 'u' . $uid, 30, 600)) api_fail('رفعت صور كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        $up = upload_image($_FILES['file'], 'references');
+        if (!$up['ok']) api_fail($up['error'], 'upload', 422);
+        $files = studio_draft_files($d);
+        $files[$slot] = $up['path'];
+        db_run('UPDATE studio_drafts SET files_json = ? WHERE id = ? AND user_id = ?', [json_encode($files), $d['id'], $uid]);
+        api_ok(['slot' => $slot, 'url' => upload_url($up['path'])]);
+
+    case 'draft_delete':
+        studio_draft_delete(api_int('id'), $uid);
+        api_ok(['deleted' => true]);
 
     case 'size_hint':
         $r = studio_ratio_from_text(api_str('text', 1500));
@@ -298,6 +366,8 @@ switch ($action) {
     /* ── «اعتماد» ← منشور في المكتبة ── */
     case 'to_post':
         $r = api_own('studio_designs', api_int('id'), $uid);
+        // المشروع خلص (اتحفظ في المحتويات / رايح للنشر) — مايفضلش في «لسه مكملتش»
+        studio_drafts_complete_design((int) $r['id'], $uid);
         // اتحوّل قبل كده — مانكررش. لو الكابشن اتعدّل ولسه ماتنشرش، نحدّثه (بنسخة جديدة في سجل النسخ)
         $existing = !empty($r['content_id'])
             ? db_one('SELECT id, publish_status, generated_text FROM contents WHERE id = ? AND user_id = ?', [$r['content_id'], $uid]) : null;

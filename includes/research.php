@@ -8,10 +8,9 @@
  * التنفيذ على خطوات (كل خطوة = طلب واحد من الواجهة) علشان مانوقعش في timeout على الاستضافة:
  *   فهم السؤال · تحديد النطاق (فوري) ← بحث ويب لكل محور ← تحليل منظّم ← استخراج الفرص ← كتابة التقرير
  *
- * محرك البحث (من نفس مفتاح الـ AI):
- *   OpenRouter  → plugins: web  (annotations: url_citation)
- *   OpenAI      → gpt-4o-mini-search-preview + web_search_options
- *   Perplexity  → sonar (citations / search_results)
+ * محرك البحث: الـ Smart Router بس (البوابة الموحدة — مهمة «بحث الويب» ومهمة «تحليل البحث»)
+ *   والـ Router هو اللي بيختار المزود: OpenRouter (plugins: web) · OpenAI (search-preview) · Perplexity (sonar)
+ *   المسار القديم (مفتاح الإعدادات مباشرة) مابقاش بيتستخدم في البحث.
  */
 
 require_once __DIR__ . '/db.php';
@@ -195,36 +194,38 @@ function research_default_title(string $type, string $question, array $s): strin
 
 /* ═══════════ محرك البحث ═══════════ */
 
-/** المحرك المتاح من إعدادات الـ AI: mode = openrouter | openai | perplexity | none */
+/**
+ * المحرك المتاح: البحث العميق شغال على مسار الـ Smart Router بس
+ * (البوابة الموحدة — «الموديلات والـ Router» في الإدارة: مهام «بحث الويب» و«تحليل البحث»).
+ * المسار القديم (استدعاء مباشر بمفتاح الإعدادات) اتشال — مفيش بحث من بره الـ Router.
+ */
 function research_engine(): array
 {
-    // 8-أ: البوابة شغالة → المتاح هو سلسلة «بحث الويب»
-    if (function_exists('ai_gw_enabled') && ai_gw_enabled()) {
-        $chain = ai_gw_chain('research_search', ['customer_data' => true]);
-        if (!$chain) {
-            return ['mode' => 'none', 'ok' => false, 'msg' => 'البحث في الويب مش متاح حاليًا — كلّم الإدارة'];
-        }
-        return ['mode' => 'gateway', 'ok' => true, 'model' => $chain[0]['m'], 'key' => '', 'url' => '', 'msg' => '',
-                'chain' => array_map(fn($c) => $c['p']['name'] . ' · ' . $c['m'], $chain)];
+    if (!function_exists('ai_gw_enabled')) {
+        @include_once __DIR__ . '/ai-gateway.php';
     }
-    $c = ai_effective_credentials();
-    if (($c['key'] ?? '') === '') {
-        return ['mode' => 'none', 'ok' => false, 'msg' => 'محرك الذكاء الاصطناعي مش مضبوط — كلّم الإدارة'];
+    if (!function_exists('ai_gw_enabled') || !ai_gw_enabled()) {
+        return ['mode' => 'none', 'ok' => false, 'msg' => 'البحث العميق شغّال على الـ Smart Router بس — الإدارة لازم تشغّله من «الموديلات والـ Router»'];
     }
-    $url = strtolower((string) $c['url']);
-    $prov = strtolower((string) $c['provider']);
-    $custom = trim((string) get_setting('research_model', ''));
-    if (str_contains($url, 'perplexity') || $prov === 'perplexity') {
-        $mode = 'perplexity'; $model = $custom ?: 'sonar';
-    } elseif (str_contains($url, 'api.openai.com') || $prov === 'openai') {
-        // chat/completions عند OpenAI بيقبل البحث (web_search_options) مع موديلات الـ search بس
-        $mode = 'openai'; $model = ($custom !== '' && str_contains(strtolower($custom), 'search')) ? $custom : 'gpt-4o-mini-search-preview';
-    } elseif (str_contains($url, 'openrouter') || $prov === 'openrouter') {
-        $mode = 'openrouter'; $model = $custom ?: (get_setting('ai_model', defined('AI_MODEL') ? AI_MODEL : '') ?: 'openai/gpt-4o-mini');
-    } else {
-        return ['mode' => 'none', 'ok' => false, 'msg' => 'البحث في الويب محتاج OpenRouter أو OpenAI أو Perplexity — موفّر الـ AI الحالي مش بيدعمه'];
+    $chain = ai_gw_chain('research_search', ['customer_data' => true]);
+    if (!$chain) {
+        return ['mode' => 'none', 'ok' => false, 'msg' => 'البحث في الويب مش متاح حاليًا في الـ Smart Router — كلّم الإدارة'];
     }
-    return ['mode' => $mode, 'ok' => true, 'model' => $model, 'key' => $c['key'], 'url' => $c['url'], 'msg' => ''];
+    return ['mode' => 'gateway', 'ok' => true, 'model' => $chain[0]['m'], 'key' => '', 'url' => '', 'msg' => '',
+            'chain' => array_map(fn($c) => $c['p']['name'] . ' · ' . $c['m'], $chain)];
+}
+
+/** تحليل/فرص البحث — عن طريق الـ Smart Router بس (مهمة «تحليل البحث») */
+function research_ai(string $prompt, int $maxTokens, string $task, array $ctx = []): array
+{
+    if (!function_exists('ai_gw_enabled') || !ai_gw_enabled()) {
+        return ['ok' => false, 'response' => null, 'error' => research_engine()['msg'], 'usage' => ['in' => 0, 'out' => 0], 'model' => 'none'];
+    }
+    if (function_exists('ai_log_set_context')) {
+        ai_log_set_context(['kind' => $task, 'user_id' => $ctx['user_id'] ?? null,
+            'reference_type' => 'research', 'reference_id' => $ctx['reference_id'] ?? null]);
+    }
+    return ai_gw_generate_text($prompt, [], $maxTokens, (float) ($ctx['temperature'] ?? 0.3), usage_task_for_kind($task));
 }
 
 /**
@@ -253,62 +254,8 @@ function research_web_call(string $prompt, array $scope, array $ctx = []): array
         return research_web_parse($data, (string) $r['text'], (string) $r['model'], (string) ($r['kind'] ?? $r['provider']));
     }
 
-    $e = research_engine();
-    $fail = fn($err) => ['ok' => false, 'text' => '', 'cites' => [], 'error' => $err, 'model' => $e['model'] ?? ''];
-    if (!$e['ok']) return $fail($e['msg']);
-
-    [$depthName, $maxResults, $context] = research_depths()[$scope['depth']] ?? research_depths()['medium'];
-    $country = research_markets()[$scope['market']][0] ?? 'EG';
-    $messages = [['role' => 'user', 'content' => $prompt]];
-    $payload = ['model' => $e['model'], 'messages' => $messages];
-    $payload[$e['mode'] === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = 2200;
-    if ($e['mode'] === 'openrouter') {
-        $payload['temperature'] = 0.2;
-        $payload['plugins'] = [['id' => 'web', 'max_results' => $maxResults]];
-    } elseif ($e['mode'] === 'openai') {
-        $payload['web_search_options'] = ['search_context_size' => $context,
-            'user_location' => ['type' => 'approximate', 'approximate' => ['country' => $country]]];
-    } else {
-        $payload['temperature'] = 0.2;
-        $payload['web_search_options'] = ['search_context_size' => $context];
-    }
-    $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . $e['key']];
-    if ($e['mode'] === 'openrouter') {
-        $headers[] = 'HTTP-Referer: ' . (defined('APP_URL') ? APP_URL : '');
-        $headers[] = 'X-Title: Spread AI Research';
-    }
-
-    ai_log_set_context(['kind' => 'research_search', 'user_id' => $ctx['user_id'] ?? null,
-        'reference_type' => 'research', 'reference_id' => $ctx['reference_id'] ?? null]);
-    $timeout = max(30, min(300, (int) get_setting('research_timeout', 120)));
-    @set_time_limit($timeout + 30);
-    $t0 = microtime(true);
-    $ch = curl_init($e['url']);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_CONNECTTIMEOUT => defined('AI_CONNECT_TIMEOUT') ? AI_CONNECT_TIMEOUT : 10,
-        CURLOPT_TIMEOUT => $timeout,
-    ]);
-    $raw = curl_exec($ch);
-    $http = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $cerr = curl_error($ch);
-    curl_close($ch);
-
-    $data = is_string($raw) ? json_decode($raw, true) : null;
-    $msg = $data['choices'][0]['message'] ?? [];
-    $text = is_string($msg['content'] ?? null) ? $msg['content'] : '';
-    $r = ['ok' => !$cerr && $http === 200 && $text !== '', 'response' => $text,
-          'error' => $cerr ? 'curl' : ($http !== 200 ? 'http_' . $http : ($text === '' ? 'empty' : null)),
-          'usage' => ['in' => (int) ($data['usage']['prompt_tokens'] ?? 0), 'out' => (int) ($data['usage']['completion_tokens'] ?? 0)]];
-    if (function_exists('ai_log_request')) ai_log_text_result($prompt, [], $r, $t0, $e['model']);
-    if (!$r['ok']) {
-        if (function_exists('ai_log_error')) ai_log_error('[research ' . $e['mode'] . '] ' . $r['error'] . ': ' . substr((string) $raw, 0, 600));
-        return $fail($http === 429 ? 'محرك البحث مشغول — جرّب بعد دقيقة' : 'محرك البحث مارجعش نتيجة — جرّب تاني');
-    }
-
-    return research_web_parse(is_array($data) ? $data : [], $text, $e['model'], $e['mode']);
+    // المسار القديم (curl مباشر بمفتاح الإعدادات) اتشال — البحث بيعدّي من الـ Smart Router بس
+    return ['ok' => false, 'text' => '', 'cites' => [], 'error' => research_engine()['msg'], 'model' => ''];
 }
 
 /** المصادر من رد البحث: annotations (OpenRouter/OpenAI) · citations/search_results (Perplexity) */
@@ -858,9 +805,8 @@ function research_run_step(array $r, int $uid): array
             research_fail($r, $uid, 'مالقيناش مصادر كفاية للسؤال ده — جرّب توسّع السؤال أو النطاق');
             return ['ok' => false, 'error' => 'مالقيناش مصادر كفاية للسؤال ده — الكريدت رجع لرصيدك', 'retry' => false];
         }
-        require_once __DIR__ . '/campaign-flow.php';
         $prompt = research_analyze_prompt($r, $good, array_values($usable), $brand, $scope, $r['rtype']);
-        $ai = campaign_ai($prompt, 3800, 'research_analyze', $ctx + ['temperature' => 0.2]);
+        $ai = research_ai($prompt, 3800, 'research_analyze', $ctx + ['temperature' => 0.2]);
         $j = $ai['ok'] ? research_json((string) $ai['response']) : null;
         $st['tries'] = (int) $st['tries'] + 1;
         if (!$j) {
@@ -877,8 +823,7 @@ function research_run_step(array $r, int $uid): array
         $tmp = research_dec($r['result_json']);
         $a = $tmp['_a'] ?? [];
         $clean = research_clean_result($a, [], array_values($reg['list']));
-        require_once __DIR__ . '/campaign-flow.php';
-        $ai = campaign_ai(research_opps_prompt($r, $clean, $axes, $brand), 2400, 'research_opps', $ctx + ['temperature' => 0.4]);
+        $ai = research_ai(research_opps_prompt($r, $clean, $axes, $brand), 2400, 'research_opps', $ctx + ['temperature' => 0.4]);
         $j = $ai['ok'] ? research_json((string) $ai['response']) : null;
         $st['tries'] = (int) $st['tries'] + 1;
         if (!$j && $st['tries'] < 2) { $save(); return ['ok' => false, 'error' => 'بنحاول تاني', 'retry' => true]; }
@@ -916,6 +861,13 @@ function research_run_step(array $r, int $uid): array
         db_run('UPDATE researches SET brain_json = ? WHERE id = ?', [json_encode(['cats' => [], 'opps' => []]), $r['id']]);
         $fresh = research_row((int) $r['id'], $uid);
         if ($fresh) research_brain_save($fresh, $uid, $brain['cats'], []);
+    } elseif (empty($prev['result']) && get_setting('research_auto_brain', '1') === '1') {
+        // البحث بيسجّل معلوماته في الهوية تلقائيًا: كل الرؤى في معرفة الـ AI + اقتراحات للحقول الناقصة
+        $fresh = research_row((int) $r['id'], $uid);
+        if ($fresh) {
+            research_brain_save($fresh, $uid, research_insight_cats(), array_keys($res['opps'] ?? []));
+            research_brand_suggest($fresh, $uid, $res);
+        }
     }
     return ['ok' => true, 'error' => null, 'retry' => false];
 }
@@ -1009,4 +961,29 @@ function research_brain_save(array $r, int $uid, array $cats, array $opps): int
     }
     db_run('UPDATE researches SET brain_json = ? WHERE id = ?', [json_encode($b, JSON_UNESCAPED_UNICODE), $r['id']]);
     return count($lines);
+}
+
+
+/**
+ * البحث «بيسمع» الهوية ويسجّل فيها: اقتراحات لحقول الهوية الناقصة (العميل بيأكدها في Brand Brain)
+ * مابيكتبش فوق قيمة موجودة — بيقترح بس، والمصدر «البحث العميق».
+ * @return int عدد الاقتراحات
+ */
+function research_brand_suggest(array $r, int $uid, array $res): int
+{
+    require_once __DIR__ . '/brand-brain.php';
+    $brand = brand_for_user($uid);
+    if (!$brand) return 0;
+    $ref = 'البحث العميق: ' . mb_substr((string) $r['title'], 0, 120);
+    $want = [];
+    $prof = $res['audience']['profile'] ?? [];
+    $aud = array_filter([$res['insights']['جمهور السوق'] ?? '', $prof['demographics'] ?? '', $prof['needs'] ?? '']);
+    if ($aud) $want['audience'] = implode("\n", array_unique($aud));
+    if (!empty($res['keywords'])) $want['keywords_use'] = implode('، ', array_slice($res['keywords'], 0, 10));
+    $n = 0;
+    foreach ($want as $field => $value) {
+        if (brand_filled($brand[$field] ?? '')) continue;
+        if (brand_fact_suggest($brand, $uid, $field, mb_substr($value, 0, 1500), 'ai', $ref, 75)) $n++;
+    }
+    return $n;
 }

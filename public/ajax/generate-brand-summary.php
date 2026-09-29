@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../includes/source-extract.php';
 
 require_login();
 require_csrf();
+session_release();   // العملية طويلة — مانقفلش باقي صفحات العميل لحد ما تخلص
 
 $user = current_user();
 $brand = user_brand();

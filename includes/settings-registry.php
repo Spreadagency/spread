@@ -73,7 +73,7 @@ function settings_registry(): array
                 ]],
                 ['title' => 'البحث العميق', 'fields' => [
                     ['key' => 'research_enabled', 'label' => 'البحث العميق للعملاء', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل', '0' => 'مقفول']],
-                    ['key' => 'research_model', 'label' => 'موديل البحث في الويب', 'type' => 'text', 'default' => '', 'ltr' => true, 'ph' => 'فاضي = الافتراضي حسب المزود'],
+                    ['key' => 'research_auto_brain', 'label' => 'البحث بيسجّل في Brand Brain تلقائيًا', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل — الرؤى تتضاف للهوية + اقتراحات للحقول الناقصة', '0' => 'العميل يختار بنفسه'], 'help' => 'البحث العميق شغّال على الـ Smart Router بس — الموديل بيتحدد من «الموديلات والـ Router» (مهمة بحث الويب)'],
                 ]],
             ],
             'links' => [

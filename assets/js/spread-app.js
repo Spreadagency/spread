@@ -209,7 +209,18 @@
       setTimeout(recount, 0);
       if (window.MutationObserver) {
         var t = null;
-        new MutationObserver(function () { clearTimeout(t); t = setTimeout(recount, 30); })
+        var own = function (n) { return n && n.nodeType === 1 ? n.classList.contains('char-count') : (n && n.parentNode && n.parentNode.classList && n.parentNode.classList.contains('char-count')); };
+        new MutationObserver(function (list) {
+          // تغييرات العدّاد نفسه مش تغيير في الشاشة — لو عدّيناها بنلف في دايرة
+          var real = list.some(function (m) {
+            if (own(m.target)) return false;
+            for (var i = 0; i < m.addedNodes.length; i++) if (!own(m.addedNodes[i])) return true;
+            for (var j = 0; j < m.removedNodes.length; j++) if (!own(m.removedNodes[j])) return true;
+            return false;
+          });
+          if (!real) return;
+          clearTimeout(t); t = setTimeout(recount, 30);
+        })
           .observe(el, { childList: true, subtree: true });
       }
       return app;

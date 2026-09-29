@@ -99,7 +99,7 @@ async function sendAgent() {
         if (d.ok && d.profile_saved) {
             const a = document.createElement('div');
             a.style.cssText = 'align-self:center;margin-top:4px';
-            a.innerHTML = '<a class="btn sm" href="<?= url('brand-profile.php') ?>">◈ شوف هويتك</a> <a class="btn ghost sm" href="<?= url('content-plan.php') ?>">🗓 ابدأ خطة</a>';
+            a.innerHTML = '<a class="btn sm" href="<?= url('brand-brain.php') ?>">◈ شوف هويتك</a> <a class="btn ghost sm" href="<?= url('content-plan.php') ?>">🗓 ابدأ خطة</a>';
             box.appendChild(a);
         }
     } catch (e) {

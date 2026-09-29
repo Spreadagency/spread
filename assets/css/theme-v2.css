@@ -329,8 +329,13 @@ body.ui-v2 :is(a, button, input, select, textarea):focus-visible {
     inset: 0; display: grid; place-items: center; padding: 20px;
     background: rgba(238, 245, 251, .62);
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    pointer-events: auto;
+    pointer-events: none;
 }
+/* بيمسك الضغطات وهو ظاهر بس — كان pointer-events: auto حتى بعد ما يختفي (opacity 0)،
+   فبعد أي عملية AI كانت الصفحة كلها «بتهنج»: طبقة شفافة فوق كل حاجة بتاكل أي ضغطة */
+.sat-root.is-overlay.on { pointer-events: auto; }
+.sat-root:not(.on) { pointer-events: none !important; }
+.sat-root.is-hidden { display: none !important; }
 .sat-root.is-overlay .sat-card {
     width: min(420px, 100%);
     display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
@@ -667,3 +672,66 @@ body:not(.ui-v2) .sb-brand { display: none; }
 /* غلاف لشروط petite-vue من غير أثر على التخطيط (بدل <template v-if> اللي بيكسر في الأجزاء المشروطة) */
 .pv-c { display: contents; }
 .bb-tabs button { white-space: nowrap; padding-inline: 18px; }
+
+/* ═══ Brand Brain: كل حاجة في الصفحة الأساسية ═══ */
+.bb-sec { padding: 22px 24px; }
+.bb-sec-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.bb-sec-head h2 { margin: 0 0 4px; font-size: 19px; }
+.bb-sec-head .sub { margin: 0; max-width: 640px; }
+.bb-rs-list { display: grid; gap: 8px; }
+.bb-rs { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 14px;
+    background: var(--surface-2); border: 1px solid var(--line-2); text-decoration: none; color: var(--ink) !important; flex-wrap: wrap; }
+.bb-rs b { font-size: 14px; }
+.bb-rs small { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.bb-rs-st { padding: 2px 9px; border-radius: 999px; background: #fff; border: 1px solid var(--line); }
+.bb-rs-st.st-done { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, #fff); }
+.bb-rs-st.st-failed { color: var(--danger); }
+.bb-rs-in { color: var(--primary-deep); font-weight: 600; }
+
+.bb-insp-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.bb-insp-add .input { flex: 1; min-width: 200px; }
+.bb-insp-up { cursor: pointer; }
+.bb-insp-up.disabled { opacity: .6; pointer-events: none; }
+.bb-insp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.bb-insp { margin: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); background: var(--surface-2); }
+.bb-insp img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.bb-insp-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; aspect-ratio: 1; font-size: 24px;
+    text-decoration: none; color: var(--mute) !important; padding: 10px; }
+.bb-insp-link span { font-size: 11px; word-break: break-all; text-align: center; }
+.bb-insp figcaption { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; position: relative; font-size: 11.5px; }
+.bb-insp figcaption a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-inline-end: 22px; }
+.bb-insp-x { position: absolute; top: 4px; inset-inline-end: 6px; border: 0; background: none; color: var(--danger); cursor: pointer; font-size: 13px; }
+
+.bb-analyze-inline { padding: 14px 16px; border-radius: 16px; background: var(--surface-2); border: 1px dashed var(--line); margin-bottom: 16px; }
+.bb-analyze-inline > b { display: block; margin-bottom: 8px; font-size: 14px; }
+#identity .bb-group { border: 1px solid var(--line-2); border-radius: 18px; background: var(--surface, #fff); }
+.bb-group-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.bb-group-head h3 { margin: 0; }
+.bb-group-hint { margin: 2px 0 8px; font-size: 12px; }
+.bb-row-val[role="button"] { cursor: pointer; display: flex; gap: 8px; align-items: center; justify-content: space-between; border-radius: 10px; padding: 4px 6px; margin: -4px -6px; }
+.bb-row-val[role="button"]:hover { background: var(--surface-2); }
+.bb-row { grid-template-columns: 120px 1fr; }
+.bb-row.editing { grid-template-columns: 1fr; }
+.bb-row-edit { display: flex; flex-direction: column; gap: 8px; }
+.bb-edit-act { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.bb-w { margin-inline-start: 6px; color: var(--primary-deep); font-weight: 700; font-size: 10.5px; }
+.bb-adv { margin: 14px 0 0; font-size: 12.5px; }
+
+.bb-done { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.bb-done > div { padding: 12px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 2px; }
+.bb-done b { font-size: 20px; }
+.bb-done small { font-size: 12px; color: var(--mute); }
+.bb-done-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px; }
+.bb-tag { padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--success, #10A8A0) 10%, #fff); font-size: 12px; color: var(--success, #10A8A0); }
+.bb-summary { font-size: 13px; line-height: 1.8; }
+.bb-ask { margin-top: 10px; padding: 16px; border-radius: 16px; border: 1.5px solid rgba(12, 135, 239, .25); background: linear-gradient(135deg, #F2F8FF, #fff);
+    display: flex; flex-direction: column; gap: 10px; }
+.bb-ask.ok { border-color: color-mix(in srgb, var(--success, #10A8A0) 35%, #fff); color: var(--success, #10A8A0); font-weight: 600; }
+.bb-ask-q { display: flex; flex-direction: column; gap: 3px; }
+.bb-ask-q b { font-size: 16px; }
+.bb-ask-n { align-self: flex-start; padding: 2px 10px; border-radius: 999px; background: var(--amber-soft, #FFF3DC); color: var(--amber, #D98A1F); font-size: 11.5px; font-weight: 700; }
+@media (max-width: 640px) {
+    .bb-sec { padding: 18px 16px; }
+    .bb-row { grid-template-columns: 1fr; gap: 4px; }
+    .bb-groups { grid-template-columns: 1fr; }
+}

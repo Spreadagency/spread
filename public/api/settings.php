@@ -19,7 +19,7 @@ require_once __DIR__ . '/../../includes/social.php';
 require_once __DIR__ . '/../../includes/account.php';
 require_once __DIR__ . '/../../includes/ui-v2.php';   // ui_credits_usage
 
-$user = api_boot();
+$user = api_boot(true, true);   // بيكتب في الجلسة
 $uid = (int) $user['id'];
 $action = api_action() ?: 'home';
 

@@ -1440,3 +1440,20 @@ button[aria-busy="true"] { opacity: .75; cursor: wait; }
     .btn-spin { animation-duration: 2s; }
     * { scroll-behavior: auto !important; }
 }
+
+/* ═══ صفحة المنشور: تعديل بتعليق + تعديل التصميم ═══ */
+.cv-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.cv-chips .chip { cursor: pointer; border: 1px solid var(--line); background: var(--surface-2); font: inherit; font-size: 12px; }
+.cv-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cv-cmp > div { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface-2); }
+.cv-cmp .cv-cmp-new { border-color: var(--primary, #7c6df2); background: var(--surface, #fff); }
+.cv-cmp em { display: block; font-style: normal; font-size: 11.5px; color: var(--mute); margin-bottom: 6px; }
+.cv-cmp p { white-space: pre-wrap; font-size: 13px; line-height: 1.8; margin: 0; }
+.cv-cmp small { display: block; margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+.cv-dedit { border: 1px dashed var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 14px; background: var(--surface-2); }
+.cv-dedit > b { display: block; margin-bottom: 8px; }
+.cv-dtabs { margin-bottom: 10px; }
+.cv-design figcaption { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 5px 2px; }
+.cv-design.cur a { outline: 2px solid var(--primary, #7c6df2); outline-offset: 2px; }
+.cv-cur { font-size: 11.5px; color: var(--primary, #7c6df2); font-weight: 700; }
+@media (max-width: 640px) { .cv-cmp { grid-template-columns: 1fr; } }

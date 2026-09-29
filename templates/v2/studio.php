@@ -40,6 +40,23 @@
         <li v-for="(c, i) in cycle" :key="i" :class="{ on: i === cycleIndex(), done: i < cycleIndex() }"><i>{{ i + 1 }}</i>{{ c }}</li>
     </ol>
 
+    <!-- مشاريع لسه مكملتش — بتتحفظ تلقائي وتقدر تكمّلها من نفس الخطوة -->
+    <section class="st-drafts" v-if="step === 'method' && drafts.length">
+        <h3 class="dh-title">مشاريع لسه مكملتش <small class="sub">· بتتحفظ تلقائي</small></h3>
+        <div class="st-drafts-grid">
+            <div class="card st-draft" v-for="dr in drafts" :key="dr.id">
+                <button type="button" class="st-draft-open" @click="resume(dr)" :disabled="busy">
+                    <span class="st-draft-img"><img v-if="dr.thumb" :src="dr.thumb" alt="" loading="lazy"><span v-else v-html="iconSvg('doc')"></span></span>
+                    <span class="st-draft-body"><b>{{ dr.title }}</b><small>{{ methodTitle(dr.method) }} · {{ dr.step_label }}</small><small class="sub">{{ dr.ago }}</small></span>
+                </button>
+                <div class="st-draft-act">
+                    <button type="button" class="btn sm" @click="resume(dr)" :disabled="busy">كمّل ←</button>
+                    <button type="button" class="btn ghost sm" @click="removeDraft(dr)" aria-label="مسح المشروع">✕</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- ═══ ① الطريقة ═══ -->
     <section v-if="step === 'method'" class="st-methods">
         <button type="button" v-for="m in methodList()" :key="m.key" class="card st-method" :class="['c-' + m.color, { soon: m.soon }]"
@@ -55,7 +72,8 @@
 
     <!-- ═══ ② الإدخال ═══ -->
     <section v-if="step === 'input'" class="card st-panel">
-        <button type="button" class="st-back" @click="step = 'method'">→ رجوع للطرق</button>
+        <button type="button" class="st-back" @click="toMethods()">→ رجوع للطرق</button>
+        <small class="st-saved sub" v-if="draftId">✓ المشروع محفوظ — تقدر تخرج وترجع تكمّل</small>
 
         <!-- قبل / بعد -->
         <div class="pv-c" v-if="method === 'before_after'">
@@ -429,6 +447,8 @@ document.addEventListener('DOMContentLoaded', function () {
     typedSize: null, lastTyped: false, _sizeTimer: null,
     trends: [], trendsLoading: false, trendBrand: {}, trend: null, ideas: [], idea: null,
     editText: '', editingCopy: '', copyDraft: '', pubDone: '', _booted: false,
+    // مشاريع لسه مكملتش (مسودات على السيرفر)
+    drafts: [], draftId: null, _lastSnap: '', _draftSaving: false,
     pub: { page: 0, platform: 'facebook', when: 'now', at: '' },
     editChips: ['كبّر اللوجو', 'خلّي الخلفية أفتح', 'استخدم ألوان البراند أكتر', 'كبّر العنوان', 'بسّط التصميم'],
 
@@ -467,6 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var r = await SpreadAPI.get('studio', { action: 'home' });
       if (!r.ok) return this.notify(r.error, 'danger');
       this.home = r;
+      this.drafts = r.drafts || [];
       // ?style_ref= (جاي من معرض الإلهام) — أول تحميل بس. load() بتتنادى بعد كل توليد لتحديث الرصيد،
       // ولو اتنفّذ تاني كان هيرجّع الشاشة لخطوة الإدخال بدل ما يعرض النتيجة
       if (this._booted) return;
@@ -502,8 +523,99 @@ document.addEventListener('DOMContentLoaded', function () {
       this.platform = t.type === 'Reel' ? 'story' : (t.platforms.indexOf('Facebook') >= 0 ? 'facebook' : 'instagram');
       this.step = 'brief';
     },
+    /* ── مشاريع لسه مكملتش ── */
+    methodTitle: function (key) {
+      var m = this.methodList().find(function (x) { return x.key === key; });
+      return m ? m.title : (key === 'trend' ? 'Trending' : 'تصميم');
+    },
+    snapshot: function () {
+      var self = this;
+      return { method: this.method, curKey: this.cur.key, step: this.step, text: this.text, purpose: this.purpose,
+               brief: this.brief, platform: this.platform, ratio: this.ratio, useBrand: this.useBrand, styleRef: this.styleRef,
+               trendId: this.trend ? this.trend.id : null, ideas: this.ideas,
+               ideaIdx: this.idea ? this.ideas.indexOf(this.idea) : -1,
+               resultId: this.result ? this.result.id : null, lastReq: !!this.lastReq,
+               hasFiles: Object.keys(this.prev).some(function (k) { return !!self.prev[k]; }) };
+    },
+    draftTitle: function () {
+      var b = this.brief || {}, t = (b.headline || this.text || (this.idea && this.idea.title) || this.purpose || '').trim();
+      t = t.replace(/\s+/g, ' ');
+      return (t ? t.slice(0, 70) : (this.cur.title || 'مشروع تصميم'));
+    },
+    // مشروع فيه حاجة تستاهل تتحفظ (مش مجرد ضغطة على طريقة)
+    draftWorth: function (sn) { return sn.step !== 'method' && !!sn.method && (sn.text.trim().length > 2 || sn.brief || sn.hasFiles || sn.resultId || sn.ideas.length || sn.purpose); },
+    async saveDraft(opts) {
+      // التصميم اتحوّل منشور = المشروع خلص (السيرفر مسح مسودته) — مانرجعش نعمله تاني
+      if (this.step === 'result' && this.result && this.result.post_id) return;
+      var sn = this.snapshot();
+      if (!this.draftWorth(sn) && !(opts && opts.force)) return;
+      var snap = JSON.stringify(sn);
+      if (snap === this._lastSnap && this.draftId && !(opts && opts.force)) return;
+      if (this._draftSaving) return;
+      this._draftSaving = true;
+      var r = await SpreadAPI.post('studio', 'draft_save', { id: this.draftId || 0, title: this.draftTitle(), method: this.cur.key || this.method,
+        step: sn.step, design_id: sn.resultId || 0, state: sn }, opts && opts.keepalive ? { keepalive: true } : undefined);
+      this._draftSaving = false;
+      if (r && r.ok) { this.draftId = r.id; this._lastSnap = snap; }
+    },
+    async uploadDraftFile(slot, f) {
+      if (!this.draftId) await this.saveDraft({ force: true });
+      if (!this.draftId) return;
+      var fd = new FormData();
+      fd.append('action', 'draft_file'); fd.append('id', this.draftId); fd.append('slot', slot); fd.append('file', f);
+      try {
+        await fetch(this.base + '/api/studio.php', { method: 'POST', body: fd, credentials: 'same-origin',
+          headers: { 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content, 'X-Requested-With': 'XMLHttpRequest' } });
+      } catch (e) { /* الصورة لسه معانا محليًا للتوليد — بس مش هترجع لو خرج */ }
+    },
+    async refreshDrafts() {
+      var r = await SpreadAPI.get('studio', { action: 'drafts' });
+      if (r.ok) this.drafts = r.drafts;
+    },
+    async toMethods() {
+      await this.saveDraft();
+      this.step = 'method';
+      this.refreshDrafts();
+    },
+    async resume(dr) {
+      this.busy = true;
+      var r = await SpreadAPI.get('studio', { action: 'draft', id: dr.id });
+      this.busy = false;
+      if (!r.ok) { this.refreshDrafts(); return this.notify(r.error, 'danger'); }
+      var st = r.draft.state || {};
+      var m = this.methodList().find(function (x) { return x.key === st.curKey; });
+      if (!m) return this.notify('الطريقة دي مابقتش متاحة', 'warning');
+      this.pick(m);
+      this.draftId = dr.id;
+      files = {};
+      this.prev = Object.assign({ before: '', after: '', source: '' }, r.draft.files || {});
+      this.text = st.text || ''; this.purpose = st.purpose || ''; this.brief = st.brief || null;
+      this.platform = st.platform || this.platform; this.ratio = st.ratio || this.ratio;
+      this.useBrand = st.useBrand !== false; this.styleRef = st.styleRef || '';
+      if (st.method === 'trend' && st.trendId) {
+        if (!this.trends.length) await this.loadTrends();
+        var t = this.trends.find(function (x) { return x.id === st.trendId; });
+        if (t) { this.trend = t; this.ideas = st.ideas || []; this.idea = st.ideaIdx >= 0 ? this.ideas[st.ideaIdx] || null : null; }
+      }
+      if (this.text) this.sizeCheck();
+      if (st.step === 'result' && r.draft.design_id) {
+        await this.openDesign(r.draft.design_id);
+      } else {
+        this.step = st.step === 'brief' ? 'brief' : 'input';
+      }
+      this._lastSnap = JSON.stringify(this.snapshot());
+      this.notify('رجعنا لمشروعك — كمّل من مكان ما وقفت ✓');
+    },
+    async removeDraft(dr) {
+      if (!confirm('تمسح المشروع ده؟ التصميمات اللي اتعملت فيه هتفضل في «آخر تصميماتك».')) return;
+      var r = await SpreadAPI.post('studio', 'draft_delete', { id: dr.id });
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.drafts = this.drafts.filter(function (x) { return x.id !== dr.id; });
+      if (this.draftId === dr.id) this.draftId = null;
+    },
     pick: function (m) {
       if (m.soon) return;
+      this.draftId = null; this._lastSnap = '';   // طريقة جديدة = مشروع جديد
       this.cur = m; this.method = m.kind === 'custom' ? 'custom' : m.key;
       this.step = 'input'; this.brief = null; this.text = ''; this.purpose = ''; this.typedSize = null;
       this.trend = null; this.ideas = []; this.idea = null;
@@ -514,6 +626,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var f = e.target.files && e.target.files[0]; if (!f) return;
       if (f.size > 8 * 1024 * 1024) return this.notify('الصورة أكبر من 8 ميجا', 'danger');
       files[slot] = f; this.prev[slot] = URL.createObjectURL(f);
+      this.uploadDraftFile(slot, f);   // الصورة بتتحفظ مع المشروع — لو خرج ورجع يلاقيها
     },
     setPlatform: function (p) { this.platform = p.key; this.ratio = p.ratio; },
     // بيقرا من prev (تفاعلي) مش من files (بره الحالة عن قصد) — وإلا الزرار مايتفتحش بعد الرفع
@@ -539,6 +652,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!r.ok) { if (window.SpreadThinking) SpreadThinking.fail(); return this.notify(r.error, 'danger'); }
       if (window.SpreadThinking) SpreadThinking.done('الـ Brief جاهز ✓');
       this.brief = r.brief; this.home.costs.balance = r.balance; this.step = 'brief';
+      this.saveDraft({ force: true });   // الـ Brief اتدفع فيه — مايضيعش لو خرج
     },
     b64: function (s) {
       var bytes = new TextEncoder().encode(s), bin = '';
@@ -569,8 +683,10 @@ document.addEventListener('DOMContentLoaded', function () {
         var self = this;
         this.cur.uploads.forEach(function (u, i) { if (files['c' + i]) req['custom_image_' + i] = files['c' + i]; });
       }
-      if (this.method === 'before_after') { req.before_image = files.before; req.after_image = files.after; }
-      if (this.method === 'from_image') { req.source_image = files.source; }
+      if (this.method === 'before_after') { if (files.before) req.before_image = files.before; if (files.after) req.after_image = files.after; }
+      if (this.method === 'from_image' && files.source) { req.source_image = files.source; }
+      // مشروع اتكمّل بعد رجوع: الصور اللي مش معانا محليًا بتتاخد من المسودة على السيرفر
+      if (this.draftId) req.draft_id = this.draftId;
       this.lastReq = { req: req, brief: this.brief ? JSON.parse(JSON.stringify(this.brief)) : null };
       await this.send(this.lastReq);
     },
@@ -583,6 +699,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (job.brief) await SpreadAPI.post('studio', 'save_brief', { id: r.design_id, brief: job.brief });
       this.busy = false;
       await this.openDesign(r.design_id);
+      this.saveDraft({ force: true });   // المشروع دلوقتي «التصميم جاهز — فاضل النشر»
       this.load();   // تحديث الرصيد وآخر التصميمات
     },
     async again() { if (this.lastReq) await this.send(this.lastReq); },
@@ -598,9 +715,9 @@ document.addEventListener('DOMContentLoaded', function () {
       this.busy = true;
       var cid = await this.ensurePost();
       this.busy = false;
-      if (cid) this.notify('اتحفظ في المحتويات ✓');
+      if (cid) { this.notify('اتحفظ في المحتويات ✓'); this.draftId = null; this.refreshDrafts(); }
     },
-    show: function (r) { this.lastReq = null; this.openDesign(r.id); },
+    show: function (r) { this.lastReq = null; this.draftId = null; this._lastSnap = ''; this.openDesign(r.id); },
     // التصميم بنسخه (V1 · V2 …)
     async openDesign(id) {
       var d = await SpreadAPI.get('studio', { action: 'design', id: id });
@@ -684,11 +801,15 @@ document.addEventListener('DOMContentLoaded', function () {
       this.busy = false;
       if (!r || !r.ok) return this.notify((r && r.error) || 'تعذّر النشر', 'danger');
       this.pubDone = r.msg || (this.pub.when === 'now' ? 'اتنشر' : 'اتجدول');
+      this.draftId = null;   // المشروع خلص (اتمسح من «لسه مكملتش» على السيرفر مع to_post)
       // التصميم الجاي يبدأ من «دلوقتي» — مايورثش موعد المنشور اللي فات (كان بيتحجز بيه من غير ما ياخد باله)
       this.pub.when = 'now'; this.pub.at = '';
       this.load();
     },
     reset: function () {
+      if (this.draftId) this.saveDraft();
+      this.draftId = null; this._lastSnap = '';
+      this.refreshDrafts();
       this.step = 'method'; this.method = ''; this.brief = null; this.result = null; this.text = ''; this.purpose = ''; this.styleRef = '';
       files = {}; this.prev = { before: '', after: '', source: '' }; this.typedSize = null; this.pubDone = ''; this.editText = '';
     },
@@ -701,5 +822,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   SpreadApp.mount('#st', app);
   app.load();
+  // حفظ تلقائي للمشروع كل كام ثانية (لو فيه تغيير) + قبل ما يقفل الصفحة
+  setInterval(function () { if (!app.busy) app.saveDraft(); }, 4000);
+  window.addEventListener('pagehide', function () { app.saveDraft({ keepalive: true }); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') app.saveDraft({ keepalive: true }); });
 });
 </script>

@@ -1,32 +1,58 @@
 <?php
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
-  'build' => '8-ج.3',
-  'date' => '2026-09-28',
-  'generated' => '2026-09-28 15:13',
+  'build' => '9.1',
+  'date' => '2026-09-29',
+  'generated' => '2026-09-29 09:13',
   'update' => 
   array (
-    0 => 'admin/ai-providers.php',
-    1 => 'admin/ai-runs.php',
-    2 => 'admin/referrals.php',
-    3 => 'admin/ui-diagnose.php',
-    4 => 'assets/css/admin-v2.css',
-    5 => 'assets/css/main.css',
-    6 => 'includes/ai-gateway.php',
-    7 => 'includes/ai.php',
-    8 => 'includes/migrations.php',
-    9 => 'includes/research.php',
-    10 => 'includes/usage.php',
-    11 => 'includes/version.php',
-    12 => 'public/ajax/add-note.php',
-    13 => 'public/ajax/delete-image.php',
-    14 => 'public/ajax/plan-idea-action.php',
-    15 => 'public/ajax/save-content.php',
-    16 => 'public/ajax/studio-select.php',
-    17 => 'public/ajax/upload-image.php',
-    18 => 'services/Adapters/OpenAIAdapter.php',
-    19 => 'services/Adapters/OpenRouterAdapter.php',
-    20 => 'sql/2026_phase8c2_ai_fixes.sql',
+    0 => 'admin/announcements.php',
+    1 => 'admin/ui-diagnose.php',
+    2 => 'assets/css/main.css',
+    3 => 'assets/css/research-v2.css',
+    4 => 'assets/css/shell-v2.css',
+    5 => 'assets/css/theme-v2.css',
+    6 => 'assets/js/main.js',
+    7 => 'assets/js/spread-app.js',
+    8 => 'assets/js/thinking.js',
+    9 => 'includes/announcements.php',
+    10 => 'includes/api.php',
+    11 => 'includes/brand-brain.php',
+    12 => 'includes/dashboard-v2.php',
+    13 => 'includes/helpers.php',
+    14 => 'includes/migrations.php',
+    15 => 'includes/plan-functions.php',
+    16 => 'includes/research.php',
+    17 => 'includes/settings-registry.php',
+    18 => 'includes/studio-drafts.php',
+    19 => 'includes/ui-v2.php',
+    20 => 'includes/version.php',
+    21 => 'public/ajax/analyze-visual-identity.php',
+    22 => 'public/ajax/brand-agent.php',
+    23 => 'public/ajax/generate-brand-summary.php',
+    24 => 'public/ajax/generate-content.php',
+    25 => 'public/ajax/generate-design.php',
+    26 => 'public/ajax/generate-logo.php',
+    27 => 'public/ajax/generate-plan-ideas.php',
+    28 => 'public/ajax/generate-stream.php',
+    29 => 'public/ajax/produce-idea.php',
+    30 => 'public/ajax/publish-direct.php',
+    31 => 'public/ajax/regenerate-content.php',
+    32 => 'public/ajax/studio-design.php',
+    33 => 'public/ajax/summarize-source.php',
+    34 => 'public/api/brand.php',
+    35 => 'public/api/campaign-flow.php',
+    36 => 'public/api/contents.php',
+    37 => 'public/api/settings.php',
+    38 => 'public/api/studio.php',
+    39 => 'public/brand-agent.php',
+    40 => 'public/brand-brain.php',
+    41 => 'public/content-view.php',
+    42 => 'sql/2026_phase9_drafts_inspirations_slider.sql',
+    43 => 'templates/style-ref-picker.php',
+    44 => 'templates/v2/dashboard.php',
+    45 => 'templates/v2/research.php',
+    46 => 'templates/v2/studio.php',
   ),
   'files' => 
   array (
@@ -77,8 +103,8 @@ return array (
     ),
     'admin/announcements.php' => 
     array (
-      'h' => 'c32629838a15bddef3cd228d8262337b',
-      's' => 7865,
+      'h' => 'f34af51757fcedf26dc20fd621158219',
+      's' => 16025,
     ),
     'admin/appearance.php' => 
     array (
@@ -237,8 +263,8 @@ return array (
     ),
     'admin/ui-diagnose.php' => 
     array (
-      'h' => '905d8d09bdd31a2a479c250b46edf0e6',
-      's' => 24101,
+      'h' => '5c4cb97b05794cfe2f60c5fa471fe62d',
+      's' => 24971,
     ),
     'admin/user-brand.php' => 
     array (
@@ -282,23 +308,23 @@ return array (
     ),
     'assets/css/main.css' => 
     array (
-      'h' => '065403741a467481c0df8714fc9a916e',
-      's' => 40789,
+      'h' => '264b847685c608f5304d78b4875ca515',
+      's' => 42266,
     ),
     'assets/css/research-v2.css' => 
     array (
-      'h' => 'fb4074bb607be22a9c23594a34ca57ba',
-      's' => 15629,
+      'h' => '3341d1857d6a63de5dcecee2d24ec3be',
+      's' => 15971,
     ),
     'assets/css/shell-v2.css' => 
     array (
-      'h' => 'b91b5291b63b7611daf81c2cd0bf2059',
-      's' => 97016,
+      'h' => '8e19b0b04623e96b4d67dee7b12d0e10',
+      's' => 100743,
     ),
     'assets/css/theme-v2.css' => 
     array (
-      'h' => '3cbdd0e2b1f4f75ce53a6b53ca2aa506',
-      's' => 36445,
+      'h' => 'c2a856405bc0f69ff92e0843488b9f49',
+      's' => 41895,
     ),
     'assets/css/tokens-v2.css' => 
     array (
@@ -312,8 +338,8 @@ return array (
     ),
     'assets/js/main.js' => 
     array (
-      'h' => '3669ed973aae94edc950e8ff699adf5e',
-      's' => 15282,
+      'h' => 'adefc7c86cd454a0742d836d1132fca3',
+      's' => 15630,
     ),
     'assets/js/orb.js' => 
     array (
@@ -322,13 +348,13 @@ return array (
     ),
     'assets/js/spread-app.js' => 
     array (
-      'h' => '6309ac4cea545d893795f0fafb15a4a8',
-      's' => 9876,
+      'h' => 'e8accb67e06c7b592aa25dda74f771fd',
+      's' => 10595,
     ),
     'assets/js/thinking.js' => 
     array (
-      'h' => 'e5fb5ca8d8e2749a607270cde0d62787',
-      's' => 9521,
+      'h' => '083ae71d607a17e3c08404b0b9ef38f0',
+      's' => 9938,
     ),
     'assets/vendor/petite-vue.iife.js' => 
     array (
@@ -380,10 +406,15 @@ return array (
       'h' => '2ef4513402bb41a49d5d731e0386f116',
       's' => 31098,
     ),
+    'includes/announcements.php' => 
+    array (
+      'h' => 'a65b92efb4c896ea848c9b8492ba8602',
+      's' => 6050,
+    ),
     'includes/api.php' => 
     array (
-      'h' => 'dccc9d2b11aa331aca5ae9fff25e8ecc',
-      's' => 6225,
+      'h' => 'f51fb43476c57e8dfed930d3ee51c4f0',
+      's' => 6582,
     ),
     'includes/auth.php' => 
     array (
@@ -392,8 +423,8 @@ return array (
     ),
     'includes/brand-brain.php' => 
     array (
-      'h' => 'cfc9b26eb3e46cb5afa6f4807c2886f7',
-      's' => 28888,
+      'h' => 'd2ee3f5002b075a3a43b9672429e6880',
+      's' => 42131,
     ),
     'includes/campaign-flow.php' => 
     array (
@@ -422,8 +453,8 @@ return array (
     ),
     'includes/dashboard-v2.php' => 
     array (
-      'h' => 'c4bcb5d349ac21de3466485de3ee1fd2',
-      's' => 8062,
+      'h' => 'ce286e62627c3672142abfe00e0e14ca',
+      's' => 8465,
     ),
     'includes/db.php' => 
     array (
@@ -442,8 +473,8 @@ return array (
     ),
     'includes/helpers.php' => 
     array (
-      'h' => '78d5443eb5632b454553ccc1c580e1b4',
-      's' => 25427,
+      'h' => '4772d1c6252579ce43cedcafffaf7835',
+      's' => 26064,
     ),
     'includes/integrations.php' => 
     array (
@@ -467,8 +498,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '4c1cc837f7d22201a2ea89d1c21c963f',
-      's' => 9299,
+      'h' => '76cfa9059144e5bee17acdd79f70896b',
+      's' => 9519,
     ),
     'includes/offers.php' => 
     array (
@@ -477,8 +508,8 @@ return array (
     ),
     'includes/plan-functions.php' => 
     array (
-      'h' => '2a882305b95b7889d944735f930cc265',
-      's' => 16190,
+      'h' => '450cd0fb1e81271adcc4ab7f3ea06ef9',
+      's' => 16540,
     ),
     'includes/plans.php' => 
     array (
@@ -497,8 +528,8 @@ return array (
     ),
     'includes/research.php' => 
     array (
-      'h' => '2a86272acfa905405263fb4f583b28fa',
-      's' => 60161,
+      'h' => '120688fd7b30e3c1ede8072c8bf9edfc',
+      's' => 58894,
     ),
     'includes/safe-http.php' => 
     array (
@@ -507,8 +538,8 @@ return array (
     ),
     'includes/settings-registry.php' => 
     array (
-      'h' => '2a9fe685c0d96424574c281da9a28b02',
-      's' => 26388,
+      'h' => 'c15b50e95a699d44f835911ce4930c8c',
+      's' => 26692,
     ),
     'includes/smart-ai.php' => 
     array (
@@ -530,6 +561,11 @@ return array (
       'h' => '5fbceee2d64323f7932588304a524807',
       's' => 13102,
     ),
+    'includes/studio-drafts.php' => 
+    array (
+      'h' => '12a5c09a2ce2ea5b3d0927148cc057fb',
+      's' => 4946,
+    ),
     'includes/trends.php' => 
     array (
       'h' => 'deeb910ae2093092c52d8c9fed1277f3',
@@ -537,8 +573,8 @@ return array (
     ),
     'includes/ui-v2.php' => 
     array (
-      'h' => '0a8b71042a132f7d470ada1e122d7bf9',
-      's' => 17977,
+      'h' => '0c20a5691344ee3bc74a2b1e878ef62b',
+      's' => 17910,
     ),
     'includes/uploader.php' => 
     array (
@@ -552,8 +588,8 @@ return array (
     ),
     'includes/version.php' => 
     array (
-      'h' => 'ce9e69aad6571c7f6f2186d9a7042121',
-      's' => 332,
+      'h' => 'b86df210fd1acf4cb342e7f012cfa300',
+      's' => 329,
     ),
     'includes/watermark.php' => 
     array (
@@ -572,13 +608,13 @@ return array (
     ),
     'public/ajax/analyze-visual-identity.php' => 
     array (
-      'h' => 'acab68884458e37665e20c813e6bc825',
-      's' => 7341,
+      'h' => '8f5d8c0a7dc4497264958af17f858704',
+      's' => 7464,
     ),
     'public/ajax/brand-agent.php' => 
     array (
-      'h' => 'acd8d7daded5139d4c5de40f89028de8',
-      's' => 8029,
+      'h' => '1187613954c628dd7d33171f7d002852',
+      's' => 11443,
     ),
     'public/ajax/buy-package.php' => 
     array (
@@ -597,33 +633,33 @@ return array (
     ),
     'public/ajax/generate-brand-summary.php' => 
     array (
-      'h' => 'ebd3de85f27104770915834c89844d03',
-      's' => 4427,
+      'h' => '11d00d684b6e747453fffcb5015dd9c5',
+      's' => 4550,
     ),
     'public/ajax/generate-content.php' => 
     array (
-      'h' => '020bc7e160d215c0a449b9d5470d17ec',
-      's' => 5284,
+      'h' => 'b2e340fe862e9b62cb0a7f297d3a4c27',
+      's' => 5407,
     ),
     'public/ajax/generate-design.php' => 
     array (
-      'h' => '4076ecd6550c865d932a3ea536d25b41',
-      's' => 15889,
+      'h' => '81022e1e363c7431e76f8e6b50e5953c',
+      's' => 16012,
     ),
     'public/ajax/generate-logo.php' => 
     array (
-      'h' => '69e827b30cfac676c62e47ddf8942e83',
-      's' => 3658,
+      'h' => '699bc4e4f263d33fa00608f8fde785a8',
+      's' => 3781,
     ),
     'public/ajax/generate-plan-ideas.php' => 
     array (
-      'h' => '7ca1dbd5f105c5105c3e4b310534201f',
-      's' => 4024,
+      'h' => '9dbd34a643b26822cbbec1c780dbfd39',
+      's' => 4147,
     ),
     'public/ajax/generate-stream.php' => 
     array (
-      'h' => '1d5b97ef5726efd02bfe9803a1c10e8f',
-      's' => 5199,
+      'h' => '34c4a336f0a26ecdbfe988235d6013ad',
+      's' => 5322,
     ),
     'public/ajax/plan-idea-action.php' => 
     array (
@@ -632,18 +668,18 @@ return array (
     ),
     'public/ajax/produce-idea.php' => 
     array (
-      'h' => '5317fe883c98cddd1b943a45bffab5d6',
-      's' => 5188,
+      'h' => '7a45ad5cd226a19af30be9f3dcd134d4',
+      's' => 5311,
     ),
     'public/ajax/publish-direct.php' => 
     array (
-      'h' => '0fbe89bf512236fc60df050e924e9e74',
-      's' => 7941,
+      'h' => 'b524fe6c2b0d259458d35c90e3b71877',
+      's' => 8064,
     ),
     'public/ajax/regenerate-content.php' => 
     array (
-      'h' => '689a0989875e561c564ff7998a0374cf',
-      's' => 2869,
+      'h' => '5d150e5d8a6a36b9aa63d2fb888e8b5c',
+      's' => 2992,
     ),
     'public/ajax/save-content.php' => 
     array (
@@ -657,8 +693,8 @@ return array (
     ),
     'public/ajax/studio-design.php' => 
     array (
-      'h' => '618d97725d76b62dba912f8f554fddca',
-      's' => 18703,
+      'h' => '494af78bda589cff35a13ee303e5baa2',
+      's' => 19945,
     ),
     'public/ajax/studio-select.php' => 
     array (
@@ -667,8 +703,8 @@ return array (
     ),
     'public/ajax/summarize-source.php' => 
     array (
-      'h' => '2a8be194d3139393f2de483b61d7c716',
-      's' => 2265,
+      'h' => '267a1ae54b2fc4b4a06ae14145219bff',
+      's' => 2388,
     ),
     'public/ajax/trial.php' => 
     array (
@@ -687,13 +723,13 @@ return array (
     ),
     'public/api/brand.php' => 
     array (
-      'h' => 'af0591f1de00f0436199f867d5e96ce5',
-      's' => 6017,
+      'h' => '5a7de1b8d3f75e6da70d2671a82dad49',
+      's' => 9288,
     ),
     'public/api/campaign-flow.php' => 
     array (
-      'h' => 'dc4ddca7a48eb9a9d782e8bf838bfb55',
-      's' => 32091,
+      'h' => '7180a1a18ac9ee9667bc18d9a33c5f1f',
+      's' => 32135,
     ),
     'public/api/campaigns.php' => 
     array (
@@ -702,8 +738,8 @@ return array (
     ),
     'public/api/contents.php' => 
     array (
-      'h' => '3530107307b1984c183cb3770c23394f',
-      's' => 30741,
+      'h' => 'e8e664d455321c5193a6b1866878490d',
+      's' => 32379,
     ),
     'public/api/journey.php' => 
     array (
@@ -717,13 +753,13 @@ return array (
     ),
     'public/api/settings.php' => 
     array (
-      'h' => 'f93bec65e9454aceed3e85dd9e054f77',
-      's' => 15386,
+      'h' => '579be89c85c8c38979142ff7ad959752',
+      's' => 15430,
     ),
     'public/api/studio.php' => 
     array (
-      'h' => 'e12c018bfc266a72a6a3fcab915b67c2',
-      's' => 25893,
+      'h' => '4ce3dfd5aeeedcf8159a8fd4c3167c0d',
+      's' => 30609,
     ),
     'public/auth/google-callback.php' => 
     array (
@@ -742,13 +778,13 @@ return array (
     ),
     'public/brand-agent.php' => 
     array (
-      'h' => 'e1ece17f6f713c569bb76bf21d7d2778',
-      's' => 5091,
+      'h' => '3e0ef1d6609751087bf9890270c32586',
+      's' => 5089,
     ),
     'public/brand-brain.php' => 
     array (
-      'h' => 'c8acecf4fc73cabd7a9dbf6f7cefdd9c',
-      's' => 18256,
+      'h' => 'deb2d2c92e7b14df6bc7fec2eaff0404',
+      's' => 31471,
     ),
     'public/brand-profile.php' => 
     array (
@@ -787,8 +823,8 @@ return array (
     ),
     'public/content-view.php' => 
     array (
-      'h' => '2bcdc80c667206b30f971977134462ed',
-      's' => 35271,
+      'h' => '147d3fbd4b2fd793c566dfbc409d6a58',
+      's' => 49880,
     ),
     'public/create-content.php' => 
     array (
@@ -1060,6 +1096,11 @@ return array (
       'h' => '8010c10ec4f3f02935e254cf512f7210',
       's' => 1243,
     ),
+    'sql/2026_phase9_drafts_inspirations_slider.sql' => 
+    array (
+      'h' => 'bc344a4a7102167057a73cb456facbdb',
+      's' => 4067,
+    ),
     'sql/2026_ui_v2.sql' => 
     array (
       'h' => 'f026f5a07152e3379fcb68e61e1531e1',
@@ -1157,8 +1198,8 @@ return array (
     ),
     'templates/style-ref-picker.php' => 
     array (
-      'h' => '04f296b3a36f22caa4f118c13601fa86',
-      's' => 5773,
+      'h' => '15c2d8433915847309023044dc16ee34',
+      's' => 6236,
     ),
     'templates/tabbar.php' => 
     array (
@@ -1187,8 +1228,8 @@ return array (
     ),
     'templates/v2/dashboard.php' => 
     array (
-      'h' => '268f12af9f2a5d677e1d5ac21c74b890',
-      's' => 11993,
+      'h' => '5e8bdf259abcd19ae44ef2b03fd15173',
+      's' => 15824,
     ),
     'templates/v2/journey.php' => 
     array (
@@ -1197,8 +1238,8 @@ return array (
     ),
     'templates/v2/research.php' => 
     array (
-      'h' => 'd8efe1f5e1347ba74b5e192a2e54c896',
-      's' => 43960,
+      'h' => '26672f40affee9b181c0f81e049882b8',
+      's' => 44375,
     ),
     'templates/v2/settings.php' => 
     array (
@@ -1212,8 +1253,8 @@ return array (
     ),
     'templates/v2/studio.php' => 
     array (
-      'h' => '848d24f60dc034b68e41b592087f2bbe',
-      's' => 50474,
+      'h' => '107124c94da2b8d8258a4db3505c57bb',
+      's' => 58875,
     ),
     'templates/v2/tabbar.php' => 
     array (

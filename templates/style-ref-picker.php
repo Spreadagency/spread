@@ -22,6 +22,14 @@ if ($pickerBrand) {
     if (!empty($pickerBrand['personal_image_path'])) {
         $pickerItems[] = ['ref' => 'personal', 'src' => url('storage/' . $pickerBrand['personal_image_path']), 'tag' => '🤳', 'title' => 'صورتك الشخصية'];
     }
+    // تصميمات بتعجبك (Brand Brain)
+    try {
+        if (!function_exists('brand_insp_list')) require_once __DIR__ . '/../includes/brand-brain.php';
+        foreach (array_slice(array_filter(brand_insp_list((int) $pickerBrand['id']), fn($x) => $x['ref']), 0, 12) as $ins) {
+            $pickerItems[] = ['ref' => $ins['ref'], 'src' => $ins['img'], 'tag' => '♥', 'title' => 'تصميم بيعجبك'];
+        }
+    } catch (\Throwable $e) {
+    }
 }
 
 // 2) مفضلات معرض الإلهام فقط (اللي حاططها ❤)

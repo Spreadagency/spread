@@ -391,6 +391,26 @@ switch ($action) {
         db_run('UPDATE contents SET selected_image_id = ? WHERE id = ? AND user_id = ?', [$d['id'], $c['id'], $uid]);
         api_ok(['selected' => (int) $d['id']]);
 
+    /* ── تعديل التصميم ③: رفع تصميم جاهز من جهاز العميل — بيبقى نسخة جديدة والغلاف ── */
+    case 'upload_design':
+        require_once __DIR__ . '/../../includes/uploader.php';
+        $c = api_own('contents', api_int('id'), $uid);
+        if (in_array((string) ($c['publish_status'] ?? ''), ['published', 'scheduled', 'processing'], true)) {
+            api_fail('المنشور اتسلّم للنشر — التصميم مايتغيّرش', 'locked', 409);
+        }
+        if (!rate_limit('upload_design', 'u' . $uid, 15, 600)) api_fail('رفعت كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        if (empty($_FILES['design']['name'])) api_fail('اختار صورة التصميم', 'empty', 422);
+        $up = upload_image($_FILES['design'], 'designs');
+        if (!$up['ok']) api_fail($up['error'], 'upload', 422);
+        $ratio = api_str('ratio', 10);
+        $did = db_insert('INSERT INTO content_designs (content_id, user_id, image_path, prompt, model, credits_used) VALUES (?, ?, ?, ?, ?, 0)',
+            [$c['id'], $uid, $up['path'], 'تصميم مرفوع من العميل', 'upload']);
+        if ($ratio !== '' && preg_match('/^\d{1,2}:\d{1,2}$/', $ratio)) {
+            try { db_run('UPDATE content_designs SET ratio = ? WHERE id = ?', [$ratio, $did]); } catch (\Throwable $e) { /* عمود المقاس مش موجود */ }
+        }
+        db_run('UPDATE contents SET selected_image_id = ? WHERE id = ? AND user_id = ?', [$did, $c['id'], $uid]);
+        api_ok(['design_id' => $did, 'url' => upload_url($up['path'])]);
+
     /* ── تعديل بالكلام: اقتراح بس — الحفظ لما العميل يعتمد ── */
     case 'ai_edit':
         require_once __DIR__ . '/../../includes/ai.php';

@@ -88,7 +88,8 @@
   function show() {
     build();
     root.className = 'sat-root ' + (mode === 'pill' ? 'is-pill' : 'is-overlay');
-    requestAnimationFrame(function () { root.classList.add('on'); });
+    // لو العملية خلصت قبل الفريم ده، مانظهرش — كان الـ overlay بيفضل ظاهر للأبد
+    requestAnimationFrame(function () { if (active && root) root.classList.add('on'); });
     if (window.SpreadOrb && mode === 'overlay') {
       window.SpreadOrb.mount(document.getElementById('sat-orb'));
       window.SpreadOrb.setState('thinking');
@@ -127,15 +128,18 @@
     if (!root) return;
     root.classList.remove('on');
     setTimeout(function () {
-      if (!active && window.SpreadOrb) window.SpreadOrb.unmount();
-    }, 300);
+      if (active) return;
+      if (window.SpreadOrb) window.SpreadOrb.unmount();
+      // بعد ما يختفي: بره الصفحة خالص — مايمسكش أي ضغطة (سبب «السيستم بيهنج» بعد التوليد)
+      if (root && !root.classList.contains('on')) root.className = 'sat-root is-hidden';
+    }, 320);
   }
 
   function done(msg) {
     var wasShown = root && root.classList.contains('on');
     active = false;
     stopTimers();
-    if (!wasShown) return;                  // خلصت قبل ما تظهر — مفيش داعي لأي حاجة
+    if (!wasShown) { hide(); return; }      // خلصت قبل ما تظهر — نتأكد إنها مش هتظهر
     cur = steps.length; renderSteps();
     var bar = document.getElementById('sat-bar'); if (bar) bar.style.width = '100%';
     var nm = root.querySelector('.sat-name'); if (nm) nm.textContent = msg || 'Spread AI جاهز ✓';

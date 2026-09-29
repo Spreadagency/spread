@@ -98,6 +98,37 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         <?php endif; ?>
     </section>
 
+    <!-- ═══ سلايدر الإعلانات (مكان «حملة غير مكتملة» — نفس المقاس) ═══ -->
+    <?php $slides = $d['slides'] ?? []; ?>
+    <section class="card dh-slides" style="grid-area:slide" aria-roledescription="carousel" aria-label="إعلانات" data-slider>
+        <div class="dh-sl-track">
+            <?php foreach ($slides as $i => $sl): ?>
+                <article class="dh-sl<?= $i === 0 ? ' on' : '' ?><?= !empty($sl['default']) ? ' is-default' : '' ?>" role="group" aria-roledescription="slide"
+                         aria-label="<?= ($i + 1) . ' من ' . count($slides) ?>" <?= $i === 0 ? '' : 'aria-hidden="true"' ?>>
+                    <?php if ($sl['image']): ?>
+                        <span class="dh-sl-img"><img src="<?= e($sl['image']) ?>" alt="" loading="<?= $i === 0 ? 'eager' : 'lazy' ?>" decoding="async" onerror="this.parentNode.remove()"></span>
+                    <?php else: ?>
+                        <span class="dh-sl-ic"><?= !empty($sl['default']) ? '🎧' : ui_icon('megaphone', 26) ?></span>
+                    <?php endif; ?>
+                    <div class="dh-sl-body">
+                        <b><?= e($sl['title']) ?></b>
+                        <?php if ($sl['body'] !== ''): ?><small><?= e($sl['body']) ?></small><?php endif; ?>
+                        <?php if ($sl['btn'] !== '' && $sl['url'] !== ''): ?>
+                            <a href="<?= e($sl['url']) ?>" class="dh-follow" <?= $sl['external'] ? 'target="_blank" rel="noopener"' : '' ?>><?= e($sl['btn']) ?> <?= ui_icon('chevron', 16) ?></a>
+                        <?php endif; ?>
+                    </div>
+                </article>
+            <?php endforeach; ?>
+        </div>
+        <?php if (count($slides) > 1): ?>
+            <div class="dh-sl-dots" role="tablist">
+                <?php foreach ($slides as $i => $sl): ?>
+                    <button type="button" class="<?= $i === 0 ? 'on' : '' ?>" data-go="<?= $i ?>" aria-label="الإعلان <?= $i + 1 ?>"></button>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </section>
+
     <!-- ═══ ابدأ بسرعة ═══ -->
     <section class="dh-quick" style="grid-area:quick">
         <h3 class="dh-title">ابدأ بسرعة</h3>
@@ -182,3 +213,34 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         <?php endif; ?>
     </section>
 </div>
+
+<script>
+/* سلايدر الإعلانات: بيلف لوحده كل 6 ثواني · بيقف لما الماوس عليه أو التاب مخفي · النقط للتنقّل */
+(function () {
+    var box = document.querySelector('[data-slider]');
+    if (!box) return;
+    var slides = box.querySelectorAll('.dh-sl'), dots = box.querySelectorAll('.dh-sl-dots button');
+    if (slides.length < 2) return;
+    var cur = 0, timer = null, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function go(n) {
+        cur = (n + slides.length) % slides.length;
+        slides.forEach(function (s, i) { s.classList.toggle('on', i === cur); s.setAttribute('aria-hidden', i === cur ? 'false' : 'true'); });
+        dots.forEach(function (d, i) { d.classList.toggle('on', i === cur); });
+    }
+    function play() { stop(); if (!reduce) timer = setInterval(function () { if (!document.hidden) go(cur + 1); }, 6000); }
+    function stop() { clearInterval(timer); timer = null; }
+    dots.forEach(function (d) { d.addEventListener('click', function () { go(+d.dataset.go); play(); }); });
+    box.addEventListener('mouseenter', stop);
+    box.addEventListener('mouseleave', play);
+    // سحب على الموبايل
+    var x0 = null;
+    box.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; stop(); }, { passive: true });
+    box.addEventListener('touchend', function (e) {
+        if (x0 === null) return;
+        var dx = e.changedTouches[0].clientX - x0; x0 = null;
+        if (Math.abs(dx) > 40) go(cur + (dx > 0 ? 1 : -1));   // RTL: السحب لليمين = التالي
+        play();
+    });
+    play();
+})();
+</script>
