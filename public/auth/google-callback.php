@@ -83,33 +83,11 @@ if (($user['approval_status'] ?? '') === 'rejected') {
     google_fail('طلب حسابك اترفض — كلّم الدعم');
 }
 
-// التحقق بخطوتين (حساب قديم مفعّله) ← كود على الإيميل قبل الدخول
-if (empty($res['is_new']) && function_exists('account_2fa_on') && account_2fa_on($user)) {
-    account_login_or_challenge($user);
+// 10: مفيش رقم موبايل ← «أكمل حسابك» قبل أي دخول (الموبايل إجباري لحسابات جوجل)
+if (function_exists('account_needs_phone') && account_needs_phone($user)) {
+    session_regenerate_id(true);
+    $_SESSION['phone_pending'] = ['uid' => $userId, 'is_new' => !empty($res['is_new']), 'linked' => !empty($res['linked']), 'at' => time()];
+    redirect('complete-account.php');
 }
 
-// تسجيل الدخول
-session_regenerate_id(true);
-$_SESSION['user_id'] = $userId;
-$_SESSION['user_name'] = $user['name'];
-if (function_exists('account_session_register')) account_session_register($userId);
-db_run('UPDATE users SET updated_at = NOW() WHERE id = ?', [$userId]);
-
-// استحقاق مكافأة المُحيل (الإيميل مفعّل من جوجل أصلًا)
-if (!empty($res['is_new']) && function_exists('referral_on_activation')) {
-    referral_on_activation($userId);
-}
-
-// نقل بيانات التجربة المجانية لو جاي منها
-$trialContent = function_exists('trial_claim') ? trial_claim($userId) : null;
-
-if (!empty($res['is_new'])) {
-    flash_set('success', 'أهلًا بيك في Spread AI 🎉 حسابك جاهز — والكريدت الترحيبي في محفظتك.');
-} elseif (!empty($res['linked'])) {
-    flash_set('success', 'ربطنا حساب جوجل بحسابك — تقدر تدخل بالطريقتين من دلوقتي.');
-}
-
-if ($trialContent) {
-    redirect('content-view.php?id=' . $trialContent);
-}
-redirect('dashboard.php');
+google_finish_login($user, $res);

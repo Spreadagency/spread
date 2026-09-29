@@ -201,13 +201,11 @@ document.addEventListener('DOMContentLoaded', function () {
       clearTimeout(timer);
       timer = setTimeout(function () { self.load(); }, 300);
     },
-    async create() {
+    // 10: الحملة الجديدة بتبدأ ببريف سريع (الاسم · الهدف · الجمهور · المنصات · الميزانية · المدة · المتطلبات)
+    create() {
       if (this.busy) return;
       this.busy = true;
-      var r = await SpreadAPI.post('campaigns', 'create', {});
-      if (r.ok) { location.href = base + '/campaign.php?id=' + r.campaign.id; return; }
-      this.busy = false;
-      this.notify(r.error, 'danger');
+      location.href = base + '/campaign-new.php';
     },
     async act(c, action) {
       this.menu = null;

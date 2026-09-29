@@ -35,6 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (($user['approval_status'] ?? 'approved') === 'rejected') {
             $errors[] = 'عذرًا، لم تتم الموافقة على حسابك. تواصل مع الإدارة.';
         } else {
+            // «افتكرني» — بيتحفظ في الجلسة لحد ما الدخول يكمل (حتى لو فيه تحقق بخطوتين)
+            $_SESSION['remember_me'] = !empty($_POST['remember']) ? 1 : 0;
             // التحقق بخطوتين (لو مفعّل) ← كود على الإيميل وصفحة الكود — وإلا دخول عادي
             account_login_or_challenge($user);
             // نقل بيانات التجربة المجانية للحساب (لو جاي منها)
@@ -96,6 +98,11 @@ include __DIR__ . '/../templates/header.php';
                        placeholder="••••••••">
                 <div class="field-help" style="text-align:end;">
                     <a href="<?= url('forgot-password.php') ?>">نسيت كلمة المرور؟</a>
+                </div>
+                <div class="field" style="margin-top:-6px">
+                    <label style="display:flex;gap:8px;align-items:center;font-weight:400;cursor:pointer">
+                        <input type="checkbox" name="remember" value="1" <?= remember_default() ? 'checked' : '' ?> style="width:auto"> افتكرني على الجهاز ده
+                    </label>
                 </div>
             </div>
 

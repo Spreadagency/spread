@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/billing.php';   // 10: الاشتراك بطلب دفع + إيصال
 
 require_login();
 
@@ -23,6 +24,9 @@ if ($payInstapayLink !== '' && !preg_match('#^https?://#i', $payInstapayLink)) {
 $payVodafone = trim((string) get_setting('pay_vodafone', ''));
 $payWhatsapp = preg_replace('/[^0-9]/', '', (string) get_setting('pay_whatsapp', ''));
 $showManual  = $manualPay && ($payInstapay || $payVodafone || $payInstapayLink) && $payWhatsapp;
+// 10: طرق الدفع من الأدمن ← صفحة الدفع برفع الإيصال (بدل واتساب)
+$billingOn = billing_ready() && (bool) billing_methods();
+if ($billingOn) $showManual = false;
 $waText      = rawurlencode('السلام عليكم، أنا ' . ($user['name'] ?? '') . ' (' . ($user['email'] ?? '') . ') — حوّلت مبلغ شحن الرصيد ومرفق صورة إثبات الدفع. الباقة: ');
 
 // صلاحية الرصيد (محمي لو الأعمدة لسه متضافتش)
@@ -114,7 +118,10 @@ include __DIR__ . '/../templates/header.php';
                                 <?php endforeach; ?>
                             </ul>
                         <?php endif; ?>
-                        <?php if ($paymobReady): ?>
+                        <?php if ($billingOn): ?>
+                            <a class="btn full sm" href="<?= url('checkout.php?package=' . (int) $p['id']) ?>"><?= $crShow ? 'اشحن / اشترك' : 'اشترك' ?></a>
+                            <?php if ($paymobReady): ?><button class="btn ghost full sm" style="margin-top:6px" onclick="buyPackage(<?= $p['id'] ?>, this)">ادفع أونلاين بالكارت</button><?php endif; ?>
+                        <?php elseif ($paymobReady): ?>
                             <button class="btn full sm" onclick="buyPackage(<?= $p['id'] ?>, this)">اشحن الآن</button>
                         <?php elseif ($showManual): ?>
                             <a class="btn full sm" target="_blank"
@@ -127,7 +134,9 @@ include __DIR__ . '/../templates/header.php';
                     </div>
                 <?php endforeach; ?>
             </div>
-            <?php if (!$paymobReady && !$showManual): ?>
+            <?php if ($billingOn): ?>
+                <div class="field-help mt-10"><a href="<?= url('packages.php') ?>">كل تفاصيل الباقات ←</a> · <a href="<?= url('payments.php') ?>">طلبات الدفع ←</a></div>
+            <?php elseif (!$paymobReady && !$showManual): ?>
                 <div class="field-help mt-10">الدفع لسه مش مفعل — تواصل مع الإدارة لشحن رصيدك.</div>
             <?php endif; ?>
         </div>

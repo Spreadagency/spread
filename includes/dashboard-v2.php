@@ -60,7 +60,7 @@ function dashboard_v2_data(array $user): array
     $campOn = ui_campaigns_on();
     $journey = [
         ['done' => !empty($health['unlocked']), 'label' => 'كمّل هوية براندك', 'url' => 'brand-brain.php'],
-        ['done' => ($counts['camps'] ?? 0) > 0 || !$campOn, 'label' => 'ابدأ أول حملة', 'url' => $campOn ? 'campaigns.php?new=1' : 'content-plan.php'],
+        ['done' => ($counts['camps'] ?? 0) > 0 || !$campOn, 'label' => 'ابدأ أول حملة', 'url' => $campOn ? 'campaign-new.php' : 'content-plan.php'],
         ['done' => ($counts['posts'] ?? 0) > 0, 'label' => 'اعمل أول منشور', 'url' => 'create-content.php'],
         ['done' => ($counts['designs'] ?? 0) > 0, 'label' => 'صمّم أول تصميم', 'url' => 'design-studio.php'],
         ['done' => ($counts['social'] ?? 0) > 0, 'label' => 'اربط صفحتك', 'url' => 'social-accounts.php'],
@@ -80,6 +80,11 @@ function dashboard_v2_data(array $user): array
     $jDone = count(array_filter($journey, fn($j) => $j['done']));
     $jNext = null;
     foreach ($journey as $j) { if (!$j['done']) { $jNext = $j; break; } }
+    $jPct = count($journey) ? (int) round($jDone / count($journey) * 100) : 100;
+    // 10: «رحلتك الأولى» بتختفي من الرئيسية لما التقدّم الحقيقي يوصل journey_hide_pct (افتراضي 60%)
+    //     وكارت Brand Brain بيختفي لما الهوية توصل brand_card_hide_pct (افتراضي 90%) — ويفضل متاح من «الهوية»
+    $jHide = max(1, min(100, (int) (function_exists('get_setting') ? get_setting('journey_hide_pct', 60) : 60)));
+    $bHide = max(1, min(100, (int) (function_exists('get_setting') ? get_setting('brand_card_hide_pct', 90) : 90)));
 
     // ─── حملة غير مكتملة ───
     $campaign = null;
@@ -117,10 +122,11 @@ function dashboard_v2_data(array $user): array
         'first'    => $first,
         'business' => (string) ($brand['business_name'] ?? ''),
         'health'   => $health,
+        'showBrand' => (int) ($health['pct'] ?? 0) < $bHide,
         'actions'  => $actions,
         'actionsTotal' => array_sum(array_column($actions, 'n')),
         'journey'  => ['steps' => $journey, 'done' => $jDone, 'total' => count($journey),
-                       'pct' => count($journey) ? (int) round($jDone / count($journey) * 100) : 100, 'next' => $jNext],
+                       'pct' => $jPct, 'next' => $jNext, 'show' => $jNext !== null && $jPct < $jHide],
         'campaign' => $campaign,
         'campOn'   => $campOn,
         'month'    => ['posts' => (int) ($month['posts'] ?? 0), 'designs' => (int) ($month['designs'] ?? 0),

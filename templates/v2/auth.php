@@ -94,6 +94,10 @@ include __DIR__ . '/../header.php';
                     </div>
                     <a href="<?= url('forgot-password.php') ?>" class="au-forgot">نسيت كلمة المرور؟</a>
                 </div>
+                <label class="au-remember">
+                    <input type="checkbox" name="remember" value="1" <?= function_exists('remember_default') && remember_default() ? 'checked' : '' ?>>
+                    <span>افتكرني على الجهاز ده</span>
+                </label>
                 <button type="submit" class="au-submit" data-busy-text="بنسجّل دخولك...">
                     تسجيل الدخول <?= ui_icon('chevron', 18) ?>
                 </button>

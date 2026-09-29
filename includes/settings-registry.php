@@ -30,6 +30,18 @@ function settings_registry(): array
                 ]],
                 ['title' => 'العملاء الجدد', 'fields' => [
                     ['key' => 'manual_approval', 'label' => 'الحسابات الجديدة محتاجة موافقة من الإدارة', 'type' => 'bool', 'default' => '0', 'sensitive' => true, 'help' => 'لو شغال، العميل الجديد بيستنى في «الموافقات» قبل ما يستخدم المنصة'],
+                    ['key' => 'google_require_phone', 'label' => 'حسابات جوجل لازم تسجّل رقم موبايل قبل الدخول', 'type' => 'bool', 'default' => '1', 'help' => 'صفحة «أكمل حسابك» بتظهر لأي حساب جوجل مفيهوش رقم'],
+                ]],
+                ['title' => 'الدخول المستمر («افتكرني»)', 'fields' => [
+                    ['key' => 'remember_default', 'label' => '«افتكرني» متعلّم افتراضيًا (وبيتطبّق على الدخول بجوجل)', 'type' => 'bool', 'default' => '1'],
+                    ['key' => 'remember_days', 'label' => 'مدة «افتكرني» (يوم)', 'type' => 'number', 'default' => '30', 'min' => 1, 'max' => 365, 'help' => 'توكن آمن بيتغيّر مع كل استخدام — مفيش باسورد في المتصفح'],
+                ]],
+                ['title' => 'الرئيسية (الإخفاء التلقائي)', 'fields' => [
+                    ['key' => 'journey_hide_pct', 'label' => 'إخفاء «رحلتك الأولى» من الرئيسية عند تقدّم (%)', 'type' => 'number', 'default' => '60', 'min' => 1, 'max' => 100, 'help' => 'التقدّم محسوب من بيانات العميل الحقيقية'],
+                    ['key' => 'brand_card_hide_pct', 'label' => 'إخفاء كارت Brand Brain من الرئيسية عند اكتمال الهوية (%)', 'type' => 'number', 'default' => '90', 'min' => 1, 'max' => 100, 'help' => 'بيفضل متاح من تبويب «الهوية»'],
+                ]],
+                ['title' => 'المدفوعات', 'fields' => [
+                    ['key' => 'billing_email_notify', 'label' => 'إيميل للعميل عند اعتماد/رفض الدفع أو طلب معلومات', 'type' => 'bool', 'default' => '1'],
                 ]],
             ],
             'links' => [

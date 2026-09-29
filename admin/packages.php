@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
+require_once __DIR__ . '/../includes/billing.php';   // 10: هدية الباقة
 
 require_admin();
 require_admin_can('manage_packages');
@@ -29,6 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'is_active'     => !empty($_POST['is_active']) ? 1 : 0,
             'order_num'     => (int) ($_POST['order_num'] ?? 0),
         ];
+        // 10: هدية الباقة (Bonus) — بتتضاف مع الاعتماد
+        if (function_exists('billing_ready') && billing_ready()) {
+            $data['bonus_credits'] = max(0, min(100000, (int) ($_POST['bonus_credits'] ?? 0)));
+            $data['bonus_note'] = mb_substr(trim($_POST['bonus_note'] ?? ''), 0, 190) ?: null;
+        }
         // 8-ب: حصص الباقة في الدورة (0 = مفتوح في حدود الكريدت)
         if (function_exists('plans_ready') && plans_ready()) {
             $q = [];
@@ -172,6 +178,16 @@ include __DIR__ . '/../templates/admin-header.php';
                     <div class="field">
                         <label>شارة (اختياري)</label>
                         <input type="text" name="badge" class="input" value="<?= e($editing['badge'] ?? '') ?>" placeholder="الأكثر طلبًا">
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label>🎁 كريدت هدية مع الباقة</label>
+                        <input type="number" name="bonus_credits" class="input" min="0" value="<?= (int) ($editing['bonus_credits'] ?? 0) ?>">
+                    </div>
+                    <div class="field">
+                        <label>🎁 وصف الهدية (اختياري)</label>
+                        <input type="text" name="bonus_note" class="input" maxlength="190" value="<?= e($editing['bonus_note'] ?? '') ?>" placeholder="مثلًا: جلسة استشارة مجانية">
                     </div>
                 </div>
 

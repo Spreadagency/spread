@@ -99,6 +99,7 @@ function admin_nav(): array
             ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
         ],
         'COMMERCIAL' => [
+            ['payments', 'المدفوعات', 'Payments', 'card', 'admin/payments.php', 'view_users', ['payments'], 'payments'],
             ['packages', 'الباقات والأسعار', 'Plans & Pricing', 'card', 'admin/packages.php', 'manage_packages', ['packages']],
             ['pricing', 'تسعير العمليات', 'Credits Pricing', 'diamond', 'admin/pricing.php', 'manage_packages', ['pricing']],
             ['offers', 'العروض', 'Offers', 'gift', 'admin/offers.php', 'manage_packages', ['offers']],
@@ -129,6 +130,9 @@ function admin_nav_count(string $kind): int
         }
         if ($kind === 'approvals') {
             return (int) (db_one('SELECT COUNT(*) n FROM users WHERE approval_status = "pending"')['n'] ?? 0);
+        }
+        if ($kind === 'payments') {
+            return (int) (db_one('SELECT COUNT(*) n FROM payment_requests WHERE status IN ("pending","under_review")')['n'] ?? 0);
         }
         if ($kind === 'alerts') {
             return admin_alerts_open_count();

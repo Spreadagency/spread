@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/offers.php';
+require_once __DIR__ . '/../includes/billing.php';   // 10: أكواد الخصم على الباقات (طرق الدفع)
 
 require_admin();
 require_admin_can('manage_packages');
@@ -45,6 +46,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach (['allowed_packages', 'whitelist_user_ids', 'blacklist_user_ids'] as $listKey) {
         $v = $intList((string) ($_POST[$listKey] ?? ''));
         if ($v) $rules[$listKey] = $v;
+    }
+    // 10: كود خصم على الباقات — المكافأة · المستهدفين · الأهلية · مرات لكل عميل · طرق الدفع
+    if (($_POST['type'] ?? '') === 'promo') {
+        $dt = in_array($_POST['discount_type'] ?? 'none', ['none', 'percent', 'fixed', 'special', 'free'], true) ? $_POST['discount_type'] : 'none';
+        $rules['reward'] = [
+            'discount_type'  => $dt,
+            'discount_value' => $dt === 'percent' ? max(0, min(100, (float) ($_POST['discount_value'] ?? 0))) : max(0, (float) ($_POST['discount_value'] ?? 0)),
+            'bonus_credits'  => max(0, (int) ($_POST['bonus_credits'] ?? 0)),
+            'extra_days'     => max(0, min(3650, (int) ($_POST['extra_days'] ?? 0))),
+        ];
+        // «مخصص لـ»: أرقام حسابات · إيميلات · موبايلات — سطر أو فاصلة لكل واحد
+        $t = ['user_ids' => [], 'emails' => [], 'phones' => []];
+        foreach (preg_split('/[\s,;]+/u', trim((string) ($_POST['target'] ?? ''))) ?: [] as $tok) {
+            if ($tok === '') continue;
+            if (str_contains($tok, '@')) $t['emails'][] = mb_strtolower($tok);
+            elseif (preg_match('/^\d{1,9}$/', $tok)) $t['user_ids'][] = (int) $tok;
+            elseif (preg_match('/^\+?\d{8,15}$/', $tok)) $t['phones'][] = $tok;
+        }
+        $t = array_map(fn($a) => array_values(array_unique($a)), $t);
+        if ($t['user_ids'] || $t['emails'] || $t['phones']) $rules['target'] = $t;
+        $el = in_array($_POST['eligibility'] ?? 'all', ['all', 'new', 'existing'], true) ? $_POST['eligibility'] : 'all';
+        $rules['eligibility'] = $el;
+        if ($el === 'new') $rules['new_users_only'] = true;
+        if ($el !== 'all') $rules['max_account_age_days'] = max(1, (int) ($_POST['max_account_age_days'] ?? 7));
+        if (!empty($_POST['max_per_user'])) $rules['max_per_user'] = max(1, (int) $_POST['max_per_user']);
+        $methods = array_values(array_intersect(array_map('strval', (array) ($_POST['allowed_methods'] ?? [])), array_column(billing_methods(false), 'mkey')));
+        if ($methods) $rules['allowed_methods'] = $methods;
     }
 
     $data = [
@@ -173,6 +201,72 @@ include __DIR__ . '/../templates/admin-header.php';
                 </div>
             </div>
 
+            <?php $__w = $offer ? promo_reward($offer) : ['discount_type' => 'none', 'discount_value' => 0, 'bonus_credits' => 0, 'extra_days' => 0];
+                  $__t = (array) ($r['target'] ?? []);
+                  $__tTxt = implode("\n", array_merge((array) ($__t['user_ids'] ?? []), (array) ($__t['emails'] ?? []), (array) ($__t['phones'] ?? [])));
+                  $__am = (array) ($r['allowed_methods'] ?? []); ?>
+            <div class="card" id="promo-box">
+                <div class="card-head"><h3>②-ب كود خصم على الباقات <small class="sub">(للنوع «🎁 عرض / كوبون» بس)</small></h3></div>
+                <p class="sub" style="margin-top:0">العميل بيكتب الكود في صفحة الدفع ← السيرفر بيتحقق من الشروط ← يشوف السعر النهائي أو الهدية قبل ما يدفع. الاستخدام بيتسجّل لما تعتمد الدفع.</p>
+                <div class="field-row">
+                    <div class="field">
+                        <label>نوع المكافأة</label>
+                        <select name="discount_type" class="input">
+                            <?php foreach (['none' => 'من غير خصم (هدية بس)', 'percent' => 'خصم نسبة %', 'fixed' => 'خصم مبلغ ثابت (جنيه)', 'special' => 'سعر خاص (جنيه)', 'free' => 'الباقة مجانًا'] as $k => $l): ?>
+                                <option value="<?= $k ?>" <?= $__w['discount_type'] === $k ? 'selected' : '' ?>><?= $l ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>قيمة الخصم / السعر</label>
+                        <input type="number" step="0.01" min="0" name="discount_value" class="input" value="<?= e((string) ($__w['discount_value'] ?: '')) ?>" placeholder="50">
+                    </div>
+                    <div class="field">
+                        <label>كريدت هدية (Bonus)</label>
+                        <input type="number" min="0" name="bonus_credits" class="input" value="<?= (int) $__w['bonus_credits'] ?: '' ?>" placeholder="0">
+                    </div>
+                    <div class="field">
+                        <label>أيام زيادة على الباقة</label>
+                        <input type="number" min="0" name="extra_days" class="input" value="<?= (int) $__w['extra_days'] ?: '' ?>" placeholder="0">
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field">
+                        <label>مين يقدر يستخدمه؟</label>
+                        <select name="eligibility" class="input">
+                            <?php foreach (['all' => 'كل المستخدمين', 'new' => 'مستخدمين جدد بس', 'existing' => 'مستخدمين حاليين بس'] as $k => $l): ?>
+                                <option value="<?= $k ?>" <?= ($r['eligibility'] ?? (!empty($r['new_users_only']) ? 'new' : 'all')) === $k ? 'selected' : '' ?>><?= $l ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="field-help">«جديد» = عمر الحساب أقل من الأيام المحددة في الشروط تحت</div>
+                    </div>
+                    <div class="field">
+                        <label>مرات الاستخدام لكل عميل</label>
+                        <input type="number" min="1" name="max_per_user" class="input" value="<?= e((string) ($r['max_per_user'] ?? '')) ?>" placeholder="1 (مرة واحدة)">
+                    </div>
+                    <div class="field">
+                        <label>الحد الأدنى لسعر الباقة (جنيه)</label>
+                        <input type="number" min="0" name="min_purchase" class="input" value="<?= e((string) ($r['min_purchase'] ?? '')) ?>" placeholder="بلا حد">
+                    </div>
+                </div>
+                <div class="field">
+                    <label>مخصص لـ (اختياري) — رقم الحساب أو الإيميل أو الموبايل، واحد في كل سطر</label>
+                    <textarea name="target" class="textarea" rows="3" dir="ltr" data-no-encode="1" placeholder="15&#10;ahmed@example.com&#10;01012345678"><?= e($__tTxt) ?></textarea>
+                    <div class="field-help">فاضي = لأي حد تنطبق عليه الشروط. غير كده الكود مايشتغلش غير للحسابات دي.</div>
+                </div>
+                <?php $__ms = billing_methods(false); if ($__ms): ?>
+                <div class="field">
+                    <label>طرق دفع محددة (اختياري)</label>
+                    <div style="display:flex;gap:14px;flex-wrap:wrap">
+                        <?php foreach ($__ms as $__m): ?>
+                            <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" name="allowed_methods[]" value="<?= e($__m['mkey']) ?>" <?= in_array($__m['mkey'], $__am, true) ? 'checked' : '' ?> style="width:auto"> <?= e($__m['label']) ?></label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+                <p class="sub" style="margin:0">الباقة المحددة: اكتب رقمها في «باقات مسموحة» تحت (مثلًا كود PRO100 لباقة برو بس). التاريخ والحد الإجمالي في «④ الفترة والحدود».</p>
+            </div>
+
             <div class="card">
                 <div class="card-head"><h3>③ الشروط</h3></div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">
@@ -220,6 +314,7 @@ include __DIR__ . '/../templates/admin-header.php';
                     </div>
                     <div class="field">
                         <label>باقات مسموحة (أرقام مفصولة بفاصلة)</label>
+                        <div class="field-help"><?= e(implode(' · ', array_map(fn($p) => $p['id'] . ' = ' . $p['name'], db_all('SELECT id, name FROM credit_packages ORDER BY order_num, id')))) ?></div>
                         <input type="text" name="allowed_packages" class="input" dir="ltr" data-no-encode="1"
                                value="<?= e(implode(',', (array) ($r['allowed_packages'] ?? []))) ?>" placeholder="كل الباقات">
                     </div>
@@ -296,4 +391,13 @@ include __DIR__ . '/../templates/admin-header.php';
     </main>
 </div>
 
+<script>
+// قسم «كود خصم على الباقات» بيظهر للنوع «عرض / كوبون» بس
+(function () {
+    var sel = document.querySelector('select[name=type]'), box = document.getElementById('promo-box');
+    if (!sel || !box) return;
+    var upd = function () { box.style.display = sel.value === 'promo' ? '' : 'none'; };
+    sel.addEventListener('change', upd); upd();
+})();
+</script>
 <?php include __DIR__ . '/../templates/admin-footer.php'; ?>

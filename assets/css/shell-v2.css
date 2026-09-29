@@ -96,6 +96,18 @@ body.ui-v2 .sidebar:not(.v2-side), body.ui-v2 .topbar, body.ui-v2 .tabbar, body.
 .v2-me-txt { display: flex; flex-direction: column; line-height: 1.25; }
 .v2-me-txt b { font-size: 13.5px; }
 .v2-me-txt small { font-size: 11.5px; color: var(--mute); }
+/* 10: قائمة الحساب (الإعدادات خرجت من الشريط السفلي) */
+.v2-me-wrap { position: relative; }
+button.v2-me { font: inherit; cursor: pointer; min-height: 0; text-align: start; }
+.v2-me-pop { width: 270px; }
+.v2-me-head { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.v2-me-head b { font-size: 14px; }
+.v2-me-head small { font-size: 12px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: end; }
+.v2-me-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; text-decoration: none; color: var(--ink) !important; font-size: 13.5px; }
+.v2-me-item:hover, .v2-me-item:focus-visible { background: var(--surface-2); }
+.v2-me-item > .ui-ic { color: var(--mute); }
+.v2-me-item.danger { color: var(--danger) !important; border-top: 1px solid var(--line); margin-top: 6px; border-radius: 0 0 12px 12px; }
+.v2-me-item.danger > .ui-ic { color: var(--danger); }
 
 /* ─────────────── الجرس ─────────────── */
 .v2-bell-wrap { position: relative; }
@@ -226,6 +238,9 @@ body.ui-v2 .sa-shimmer, body.ui-v2 .cp-skel i {
         box-shadow: 0 12px 28px rgba(12, 135, 239, .40), 0 0 0 6px rgba(46, 227, 204, .18);
         transition: transform .25s var(--ease); }
     .v2-fab:active { transform: scale(.94); }
+    button.v2-fab { padding: 0; cursor: pointer; font: inherit; min-height: 0; }
+    .v2-fab[aria-expanded="true"] > .ui-ic { transform: rotate(45deg); }
+    .v2-fab > .ui-ic { transition: transform .2s var(--ease); }
 
     /* الشريط العائم مايغطيش أزرار التنقل في شاشة الحملة */
     body.ui-v2 .cm-nav { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
@@ -531,6 +546,7 @@ body.v2-auth-page .gbtn:hover { border-color: rgba(12, 135, 239, .35); backgroun
 /* ── موبايل: نفس ترتيب التصميم ── */
 @media (max-width: 980px) {
     .dh { grid-template-columns: 1fr; grid-template-areas: "hero" "brand" "camp" "slide" "act" "quick" "recent" "month"; gap: 14px; }
+    .dh.dh--nobrand { grid-template-areas: "hero" "camp" "slide" "act" "quick" "recent" "month"; }
     .dh-hero { padding: 22px 18px; min-height: 0; }
     .dh-hero h2 { font-size: 24px; }
     .dh-hero p { font-size: 14px; margin-bottom: 16px; }
@@ -1219,3 +1235,47 @@ body.ui-v2 .cp-pop a { color: var(--ink); }
     .dh-sl-img { height: 150px; }
 }
 @media (prefers-reduced-motion: reduce) { .dh-sl { transition: none; } }
+.au-remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2, #3A4A60); cursor: pointer; margin: -2px 0 2px; }
+.au-remember input { width: 17px; height: 17px; accent-color: var(--primary, #0C87EF); }
+
+
+/* ═══ 10: قائمة ＋ (حملة · تصميم · منشور) ═══ */
+.v2-quick { position: fixed; inset: 0; z-index: 60; }
+.v2-quick[hidden] { display: none; }
+.v2-quick-bg { position: absolute; inset: 0; background: rgba(10, 28, 52, .38); opacity: 0; transition: opacity .18s ease; }
+.v2-quick-sheet { position: absolute; inset-inline: 12px; bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    max-width: 460px; margin-inline: auto; display: grid; gap: 8px; padding: 14px; border-radius: 24px;
+    background: #fff; border: 1px solid var(--glass-edge); box-shadow: 0 24px 60px rgba(12, 70, 130, .24);
+    transform: translateY(16px); opacity: 0; transition: transform .2s var(--ease), opacity .18s ease; }
+.v2-quick.open .v2-quick-bg { opacity: 1; }
+.v2-quick.open .v2-quick-sheet { transform: none; opacity: 1; }
+.v2-quick-head { display: flex; justify-content: space-between; align-items: center; padding: 2px 4px 4px; }
+.v2-quick-head b { font-size: 15.5px; }
+.v2-quick-x { width: 36px; height: 36px; min-height: 0; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center;
+    background: var(--primary-soft); color: var(--ink); cursor: pointer; }
+.v2-quick-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px; text-decoration: none;
+    color: var(--ink) !important; border: 1px solid var(--line); background: #fff; }
+.v2-quick-item:hover, .v2-quick-item:focus-visible { border-color: var(--primary); background: var(--primary-soft); }
+.v2-quick-ic { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; color: #fff; background: var(--grad-brand); }
+.qa-design .v2-quick-ic { background: linear-gradient(135deg, #8B5CF6, #EC4899); }
+.qa-post .v2-quick-ic { background: linear-gradient(135deg, #10B6A8, #0C87EF); }
+.v2-quick-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.v2-quick-txt b { font-size: 14.5px; }
+.v2-quick-txt small { font-size: 11.5px; color: var(--mute); }
+.v2-quick-item > .ui-ic { color: var(--mute-2); }
+html.v2-quick-lock, html.v2-quick-lock body { overflow: hidden; }
+@media (min-width: 981px) { .v2-quick { display: none !important; } }
+@media (prefers-reduced-motion: reduce) { .v2-quick-bg, .v2-quick-sheet, .v2-fab > .ui-ic { transition: none; } }
+
+/* ═══ 10: حملة جديدة (بريف سريع) ═══ */
+.cn-form { max-width: 760px; display: grid; gap: 4px; }
+.cn-fs { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.cn-fs legend { font-weight: 600; font-size: 14px; margin-bottom: 8px; padding: 0; }
+.cn-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cn-chip { position: relative; cursor: pointer; }
+.cn-chip input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.cn-chip span { display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--line); font-size: 13.5px; background: #fff; }
+.cn-chip input:checked + span { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-deep); font-weight: 600; }
+.cn-chip input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+.cn-act { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.sx-billing { justify-content: flex-start; gap: 16px; margin-top: 4px; }

@@ -102,8 +102,9 @@ function ui_sections(): array
         ]],
         // ⑦ رحلتك الأولى — بتختفي من القائمة لما تخلص (السايدبار)
         'journey' => ['رحلتك الأولى', 'star', 'journey.php', ['journey'], []],
-        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'credits', 'referrals', 'social-accounts', 'help'], [
+        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], [
             ['حسابي', 'profile.php', 'profile', null],
+            ['الباقات والاشتراك', 'packages.php', 'packages', null],
             ['الرصيد', 'credits.php', 'credits', 'credits'],
             [(function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت', 'referrals.php', 'referrals', 'referrals'],
             ['ربط السوشيال', 'social-accounts.php', 'social-accounts', 'social-accounts'],
@@ -200,6 +201,16 @@ function ui_notifications(int $userId): array
                         'sub' => 'غيّرت رأيك؟ ألغِ الطلب من الإعدادات'];
         }
     } catch (\Throwable $e) { /* قبل ترحيل ⑥-أ */ }
+
+    // ⓪ إشعارات العميل (تفعيل الباقة · رفض الدفع · طلب معلومات …) — المرحلة 10
+    try {
+        foreach (db_all('SELECT * FROM user_notifications WHERE user_id = ? AND read_at IS NULL ORDER BY id DESC LIMIT 5', [$userId]) as $un) {
+            $items[] = ['type' => 'action', 'icon' => $un['tone'] === 'ok' ? 'check' : ($un['tone'] === 'danger' ? 'alert' : 'bell'),
+                        'tone' => in_array($un['tone'], ['ok', 'warn', 'danger', 'info', 'brand'], true) ? $un['tone'] : 'brand',
+                        'url' => 'notif.php?id=' . (int) $un['id'], 'title' => (string) $un['title'],
+                        'sub' => mb_substr(trim((string) ($un['body'] ?? '')), 0, 90)];
+        }
+    } catch (\Throwable $e) { /* قبل ترحيل 10 */ }
 
     // ① محتاج تعديل — من الحالات الموحّدة (المرحلة 1)
     if (function_exists('content_status_sql')) {

@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/offers.php';
+require_once __DIR__ . '/../includes/promo.php';   // 10: وصف مكافأة كود الخصم
 
 require_admin();
 require_admin_can('manage_packages');
@@ -41,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (($_POST['action'] ?? '') === 'delete') {
         require_admin_can('delete_user');
         $used = (int) (db_one('SELECT COUNT(*) c FROM offer_redemptions WHERE offer_id = ?', [$id])['c'] ?? 0);
+        try { $used += (int) (db_one('SELECT COUNT(*) c FROM payment_requests WHERE offer_id = ?', [$id])['c'] ?? 0); } catch (\Throwable $e) {}
         if ($used > 0) {
             flash_set('danger', 'مينفعش تحذف عرض عليه ' . $used . ' استخدام — أوقفه بدل الحذف');
         } else {
@@ -180,8 +182,11 @@ include __DIR__ . '/../templates/admin-header.php';
                             </div>
                         </td>
                         <td style="font-size:12.5px;white-space:nowrap">
+                            <?php if ($o['type'] === 'promo' && function_exists('promo_has_reward') && promo_has_reward($o)): ?>
+                                🛒 <b><?= e(promo_reward_label($o)) ?></b><br>
+                            <?php endif; ?>
                             <?php if ((int) $o['referrer_credits'] > 0): ?>مُحيل: <b><?= (int) $o['referrer_credits'] ?></b><br><?php endif; ?>
-                            جديد: <b><?= (int) $o['referee_credits'] ?></b>
+                            <?php if ((int) $o['referee_credits'] > 0 || $o['type'] !== 'promo'): ?>جديد: <b><?= (int) $o['referee_credits'] ?></b><?php endif; ?>
                         </td>
                         <td style="min-width:96px">
                             <?= (int) $o['used_count'] ?><?= $o['max_uses'] ? ' / ' . (int) $o['max_uses'] : '' ?>

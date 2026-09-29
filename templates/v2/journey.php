@@ -98,7 +98,7 @@
                 <div class="jr-actions center">
                     <a class="cf-btn primary" :href="j.campaign ? base + '/campaign.php?id=' + j.campaign.id : base + '/campaigns.php'">افتح حملتي</a>
                     <a class="cf-btn ghost" :href="base + '/design-studio.php'">Design Studio</a>
-                    <a class="cf-btn ghost" :href="base + '/campaigns.php?new=1'">حملة جديدة</a>
+                    <a class="cf-btn ghost" :href="base + '/campaign-new.php'">حملة جديدة</a>
                 </div>
             </section>
 

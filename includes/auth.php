@@ -6,6 +6,7 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/account.php';   // الجلسات النشطة · التحقق بخطوتين (⑥-أ)
+require_once __DIR__ . '/remember.php';  // «افتكرني» — دخول مستمر بتوكن آمن (10)
 
 /**
  * Currently logged in user
@@ -53,21 +54,38 @@ function require_login(): void
     // الجلسة اتنهت من جهاز تاني («خروج من الأجهزة الأخرى» في الإعدادات)
     if (!account_session_check((int) $u['id'])) {
         unset($_SESSION['user_id']);
+        remember_forget_current();
         session_regenerate_id(true);
         flash_set('warning', 'الجلسة دي اتنهت من جهاز تاني — سجّل دخول تاني');
         redirect('login.php');
     }
+    // حساب جوجل من غير رقم موبايل ← لازم يكمّل بياناته الأول (10)
+    if (account_needs_phone($u) && basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) !== 'complete-account.php' && empty($_SESSION['impersonator_admin_id'])) {
+        redirect('complete-account.php');
+    }
+}
+
+/** حساب بجوجل ومفيش رقم موبايل؟ (الإعداد google_require_phone يقفلها) */
+function account_needs_phone(array $u): bool
+{
+    if (function_exists('get_setting') && get_setting('google_require_phone', '1') !== '1') return false;
+    return in_array((string) ($u['auth_provider'] ?? 'password'), ['google', 'both'], true)
+        && strlen(preg_replace('/\D+/', '', (string) ($u['phone'] ?? ''))) < 8;
 }
 
 /**
  * Login user (set session)
  */
-function login_user(int $userId): void
+function login_user(int $userId, ?bool $remember = null): void
 {
     $_SESSION['user_id'] = $userId;
     session_regenerate_id(true);
     unset($_SESSION['2fa_pending'], $_SESSION['2fa']);
     account_session_register($userId);
+    // «افتكرني»: اختيار العميل في فورم الدخول (بيتحفظ في الجلسة لحد ما الدخول يكمل — حتى بعد التحقق بخطوتين)، وإلا افتراضي النظام
+    $remember = $remember ?? (isset($_SESSION['remember_me']) ? (bool) $_SESSION['remember_me'] : remember_default());
+    unset($_SESSION['remember_me']);
+    if ($remember) remember_issue($userId);
 }
 
 /**
@@ -75,8 +93,9 @@ function login_user(int $userId): void
  */
 function logout_user(): void
 {
+    remember_forget_current();
     account_session_end_current();
-    unset($_SESSION['user_id'], $_SESSION['us_chk']);
+    unset($_SESSION['user_id'], $_SESSION['us_chk'], $_SESSION['phone_pending'], $_SESSION['remember_me']);
     session_regenerate_id(true);
 }
 
@@ -194,4 +213,9 @@ function user_credits(?int $userId = null): int
     if (!$userId) return 0;
     $row = db_one('SELECT balance FROM credit_wallets WHERE user_id = ?', [$userId]);
     return $row ? (int) $row['balance'] : 0;
+}
+
+// «افتكرني»: مفيش جلسة بس فيه توكن صالح ← دخول تلقائي
+if (PHP_SAPI !== 'cli') {
+    remember_try_login();
 }

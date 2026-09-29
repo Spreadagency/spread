@@ -64,7 +64,8 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
             </div>
         </div>
 
-        <a href="<?= url('profile.php') ?>" class="v2-me">
+        <div class="v2-me-wrap">
+        <button type="button" class="v2-me" aria-label="قائمة الحساب" aria-haspopup="true" aria-expanded="false" aria-controls="v2-me-pop" onclick="v2Me(event)">
             <?php
             // صورة الحساب (من الإعدادات أو جوجل) — وإلا الحروف الأولى
             $__av = (string) ($user['avatar_url'] ?? '');
@@ -72,7 +73,28 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
             ?>
             <span class="v2-avatar"><?php if ($__av !== ''): ?><img src="<?= e($__av) ?>" alt="" referrerpolicy="no-referrer"><?php else: ?><?= e(function_exists('initials') ? initials($__name) : mb_substr($__name, 0, 1)) ?><?php endif; ?></span>
             <span class="v2-me-txt"><b><?= e(mb_substr($__first, 0, 14)) ?></b><small><?= ($__notif['usage']['show'] ?? true) ? (int) $__notif['usage']['balance'] . ' كريدت' : 'استخدمت ' . (int) $__notif['usage']['pct'] . '%' ?></small></span>
-        </a>
+        </button>
+        <?php
+        // 10: الإعدادات خرجت من الشريط السفلي ← قائمة الحساب
+        $__menu = [
+            ['profile.php', 'user', 'حسابي'],
+            ['profile.php#sx-h-sec', 'lock', 'كلمة المرور والأمان'],
+            ['packages.php', 'star', 'الاشتراك والباقات'],
+            ['payments.php', 'file', 'المدفوعات والفواتير'],
+            ['credits.php', 'coin', 'الرصيد'],
+            ['profile.php#sx-h-acc', 'link', 'الحسابات المرتبطة'],
+            ['social-accounts.php', 'send', 'ربط السوشيال'],
+            ['help.php', 'help', 'دليل المنصة'],
+        ];
+        ?>
+        <div class="v2-pop v2-me-pop" id="v2-me-pop" hidden>
+            <div class="v2-me-head"><b><?= e($__name) ?></b><small dir="ltr"><?= e((string) ($user['email'] ?? '')) ?></small></div>
+            <?php foreach ($__menu as [$href, $icon, $label]): ?>
+                <a href="<?= e(url($href)) ?>" class="v2-me-item"><?= ui_icon($icon, 18) ?><span><?= e($label) ?></span></a>
+            <?php endforeach; ?>
+            <a href="<?= url('logout.php') ?>" class="v2-me-item danger"><?= ui_icon('logout', 18) ?><span>تسجيل الخروج</span></a>
+        </div>
+        </div>
     </div>
 </header>
 
@@ -94,7 +116,20 @@ function v2Bell(e) {
   if (open) { pop.removeAttribute('hidden'); } else { pop.setAttribute('hidden', ''); }
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
+function v2Me(e) {
+  e.stopPropagation();
+  var pop = document.getElementById('v2-me-pop'), btn = e.currentTarget;
+  var bell = document.getElementById('v2-bell-pop'); if (bell) bell.setAttribute('hidden', '');
+  var open = pop.hasAttribute('hidden');
+  if (open) { pop.removeAttribute('hidden'); var f = pop.querySelector('a'); if (f) f.focus(); } else { pop.setAttribute('hidden', ''); }
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
 document.addEventListener('click', function (e) {
+  var mp = document.getElementById('v2-me-pop');
+  if (mp && !mp.hasAttribute('hidden') && !mp.contains(e.target)) {
+    mp.setAttribute('hidden', '');
+    var mb = document.querySelector('.v2-me'); if (mb) mb.setAttribute('aria-expanded', 'false');
+  }
   var pop = document.getElementById('v2-bell-pop');
   if (pop && !pop.hasAttribute('hidden') && !pop.contains(e.target)) {
     pop.setAttribute('hidden', '');
@@ -102,6 +137,10 @@ document.addEventListener('click', function (e) {
   }
 });
 document.addEventListener('keydown', function (e) {
-  if (e.key === 'Escape') { var p = document.getElementById('v2-bell-pop'); if (p) p.setAttribute('hidden', ''); }
+  if (e.key === 'Escape') {
+    var p = document.getElementById('v2-bell-pop'); if (p) p.setAttribute('hidden', '');
+    var m = document.getElementById('v2-me-pop');
+    if (m && !m.hasAttribute('hidden')) { m.setAttribute('hidden', ''); var b = document.querySelector('.v2-me'); if (b) { b.setAttribute('aria-expanded', 'false'); b.focus(); } }
+  }
 });
 </script>

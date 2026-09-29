@@ -100,7 +100,12 @@ function account_session_revoke(int $userId, int $sessionId): bool
     try {
         $st = db()->prepare('UPDATE user_sessions SET revoked_at = NOW() WHERE id = ? AND user_id = ? AND sid_hash <> ? AND revoked_at IS NULL');
         $st->execute([$sessionId, $userId, account_sid_hash()]);
-        return $st->rowCount() > 0;
+        $ok = $st->rowCount() > 0;
+        if ($ok && function_exists('remember_revoke_session')) {
+            $sid = db_one('SELECT sid_hash FROM user_sessions WHERE id = ?', [$sessionId]);
+            remember_revoke_session($userId, (string) ($sid['sid_hash'] ?? ''));
+        }
+        return $ok;
     } catch (\Throwable $e) {
         return false;
     }
@@ -112,7 +117,9 @@ function account_session_revoke_others(int $userId): int
     try {
         $st = db()->prepare('UPDATE user_sessions SET revoked_at = NOW() WHERE user_id = ? AND sid_hash <> ? AND revoked_at IS NULL');
         $st->execute([$userId, account_sid_hash()]);
-        return $st->rowCount();
+        // «افتكرني» على الأجهزة التانية بيتلغي كمان — وإلا كانت هترجع تدخل لوحدها
+        $n = function_exists('remember_revoke_others') ? remember_revoke_others($userId) : 0;
+        return max($st->rowCount(), $n);
     } catch (\Throwable $e) {
         return 0;
     }

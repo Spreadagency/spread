@@ -134,6 +134,14 @@ $feat[] = ['9', 'مشاريع الاستوديو اللي لسه مكملتش ·
     $tbl('studio_drafts') && $tbl('brand_inspirations') ? 'شغال' : 'بيتعمل تلقائيًا أول استخدام — أو شغّل ترحيل 9'];
 $feat[] = ['9', 'البحث العميق على الـ Smart Router', function_exists('ai_gw_enabled') && ai_gw_enabled() ? true : null,
     function_exists('ai_gw_enabled') && ai_gw_enabled() ? 'شغال' : 'البحث متوقف لحد ما البوابة تشتغل من «الموديلات والـ Router» (المسار القديم اتشال من البحث)'];
+$payReady = $tbl('payment_requests') && $tbl('payment_methods');
+$pmActive = 0;
+if ($payReady) { try { $pmActive = (int) (db_one('SELECT COUNT(*) n FROM payment_methods WHERE is_active = 1')['n'] ?? 0); } catch (\Throwable $e) {} }
+$feat[] = ['10', 'الباقات والدفع اليدوي (إنستاباي · فودافون كاش) + مراجعة الأدمن', $payReady ? ($pmActive ? true : null) : false,
+    !$payReady ? 'مستني ترحيل 10 (أو بيتعمل تلقائيًا أول فتح لصفحة الباقات)' : ($pmActive ? $pmActive . ' طريقة دفع مفعّلة' : 'مفيش طريقة دفع مفعّلة — ضيفها من «المدفوعات ← طرق الدفع»')];
+$feat[] = ['10', 'أكواد الخصم على الباقات (Promo)', $tbl('promo_usages') ? true : false, $tbl('promo_usages') ? 'شغال' : 'مستني ترحيل 10'];
+$feat[] = ['10', '«افتكرني» · رقم الموبايل لحسابات جوجل', $tbl('user_remember_tokens') ? true : false,
+    $tbl('user_remember_tokens') ? 'شغال · مدة ' . (int) get_setting('remember_days', 30) . ' يوم' : 'مستني ترحيل 10'];
 $optedIn = 0;
 try { $optedIn = (int) (db_one('SELECT COUNT(*) n FROM users WHERE ui_pref = "v2"')['n'] ?? 0); } catch (\Throwable $e) {}
 $modeLbl = ['off' => '🔒 مقفولة', 'optin' => '🧪 تجريبية', 'all' => '🚀 للكل'][$mode] ?? 'مش متحددة';

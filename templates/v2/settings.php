@@ -117,7 +117,7 @@ $__v1Csrf = csrf_field();
                             <small>{{ money(p.price) }} جنيه<span v-if="p.badge"> · {{ p.badge }}</span></small>
                         </div>
                         <span class="sx-chip blue" v-if="p.name === d.plan.name">باقتك الحالية</span>
-                        <a v-if="p.name !== d.plan.name" :href="base + '/credits.php#pkg-' + p.id" class="sx-btn soft sm">اختيار</a>
+                        <a v-if="p.name !== d.plan.name" :href="base + '/checkout.php?package=' + p.id" class="sx-btn soft sm">اشترك</a>
                     </div>
                 </div>
 
@@ -125,6 +125,11 @@ $__v1Csrf = csrf_field();
                     <button type="button" class="sx-btn ghost" v-if="d.plan.show" @click="show.usage = !show.usage; show.plans = false" :aria-expanded="show.usage">{{ show.usage ? 'إخفاء التفاصيل' : 'عرض تفاصيل الاستخدام' }}</button>
                     <a class="sx-btn ghost" v-if="!d.plan.show && d.plan.upgrade" :href="d.plan.upgrade" target="_blank" rel="noopener">كلمنا واتساب</a>
                     <button type="button" class="sx-btn primary sm" @click="show.plans = !show.plans; show.usage = false" :aria-expanded="show.plans">{{ show.plans ? 'إخفاء الباقات' : 'ترقية الباقة' }}</button>
+                </div>
+                <!-- 10: الاشتراك والفواتير -->
+                <div class="sx-row-btns sx-billing">
+                    <a class="sx-link" :href="base + '/packages.php'">كل الباقات ←</a>
+                    <a class="sx-link" :href="base + '/payments.php'">طلبات الدفع والفواتير ←</a>
                 </div>
             </section>
         </div>
@@ -271,6 +276,7 @@ $__v1Csrf = csrf_field();
 
     <footer class="sx-foot" v-if="d">
         <span>إعدادات الهوية والحملات والـ AI موجودة جوه كل قسم.</span>
+        <a :href="base + '/logout.php'" class="sx-link danger">تسجيل الخروج</a>
         <form method="POST" :action="base + '/profile.php'" v-if="d.ui_v1_allowed">
             <?= $__v1Csrf ?>
             <input type="hidden" name="action" value="ui_pref"><input type="hidden" name="ui_pref" value="v1">

@@ -23,7 +23,7 @@ try {
     </a>
 
     <?php if (ui_campaigns_on()): ?>
-    <a href="<?= url('campaigns.php?new=1') ?>" class="v2-cta">
+    <a href="<?= url('campaign-new.php') ?>" class="v2-cta">
         <?= ui_icon('plus', 20) ?>
         <span>حملة جديدة بالذكاء الاصطناعي</span>
     </a>

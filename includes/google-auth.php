@@ -255,3 +255,34 @@ function google_clear_session(): void
     unset($_SESSION['google_state'], $_SESSION['google_nonce'],
           $_SESSION['google_intent'], $_SESSION['google_time']);
 }
+
+/**
+ * آخر خطوة في دخول جوجل (بعد التأكد إن الحساب فيه رقم موبايل):
+ * التحقق بخطوتين ← الدخول («افتكرني» حسب افتراضي النظام) ← مكافأة الإحالة ← بيانات التجربة ← الرئيسية
+ * @param array $res نتيجة google_find_or_create_user (is_new · linked)
+ */
+function google_finish_login(array $user, array $res): void
+{
+    $userId = (int) $user['id'];
+    // التحقق بخطوتين (حساب قديم مفعّله) ← كود على الإيميل قبل الدخول
+    if (empty($res['is_new']) && function_exists('account_2fa_on') && account_2fa_on($user)) {
+        account_login_or_challenge($user);
+    }
+    login_user($userId);
+    $_SESSION['user_name'] = $user['name'];
+    db_run('UPDATE users SET updated_at = NOW() WHERE id = ?', [$userId]);
+
+    // استحقاق مكافأة المُحيل (الإيميل مفعّل من جوجل أصلًا)
+    if (!empty($res['is_new']) && function_exists('referral_on_activation')) {
+        referral_on_activation($userId);
+    }
+    // نقل بيانات التجربة المجانية لو جاي منها
+    $trialContent = function_exists('trial_claim') ? trial_claim($userId) : null;
+
+    if (!empty($res['is_new'])) {
+        flash_set('success', 'أهلًا بيك في Spread AI 🎉 حسابك جاهز — والكريدت الترحيبي في محفظتك.');
+    } elseif (!empty($res['linked'])) {
+        flash_set('success', 'ربطنا حساب جوجل بحسابك — تقدر تدخل بالطريقتين من دلوقتي.');
+    }
+    redirect($trialContent ? 'content-view.php?id=' . $trialContent : 'dashboard.php');
+}

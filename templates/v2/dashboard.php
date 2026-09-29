@@ -3,11 +3,11 @@
  * Spread AI v2 — الرئيسية الجديدة (زي التصميم)
  * متغيرات: $user · $d (من dashboard_v2_data)
  */
-$__start = $d['campOn'] ? 'campaigns.php?new=1' : 'create-content.php';
+$__start = $d['campOn'] ? 'campaign-new.php' : 'create-content.php';
 $h = $d['health'];
 $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amber', 'blue' => 'da-blue'];
 ?>
-<div class="dh">
+<div class="dh<?= empty($d['showBrand']) ? ' dh--nobrand' : '' ?>">
 
     <!-- ═══ صباح الخير + الروبوت ═══ -->
     <section class="card dh-hero" style="grid-area:hero">
@@ -29,7 +29,8 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         </div>
     </section>
 
-    <!-- ═══ Brand Brain (موبايل بس — الديسكتوب في السايدبار) ═══ -->
+    <!-- ═══ Brand Brain (موبايل بس — الديسكتوب في السايدبار) · بيختفي لما الهوية توصل 90% (متاحة من «الهوية») ═══ -->
+    <?php if (!empty($d['showBrand'])): ?>
     <a href="<?= url('brand-brain.php') ?>" class="card dh-brand" style="grid-area:brand">
         <span class="dh-brand-ic"><?= ui_icon('brain', 20) ?></span>
         <span class="dh-brand-txt">
@@ -39,6 +40,7 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         </span>
         <?= ui_icon('chevron', 18) ?>
     </a>
+    <?php endif; ?>
 
     <!-- ═══ يحتاج منك إجراء + رحلتك الأولى ═══ -->
     <section class="card dh-act" style="grid-area:act">
@@ -54,14 +56,14 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
                 <?php endforeach; ?>
             </div>
         <?php else: ?>
-            <?php if ($d['journey']['next']): ?>
+            <?php if ($d['journey']['show']): ?>
                 <p class="dh-clear">✓ مفيش منشورات مستنياك — كمّل رحلتك الأولى تحت علشان تبدأ</p>
             <?php else: ?>
                 <p class="dh-clear">✓ مفيش حاجة مستنياك دلوقتي — كل حاجة ماشية</p>
             <?php endif; ?>
         <?php endif; ?>
 
-        <?php if ($d['journey']['next']): $j = $d['journey']; ?>
+        <?php if ($d['journey']['show']): $j = $d['journey']; ?>
             <div class="dh-journey">
                 <div class="dh-j-txt">
                     <div class="dh-j-row"><b>رحلتك الأولى</b><span><?= $j['pct'] ?>%</span></div>
@@ -136,7 +138,7 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
             <?php foreach ([
                 ['design-studio.php', 'image', 'q-blue', 'أصنع تصميم', 'تصميم احترافي بالذكاء الاصطناعي', true],
                 ['create-content.php', 'doc', 'q-teal', 'أصنع محتوى', 'منشورات وسكريبتات جاهزة', true],
-                [$d['campOn'] ? 'campaigns.php?new=1' : 'content-plan.php', 'bulb', 'q-dark', 'أفكار جديدة', 'اكتشف أفكارًا لحملتك القادمة', false],
+                [$d['campOn'] ? 'campaign-new.php' : 'content-plan.php', 'bulb', 'q-dark', 'أفكار جديدة', 'اكتشف أفكارًا لحملتك القادمة', false],
             ] as [$href, $ic, $cls, $t, $s, $needsBrand]): ?>
                 <a href="<?= url($href) ?>" class="card dh-q <?= $cls ?>">
                     <span class="dh-q-top">
