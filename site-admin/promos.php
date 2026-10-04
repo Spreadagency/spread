@@ -8,7 +8,10 @@ crud_page([
     'list_label' => 'العروض',
     'fields' => [
         ['name' => 'title',     'label' => 'العنوان', 'req' => true, 'max' => 250],
+        ['name' => 'badge',     'label' => 'الشارة (فاضي = «عرض لفترة محدودة»)', 'max' => 80],
         ['name' => 'body',      'label' => 'نص العرض', 'type' => 'textarea', 'rows' => 2, 'max' => 600],
+        ['name' => 'promo_code','label' => 'كود خصم (اختياري — من «العروض» في لوحة المنصة)', 'max' => 40, 'hint' => 'الزرار بيودّي الباقات والكود بيتطبّق في صفحة الدفع بعد التحقق منه'],
+        ['name' => 'btn_text',  'label' => 'نص الزرار (فاضي = «شوف الباقات»)', 'max' => 80],
         ['name' => 'image',     'label' => 'صورة الخلفية', 'type' => 'image'],
         ['name' => 'link_url',  'label' => 'رابط عند الضغط', 'type' => 'url', 'max' => 500],
         ['name' => 'starts_at', 'label' => 'يبدأ من', 'type' => 'date'],

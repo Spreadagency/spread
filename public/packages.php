@@ -22,6 +22,9 @@ $pending = billing_ready() ? db_all('SELECT id, plan_name, status, final_amount,
 $pendingPkgs = billing_ready() ? array_column(db_all('SELECT package_id FROM payment_requests WHERE user_id = ? AND status IN ("pending","under_review")', [$uid]), 'package_id') : [];
 $paymobReady = get_setting('paymob_api_key', '') && get_setting('paymob_iframe_id', '');
 $hasMethods = (bool) billing_methods();
+// كود خصم جاي من الموقع (عرض فيه كود) ← بيتنقل لصفحة الدفع وبيتطبّق هناك بعد التحقق من السيرفر
+$promoQ = strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($_GET['code'] ?? '')));
+$promoQ = $promoQ !== '' ? '&code=' . urlencode(mb_substr($promoQ, 0, 40)) : '';
 
 $active = 'packages';
 $page_title = 'الباقات';
@@ -96,7 +99,7 @@ include __DIR__ . '/../templates/header.php';
                     <?php if ($isPend): ?>
                         <a href="<?= url('payments.php') ?>" class="btn ghost full">تابع طلبك</a>
                     <?php elseif ($hasMethods): ?>
-                        <a href="<?= url('checkout.php?package=' . (int) $p['id']) ?>" class="btn full"><?= $isCur ? 'جدّد الباقة' : 'اشترك دلوقتي' ?></a>
+                        <a href="<?= url('checkout.php?package=' . (int) $p['id'] . $promoQ) ?>" class="btn full"><?= $isCur ? 'جدّد الباقة' : 'اشترك دلوقتي' ?></a>
                     <?php elseif ($paymobReady): ?>
                         <a href="<?= url('credits.php#pkg-' . (int) $p['id']) ?>" class="btn full">ادفع أونلاين</a>
                     <?php else: ?>

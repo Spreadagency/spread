@@ -38,14 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // «افتكرني» — بيتحفظ في الجلسة لحد ما الدخول يكمل (حتى لو فيه تحقق بخطوتين)
             $_SESSION['remember_me'] = !empty($_POST['remember']) ? 1 : 0;
             // التحقق بخطوتين (لو مفعّل) ← كود على الإيميل وصفحة الكود — وإلا دخول عادي
-            account_login_or_challenge($user);
+            account_login_or_challenge($user, auth_peek_next());
             // نقل بيانات التجربة المجانية للحساب (لو جاي منها)
             $__trialContent = trial_claim((int) ($_SESSION['user_id'] ?? 0));
             if ($__trialContent) {
                 flash_set('success', 'أهلًا بيك! المنشور اللي عملته في التجربة اتحفظ في حسابك ✓');
                 redirect('content-view.php?id=' . $__trialContent);
             }
-            redirect('dashboard.php');
+            redirect(auth_take_next());
         }
     } elseif (!empty($result['error'])) {
         $errors[] = $result['error'];

@@ -6,29 +6,10 @@ require_once __DIR__ . '/auth.php';
 sa_require();
 
 /* ─── الاتصال بقاعدة المنصة (قراءة فقط) لاستيراد التصميمات ─── */
+/** اتصال قاعدة المنصة — الدالة المشتركة في site/functions.php */
 function platform_pdo(): ?PDO
 {
-    static $p = null;
-    static $tried = false;
-    if ($tried) return $p;
-    $tried = true;
-    $cfg = dirname(__DIR__) . '/includes/config.php';
-    if (!is_file($cfg)) return null;
-    $src = file_get_contents($cfg);
-    $get = function (string $c) use ($src) {
-        return preg_match("/define\(\s*'" . $c . "'\s*,\s*'([^']*)'/", $src, $m) ? $m[1] : null;
-    };
-    $h = $get('DB_HOST'); $n = $get('DB_NAME'); $u = $get('DB_USER'); $w = $get('DB_PASS');
-    if (!$n || !$u) return null;
-    try {
-        $p = new PDO("mysql:host=" . ($h ?: 'localhost') . ";dbname={$n};charset=utf8mb4", $u, (string) $w, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        ]);
-    } catch (\Throwable $e) {
-        $p = null;
-    }
-    return $p;
+    return s_platform_pdo();
 }
 
 function platform_designs(int $limit = 60): array

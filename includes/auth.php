@@ -32,6 +32,7 @@ function is_logged_in(): bool
 function require_login(): void
 {
     if (!is_logged_in()) {
+        auth_remember_next();
         flash_set('warning', 'لازم تسجل دخول الأول');
         redirect('login.php');
     }
@@ -63,6 +64,41 @@ function require_login(): void
     if (account_needs_phone($u) && basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) !== 'complete-account.php' && empty($_SESSION['impersonator_admin_id'])) {
         redirect('complete-account.php');
     }
+}
+
+/**
+ * الرجوع للصفحة المطلوبة بعد الدخول (مثلًا «اشترك» من الموقع ← checkout.php?package=2)
+ * صفحات داخلية بس (اسم ملف .php في نفس المجلد + query بسيط) — مفيش روابط خارجية.
+ */
+function auth_safe_next(string $u): ?string
+{
+    return preg_match('/^[a-z0-9\-]+\.php(\?[A-Za-z0-9_=&%.\-]{0,300})?$/', $u) ? $u : null;
+}
+
+function auth_remember_next(): void
+{
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') return;
+    $page = basename((string) parse_url((string) ($_SERVER['SCRIPT_NAME'] ?? ''), PHP_URL_PATH));
+    if (in_array($page, ['login.php', 'logout.php', 'register.php', 'dashboard.php', 'index.php'], true)) return;
+    $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+    $next = auth_safe_next($page . ($qs !== '' ? '?' . $qs : ''));
+    if ($next) $_SESSION['after_login'] = ['u' => $next, 'at' => time()];
+}
+
+/** الصفحة اللي هيتحوّل لها بعد الدخول (من غير ما تتمسح) — صالحة ساعة */
+function auth_peek_next(string $default = 'dashboard.php'): string
+{
+    $n = $_SESSION['after_login'] ?? null;
+    if (!is_array($n) || time() - (int) ($n['at'] ?? 0) > 3600) return $default;
+    return auth_safe_next((string) ($n['u'] ?? '')) ?? $default;
+}
+
+/** نفس اللي فوق بس بتتمسح (بعد ما الدخول يكمل) */
+function auth_take_next(string $default = 'dashboard.php'): string
+{
+    $u = auth_peek_next($default);
+    unset($_SESSION['after_login']);
+    return $u;
 }
 
 /** حساب بجوجل ومفيش رقم موبايل؟ (الإعداد google_require_phone يقفلها) */

@@ -1,9 +1,9 @@
 <?php
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
-  'build' => '10.0',
-  'date' => '2026-09-29',
-  'generated' => '2026-09-29 20:42',
+  'build' => '10.1',
+  'date' => '2026-10-04',
+  'generated' => '2026-10-04 05:21',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -69,23 +69,25 @@ return array (
     60 => 'public/complete-account.php',
     61 => 'public/content-view.php',
     62 => 'public/credits.php',
-    63 => 'public/login.php',
-    64 => 'public/notif.php',
-    65 => 'public/packages.php',
-    66 => 'public/payment-proof.php',
-    67 => 'public/payments.php',
-    68 => 'sql/2026_phase10_billing_promo_auth.sql',
-    69 => 'sql/2026_phase9_drafts_inspirations_slider.sql',
-    70 => 'templates/style-ref-picker.php',
-    71 => 'templates/v2/auth.php',
-    72 => 'templates/v2/dashboard.php',
-    73 => 'templates/v2/journey.php',
-    74 => 'templates/v2/research.php',
-    75 => 'templates/v2/settings.php',
-    76 => 'templates/v2/sidebar.php',
-    77 => 'templates/v2/studio.php',
-    78 => 'templates/v2/tabbar.php',
-    79 => 'templates/v2/topbar.php',
+    63 => 'public/login-verify.php',
+    64 => 'public/login.php',
+    65 => 'public/notif.php',
+    66 => 'public/packages.php',
+    67 => 'public/payment-proof.php',
+    68 => 'public/payments.php',
+    69 => 'sql/2026_phase10_billing_promo_auth.sql',
+    70 => 'sql/2026_phase9_drafts_inspirations_slider.sql',
+    71 => 'sql/site-home-v2.sql',
+    72 => 'templates/style-ref-picker.php',
+    73 => 'templates/v2/auth.php',
+    74 => 'templates/v2/dashboard.php',
+    75 => 'templates/v2/journey.php',
+    76 => 'templates/v2/research.php',
+    77 => 'templates/v2/settings.php',
+    78 => 'templates/v2/sidebar.php',
+    79 => 'templates/v2/studio.php',
+    80 => 'templates/v2/tabbar.php',
+    81 => 'templates/v2/topbar.php',
   ),
   'files' => 
   array (
@@ -471,8 +473,8 @@ return array (
     ),
     'includes/auth.php' => 
     array (
-      'h' => 'c422506d888217904a065bce7c88a73e',
-      's' => 8289,
+      'h' => '4f9304b9e3796deec371f571d6d0733a',
+      's' => 9882,
     ),
     'includes/billing.php' => 
     array (
@@ -526,8 +528,8 @@ return array (
     ),
     'includes/google-auth.php' => 
     array (
-      'h' => '37fa2ea15fadbb2a26f01ade47ccf7a3',
-      's' => 11985,
+      'h' => '047806b5f6cce1987073cb4d9e066098',
+      's' => 12004,
     ),
     'includes/helpers.php' => 
     array (
@@ -656,7 +658,7 @@ return array (
     ),
     'includes/version.php' => 
     array (
-      'h' => 'a260912dcfa0480e752ff97d03a5e8d3',
+      'h' => 'd62ae4bb6b30c5e8f889af3d4af866e1',
       's' => 330,
     ),
     'includes/watermark.php' => 
@@ -956,13 +958,13 @@ return array (
     ),
     'public/login-verify.php' => 
     array (
-      'h' => '3cb3856693746578ab8c8b946688e12c',
-      's' => 4342,
+      'h' => '1b0700dcd0ed3f6a011ed616954f78e7',
+      's' => 4387,
     ),
     'public/login.php' => 
     array (
-      'h' => '874e972957da9f4eed4cebd5088077d2',
-      's' => 5298,
+      'h' => '1a624960645bc8a15828cd2e102fabad',
+      's' => 5317,
     ),
     'public/logout.php' => 
     array (
@@ -976,8 +978,8 @@ return array (
     ),
     'public/packages.php' => 
     array (
-      'h' => '0e59e08d53638867ff14c1fe4f449fc2',
-      's' => 7254,
+      'h' => '0ce6f71947c9c05c16f318d16379ed37',
+      's' => 7607,
     ),
     'public/payment-proof.php' => 
     array (
@@ -1238,6 +1240,11 @@ return array (
     array (
       'h' => 'd4815fd70a161f5e2b1c7627b8a45a94',
       's' => 1676,
+    ),
+    'sql/site-home-v2.sql' => 
+    array (
+      'h' => '63a48d5ffa3cfaa6a3a097ae5f545223',
+      's' => 2495,
     ),
     'sql/site-schema.sql' => 
     array (

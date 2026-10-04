@@ -10,6 +10,9 @@
  */
 require_once __DIR__ . '/auth.php';
 sa_require();
+// أعمدة الرئيسية الجديدة (الشارة · النقاط · كود الخصم …) لازم تكون موجودة قبل أي حفظ
+require_once dirname(__DIR__) . '/site/home.php';
+s_home_upgrade();
 
 function crud_run(array $cfg): array
 {
@@ -216,7 +219,7 @@ function crud_form(array $cfg, ?array $editing): void
                     <?php elseif ($type === 'icon'): ?>
                         <input type="text" name="<?= e($n) ?>" value="<?= e($val) ?>" placeholder="◈ 🎨 💡 ⚡ 🚀"
                                style="max-width:130px;font-size:19px;text-align:center">
-                        <div class="hint">إيموجي أو رمز — انسخ من: ◈ ✎ 🎨 🗓 💡 ⚡ 🚀 📊 ⏳ 💸 🤔 📉 📲 ✨</div>
+                        <div class="hint">اسم أيقونة من الطقم الجديد: pen · clock · calendar · shuffle · wallet · brain · search · bulb · image · megaphone · send · layers · sparkle · gift — أو إيموجي زي ◈ 🎨 💡 🚀</div>
 
                     <?php else: ?>
                         <input type="<?= $type === 'number' ? 'number' : ($type === 'date' ? 'date' : 'text') ?>"

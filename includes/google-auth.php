@@ -266,7 +266,7 @@ function google_finish_login(array $user, array $res): void
     $userId = (int) $user['id'];
     // التحقق بخطوتين (حساب قديم مفعّله) ← كود على الإيميل قبل الدخول
     if (empty($res['is_new']) && function_exists('account_2fa_on') && account_2fa_on($user)) {
-        account_login_or_challenge($user);
+        account_login_or_challenge($user, auth_peek_next());
     }
     login_user($userId);
     $_SESSION['user_name'] = $user['name'];
@@ -284,5 +284,5 @@ function google_finish_login(array $user, array $res): void
     } elseif (!empty($res['linked'])) {
         flash_set('success', 'ربطنا حساب جوجل بحسابك — تقدر تدخل بالطريقتين من دلوقتي.');
     }
-    redirect($trialContent ? 'content-view.php?id=' . $trialContent : 'dashboard.php');
+    redirect($trialContent ? 'content-view.php?id=' . $trialContent : auth_take_next());
 }

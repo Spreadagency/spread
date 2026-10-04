@@ -7,7 +7,8 @@ crud_page([
     'add_label' => 'حل جديد',
     'list_label' => 'الحلول',
     'fields' => [
-        ['name' => 'title', 'label' => 'العنوان', 'req' => true, 'max' => 250],
+        ['name' => 'title', 'label' => 'العنوان', 'req' => true, 'max' => 250, 'ph' => 'AI Content'],
+        ['name' => 'instead_of', 'label' => 'بدل إيه؟ (سطر صغير فوق)', 'max' => 150, 'ph' => 'بدل: مش عارف أكتب'],
         ['name' => 'body',  'label' => 'الشرح', 'type' => 'textarea', 'rows' => 3],
         ['name' => 'image', 'label' => 'صورة (اختياري)', 'type' => 'image'],
         ['name' => 'icon',  'label' => 'الأيقونة', 'type' => 'icon'],

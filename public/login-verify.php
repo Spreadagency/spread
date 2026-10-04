@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = $r['error'];
         } else {
             $next = $pending['next'] ?? 'dashboard.php';
+            unset($_SESSION['after_login']);
             login_user((int) $user['id']);
             if (function_exists('trial_claim')) {
                 $tc = trial_claim((int) $user['id']);

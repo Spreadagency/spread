@@ -211,3 +211,50 @@ function s_decode_b64(): void
         unset($ref);
     }
 }
+
+/* ─── قاعدة بيانات المنصة (قراءة بس) ───
+ * الموقع ليه قاعدة منفصلة، بس بعض الأقسام بتقرا من المنصة مباشرة:
+ * الباقات (نظام الدفع الجديد) · استيراد التصميمات في لوحة الموقع.
+ * بنقرا بيانات الاتصال من includes/config.php من غير ما نحمّل كود المنصة (عشان مايحصلش تعارض دوال).
+ */
+function s_platform_pdo(): ?PDO
+{
+    static $p = null;
+    static $tried = false;
+    if ($tried) return $p;
+    $tried = true;
+    $cfg = dirname(__DIR__) . '/includes/config.php';
+    if (!is_file($cfg)) return null;
+    $src = (string) file_get_contents($cfg);
+    $get = function (string $c) use ($src) {
+        return preg_match("/define\(\s*'" . $c . "'\s*,\s*'([^']*)'/", $src, $m) ? $m[1] : null;
+    };
+    $h = $get('DB_HOST'); $n = $get('DB_NAME'); $u = $get('DB_USER'); $w = $get('DB_PASS');
+    if (!$n || !$u) return null;
+    try {
+        $p = new PDO('mysql:host=' . ($h ?: 'localhost') . ";dbname={$n};charset=utf8mb4", $u, (string) $w, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+    } catch (\Throwable $e) {
+        $p = null;
+    }
+    return $p;
+}
+
+/** استعلام قراءة من قاعدة المنصة — بيرجع [] لو مش متاحة */
+function s_platform_all(string $sql, array $params = []): array
+{
+    $pdo = s_platform_pdo();
+    if (!$pdo) return [];
+    try { $st = $pdo->prepare($sql); $st->execute($params); return $st->fetchAll(); }
+    catch (\Throwable $e) { return []; }
+}
+
+/** إعداد من جدول إعدادات المنصة (آخر قيمة) */
+function s_platform_setting(string $key, string $default = ''): string
+{
+    $r = s_platform_all('SELECT setting_value FROM settings WHERE setting_key = ? ORDER BY id DESC LIMIT 1', [$key]);
+    $v = $r ? (string) $r[0]['setting_value'] : '';
+    return $v !== '' ? $v : $default;
+}
