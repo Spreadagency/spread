@@ -141,7 +141,7 @@ function s_home_old_seeds(): array
 /** ترتيب أقسام التصميم */
 function s_home_order(): array
 {
-    return ['hero', 'ribbon', 'trial', 'brands', 'promos', 'problems', 'about', 'steps', 'services', 'gallery', 'pricing', 'cta'];
+    return ['hero', 'ribbon', 'trial', 'brands', 'promos', 'problems', 'about', 'steps', 'services', 'gallery', 'pricing', 'testimonials', 'faq', 'cta'];
 }
 
 /**
@@ -198,7 +198,8 @@ function s_home_upgrade(): void
         $cur = [];
         foreach (s_all('SELECT section_key, sort_order FROM site_sections') as $r) $cur[$r['section_key']] = (int) $r['sort_order'];
         $same = true;
-        foreach ($cur as $k => $v) { if (isset($O['section_order'][$k]) && $O['section_order'][$k] !== $v) { $same = false; break; } }
+        // «جاهز نبدأ» بيتزق لتحت لما «آراء العملاء» و«الأسئلة الشائعة» بيتضافوا (site/upgrade.php) — مش تعديل من الأدمن
+        foreach ($cur as $k => $v) { if ($k !== 'cta' && isset($O['section_order'][$k]) && $O['section_order'][$k] !== $v) { $same = false; break; } }
         if ($same) {
             foreach (s_home_order() as $i => $k) s_run('UPDATE site_sections SET sort_order = ? WHERE section_key = ?', [$i + 1, $k]);
         }

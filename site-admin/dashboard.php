@@ -2,7 +2,8 @@
 require_once __DIR__ . '/metrics.php';
 sa_require();
 
-$days = in_array((int) ($_GET['days'] ?? 30), [7, 30, 90], true) ? (int) $_GET['days'] : 30;
+$days = (int) ($_GET['days'] ?? 30);
+if (!in_array($days, [7, 30, 90], true)) $days = 30;
 $M = sm_metrics($days);
 $counts = [
     ['image', 'تصميمات المعرض', 'site_gallery', 'gallery.php', 'designs'],

@@ -3,7 +3,8 @@
 require_once __DIR__ . '/metrics.php';
 sa_require_perm('analytics');
 
-$days = in_array((int) ($_GET['days'] ?? 30), [7, 30, 90], true) ? (int) $_GET['days'] : 30;
+$days = (int) ($_GET['days'] ?? 30);
+if (!in_array($days, [7, 30, 90], true)) $days = 30;
 $M = sm_metrics($days);
 $from = date('Y-m-d', strtotime('-' . ($days - 1) . ' days'));
 $top = s_all('SELECT path, SUM(views) v FROM site_pageviews WHERE day >= ? GROUP BY path ORDER BY v DESC LIMIT 12', [$from]);
