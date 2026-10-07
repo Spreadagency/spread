@@ -65,7 +65,7 @@ include __DIR__ . '/site/parts/site-head.php';
 </div>
 
 <script>
-window.SPREAD_HOME = <?= json_encode(s_trial_js_config($regUrl, $loginUrl), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+window.SPREAD_HOME = <?= json_encode(s_trial_js_config($regUrl, $loginUrl), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 </script>
 <script src="<?= e(s_url('site-assets/js/home-v2.js')) ?>?v=<?= $jsV ?>" defer></script>
 </body>

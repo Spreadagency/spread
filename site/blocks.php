@@ -245,15 +245,6 @@ function s_html_frame(string $html, int $height = 480): string
 
 /* ═══════════════ الرسم ═══════════════ */
 
-/** رابط آمن للعرض (http/https/مسار/# · وإلا #) */
-function s_link(string $u): string
-{
-    $u = trim($u);
-    if ($u === '') return '';
-    if (preg_match('~^(https?://|/|#|mailto:|tel:)~i', $u)) return $u;
-    if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $u)) return '#';
-    return s_url($u);
-}
 
 function s_block_btns(array $d, string $k1 = 'btn', string $k2 = 'btn2', bool $dark = false): string
 {

@@ -11,7 +11,7 @@ $__h = rtrim($homeHref, '#');
         <p><?= e(s_setting('footer_about', 'فريق تسويق كامل بالذكاء الاصطناعي — من الفكرة للمحتوى للتصميم للنشر.')) ?></p>
         <?php $soc = ['social_facebook' => 'f', 'social_instagram' => 'IG', 'social_tiktok' => 'TT', 'social_linkedin' => 'in'];
         $socOn = array_filter($soc, fn($k) => s_setting($k) !== '', ARRAY_FILTER_USE_KEY);
-        if ($socOn): ?><div class="soc"><?php foreach ($socOn as $k => $l): ?><a href="<?= e(s_setting($k)) ?>" target="_blank" rel="noopener" aria-label="<?= e($k) ?>"><?= e($l) ?></a><?php endforeach; ?></div><?php endif; ?>
+        if ($socOn): ?><div class="soc"><?php foreach ($socOn as $k => $l): ?><a href="<?= e(s_link(s_setting($k))) ?>" target="_blank" rel="noopener" aria-label="<?= e($k) ?>"><?= e($l) ?></a><?php endforeach; ?></div><?php endif; ?>
       </div>
       <div class="col"><b>المنصة</b>
         <a href="<?= e(s_url('brand-brain.php')) ?>">Brand Brain</a><a href="<?= e(s_url('design-studio.php')) ?>">Design Studio</a>

@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $back = 'site-admin/page-edit.php' . ($id ? '?id=' . $id : '');
     if ($page && $page['is_builtin']) $d['slug'] = $page['slug']; // الصفحات الأساسية: الرابط ثابت
     if ($d['title'] === '' || $d['slug'] === '') { s_flash('danger', 'العنوان والرابط (slug) مطلوبين'); $_SESSION['sa_page_draft'] = $_POST; s_redirect($back); }
-    if (mb_strlen($d['slug']) > 120 || in_array($d['slug'], s_reserved_slugs(), true)) { s_flash('danger', 'الرابط «' . $d['slug'] . '» محجوز للنظام — اختار اسم تاني'); $_SESSION['sa_page_draft'] = $_POST; s_redirect($back); }
+    // صفحة جديدة أو slug اتغيّر: مايتعارضش مع فولدر حقيقي أو صفحة في المنصة (الصفحات الأساسية زي services بتفضل بالرابط ?p=)
+    if (mb_strlen($d['slug']) > 120 || (($page['slug'] ?? '') !== $d['slug'] && s_slug_conflicts($d['slug']))) { s_flash('danger', 'الرابط «' . $d['slug'] . '» محجوز للنظام — اختار اسم تاني'); $_SESSION['sa_page_draft'] = $_POST; s_redirect($back); }
     if (s_one('SELECT id FROM site_pages WHERE slug = ? AND id <> ?', [$d['slug'], $id])) { s_flash('danger', 'الرابط ده مستخدم في صفحة تانية'); $_SESSION['sa_page_draft'] = $_POST; s_redirect($back); }
 
     $blocksJson = json_encode($d['blocks'], JSON_UNESCAPED_UNICODE);

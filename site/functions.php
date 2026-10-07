@@ -82,6 +82,13 @@ function s_upload(array $file, string $prefix = 'img'): array
     if (!isset($allowed[$mime])) {
         return ['ok' => false, 'error' => 'نوع الملف غير مدعوم'];
     }
+    // SVG ممكن يشيل سكريبت — بنرفض أي SVG فيه كود أو أحداث أو روابط javascript
+    if ($mime === 'image/svg+xml') {
+        $svg = (string) @file_get_contents($file['tmp_name']);
+        if (preg_match('~<\s*(script|foreignObject|iframe|embed|object|handler|use[^>]+href\s*=\s*["\']?\s*(?!#))|\bon[a-z]+\s*=|javascript\s*:|data\s*:\s*text/html|<!ENTITY~i', $svg)) {
+            return ['ok' => false, 'error' => 'ملف SVG فيه كود — ارفع نسخة PNG/WebP أو SVG من غير سكريبتات'];
+        }
+    }
     if (!is_dir(SITE_UPLOAD_DIR)) {
         @mkdir(SITE_UPLOAD_DIR, 0755, true);
     }
@@ -148,9 +155,11 @@ function s_redirect(string $path): void { header('Location: ' . s_url($path)); e
 /* ─── صفحات القائمة ─── */
 function s_menu_pages(): array
 {
-    $rows = s_all("SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 AND COALESCE(status, 'published') = 'published' ORDER BY sort_order, id");
+    if (!function_exists('s_col_exists') || s_col_exists('site_pages', 'status')) {
+        return s_all("SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 AND status = 'published' ORDER BY sort_order, id");
+    }
     // قبل الترقية (عمود status لسه مش موجود)
-    return $rows ?: s_all('SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 ORDER BY sort_order, id');
+    return s_all('SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 ORDER BY sort_order, id');
 }
 
 /**
@@ -159,9 +168,30 @@ function s_menu_pages(): array
  */
 function s_page_url(string $slug, bool $absolute = false): string
 {
-    $path = s_setting('pretty_urls', '1') === '1' ? '/' . rawurlencode($slug) : '/site/page.php?p=' . urlencode($slug);
+    $path = s_setting('pretty_urls', '1') === '1' && !s_slug_conflicts($slug) ? '/' . rawurlencode($slug) : '/site/page.php?p=' . urlencode($slug);
     $u = SITE_BASE . $path;
     return $absolute ? rtrim(SITE_URL, '/') . $path : $u;
+}
+
+/** رابط آمن للعرض (http/https/مسار/# · وإلا #) */
+function s_link(string $u): string
+{
+    $u = trim($u);
+    if ($u === '') return '';
+    if (preg_match('~^(https?://|/|#|mailto:|tel:)~i', $u)) return $u;
+    if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $u)) return '#';
+    return s_url($u);
+}
+
+/**
+ * الـ slug ده بيتعارض مع فولدر/ملف حقيقي في الجذر أو صفحة في المنصة؟
+ * (الرابط النظيف /slug هيروح للفولدر أو المنصة بدل الصفحة — زي فولدر services/)
+ */
+function s_slug_conflicts(string $slug): bool
+{
+    $root = dirname(__DIR__);
+    return in_array($slug, s_reserved_slugs(), true) || file_exists($root . '/' . $slug) || file_exists($root . '/public/' . $slug)
+        || is_file($root . '/public/' . $slug . '.php');
 }
 
 /** أسماء محجوزة مينفعش تبقى slug (مجلدات النظام وصفحات المنصة) */

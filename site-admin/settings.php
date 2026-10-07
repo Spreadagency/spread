@@ -83,6 +83,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (!isset($_POST[$key])) continue;
         $v = trim((string) $_POST[$key]);
+        // الروابط: http(s) أو مسار داخلي أو #قسم بس — مفيش javascript: ولا بروتوكولات غريبة
+        if ($type === 'url' && $v !== '' && !preg_match('~^(https?://|/|#|mailto:|tel:)~i', $v)) {
+            if (preg_match('~^[a-z][a-z0-9+.\-]*:~i', $v)) { s_flash('danger', '«' . $label . '»: الرابط لازم يبدأ بـ https:// أو / — ماتحفظش'); continue; }
+            $v = 'https://' . ltrim($v, '/');
+        }
         if ($v !== s_setting($key)) $changed[] = $label;
         s_set($key, mb_substr($v, 0, 2000));
     }

@@ -15,7 +15,11 @@ const SITE_OS_VERSION = '3';
 
 function s_col_exists(string $table, string $col): bool
 {
-    return (bool) s_one('SELECT 1 AS ok FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?', [$table, $col]);
+    static $memo = [];
+    if (isset($memo[$table . '.' . $col])) return true;
+    $ok = (bool) s_one('SELECT 1 AS ok FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?', [$table, $col]);
+    if ($ok) $memo[$table . '.' . $col] = true;
+    return $ok;
 }
 
 function s_table_exists(string $table): bool

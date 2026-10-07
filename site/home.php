@@ -254,7 +254,7 @@ function s_home_packages(): array
             'id' => (int) $r['id'], 'name' => (string) $r['name'], 'desc' => (string) ($r['description'] ?? ''),
             'price' => (string) $r['price'], 'days' => 30, 'yearly' => false, 'period' => $r['period'] ? '/ ' . $r['period'] : '',
             'chip' => '', 'features' => s_lines((string) $r['features']), 'bonus' => 0, 'badge' => (string) ($r['badge'] ?? ''),
-            'featured' => !empty($r['is_featured']), 'url' => (string) ($r['cta_url'] ?: s_setting('platform_register_url', PLATFORM_REGISTER)),
+            'featured' => !empty($r['is_featured']), 'url' => s_link((string) ($r['cta_url'] ?: s_setting('platform_register_url', PLATFORM_REGISTER))) ?: PLATFORM_REGISTER,
             'platform' => false,
         ];
     }
@@ -330,8 +330,9 @@ function s_home_ctx(?array $need = null): array
     $D = s_home_defaults();
     $c = $memo + [
         'D' => $D,
-        'loginUrl' => s_setting('platform_login_url', PLATFORM_LOGIN),
-        'regUrl' => s_setting('platform_register_url', PLATFORM_REGISTER),
+        // روابط من الإعدادات — s_link بيمنع javascript: وأي بروتوكول غريب
+        'loginUrl' => s_link(s_setting('platform_login_url', PLATFORM_LOGIN)) ?: PLATFORM_LOGIN,
+        'regUrl' => s_link(s_setting('platform_register_url', PLATFORM_REGISTER)) ?: PLATFORM_REGISTER,
         'siteName' => s_setting('site_name', 'Spread AI'),
         'logo' => s_setting('logo_path') !== '' ? SITE_UPLOAD_URL . '/' . s_setting('logo_path') : s_url('site-assets/img/spread-mark.png'),
         'img' => fn(string $f) => s_url('site-assets/img/' . $f),

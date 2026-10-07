@@ -109,7 +109,7 @@ include __DIR__ . '/parts/site-head.php';
 
 <?php include __DIR__ . '/parts/site-footer.php'; ?>
 <?php include __DIR__ . '/parts/admin-bar.php'; ?>
-<script>window.SPREAD_HOME = <?= json_encode(s_trial_js_config($regUrl, $loginUrl), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+<script>window.SPREAD_HOME = <?= json_encode(s_trial_js_config($regUrl, $loginUrl), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;</script>
 <script src="<?= e(s_url('site-assets/js/home-v2.js')) ?>?v=<?= $jsV ?>" defer></script>
 <script>
 /* روابط أقسام الرئيسية (#s-…) لو القسم مش في الصفحة دي ← الرئيسية على نفس القسم */
