@@ -1,152 +1,116 @@
 <?php
-/** إدارة الصفحات الداخلية + إنشاء صفحات HTML مخصصة */
+/** الصفحات — كل صفحات الموقع (الأساسية + المخصصة): الحالة · القائمة · الترتيب · نسخ · معاينة · حذف — والتعديل في الـ Page Builder */
 require_once __DIR__ . '/auth.php';
-sa_require();
+sa_require_perm('pages');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    s_check_csrf();
-        s_decode_b64();
+    $ajax = sa_is_ajax();
+    $ajax ? sa_check_csrf_json() : s_check_csrf();
+    s_decode_b64();
     $action = (string) ($_POST['action'] ?? '');
     $id = (int) ($_POST['id'] ?? 0);
+    $p = $id ? s_one('SELECT * FROM site_pages WHERE id = ?', [$id]) : null;
 
-    if ($action === 'save') {
-        $slug = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '', (string) ($_POST['slug'] ?? '')));
-        $title = mb_substr(trim((string) ($_POST['title'] ?? '')), 0, 250);
-        if ($slug === '' || $title === '') {
-            s_flash('danger', 'العنوان والمعرّف (slug) مطلوبين');
-            s_redirect('site-admin/pages.php');
+    // القديمة: ظهور الصفحة (منشورة ↔ مسودة)
+    if ($action === 'toggle' && $p) {
+        $on = (int) !$p['is_active'];
+        s_run("UPDATE site_pages SET is_active = ?, status = ?, published_at = COALESCE(published_at, IF(? = 1, NOW(), NULL)) WHERE id = ?", [$on, $on ? 'published' : 'draft', $on, $id]);
+        sa_log($on ? 'publish' : 'unpublish', 'pages', ($on ? 'نشر' : 'إلغاء نشر') . ' صفحة «' . $p['title'] . '»', $id);
+        s_redirect('site-admin/pages.php');
+    }
+    // الظهور في القائمة
+    if (($action === 'menu' || $action === 'toggle_ajax') && $p) {
+        $on = $action === 'toggle_ajax' ? (int) !empty($_POST['on']) : (int) !$p['show_in_menu'];
+        s_run('UPDATE site_pages SET show_in_menu = ? WHERE id = ?', [$on, $id]);
+        sa_log('toggle', 'pages', ($on ? 'إظهار' : 'إخفاء') . ' صفحة «' . $p['title'] . '» ' . ($on ? 'في' : 'من') . ' القائمة', $id);
+        if ($ajax) sa_json(['ok' => true, 'message' => $on ? 'الصفحة ظاهرة في القائمة ✓' : 'الصفحة اتشالت من القائمة']);
+        s_redirect('site-admin/pages.php');
+    }
+    if ($action === 'reorder_ajax') {
+        foreach (array_values(array_filter(array_map('intval', (array) ($_POST['ids'] ?? [])))) as $i => $rid) s_run('UPDATE site_pages SET sort_order = ? WHERE id = ?', [$i + 1, $rid]);
+        sa_log('reorder', 'pages', 'إعادة ترتيب الصفحات');
+        sa_json(['ok' => true, 'message' => 'ترتيب الصفحات اتحفظ ✓']);
+    }
+    if ($action === 'duplicate' && $p) {
+        $slug = $p['slug'] . '-copy';
+        for ($n = 2; s_one('SELECT id FROM site_pages WHERE slug = ?', [$slug]); $n++) $slug = $p['slug'] . '-copy-' . $n;
+        require_once dirname(__DIR__) . '/site/blocks.php';
+        $blocks = json_encode(s_page_blocks($p), JSON_UNESCAPED_UNICODE);
+        $nid = s_insert("INSERT INTO site_pages (slug, title, subtitle, content_html, is_builtin, show_in_menu, is_active, status, sort_order, seo_title, seo_description, og_title, og_description,
+                         og_image, noindex, featured_image, blocks_json, show_cta, created_at) VALUES (?,?,?,NULL,0,0,0,'draft',?,?,?,?,?,?,?,?,?,?,NOW())", [
+            $slug, mb_substr($p['title'] . ' (نسخة)', 0, 250), $p['subtitle'], (int) $p['sort_order'] + 1, $p['seo_title'], $p['seo_description'], $p['og_title'],
+            $p['og_description'], $p['og_image'], (int) $p['noindex'], $p['featured_image'], $blocks, (int) $p['show_cta']]);
+        if ($nid) {
+            sa_log('duplicate', 'pages', 'نسخ صفحة «' . $p['title'] . '» كمسودة جديدة', $nid);
+            s_flash('success', 'اتعملت نسخة كمسودة ✓');
+            s_redirect('site-admin/page-edit.php?id=' . $nid);
         }
-        $data = [
-            $title,
-            mb_substr(trim((string) ($_POST['subtitle'] ?? '')), 0, 500) ?: null,
-            (string) ($_POST['content_html'] ?? ''),
-            !empty($_POST['show_in_menu']) ? 1 : 0,
-            !empty($_POST['is_active']) ? 1 : 0,
-            (int) ($_POST['sort_order'] ?? 0),
-        ];
-        if ($id) {
-            $existing = s_one('SELECT * FROM site_pages WHERE id = ?', [$id]);
-            // الصفحات المدمجة: المعرّف ثابت
-            if ($existing && !$existing['is_builtin']) {
-                $dup = s_one('SELECT id FROM site_pages WHERE slug = ? AND id != ?', [$slug, $id]);
-                if ($dup) { s_flash('danger', 'المعرّف ده مستخدم في صفحة تانية'); s_redirect('site-admin/pages.php'); }
-                $data[] = $slug;
-                $data[] = $id;
-                s_run('UPDATE site_pages SET title=?, subtitle=?, content_html=?, show_in_menu=?, is_active=?, sort_order=?, slug=? WHERE id=?', $data);
-            } else {
-                $data[] = $id;
-                s_run('UPDATE site_pages SET title=?, subtitle=?, content_html=?, show_in_menu=?, is_active=?, sort_order=? WHERE id=?', $data);
-            }
-            s_flash('success', 'تم حفظ الصفحة ✓');
+        s_flash('danger', 'تعذّر النسخ');
+        s_redirect('site-admin/pages.php');
+    }
+    if ($action === 'delete' && $p) {
+        if ($p['is_builtin']) {
+            s_flash('danger', 'مينفعش تحذف صفحة أساسية — تقدر تخليها مسودة أو مخفية');
         } else {
-            if (s_one('SELECT id FROM site_pages WHERE slug = ?', [$slug])) {
-                s_flash('danger', 'المعرّف ده موجود بالفعل');
-                s_redirect('site-admin/pages.php');
-            }
-            array_unshift($data, $slug);
-            s_insert('INSERT INTO site_pages (slug, title, subtitle, content_html, show_in_menu, is_active, sort_order, is_builtin) VALUES (?,?,?,?,?,?,?,0)', $data);
-            s_flash('success', 'تم إنشاء الصفحة ✓');
-        }
-        s_redirect('site-admin/pages.php');
-    }
-
-    if ($action === 'toggle') {
-        s_run('UPDATE site_pages SET is_active = 1 - is_active WHERE id = ?', [$id]);
-        s_redirect('site-admin/pages.php');
-    }
-    if ($action === 'menu') {
-        s_run('UPDATE site_pages SET show_in_menu = 1 - show_in_menu WHERE id = ?', [$id]);
-        s_redirect('site-admin/pages.php');
-    }
-    if ($action === 'delete') {
-        $p = s_one('SELECT * FROM site_pages WHERE id = ?', [$id]);
-        if ($p && !$p['is_builtin']) {
             s_run('DELETE FROM site_pages WHERE id = ?', [$id]);
-            s_flash('success', 'تم حذف الصفحة');
-        } else {
-            s_flash('danger', 'مينفعش تحذف صفحة أساسية — تقدر تخفيها بس');
+            s_run('DELETE FROM site_redirects WHERE to_slug = ?', [$p['slug']]);
+            sa_log('delete', 'pages', 'حذف صفحة «' . $p['title'] . '» (/' . $p['slug'] . ')', $id);
+            s_flash('success', 'اتحذفت الصفحة');
         }
         s_redirect('site-admin/pages.php');
     }
+    // الفورم القديم (إنشاء/تعديل بسيط) — بيتحوّل للمحرر الجديد
+    if ($action === 'save') {
+        s_flash('warning', 'تعديل الصفحات بقى من الـ Page Builder');
+        s_redirect('site-admin/page-edit.php' . ($id ? '?id=' . $id : ''));
+    }
+    s_redirect('site-admin/pages.php');
 }
 
-$editing = !empty($_GET['edit']) ? s_one('SELECT * FROM site_pages WHERE id = ?', [(int) $_GET['edit']]) : null;
+// الرابط القديم ?edit= ← المحرر الجديد
+if (!empty($_GET['edit'])) s_redirect('site-admin/page-edit.php?id=' . (int) $_GET['edit']);
+if (!empty($_GET['new'])) s_redirect('site-admin/page-edit.php');
+
 $rows = s_all('SELECT * FROM site_pages ORDER BY sort_order, id');
-$__t = 'الصفحات الداخلية';
+$counts = ['published' => 0, 'draft' => 0, 'hidden' => 0];
+foreach ($rows as $r) $counts[$r['status'] ?? 'published'] = ($counts[$r['status'] ?? 'published'] ?? 0) + 1;
+
+$__t = 'الصفحات';
 include __DIR__ . '/layout.php';
+echo sa_page_head('file', 'الصفحات', 'Pages', 'كل صفحات الموقع. اعمل صفحة جديدة من غير كود بالأقسام (Hero · نص · صور · مميزات · أسعار · آراء · أسئلة · CTA · فيديو · HTML) — وكل صفحة ليها SEO ومعاينة ومسودة/نشر.');
+$filters = '<select class="ad-filter" data-filter-select="status" aria-label="الحالة"><option value="">كل الحالات (' . count($rows) . ')</option>'
+    . '<option value="published">منشورة (' . $counts['published'] . ')</option><option value="draft">مسودة (' . $counts['draft'] . ')</option><option value="hidden">مخفية (' . $counts['hidden'] . ')</option></select>';
+echo sa_search_bar('ابحث في الصفحات...', count($rows), 'صفحة', sa_btn('إضافة صفحة', 'pri', 'page-edit.php', 'plus'), $filters);
 ?>
-<div class="card" style="background:rgba(15,60,201,.06);border-color:rgba(15,60,201,.2)">
-  <b>الصفحات الأساسية</b> (احنا مين · الخدمات · التصميمات · الشرح · الأسعار) محتواها بيتولّد تلقائيًا من أقسام اللوحة —
-  وتقدر تضيف فوقه <b>HTML مخصص</b> يظهر في أولها.<br>
-  <b>الصفحات المخصصة</b> اللي تنشئها هنا بتكون HTML كامل من عندك.
-</div>
-
-<div class="card">
-  <h3><?= $editing ? '✎ تعديل: ' . e($editing['title']) : '＋ صفحة جديدة' ?></h3>
-  <form method="POST" data-safe-post>
-    <?= s_csrf_field() ?>
-    <input type="hidden" name="action" value="save">
-    <input type="hidden" name="id" value="<?= (int) ($editing['id'] ?? 0) ?>">
-    <div class="row">
-      <div class="f"><label>عنوان الصفحة *</label><input type="text" name="title" required value="<?= e($editing['title'] ?? '') ?>"></div>
-      <div class="f">
-        <label>المعرّف في الرابط (slug) *</label>
-        <input type="text" name="slug" dir="ltr" required value="<?= e($editing['slug'] ?? '') ?>"
-               <?= !empty($editing['is_builtin']) ? 'readonly style="background:#f2f0ec"' : '' ?> placeholder="faq">
-        <div class="hint">الرابط: <?= e(SITE_BASE) ?>/site/page.php?p=<b>slug</b></div>
-      </div>
-      <div class="f"><label>الترتيب</label><input type="number" name="sort_order" value="<?= (int) ($editing['sort_order'] ?? 0) ?>"></div>
-      <div class="f" style="grid-column:1/-1"><label>وصف تحت العنوان</label>
-        <input type="text" name="subtitle" value="<?= e($editing['subtitle'] ?? '') ?>"></div>
-      <div class="f" style="grid-column:1/-1">
-        <label>محتوى HTML<?= !empty($editing['is_builtin']) ? ' (بيظهر فوق محتوى الصفحة التلقائي)' : '' ?></label>
-        <textarea name="content_html" rows="14" dir="ltr" style="font-family:ui-monospace,monospace;font-size:12.5px"><?= e($editing['content_html'] ?? '') ?></textarea>
-        <div class="hint">تقدر تستخدم: &lt;h2&gt; &lt;p&gt; &lt;ul&gt;&lt;li&gt; &lt;img src&gt; &lt;a href&gt; — وكمان كلاسات الموقع زي class="card" و class="btn-pill btn-blue"</div>
-      </div>
-      <div class="f">
-        <label>الظهور</label>
-        <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="is_active" value="1" <?= ($editing ? $editing['is_active'] : 1) ? 'checked' : '' ?> style="width:auto"> الصفحة شغالة</label>
-      </div>
-      <div class="f">
-        <label>القائمة</label>
-        <label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" name="show_in_menu" value="1" <?= ($editing ? $editing['show_in_menu'] : 1) ? 'checked' : '' ?> style="width:auto"> تظهر في القائمة</label>
-      </div>
-    </div>
-    <button class="btn"><?= $editing ? '💾 حفظ' : '＋ إنشاء الصفحة' ?></button>
-    <?php if ($editing): ?><a href="pages.php" class="btn g">إلغاء</a>
-      <a href="<?= e(s_page_url($editing['slug'])) ?>" target="_blank" class="btn g">👁 معاينة</a><?php endif; ?>
-  </form>
-</div>
-
-<div class="card">
-  <h3>كل الصفحات (<?= count($rows) ?>)</h3>
-  <div class="tw">
-  <table>
-    <thead><tr><th>الصفحة</th><th>الرابط</th><th>النوع</th><th>القائمة</th><th>الحالة</th><th></th></tr></thead>
-    <tbody>
-    <?php foreach ($rows as $p): ?>
-      <tr style="<?= $p['is_active'] ? '' : 'opacity:.5' ?>">
-        <td><b><?= e($p['title']) ?></b><?php if ($p['subtitle']): ?><div class="hint"><?= e(mb_substr($p['subtitle'], 0, 44)) ?></div><?php endif; ?></td>
-        <td dir="ltr" style="font-size:12px">?p=<?= e($p['slug']) ?></td>
-        <td><span class="chip"><?= $p['is_builtin'] ? 'أساسية' : 'مخصصة' ?></span></td>
-        <td><span class="chip <?= $p['show_in_menu'] ? 'on' : '' ?>"><?= $p['show_in_menu'] ? 'ظاهرة' : 'مخفية' ?></span></td>
-        <td><span class="chip <?= $p['is_active'] ? 'on' : '' ?>"><?= $p['is_active'] ? 'شغالة' : 'موقوفة' ?></span></td>
-        <td style="white-space:nowrap">
-          <a href="?edit=<?= (int) $p['id'] ?>" class="btn g s">✎</a>
-          <a href="<?= e(s_page_url($p['slug'])) ?>" target="_blank" class="btn g s">👁</a>
-          <button type="submit" form="mn-<?= (int) $p['id'] ?>" class="btn g s" title="إظهار/إخفاء من القائمة">☰</button>
-          <button type="submit" form="tg-<?= (int) $p['id'] ?>" class="btn g s"><?= $p['is_active'] ? '🚫' : '✔' ?></button>
-          <?php if (!$p['is_builtin']): ?><button type="submit" form="dl-<?= (int) $p['id'] ?>" class="btn d s">🗑</button><?php endif; ?>
-        </td>
-      </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
-  </div>
-  <?php foreach ($rows as $p): ?>
-    <form id="tg-<?= (int) $p['id'] ?>" method="POST" style="display:none"><?= s_csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"></form>
-    <form id="mn-<?= (int) $p['id'] ?>" method="POST" style="display:none"><?= s_csrf_field() ?><input type="hidden" name="action" value="menu"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"></form>
-    <form id="dl-<?= (int) $p['id'] ?>" method="POST" style="display:none" onsubmit="return confirm('حذف الصفحة نهائيًا؟')"><?= s_csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $p['id'] ?>"></form>
+<div class="ad-table-w"><table class="ad-table">
+  <thead><tr><th style="width:36px"><span class="sr-only">ترتيب</span></th><th>الصفحة</th><th>الرابط</th><th>الحالة</th><th>آخر تحديث</th><th>في القائمة</th><th style="text-align:left">إجراءات</th></tr></thead>
+  <tbody data-sortable>
+  <?php $n = count($rows); foreach ($rows as $i => $p): $st = $p['status'] ?? 'published'; $url = s_page_url($p['slug']); ?>
+    <tr data-row data-id="<?= (int) $p['id'] ?>" data-status="<?= e($st) ?>" class="<?= $st === 'published' ? '' : 'off' ?>">
+      <td class="ad-grab-td"><span class="ad-ib ad-grab" data-grab title="اسحب لإعادة الترتيب"><?= sa_icon('grip', 17) ?></span></td>
+      <td class="t-first" data-l="الصفحة"><a class="t-main" href="page-edit.php?id=<?= (int) $p['id'] ?>" style="color:inherit"><?= e($p['title']) ?></a>
+        <span class="t-sub"><?= $p['is_builtin'] ? 'صفحة أساسية' : 'صفحة مخصصة' ?><?= !empty($p['blocks_json']) ? ' · Page Builder' : '' ?></span></td>
+      <td data-l="الرابط" dir="ltr" style="text-align:right"><a href="<?= e($url) ?>" target="_blank" rel="noopener" class="t-num">/<?= e($p['slug']) ?></a></td>
+      <td class="t-chip" data-l="الحالة"><?= sa_status_chip($st) ?></td>
+      <td data-l="آخر تحديث" class="t-num"><?= e(sa_ago($p['updated_at'])) ?></td>
+      <td data-l="في القائمة"><?= sa_switch('m' . (int) $p['id'], (bool) $p['show_in_menu'], '', ['data-toggle-id' => (string) (int) $p['id'], 'aria-label' => 'إظهار «' . $p['title'] . '» في القائمة']) ?></td>
+      <td class="ad-acts"><div class="ad-acts-in">
+        <button type="button" class="ad-ib" data-move="up" aria-label="لفوق" title="لفوق"<?= $i === 0 ? ' aria-disabled="true"' : '' ?>><?= sa_icon('up', 17) ?></button>
+        <button type="button" class="ad-ib" data-move="down" aria-label="لتحت" title="لتحت"<?= $i === $n - 1 ? ' aria-disabled="true"' : '' ?>><?= sa_icon('down', 17) ?></button>
+        <a class="ad-ib" href="page-edit.php?id=<?= (int) $p['id'] ?>" aria-label="تعديل" title="تعديل"><?= sa_icon('edit', 17) ?></a>
+        <a class="ad-ib" href="<?= e(s_url('site/page.php?p=' . urlencode($p['slug']) . '&preview=1')) ?>" target="_blank" rel="noopener" aria-label="معاينة" title="معاينة"><?= sa_icon('eye', 17) ?></a>
+        <?= crud_like_form((int) $p['id'], 'duplicate', 'copy', 'نسخ') ?>
+        <?php if (!$p['is_builtin']): ?><?= crud_like_form((int) $p['id'], 'delete', 'trash', 'حذف', 'هتحذف صفحة «' . $p['title'] . '» نهائيًا — الرابط /' . $p['slug'] . ' هيبطل يشتغل. متأكد؟', 'del') ?><?php endif; ?>
+      </div></td>
+    </tr>
   <?php endforeach; ?>
-</div>
-<?php include __DIR__ . '/layout-end.php'; ?>
+  </tbody>
+</table></div>
+<p class="ad-foot-hint"><?= sa_icon('grip', 14) ?>اسحب الصفحة من المقبض لإعادة الترتيب (نفس ترتيبها في القائمة)، أو استخدم الأسهم.</p>
+<?php
+function crud_like_form(int $id, string $action, string $icon, string $label, string $confirm = '', string $cls = ''): string
+{
+    return '<form method="POST"' . ($confirm !== '' ? ' data-confirm="' . e($confirm) . '"' : '') . '>' . s_csrf_field() . '<input type="hidden" name="action" value="' . e($action) . '"><input type="hidden" name="id" value="' . $id . '">'
+        . '<button type="submit" class="ad-ib ' . e($cls) . '" title="' . e($label) . '" aria-label="' . e($label) . '">' . sa_icon($icon, 17) . '</button></form>';
+}
+include __DIR__ . '/layout-end.php';

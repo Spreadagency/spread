@@ -33,6 +33,18 @@ DirectoryIndex public/index.php index.php
     RewriteCond %{REQUEST_URI} ^/?$
     RewriteRule .* index.php [L]
 
+    # ─── sitemap.xml (الصفحات المنشورة) ──────────────────────
+    RewriteRule ^sitemap\.xml$ site/sitemap.php [L]
+
+    # ─── روابط الصفحات النظيفة: /about → site/page.php?p=about ──
+    #     بس لو مفيش ملف/فولدر بنفس الاسم في الجذر أو في public/ (صفحات المنصة مابتتأثرش)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{DOCUMENT_ROOT}/public/$1 !-f
+    RewriteCond %{DOCUMENT_ROOT}/public/$1 !-d
+    RewriteCond %{DOCUMENT_ROOT}/public/$1.php !-f
+    RewriteRule ^([a-z0-9][a-z0-9_-]{0,119})/?$ site/page.php?p=$1 [L,QSA]
+
     # ─── Anything else: try in /public/ ───────────────────────
     # If not a real file/dir at root, look inside public/
     RewriteCond %{REQUEST_FILENAME} !-f

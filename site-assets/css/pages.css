@@ -191,3 +191,9 @@
   .pg-vids{grid-template-columns:1fr}
   .adm-bar{right:12px;bottom:12px}
 }
+
+/* ── توافق مع HTML الصفحات القديم (كلاسات الموقع السابقة جوه المحتوى المخصص) ── */
+.prose .card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:22px;margin:0 0 16px;box-shadow:0 10px 26px rgba(40,80,160,.06)}
+.prose .btn-pill{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 22px;border-radius:16px;font-weight:600;text-decoration:none!important;border:1.5px solid var(--line-2);background:#fff;color:var(--ink)!important}
+.prose .btn-pill.btn-blue{background:linear-gradient(100deg,#0A9FB0 0%,#0A6FD8 60%,#3E63D6 100%);border-color:transparent;color:#fff!important}
+.prose .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}

@@ -15,6 +15,16 @@ if (isset($_GET['json'])) {
     sa_json(['ok' => true, 'items' => $items]);
 }
 
+/* رفع صورة من أي محرر (Page Builder · الفورمز) — بيرجّع اللينك */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'upload_ajax') {
+    sa_check_csrf_json();
+    if (!sa_can('media') && !sa_can('pages') && !sa_can('content') && !sa_can('homepage')) sa_json(['ok' => false, 'error' => 'مش ضمن صلاحياتك'], 403);
+    $up = !empty($_FILES['file']['name']) ? s_upload($_FILES['file'], 'media') : ['ok' => false, 'error' => 'اختار صورة'];
+    if (!$up['ok']) sa_json(['ok' => false, 'error' => $up['error']]);
+    sa_log('upload', 'media', 'رفع صورة «' . mb_substr((string) $_FILES['file']['name'], 0, 80) . '»');
+    sa_json(['ok' => true, 'url' => SITE_UPLOAD_URL . '/' . $up['path']]);
+}
+
 sa_require_perm('media');
 
 /* ملفات اترفعت قبل المكتبة: نسجّلها مرة واحدة علشان تظهر */
