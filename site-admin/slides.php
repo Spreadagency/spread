@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'homepage',
+    'icon' => 'sparkle',
+    'en' => 'Hero & Slider',
+    'item' => 'شريحة',
+    'unit' => 'شريحة',
     'table' => 'site_slides',
     'title' => 'شرائح الهيرو',
     'intro' => 'أول الصفحة الرئيسية: كل شريحة = شارة صغيرة + عنوان كبير + وصف + وضع الروبوت، وبتتبدل تلقائيًا كل ٦ ثواني ونص.',

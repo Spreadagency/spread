@@ -89,12 +89,20 @@ function s_upload(array $file, string $prefix = 'img'): array
     if (!move_uploaded_file($file['tmp_name'], SITE_UPLOAD_DIR . '/' . $name)) {
         return ['ok' => false, 'error' => 'فشل الحفظ — تأكد إن مجلد site-assets/uploads قابل للكتابة'];
     }
+    // مكتبة الوسائط: كل ملف بيترفع من أي مكان في اللوحة بيتسجّل فيها
+    s_run('INSERT IGNORE INTO site_media (path, original_name, mime, size, width, height, admin_id) VALUES (?,?,?,?,?,?,?)', [
+        $name, mb_substr((string) $file['name'], 0, 255), $mime, (int) $file['size'],
+        isset($info[0]) ? (int) $info[0] : null, isset($info[1]) ? (int) $info[1] : null,
+        isset($_SESSION['site_admin_id']) ? (int) $_SESSION['site_admin_id'] : null,
+    ]);
     return ['ok' => true, 'path' => $name];
 }
 
 function s_delete_upload(?string $path): void
 {
     if (!$path) return;
+    // الملف ممكن يكون مستخدم في مكان تاني من مكتبة الوسائط — نسيبه في المكتبة ونمسح بس لو مش متسجّل فيها
+    if (s_one('SELECT id FROM site_media WHERE path = ?', [basename($path)])) return;
     $f = SITE_UPLOAD_DIR . '/' . basename($path);
     if (is_file($f)) @unlink($f);
 }
@@ -140,12 +148,58 @@ function s_redirect(string $path): void { header('Location: ' . s_url($path)); e
 /* ─── صفحات القائمة ─── */
 function s_menu_pages(): array
 {
-    return s_all('SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 ORDER BY sort_order, id');
+    $rows = s_all("SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 AND COALESCE(status, 'published') = 'published' ORDER BY sort_order, id");
+    // قبل الترقية (عمود status لسه مش موجود)
+    return $rows ?: s_all('SELECT slug, title FROM site_pages WHERE is_active = 1 AND show_in_menu = 1 ORDER BY sort_order, id');
 }
 
-function s_page_url(string $slug): string
+/**
+ * رابط الصفحة: /slug (روابط نظيفة — قاعدة .htaccess) أو site/page.php?p=slug
+ * الرابط القديم بيفضل شغال دايمًا.
+ */
+function s_page_url(string $slug, bool $absolute = false): string
 {
-    return s_url('site/page.php?p=' . urlencode($slug));
+    $path = s_setting('pretty_urls', '1') === '1' ? '/' . rawurlencode($slug) : '/site/page.php?p=' . urlencode($slug);
+    $u = SITE_BASE . $path;
+    return $absolute ? rtrim(SITE_URL, '/') . $path : $u;
+}
+
+/** أسماء محجوزة مينفعش تبقى slug (مجلدات النظام وصفحات المنصة) */
+function s_reserved_slugs(): array
+{
+    return ['admin', 'site-admin', 'assets', 'storage', 'site', 'site-assets', 'includes', 'sql', 'cron', 'public', 'services',
+            'templates', 'ajax', 'api', 'auth', 'social', 'webhooks', 'index', 'login', 'register', 'logout', 'dashboard', 'checkout', 'packages'];
+}
+
+/** الأدمن الحالي للوحة الموقع (للأزرار اللي بتظهر للأدمن بس في الموقع) — null للزوار */
+function s_current_admin(): ?array
+{
+    static $a = false;
+    if ($a !== false) return $a;
+    $a = null;
+    if (!empty($_SESSION['site_admin_id'])) {
+        $a = s_one('SELECT * FROM site_admins WHERE id = ? AND status = "active"', [(int) $_SESSION['site_admin_id']]);
+    }
+    return $a;
+}
+
+/** الأدمن الحالي (لو فيه) عنده صلاحية القسم ده؟ — نفس منطق site-admin/auth.php (sa_can) */
+function s_admin_can(string $perm): bool
+{
+    $a = s_current_admin();
+    if (!$a) return false;
+    if (!function_exists('sa_can')) require_once dirname(__DIR__) . '/site-admin/auth.php';
+    return sa_can($perm, $a);
+}
+
+/** عدّاد زيارات خفيف (يوم × صفحة) — من غير كوكيز ولا بيانات شخصية، والبوتات مابتتعدّش */
+function s_track_view(string $path): void
+{
+    $ua = (string) ($_SERVER['HTTP_USER_AGENT'] ?? '');
+    if ($ua === '' || preg_match('~bot|crawl|spider|slurp|preview|lighthouse|headless|curl|wget|python|monitor~i', $ua)) return;
+    if (s_setting('track_views', '1') !== '1') return;
+    if (s_current_admin()) return; // زيارات الأدمن مابتتحسبش
+    s_run('INSERT INTO site_pageviews (day, path, views) VALUES (CURDATE(), ?, 1) ON DUPLICATE KEY UPDATE views = views + 1', [mb_substr($path, 0, 190)]);
 }
 
 /** تحويل نص متعدد الأسطر لمصفوفة */
@@ -258,3 +312,64 @@ function s_platform_setting(string $key, string $default = ''): string
     $v = $r ? (string) $r[0]['setting_value'] : '';
     return $v !== '' ? $v : $default;
 }
+
+/* ─── الهوية البصرية (Design System من لوحة الموقع) ─── */
+function s_design_defaults(): array
+{
+    return ['ds_primary' => '#0A6FD8', 'ds_secondary' => '#2EE3CC', 'ds_accent' => '#9C8CFF', 'ds_background' => '#F4F7FC', 'ds_ink' => '#0B1526',
+            'ds_font' => 'Readex Pro', 'ds_buttons' => 'gradient', 'ds_shadow' => 'soft', 'ds_radius' => '18'];
+}
+
+/** القيم الفعلية (المحفوظة أو الافتراضية) */
+function s_design(): array
+{
+    $out = [];
+    foreach (s_design_defaults() as $k => $d) $out[$k] = s_setting($k, $d);
+    return $out;
+}
+
+/** CSS بيغيّر شكل الموقع حسب الهوية — فاضي لو كله على الافتراضي (الشكل الأصلي زي ما هو) */
+function s_design_css(): string
+{
+    $D = s_design_defaults();
+    $c = s_design();
+    if ($c == $D) return '';
+    $hex = fn($v, $d) => preg_match('/^#[0-9a-fA-F]{6}$/', (string) $v) ? $v : $d;
+    $pri = $hex($c['ds_primary'], $D['ds_primary']); $sec = $hex($c['ds_secondary'], $D['ds_secondary']); $acc = $hex($c['ds_accent'], $D['ds_accent']);
+    $bg = $hex($c['ds_background'], $D['ds_background']); $ink = $hex($c['ds_ink'], $D['ds_ink']);
+    $r = max(4, min(36, (int) $c['ds_radius']));
+    $grad = $c['ds_buttons'] === 'solid' ? $pri : "linear-gradient(100deg,{$sec} -40%,{$pri} 70%)";
+    $font = in_array($c['ds_font'], ['Readex Pro', 'IBM Plex Sans Arabic'], true) ? $c['ds_font'] : 'Readex Pro';
+    $css = ":root{--blue:{$pri};--blue-d:{$pri};--teal:{$sec};--violet:{$acc};--bg:{$bg};--ink:{$ink};--grad-ai:linear-gradient(90deg,{$sec},{$pri});--ds-r:{$r}px}"
+        . "body.hv2{background:{$bg};color:{$ink}}"
+        . ".ws-pri{background:{$grad}!important}.ws-btn{border-radius:{$r}px}"
+        . ".ws-card,.pr-card,.s-card,.o-card,.pg-card,.t-card,.faq-i,.cta-box{border-radius:" . ($r + 10) . "px}"
+        . ".hv2 h1,.hv2 h2,.hv2 h3,.ws-h2{font-family:\"{$font}\",sans-serif}";
+    if ($c['ds_shadow'] === 'none') $css .= '.ws-card,.pr-card,.s-card,.o-card,.pg-card,.t-card,.ws-pri{box-shadow:none!important}';
+    if ($c['ds_shadow'] === 'strong') $css .= '.ws-card,.pr-card,.s-card,.pg-card,.t-card{box-shadow:0 24px 54px rgba(12,40,90,.18)!important}';
+    return '<style id="ds-css">' . $css . '</style>';
+}
+
+/* ─── شاشة الاشتراك عند مرحلة التصميم (Create Post) ─── */
+function s_paywall_defaults(): array
+{
+    return [
+        'paywall_title'    => 'اشترك لصناعة التصميم والنشر',
+        'paywall_body'     => 'منشورك جاهز! تحويله لتصميم ونشره تلقائيًا متاحين ضمن الاشتراك — اختار الباقة اللي تناسبك وكمّل من نفس المكان.',
+        'paywall_benefits' => "تصميمات جاهزة للنشر\nمقاسات مناسبة لكل منصة\nتطبيق هوية البراند\nجدولة المحتوى\nالنشر من مكان واحد",
+        'paywall_cta'      => 'شوف الباقات',
+        'paywall_cta_url'  => '',
+    ];
+}
+
+function s_paywall(): array
+{
+    $out = [];
+    foreach (s_paywall_defaults() as $k => $d) $out[$k] = s_setting($k, $d);
+    $out['benefits'] = s_lines($out['paywall_benefits']);
+    return $out;
+}
+
+/* ─── ترقية Website OS (مرة واحدة · آمنة) ─── */
+require_once __DIR__ . '/upgrade.php';
+s_site_os_upgrade();

@@ -40,6 +40,13 @@ function settings_registry(): array
                     ['key' => 'journey_hide_pct', 'label' => 'إخفاء «رحلتك الأولى» من الرئيسية عند تقدّم (%)', 'type' => 'number', 'default' => '60', 'min' => 1, 'max' => 100, 'help' => 'التقدّم محسوب من بيانات العميل الحقيقية'],
                     ['key' => 'brand_card_hide_pct', 'label' => 'إخفاء كارت Brand Brain من الرئيسية عند اكتمال الهوية (%)', 'type' => 'number', 'default' => '90', 'min' => 1, 'max' => 100, 'help' => 'بيفضل متاح من تبويب «الهوية»'],
                 ]],
+                ['title' => '«اصنع منشورك الآن» والتصميم', 'fields' => [
+                    ['key' => 'design_requires_subscription', 'label' => 'التصميم والنشر للمشتركين بس (شاشة اشتراك بدل التوليد)', 'type' => 'bool', 'default' => '1', 'sensitive' => true,
+                     'help' => 'اللي مالوش باقة نشطة بيشوف شاشة الاشتراك عند مرحلة التصميم — من غير أي طلب تصميم ولا خصم كريدت (على الموقع وجوه المنصة)'],
+                    ['key' => 'trial_enabled', 'label' => 'تشغيل التجربة المجانية على الموقع', 'type' => 'bool', 'default' => '1'],
+                    ['key' => 'trial_ideas_count', 'label' => 'عدد الأفكار في التجربة', 'type' => 'number', 'default' => '4', 'min' => 3, 'max' => 6],
+                    ['key' => 'trial_per_ip_hour', 'label' => 'أقصى محاولات لكل IP في الساعة', 'type' => 'number', 'default' => '5', 'min' => 1, 'max' => 50],
+                ]],
                 ['title' => 'المدفوعات', 'fields' => [
                     ['key' => 'billing_email_notify', 'label' => 'إيميل للعميل عند اعتماد/رفض الدفع أو طلب معلومات', 'type' => 'bool', 'default' => '1'],
                 ]],

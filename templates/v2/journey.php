@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function () {
       this.prog = { done: 0, total: list.length, label: label };
       for (var k = 0; k < list.length; k++) {
         var r = await fn(list[k]);
-        if (r && r.ok) ok++; else { err = (r && r.error) || err; if (r && ['credits', 'quota', 'rate_limit', 'brand_gate', 'state'].indexOf(r.code) >= 0) break; }
+        if (r && r.ok) ok++; else { err = (r && r.error) || err; if (r && ['credits', 'quota', 'subscription', 'rate_limit', 'brand_gate', 'state'].indexOf(r.code) >= 0) break; }
         this.prog.done = k + 1;
       }
       return { ok: ok, err: err, total: list.length };

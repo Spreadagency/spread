@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'offers',
+    'icon' => 'gift',
+    'en' => 'Offers',
+    'item' => 'عرض',
+    'unit' => 'عرض',
     'table' => 'site_promos',
     'title' => 'الإعلانات والعروض',
     'intro' => 'بانرات العروض اللي بتظهر في الرئيسية وصفحة الأسعار. سيب التواريخ فاضية عشان يفضل ظاهر دايمًا.',

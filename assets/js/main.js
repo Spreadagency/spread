@@ -76,7 +76,10 @@ async function ajaxPost(url, data) {
         const res = await fetch(url, { method: 'POST', body: formData });
         const ct = res.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
-            return await res.json();
+            const j = await res.json();
+            // شرط الاشتراك قبل التصميم: السيرفر رفض قبل أي توليد ← شاشة الاشتراك (مرة واحدة)
+            if (j && j.code === 'subscription' && j.paywall) spreadPaywall(j.paywall);
+            return j;
         }
         const text = await res.text();
         return { ok: res.ok, text };
@@ -84,6 +87,28 @@ async function ajaxPost(url, data) {
         console.error('AJAX error:', e);
         return { ok: false, error: e.message };
     }
+}
+
+// ─── شاشة الاشتراك (التصميم والنشر للمشتركين) ─────────────────
+function spreadPaywall(p) {
+    if (document.getElementById('sp-paywall')) { document.getElementById('sp-paywall').style.display = 'flex'; return; }
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const w = document.createElement('div');
+    w.id = 'sp-paywall';
+    w.setAttribute('role', 'dialog'); w.setAttribute('aria-modal', 'true'); w.setAttribute('aria-labelledby', 'sp-pw-t');
+    w.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,25,45,.45);backdrop-filter:blur(3px)';
+    w.innerHTML = '<div style="background:#fff;border-radius:26px;max-width:440px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 24px 60px rgba(12,40,90,.25);font-family:inherit">'
+        + '<div style="width:64px;height:64px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(150deg,#E6FBF7,#DCEBFF);display:flex;align-items:center;justify-content:center;font-size:30px">🎨</div>'
+        + '<h3 id="sp-pw-t" style="margin:0 0 6px;font-size:20px">' + esc(p.title) + '</h3>'
+        + '<p style="margin:0 0 14px;color:#4A5468;font-size:14px;line-height:1.8">' + esc(p.body) + '</p>'
+        + '<div style="display:flex;flex-direction:column;gap:6px;text-align:start;margin:0 auto 18px;max-width:300px">'
+        + (p.benefits || []).map(b => '<span style="font-size:13.5px"><b style="color:#0B7A66">✓</b> ' + esc(b) + '</span>').join('') + '</div>'
+        + '<a href="' + esc(p.url) + '" style="display:flex;align-items:center;justify-content:center;height:48px;border-radius:14px;background:linear-gradient(100deg,#0A9FB0,#0A6FD8 70%);color:#fff;font-weight:700;text-decoration:none">' + esc(p.cta) + ' ←</a>'
+        + '<button type="button" data-pw-close style="margin-top:8px;height:44px;width:100%;border:0;background:transparent;color:#5B6478;font-weight:600;cursor:pointer;font-family:inherit">العودة للمنشور</button></div>';
+    w.addEventListener('click', e => { if (e.target === w || e.target.closest('[data-pw-close]')) w.style.display = 'none'; });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') w.style.display = 'none'; });
+    document.body.appendChild(w);
+    const a = w.querySelector('a'); if (a) a.focus();
 }
 
 // ─── Modal helpers ─────────────────────────────────────────

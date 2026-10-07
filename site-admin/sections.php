@@ -1,52 +1,53 @@
 <?php
-/** إظهار/إخفاء الأقسام وتعديل عناوينها */
+/** أقسام المحتوى — عنوان ووصف كل قسم في الرئيسية + الإظهار والترتيب */
 require_once __DIR__ . '/auth.php';
-sa_require();
+sa_require_perm('homepage');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     s_check_csrf();
-        s_decode_b64();
+    s_decode_b64();
+    $changed = [];
     foreach (($_POST['sec'] ?? []) as $id => $d) {
-        s_run('UPDATE site_sections SET title = ?, subtitle = ?, is_visible = ?, sort_order = ? WHERE id = ?', [
+        $old = s_one('SELECT * FROM site_sections WHERE id = ?', [(int) $id]);
+        $new = [
             mb_substr(trim((string) ($d['title'] ?? '')), 0, 255) ?: null,
             mb_substr(trim((string) ($d['subtitle'] ?? '')), 0, 1000) ?: null,
             !empty($d['vis']) ? 1 : 0,
             (int) ($d['ord'] ?? 0),
-            (int) $id,
-        ]);
+        ];
+        if ($old && ([(string) $old['title'], (string) $old['subtitle'], (int) $old['is_visible'], (int) $old['sort_order']] != [(string) $new[0], (string) $new[1], $new[2], $new[3]])) {
+            $changed[] = $old['label_ar'];
+        }
+        s_run('UPDATE site_sections SET title = ?, subtitle = ?, is_visible = ?, sort_order = ? WHERE id = ?', array_merge($new, [(int) $id]));
     }
+    if ($changed) sa_log('update', 'homepage', 'تعديل أقسام الرئيسية: ' . implode('، ', $changed));
     s_flash('success', 'تم حفظ الأقسام ✓');
     s_redirect('site-admin/sections.php');
 }
 
 $rows = s_all('SELECT * FROM site_sections ORDER BY sort_order, id');
-$__t = 'الأقسام والعناوين';
+$__t = 'أقسام المحتوى';
 include __DIR__ . '/layout.php';
+echo sa_page_head('puzzle', 'أقسام المحتوى', 'Sections', 'عنوان ووصف كل قسم في الصفحة الرئيسية. الترتيب والإظهار كمان من «الصفحة الرئيسية» بالسحب.',
+    sa_btn('ترتيب الأقسام', 'soft', 'homepage.php', 'drag'));
 ?>
-<div class="card" style="background:rgba(15,60,201,.06);border-color:rgba(15,60,201,.2)">
-  تحكّم في إظهار كل قسم في الصفحة الرئيسية وعنوانه. شيل العلامة عشان تخفي القسم بالكامل.
-</div>
 <form method="POST" data-safe-post>
   <?= s_csrf_field() ?>
+  <div class="ad-grid ad-g2">
   <?php foreach ($rows as $r): ?>
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-        <h3 style="margin:0"><?= e($r['label_ar']) ?> <span class="chip" style="font-size:10px"><?= e($r['section_key']) ?></span></h3>
-        <label style="display:flex;gap:8px;align-items:center;font-weight:600;cursor:pointer">
-          <input type="checkbox" name="sec[<?= (int) $r['id'] ?>][vis]" value="1" <?= $r['is_visible'] ? 'checked' : '' ?> style="width:auto">
-          <span>ظاهر في الموقع</span>
-        </label>
+    <section class="ad-card sa-in" id="sec-<?= (int) $r['id'] ?>">
+      <div class="ad-card-h">
+        <h3><?= e($r['label_ar']) ?> <?= sa_chip($r['section_key'], 'off') ?></h3>
+        <?= sa_switch('sec[' . (int) $r['id'] . '][vis]', (bool) $r['is_visible'], 'ظاهر') ?>
       </div>
-      <div class="row">
-        <div class="f"><label>عنوان القسم</label>
-          <input type="text" name="sec[<?= (int) $r['id'] ?>][title]" value="<?= e($r['title']) ?>"></div>
-        <div class="f"><label>الترتيب</label>
-          <input type="number" name="sec[<?= (int) $r['id'] ?>][ord]" value="<?= (int) $r['sort_order'] ?>"></div>
-        <div class="f" style="grid-column:1/-1"><label>الوصف تحت العنوان</label>
-          <input type="text" name="sec[<?= (int) $r['id'] ?>][subtitle]" value="<?= e($r['subtitle']) ?>"></div>
+      <div class="ad-form">
+        <?= sa_field(['name' => 'sec[' . (int) $r['id'] . '][title]', 'label' => 'عنوان القسم', 'wide' => true], $r['title']) ?>
+        <?= sa_field(['name' => 'sec[' . (int) $r['id'] . '][subtitle]', 'label' => 'الوصف تحت العنوان', 'type' => 'textarea', 'rows' => 2], $r['subtitle']) ?>
+        <?= sa_field(['name' => 'sec[' . (int) $r['id'] . '][ord]', 'label' => 'الترتيب', 'type' => 'number'], (int) $r['sort_order']) ?>
       </div>
-    </div>
+    </section>
   <?php endforeach; ?>
-  <button class="btn">💾 حفظ كل الأقسام</button>
+  </div>
+  <div class="ad-sticky-bar"><?= sa_btn('حفظ كل الأقسام', 'pri lg', null, 'check', ['type' => 'submit']) ?></div>
 </form>
 <?php include __DIR__ . '/layout-end.php'; ?>

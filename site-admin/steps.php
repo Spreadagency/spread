@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'content',
+    'icon' => 'list',
+    'en' => 'How it works',
+    'item' => 'خطوة',
+    'unit' => 'خطوة',
     'table' => 'site_steps',
     'title' => 'خطوات العمل',
     'intro' => 'الخطوات بتترقّم تلقائيًا حسب الترتيب: صناعة الهوية ← خطة ← أفكار ← محتوى ← تصميم ← نشر.',

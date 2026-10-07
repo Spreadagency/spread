@@ -3,7 +3,7 @@
  * معرض التصميمات — رفع / لينك / استيراد من تصميمات المنصة
  */
 require_once __DIR__ . '/auth.php';
-sa_require();
+sa_require_perm('designs');
 
 /* ─── الاتصال بقاعدة المنصة (قراءة فقط) لاستيراد التصميمات ─── */
 /** اتصال قاعدة المنصة — الدالة المشتركة في site/functions.php */
@@ -30,8 +30,9 @@ function platform_designs(int $limit = 60): array
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    s_check_csrf();
-        s_decode_b64();
+    $ajax = sa_is_ajax();
+    $ajax ? sa_check_csrf_json() : s_check_csrf();
+    s_decode_b64();
     $action = (string) ($_POST['action'] ?? '');
 
     if ($action === 'import') {
@@ -51,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $added++;
         }
+        if ($added) sa_log('create', 'designs', "استيراد {$added} تصميم من المنصة للمعرض");
         s_flash($added ? 'success' : 'danger', $added ? "تم استيراد {$added} تصميم من المنصة ✓" : 'مفيش تصميمات جديدة اتضافت');
         s_redirect('site-admin/gallery.php');
     }
@@ -60,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $existing = $id ? s_one('SELECT * FROM site_gallery WHERE id = ?', [$id]) : null;
 
         $url = trim((string) ($_POST['image_url'] ?? ''));
-        if ($url !== '' && !preg_match('~^https?://~i', $url)) $url = 'https://' . ltrim($url, '/');
+        if ($url !== '' && !preg_match('~^(https?://|/)~i', $url)) $url = 'https://' . ltrim($url, '/');
 
         $path = $existing['image_path'] ?? null;
         if (!empty($_FILES['image']['name'])) {
@@ -73,29 +75,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        $sort = (int) ($_POST['sort_order'] ?? 0);
+        if (!$id && $sort === 0) $sort = (int) (s_one('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM site_gallery')['n'] ?? 1);
         $data = [
             mb_substr(trim((string) ($_POST['title'] ?? '')), 0, 200) ?: null,
             $path,
             $url !== '' ? mb_substr($url, 0, 700) : null,
             mb_substr(trim((string) ($_POST['category'] ?? '')), 0, 80) ?: null,
-            (int) ($_POST['sort_order'] ?? 0),
+            $sort,
             !empty($_POST['is_active']) ? 1 : 0,
         ];
 
         if ($id) {
             $data[] = $id;
             s_run('UPDATE site_gallery SET title=?, image_path=?, image_url=?, category=?, sort_order=?, is_active=? WHERE id=?', $data);
-            s_flash('success', 'تم الحفظ ✓');
+            sa_log('update', 'designs', 'تعديل تصميم في المعرض ' . ($data[0] ? '«' . $data[0] . '»' : '#' . $id), $id);
+            if (empty($_SESSION['site_flash'])) s_flash('success', 'تم الحفظ ✓');
         } else {
             array_splice($data, 3, 0, [$url !== '' ? 'link' : 'upload']);
-            s_insert('INSERT INTO site_gallery (title, image_path, image_url, source, category, sort_order, is_active) VALUES (?,?,?,?,?,?,?)', $data);
-            s_flash('success', 'تمت الإضافة ✓');
+            $nid = s_insert('INSERT INTO site_gallery (title, image_path, image_url, source, category, sort_order, is_active) VALUES (?,?,?,?,?,?,?)', $data);
+            sa_log('create', 'designs', 'إضافة تصميم للمعرض ' . ($data[0] ? '«' . $data[0] . '»' : ''), $nid ?: null);
+            if (empty($_SESSION['site_flash'])) s_flash('success', 'تمت الإضافة ✓');
         }
         s_redirect('site-admin/gallery.php');
     }
 
-    if ($action === 'toggle') {
-        s_run('UPDATE site_gallery SET is_active = 1 - is_active WHERE id = ?', [(int) $_POST['id']]);
+    if ($action === 'toggle' || $action === 'toggle_ajax') {
+        $id = (int) $_POST['id'];
+        if ($action === 'toggle_ajax') s_run('UPDATE site_gallery SET is_active = ? WHERE id = ?', [!empty($_POST['on']) ? 1 : 0, $id]);
+        else s_run('UPDATE site_gallery SET is_active = 1 - is_active WHERE id = ?', [$id]);
+        $on = (int) (s_one('SELECT is_active FROM site_gallery WHERE id = ?', [$id])['is_active'] ?? 0);
+        sa_log('toggle', 'designs', ($on ? 'إظهار' : 'إخفاء') . ' تصميم #' . $id . ' في المعرض', $id);
+        if ($ajax) sa_json(['ok' => true, 'on' => $on, 'message' => $on ? 'ظاهر في الموقع ✓' : 'اتخفى من الموقع']);
         s_redirect('site-admin/gallery.php');
     }
 
@@ -104,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($r) {
             if (($r['source'] ?? '') === 'upload' && $r['image_path']) s_delete_upload($r['image_path']);
             s_run('DELETE FROM site_gallery WHERE id = ?', [(int) $_POST['id']]);
+            sa_log('delete', 'designs', 'حذف تصميم من المعرض ' . ($r['title'] ? '«' . $r['title'] . '»' : '#' . $r['id']), (int) $r['id']);
             s_flash('success', 'تم الحذف');
         }
         s_redirect('site-admin/gallery.php');
@@ -113,8 +125,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach (($_POST['order'] ?? []) as $rid => $ord) {
             s_run('UPDATE site_gallery SET sort_order = ? WHERE id = ?', [(int) $ord, (int) $rid]);
         }
+        sa_log('reorder', 'designs', 'إعادة ترتيب معرض التصميمات');
         s_flash('success', 'تم حفظ الترتيب ✓');
         s_redirect('site-admin/gallery.php');
+    }
+
+    if ($action === 'reorder_ajax') {
+        foreach (array_values(array_filter(array_map('intval', (array) ($_POST['ids'] ?? [])))) as $i => $rid) {
+            s_run('UPDATE site_gallery SET sort_order = ? WHERE id = ?', [$i + 1, $rid]);
+        }
+        sa_log('reorder', 'designs', 'إعادة ترتيب معرض التصميمات');
+        sa_json(['ok' => true, 'message' => 'تم حفظ الترتيب ✓']);
     }
 }
 
@@ -123,124 +144,87 @@ $rows = s_all('SELECT * FROM site_gallery ORDER BY sort_order, id');
 $showImport = isset($_GET['import']);
 $pDesigns = $showImport ? platform_designs() : [];
 $existingRefs = array_column(s_all('SELECT platform_ref FROM site_gallery WHERE platform_ref IS NOT NULL'), 'platform_ref');
+$cats = array_values(array_unique(array_filter(array_map(fn($r) => trim((string) $r['category']), $rows))));
+$srcLabels = ['upload' => 'مرفوع', 'platform' => 'من المنصة', 'link' => 'لينك'];
 
-$__t = 'التصميمات (المعرض)';
+$__t = 'التصميمات';
 include __DIR__ . '/layout.php';
+
+echo sa_page_head('image', 'التصميمات', 'Designs Gallery', 'تقدر تضيف تصميمات بثلاث طرق: ترفعها · لينك مباشر · أو تستوردها من التصميمات اللي اتعملت في المنصة.',
+    sa_btn('استورد من المنصة', 'soft', '?import=1', 'refresh') . sa_btn('صفحة التصميمات', 'sec', s_page_url('designs'), 'external', ['target' => '_blank', 'rel' => 'noopener']));
+
+$filters = '<select class="ad-filter" data-filter-select="st" aria-label="الحالة"><option value="">كل الحالات</option><option value="on">ظاهر</option><option value="off">مخفي</option></select>';
+if ($cats) {
+    $filters .= '<select class="ad-filter" data-filter-select="cat" aria-label="التصنيف"><option value="">كل التصنيفات</option>';
+    foreach ($cats as $c) $filters .= '<option value="' . e($c) . '">' . e($c) . '</option>';
+    $filters .= '</select>';
+}
+echo sa_search_bar('ابحث في التصميمات...', count($rows), 'تصميم', sa_btn('إضافة تصميم', 'pri', '?new=1', 'plus', ['data-open-drawer' => 'crud']), $filters);
 ?>
 
-<div class="card" style="background:rgba(15,60,201,.06);border-color:rgba(15,60,201,.2)">
-  تقدر تضيف تصميمات بثلاث طرق: <b>ترفعها</b> · <b>لينك مباشر</b> · أو <b>تستوردها من التصميمات اللي اتعملت في المنصة</b>.
-  <div style="margin-top:10px">
-    <a href="?import=1" class="btn s">🔗 استورد من تصميمات المنصة</a>
-    <a href="<?= e(s_page_url('designs')) ?>" target="_blank" class="btn g s">👁 شوف صفحة التصميمات</a>
-  </div>
-</div>
-
 <?php if ($showImport): ?>
-  <div class="card">
-    <h3>استيراد من المنصة</h3>
+  <div class="ad-card" style="margin-bottom:18px">
+    <div class="ad-card-h"><h3>استيراد من المنصة</h3><a class="ad-ib" href="gallery.php" aria-label="إغلاق"><?= sa_icon('x', 18) ?></a></div>
     <?php if (!$pDesigns): ?>
-      <p style="color:var(--dim);font-size:14px">
-        مفيش تصميمات متاحة — تأكد إن المنصة متركّبة في نفس المجلد وإن ملف <code>includes/config.php</code> فيه بيانات قاعدة بياناتها.
-      </p>
+      <?= sa_empty('link', 'مفيش تصميمات متاحة', 'تأكد إن المنصة متركّبة في نفس المجلد وإن ملف includes/config.php فيه بيانات قاعدة بياناتها.') ?>
     <?php else: ?>
       <form method="POST" data-safe-post>
         <?= s_csrf_field() ?>
         <input type="hidden" name="action" value="import">
-        <div class="row" style="margin-bottom:12px">
-          <div class="f"><label>تصنيف للمستورد (اختياري)</label><input type="text" name="import_category" placeholder="سوشيال ميديا"></div>
-          <div class="f"><label>عنوان موحّد (اختياري)</label><input type="text" name="import_title" placeholder="تصميم من المنصة"></div>
+        <div class="ad-form" style="margin-bottom:14px">
+          <?= sa_field(['name' => 'import_category', 'label' => 'تصنيف للمستورد (اختياري)', 'ph' => 'بوستات / ستوريز / لوجوهات']) ?>
+          <?= sa_field(['name' => 'import_title', 'label' => 'عنوان موحّد (اختياري)', 'ph' => 'تصميم من المنصة']) ?>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:460px;overflow-y:auto;padding:4px">
+        <div class="ad-media-grid sm ad-scroll" style="max-height:460px;overflow-y:auto;padding:4px">
           <?php foreach ($pDesigns as $d):
             $ref = $d['src'] . ':' . $d['id'];
             $already = in_array($ref, $existingRefs, true);
-            $imgUrl = PLATFORM_STORAGE_URL . '/' . ltrim((string) $d['image_path'], '/');
-          ?>
-            <label style="position:relative;cursor:<?= $already ? 'default' : 'pointer' ?>;opacity:<?= $already ? '.42' : '1' ?>">
-              <input type="checkbox" name="pick[]" value="<?= e($d['src'] . '|' . $d['id'] . '|' . $d['image_path']) ?>"
-                     <?= $already ? 'disabled' : '' ?> style="position:absolute;top:6px;inset-inline-start:6px;z-index:2;width:18px;height:18px">
-              <img src="<?= e($imgUrl) ?>" alt="" loading="lazy"
-                   style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#eee">
-              <?php if ($already): ?><span class="chip" style="position:absolute;bottom:6px;inset-inline-start:6px;font-size:10px">مضاف</span><?php endif; ?>
+            $imgUrl = PLATFORM_STORAGE_URL . '/' . ltrim((string) $d['image_path'], '/'); ?>
+            <label class="ad-mi" style="cursor:<?= $already ? 'default' : 'pointer' ?>;<?= $already ? 'opacity:.45' : '' ?>">
+              <span class="im" style="background-image:url('<?= e($imgUrl) ?>')"></span>
+              <span class="mt"><span class="ad-cb"><input type="checkbox" name="pick[]" value="<?= e($d['src'] . '|' . $d['id'] . '|' . $d['image_path']) ?>" <?= $already ? 'disabled' : '' ?> aria-label="اختيار"><span><?= sa_icon('check', 15, 2.6) ?></span></span>
+                <small><?= $already ? 'مضاف بالفعل' : e(date('Y/m/d', strtotime($d['created_at']))) ?></small></span>
             </label>
           <?php endforeach; ?>
         </div>
-        <button class="btn" style="margin-top:14px">⬇ استورد المختار</button>
-        <a href="gallery.php" class="btn g">إلغاء</a>
+        <div style="display:flex;gap:10px;margin-top:14px"><?= sa_btn('استورد المختار', 'pri', null, 'down', ['type' => 'submit']) ?><a href="gallery.php" class="ad-btn ad-sec">إلغاء</a></div>
       </form>
     <?php endif; ?>
   </div>
 <?php endif; ?>
 
-<div class="card">
-  <h3><?= $editing ? '✎ تعديل تصميم' : '＋ إضافة تصميم' ?></h3>
-  <form method="POST" enctype="multipart/form-data" data-safe-post>
-    <?= s_csrf_field() ?>
-    <input type="hidden" name="action" value="save">
-    <input type="hidden" name="id" value="<?= (int) ($editing['id'] ?? 0) ?>">
-    <div class="row">
-      <div class="f"><label>العنوان</label><input type="text" name="title" value="<?= e($editing['title'] ?? '') ?>"></div>
-      <div class="f"><label>التصنيف</label><input type="text" name="category" value="<?= e($editing['category'] ?? '') ?>" placeholder="سوشيال / لوجو / بانر"></div>
-      <div class="f"><label>الترتيب</label><input type="number" name="sort_order" value="<?= (int) ($editing['sort_order'] ?? 0) ?>"></div>
-      <div class="f">
-        <label>الظهور</label>
-        <label style="display:flex;gap:8px;align-items:center;font-weight:400">
-          <input type="checkbox" name="is_active" value="1" <?= ($editing ? $editing['is_active'] : 1) ? 'checked' : '' ?> style="width:auto"> ظاهر
-        </label>
-      </div>
-      <div class="f" style="grid-column:1/-1">
-        <label>الصورة</label>
-        <?php $prev = $editing ? s_img($editing) : ''; ?>
-        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
-          <?php if ($prev): ?><img src="<?= e($prev) ?>" class="thumb" style="width:70px;height:70px" alt=""><?php endif; ?>
-          <div style="flex:1;min-width:220px">
-            <input type="file" name="image" accept="image/*" style="font-size:12.5px;margin-bottom:7px">
-            <input type="text" name="image_url" dir="ltr" value="<?= e($editing['image_url'] ?? '') ?>" placeholder="أو لينك صورة مباشر">
-          </div>
+<?php if (!$rows): ?>
+  <?= sa_empty('image', 'لسه مفيش تصميمات', 'ارفع أول تصميم أو استورد من شغل المنصة الحقيقي.', sa_btn('إضافة تصميم', 'pri', '?new=1', 'plus', ['data-open-drawer' => 'crud']) . sa_btn('استورد من المنصة', 'soft', '?import=1', 'refresh')) ?>
+<?php else: ?>
+  <div class="ad-media-grid" data-sortable>
+    <?php foreach ($rows as $i => $r): $im = s_img($r); ?>
+      <div class="ad-mi sa-in<?= $r['is_active'] ? '' : ' off' ?>" data-row data-id="<?= (int) $r['id'] ?>" data-st="<?= $r['is_active'] ? 'on' : 'off' ?>" data-cat="<?= e(trim((string) $r['category'])) ?>" style="<?= $r['is_active'] ? '' : 'opacity:.55' ?>">
+        <span class="im" style="background-image:url('<?= e($im) ?>')"></span>
+        <span class="mt"><b><?= e($r['title'] ?: 'بدون عنوان') ?></b><small><?= e($srcLabels[$r['source']] ?? '') ?><?= $r['category'] ? ' · ' . e($r['category']) : '' ?></small></span>
+        <div class="ma">
+          <span class="ad-ib ad-grab" data-grab title="اسحب لإعادة الترتيب" aria-hidden="true"><?= sa_icon('grip', 16) ?></span>
+          <?= sa_switch('t' . (int) $r['id'], (bool) $r['is_active'], '', ['data-toggle-id' => (string) (int) $r['id'], 'aria-label' => 'إظهار']) ?>
+          <span class="ad-sp"></span>
+          <a class="ad-ib" href="?edit=<?= (int) $r['id'] ?>" aria-label="تعديل" title="تعديل"><?= sa_icon('edit', 16) ?></a>
+          <form method="POST" data-confirm="هتحذف التصميم ده من المعرض — متأكد؟"><?= s_csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>"><button class="ad-ib del" aria-label="حذف" title="حذف"><?= sa_icon('trash', 16) ?></button></form>
         </div>
       </div>
-    </div>
-    <button class="btn"><?= $editing ? '💾 حفظ' : '＋ إضافة' ?></button>
-    <?php if ($editing): ?><a href="gallery.php" class="btn g">إلغاء</a><?php endif; ?>
-  </form>
-</div>
-
-<div class="card">
-  <h3>التصميمات (<?= count($rows) ?>)</h3>
-  <?php if (!$rows): ?>
-    <p style="color:var(--dim);font-size:14px">مفيش تصميمات لسه.</p>
-  <?php else: ?>
-    <form method="POST" data-safe-post>
-      <?= s_csrf_field() ?>
-      <input type="hidden" name="action" value="reorder">
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">
-        <?php foreach ($rows as $r): $im = s_img($r); ?>
-          <div style="border:1px solid var(--line);border-radius:12px;padding:8px;<?= $r['is_active'] ? '' : 'opacity:.5' ?>">
-            <?php if ($im): ?>
-              <img src="<?= e($im) ?>" alt="" loading="lazy" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:#eee">
-            <?php endif; ?>
-            <div style="font-size:12px;margin-top:6px;min-height:18px"><?= e(mb_substr((string) $r['title'], 0, 26)) ?></div>
-            <div style="font-size:10.5px;color:var(--dim)">
-              <?= ['upload' => '⬆ مرفوع', 'platform' => '🔗 من المنصة', 'link' => '🌐 لينك'][$r['source']] ?? '' ?>
-              <?= $r['category'] ? ' · ' . e($r['category']) : '' ?>
-            </div>
-            <div style="display:flex;gap:4px;align-items:center;margin-top:7px">
-              <input type="number" name="order[<?= (int) $r['id'] ?>]" value="<?= (int) $r['sort_order'] ?>" style="width:52px;padding:4px;font-size:12px">
-              <a href="?edit=<?= (int) $r['id'] ?>" class="btn g s">✎</a>
-              <button type="submit" form="tg-<?= (int) $r['id'] ?>" class="btn g s"><?= $r['is_active'] ? '🚫' : '👁' ?></button>
-              <button type="submit" form="dl-<?= (int) $r['id'] ?>" class="btn d s">🗑</button>
-            </div>
-          </div>
-        <?php endforeach; ?>
-      </div>
-      <button class="btn g" style="margin-top:14px">↕ حفظ الترتيب</button>
-    </form>
-    <?php foreach ($rows as $r): ?>
-      <form id="tg-<?= (int) $r['id'] ?>" method="POST" style="display:none"><?= s_csrf_field() ?><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>"></form>
-      <form id="dl-<?= (int) $r['id'] ?>" method="POST" style="display:none" onsubmit="return confirm('حذف التصميم؟')"><?= s_csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $r['id'] ?>"></form>
     <?php endforeach; ?>
-  <?php endif; ?>
-</div>
+  </div>
+  <p class="ad-foot-hint"><?= sa_icon('grip', 14) ?>اسحب التصميم لإعادة الترتيب — بيتحفظ تلقائيًا.</p>
+<?php endif; ?>
+
+<?= sa_drawer_open('crud', $editing ? 'تعديل تصميم' : 'إضافة تصميم', (bool) $editing || !empty($_GET['new']), 'enctype="multipart/form-data"') ?>
+  <?= s_csrf_field() ?>
+  <input type="hidden" name="action" value="save">
+  <input type="hidden" name="id" value="<?= (int) ($editing['id'] ?? 0) ?>">
+  <div class="ad-form one">
+    <?= sa_field(['name' => 'title', 'label' => 'العنوان', 'max' => 200], $editing['title'] ?? '') ?>
+    <?= sa_field(['name' => 'category', 'label' => 'التصنيف', 'ph' => 'بوستات / ستوريز / بورتريه / لوجوهات / قبل / بعد', 'hint' => 'التصنيف بيحدد تبويب التصميم في الموقع.'], $editing['category'] ?? '') ?>
+    <?= sa_field(['name' => 'image', 'label' => 'الصورة', 'type' => 'image'], '', $editing ?? []) ?>
+    <?= sa_field(['name' => 'sort_order', 'label' => 'الترتيب', 'type' => 'number', 'hint' => 'سيبه 0 للإضافة في الآخر.'], (int) ($editing['sort_order'] ?? 0)) ?>
+    <?= sa_field(['name' => 'is_active', 'label' => 'الظهور', 'type' => 'checkbox', 'cb_label' => 'ظاهر في الموقع'], $editing ? (int) $editing['is_active'] : 1) ?>
+  </div>
+<?= sa_drawer_close($editing ? 'حفظ التعديلات' : 'إضافة') ?>
 
 <?php include __DIR__ . '/layout-end.php'; ?>

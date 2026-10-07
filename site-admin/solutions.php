@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'content',
+    'icon' => 'star',
+    'en' => 'Features & Solutions',
+    'item' => 'حل',
+    'unit' => 'حل',
     'table' => 'site_solutions',
     'title' => 'عن المنصة والحلول',
     'intro' => 'معلومات المنصة وإزاي بتحل مشاكل العملاء — تقدر تحط صورة لكل حل أو تكتفي بالأيقونة.',

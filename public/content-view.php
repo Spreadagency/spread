@@ -31,6 +31,8 @@ $__selDesign = (int) ($content['selected_image_id'] ?? 0) ?: (int) ($designs[0][
 require_once __DIR__ . '/../includes/content-formats.php';
 $__fmt = content_format_key($content['format'] ?? 'post');
 $__prog = content_design_progress($content);
+// شرط الاشتراك قبل التصميم: اللي مش مشترك بيشوف شاشة الاشتراك بدل زرار التوليد (مفيش طلب تصميم ولا خصم)
+$__designGate = function_exists('design_subscription_gate') ? design_subscription_gate((int) $user['id']) : null;
 
 $active = 'history';
 $page_title = 'عرض المنشور #' . $id;
@@ -129,6 +131,35 @@ include __DIR__ . '/../templates/header.php';
                     <p class="text-mute" style="font-size:13.5px">الـ AI جهّز السكريبت، والتنفيذ بيتم يدويًا بواسطة فريق Spread AI. راجع السكريبت واعتمده واطلب التنفيذ من هنا:</p>
                     <a class="btn" href="<?= url('content-history.php?open=' . $id) ?>">🎬 إنشاء الفيديو</a>
                 </div>
+                <?php elseif ($__designGate): $__pw = $__designGate['paywall']; ?>
+                <!-- مرحلة التصميم للمشتركين بس — شاشة الاشتراك (قبل أي طلب تصميم) -->
+                <div class="card mt-20 cv-paywall" id="design">
+                    <span class="cv-pw-ic" aria-hidden="true">🎨</span>
+                    <span class="chip chip-primary">جاهز تحوّل منشورك لتصميم؟</span>
+                    <h3><?= e($__pw['title']) ?></h3>
+                    <p class="text-mute"><?= e($__pw['body']) ?></p>
+                    <ul class="cv-pw-list">
+                        <?php foreach ($__pw['benefits'] as $b): ?><li>✓ <?= e($b) ?></li><?php endforeach; ?>
+                    </ul>
+                    <div class="cv-pw-a">
+                        <a class="btn" href="<?= e($__pw['url']) ?>"><?= e($__pw['cta']) ?> ←</a>
+                        <a class="btn ghost" href="#main-text" onclick="document.getElementById('main-text')?.scrollIntoView({behavior:'smooth',block:'center'});return false">العودة للمنشور</a>
+                    </div>
+                    <?php if ($designs): ?>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:16px;text-align:start">
+                        <?php foreach ($designs as $d): ?><a href="<?= url('storage/' . $d['image_path']) ?>" data-lightbox style="display:block;border-radius:12px;overflow:hidden;border:1px solid var(--line)"><img src="<?= url('storage/' . $d['image_path']) ?>" style="width:100%;aspect-ratio:1;object-fit:cover" loading="lazy" alt="design"></a><?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <style>
+                .cv-paywall{text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px 22px;background:linear-gradient(160deg,#F2FBFA 0%,#F3F7FF 100%)}
+                .cv-paywall h3{margin:6px 0 0;font-size:20px}
+                .cv-paywall p{margin:0;max-width:52ch;line-height:1.8}
+                .cv-pw-ic{width:64px;height:64px;border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:30px;background:#fff;box-shadow:0 12px 26px rgba(10,111,216,.14)}
+                .cv-pw-list{list-style:none;margin:6px 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+                .cv-pw-list li{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600}
+                .cv-pw-a{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+                </style>
                 <?php else: ?>
                 <!-- Designs (feature 21) -->
                 <div class="card mt-20" id="design">
@@ -595,6 +626,9 @@ async function generateDesign() {
         showToast('تم توليد التصميم ✓', 'success');
         // إعادة تحميل علشان يظهر بنسخه وخيارات التعديل (بالكلام · اختيار نسخة · رفع)
         setTimeout(() => { location.hash = 'design'; location.reload(); }, 700);
+    } else if (result.code === 'subscription') {
+        showToast(result.error, 'danger');
+        setTimeout(() => { location.hash = 'design'; location.reload(); }, 900);
     } else {
         showToast(result.error || 'فشل توليد التصميم', 'danger');
     }

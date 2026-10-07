@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'content',
+    'icon' => 'alert',
+    'en' => 'Problems',
+    'item' => 'مشكلة',
+    'unit' => 'مشكلة',
     'table' => 'site_problems',
     'title' => 'المشاكل',
     'intro' => 'أكتر المشاكل اللي بتقابل العملاء — بتظهر في القسم الأسود. عنوان القسم نفسه بتغيّره من «الأقسام والعناوين».',

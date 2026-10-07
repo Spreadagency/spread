@@ -46,6 +46,10 @@ $format = content_format_key($content['format'] ?? 'post');
 if ($format === 'video') {
     json_response(['ok' => false, 'error' => 'الفيديو مش بيتصمم بالـ AI — راجع السكريبت واطلب التنفيذ من «🎬 إنشاء الفيديو»']);
 }
+// شرط الاشتراك — قبل أي حاجة بتتخزن أو بتتخصم (مفيش تصميم ولا Credits ولا Job للي مش مشترك)
+if ($__sub = design_subscription_gate((int) $user['id'])) {
+    json_response($__sub);
+}
 $slideNo = null;
 $slide = null;
 if ($format === 'carousel') {

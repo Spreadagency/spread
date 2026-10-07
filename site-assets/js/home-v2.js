@@ -210,7 +210,7 @@
     $$('[data-biz]', demo).forEach(function (s) { s.textContent = name; });
     $('#d-av', demo).textContent = (biz() || 'S').charAt(0);
     var idea = D.ideas[D.pick] || null;
-    art.className = 'd-art ' + (D.busy ? 's-busy' : (idea ? 's-content' : (D.step === 'ideas' ? 's-ideas' : '')));
+    art.className = 'd-art ' + (D.busy ? 's-busy' : (idea ? 's-content' : (D.step === 'ideas' ? 's-ideas' : ''))) + (D.step === 'design' && D.gate === 'paywall' ? ' s-locked' : '');
     var t = TPL[D.tpl];
     art.style.background = t.bg;
     $('#d-art-t', demo).textContent = idea ? (idea.title || '') : '';
@@ -325,9 +325,34 @@
       paint();
     });
   });
+  /* مرحلة التصميم: التحقق من الاشتراك الأول — مفيش أي طلب تصميم (ولا Credits) قبل ما نعرف إنه مشترك.
+     مشترك ← المنشور بيتنقل لحسابه ويكمّل التصميم والنشر جوه المنصة · مش مشترك ← شاشة الاشتراك */
+  D.gate = '';
+  function gateView(v) {
+    D.gate = v;
+    $$('[data-gate-view]', demo).forEach(function (el) { el.hidden = el.getAttribute('data-gate-view') !== v; });
+    paint();
+  }
+  function checkGate() {
+    gateView('loading');
+    msg('design', '');
+    api({ action: 'gate', token: D.token }).then(function (d) {
+      if (d && d.ok && d.subscribed && d.continue_url) {
+        var c = $('[data-continue]', demo); if (c) c.href = d.continue_url;
+        gateView('subscribed');
+        return;
+      }
+      var cta = $('[data-pay-cta]', demo);
+      if (cta && d && d.packages_url && cta.getAttribute('href') === '#s-pricing') cta.href = d.packages_url;
+      gateView('paywall');
+      if (d && !d.ok && d.error) msg('design', d.error);
+    });
+  }
+
   $$('[data-go]', demo).forEach(function (b) {
     b.addEventListener('click', function () {
       var to = b.getAttribute('data-go');
+      if (to === 'design') { go('design'); checkGate(); return; }
       if (to === 'save') {
         // التسجيل بيحمل توكن التجربة ← المنشور والهوية بيتحفظوا في الحساب الجديد (trial_claim)
         var q = D.token ? 'trial=' + encodeURIComponent(D.token) : '';

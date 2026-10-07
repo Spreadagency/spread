@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'content',
+    'icon' => 'tag',
+    'en' => 'Brands',
+    'item' => 'علامة',
+    'unit' => 'علامة',
     'table' => 'site_brands',
     'title' => 'العلامات التجارية',
     'intro' => 'لوجوهات العملاء اللي بتشتغل معاهم — بتظهر في شريط «بيثقوا فينا». لو مفيش لوجو هيظهر الاسم كنص.',

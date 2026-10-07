@@ -289,3 +289,148 @@ function s_steps_geometry(int $n): array
     for ($i = 0; $i < $n; $i++) $mb[] = [$i % 2 ? 110 : 60, 50 + $i * 110];
     return ['desk' => ['d' => $curve($dk, true), 'pts' => $dk], 'mob' => ['d' => $curve($mb, false), 'pts' => $mb, 'h' => $mh]];
 }
+
+/* ═══════════════ بيانات الأقسام (الرئيسية · الصفحات الداخلية · بلوكات الـ Page Builder) ═══════════════ */
+
+/** ترتيب الأقسام الظاهرة من لوحة الموقع */
+function s_home_visible_order(): array
+{
+    $order = [];
+    foreach (s_all('SELECT section_key, is_visible, sort_order FROM site_sections ORDER BY sort_order, id') as $r) {
+        if ((int) $r['is_visible'] === 1) $order[] = $r['section_key'];
+    }
+    if (!$order) $order = s_home_order();
+    foreach (s_home_order() as $k) if (!in_array($k, $order, true) && !s_one('SELECT id FROM site_sections WHERE section_key = ?', [$k])) $order[] = $k;
+    return $order;
+}
+
+/** آراء العملاء المنشورة (المميز الأول) */
+function s_testimonials(int $limit = 12, bool $featuredOnly = false): array
+{
+    return s_all('SELECT * FROM site_testimonials WHERE is_active = 1' . ($featuredOnly ? ' AND is_featured = 1' : '') . ' ORDER BY is_featured DESC, sort_order, id LIMIT ' . max(1, min(60, $limit)));
+}
+
+function s_faqs(string $category = '', int $limit = 30): array
+{
+    return $category !== ''
+        ? s_all('SELECT * FROM site_faqs WHERE is_active = 1 AND category = ? ORDER BY sort_order, id LIMIT ' . max(1, min(100, $limit)), [$category])
+        : s_all('SELECT * FROM site_faqs WHERE is_active = 1 ORDER BY sort_order, id LIMIT ' . max(1, min(100, $limit)));
+}
+
+/**
+ * كل المتغيرات اللي أقسام site/sections/*.php محتاجاها — بتتحمّل مرة واحدة لكل طلب.
+ * $need: أسماء الأقسام المطلوبة (null = كله) علشان الصفحات الداخلية ماتحمّلش بيانات مش هتستخدمها.
+ */
+function s_home_ctx(?array $need = null): array
+{
+    static $memo = [];
+    $all = $need === null;
+    $want = fn(string $k) => $all || in_array($k, $need, true);
+    $D = s_home_defaults();
+    $c = $memo + [
+        'D' => $D,
+        'loginUrl' => s_setting('platform_login_url', PLATFORM_LOGIN),
+        'regUrl' => s_setting('platform_register_url', PLATFORM_REGISTER),
+        'siteName' => s_setting('site_name', 'Spread AI'),
+        'logo' => s_setting('logo_path') !== '' ? SITE_UPLOAD_URL . '/' . s_setting('logo_path') : s_url('site-assets/img/spread-mark.png'),
+        'img' => fn(string $f) => s_url('site-assets/img/' . $f),
+        'appUrl' => fn(string $u) => preg_match('~^(https?:)?//|^/|^#|^mailto:|^tel:~', $u) ? $u : s_url($u),
+        'svcIcons' => ['brain', 'search', 'bulb', 'image', 'megaphone', 'calendar'],
+    ];
+    if (!array_key_exists('trialOn', $c)) $c['trialOn'] = s_platform_pdo() === null || s_platform_setting('trial_enabled', '1') === '1';
+    if (!array_key_exists('order', $c)) $c['order'] = s_home_visible_order();
+
+    if (($want('hero') || $want('steps')) && !array_key_exists('slides', $c)) {
+        $slides = s_all('SELECT * FROM site_slides WHERE is_active = 1 ORDER BY sort_order, id LIMIT 5');
+        if (!$slides) $slides = $D['slides'];
+        $bots = ['wave', 'think', 'sit'];
+        foreach ($slides as $i => &$sl) {
+            $sl['bot'] = in_array($sl['bot'] ?? '', $bots, true) ? $sl['bot'] : $bots[$i % 3];
+            $sl['tag'] = trim((string) ($sl['tag'] ?? '')) ?: ($D['slides'][$i % 3]['tag']);
+        }
+        unset($sl);
+        $c['slides'] = $slides;
+    }
+    $loaders = [
+        'marquee'   => ['ribbon',   fn() => array_values(array_filter(array_map('trim', preg_split('/[\r\n•]+/u', s_setting('ribbon_text'))))) ?: $D['marquee']],
+        'brands'    => ['brands',   fn() => s_all('SELECT * FROM site_brands WHERE is_active = 1 ORDER BY sort_order, id')],
+        'promos'    => ['promos',   fn() => s_all('SELECT * FROM site_promos WHERE is_active = 1 AND (starts_at IS NULL OR starts_at <= CURDATE())
+                                                   AND (ends_at IS NULL OR ends_at >= CURDATE()) ORDER BY sort_order, id LIMIT 4')],
+        'problems'  => ['problems', fn() => s_all('SELECT * FROM site_problems WHERE is_active = 1 ORDER BY sort_order, id')],
+        'solutions' => ['about',    fn() => s_all('SELECT * FROM site_solutions WHERE is_active = 1 ORDER BY sort_order, id')],
+        'steps'     => ['steps',    fn() => s_all('SELECT * FROM site_steps WHERE is_active = 1 ORDER BY sort_order, id')],
+        'services'  => ['services', fn() => s_all('SELECT * FROM site_services WHERE is_active = 1 ORDER BY sort_order, id')],
+        'gallery'   => ['gallery',  fn() => s_all('SELECT * FROM site_gallery WHERE is_active = 1 ORDER BY sort_order, id LIMIT 24')],
+        'packages'  => ['pricing',  fn() => s_home_packages()],
+        'testimonials' => ['testimonials', fn() => s_testimonials(12)],
+        'faqs'      => ['faq',      fn() => s_faqs()],
+    ];
+    foreach ($loaders as $var => [$sk, $fn]) {
+        if (array_key_exists($var, $c)) continue;
+        // الهيرو بيعرض عدد الخطوات · الهيدر بيحتاج يعرف لو فيه تصميمات/أسعار
+        if ($want($sk) || ($all) || ($var === 'steps' && $want('hero'))) $c[$var] = $fn();
+    }
+    if (!array_key_exists('gItems', $c) && array_key_exists('gallery', $c)) {
+        $dzCats = ['all' => 'الكل', 'post' => 'بوستات', 'story' => 'ستوريز', 'portrait' => 'بورتريه', 'ba' => 'قبل / بعد', 'logo' => 'لوجوهات'];
+        $dzMap = function (?string $cat): string {
+            $cat = mb_strtolower(trim((string) $cat));
+            if ($cat === '') return 'post';
+            foreach (['story' => ['story', 'ستوري', 'ستوريز', '9:16'], 'portrait' => ['portrait', 'بورتريه', '4:5'], 'logo' => ['logo', 'لوجو', 'لوجوهات'],
+                      'ba' => ['ba', 'before', 'قبل', 'بعد'], 'post' => ['post', 'بوست', 'بوستات', '1:1']] as $k => $keys) {
+                foreach ($keys as $w) if (mb_strpos($cat, $w) !== false) return $k;
+            }
+            return 'post';
+        };
+        $gItems = array_map(fn($g) => $g + ['cat' => $dzMap($g['category'] ?? '')], $c['gallery']);
+        $baPairs = array_values(array_filter($gItems, fn($g) => $g['cat'] === 'ba'));
+        $usedCats = array_unique(array_column($gItems, 'cat'));
+        $dzCats = array_filter($dzCats, fn($l, $k) => $k === 'all' || in_array($k, $usedCats, true), ARRAY_FILTER_USE_BOTH);
+        if (count($baPairs) < 2) unset($dzCats['ba']);
+        $c += ['gItems' => $gItems, 'baPairs' => $baPairs, 'dzCats' => $dzCats];
+    }
+    if (!array_key_exists('hasToggle', $c) && array_key_exists('packages', $c)) {
+        $hasYearly = count(array_filter($c['packages'], fn($p) => $p['yearly'])) > 0;
+        $hasMonthly = count(array_filter($c['packages'], fn($p) => !$p['yearly'])) > 0;
+        $c['hasToggle'] = $hasYearly && $hasMonthly;
+    }
+    $memo = $c; // المحمّل فعلًا بس — الباقي بيتحمّل لو اتطلب بعدين
+    foreach (array_keys($loaders) as $var) $c[$var] = $c[$var] ?? [];
+    return $c + ['gItems' => [], 'baPairs' => [], 'dzCats' => [], 'hasToggle' => false, 'slides' => $D['slides']];
+}
+
+/**
+ * رسم قسم من الأقسام (site/sections/{key}.php) بنفس شكل الرئيسية.
+ * $ovr: [title, subtitle] بديل لعنوان القسم (بلوكات الـ Page Builder)
+ */
+function s_render_section(string $key, array $ctx, ?array $ovr = null): string
+{
+    $file = __DIR__ . '/sections/' . preg_replace('/[^a-z_]/', '', $key) . '.php';
+    if (!is_file($file)) return '';
+    $D = $ctx['D'];
+    $sec = function (string $k, int $i) use ($D, $key, $ovr): string {
+        if ($ovr !== null && $k === $key && trim((string) ($ovr[$i] ?? '')) !== '') return (string) $ovr[$i];
+        $s = s_section($k);
+        return [(string) ($s['title'] ?: ($D['sections'][$k][0] ?? '')), (string) ($s['subtitle'] ?? ($D['sections'][$k][1] ?? ''))][$i];
+    };
+    $secHead = function (string $k, string $chip, string $icon = 'sparkle') use ($sec): string {
+        $sub = $sec($k, 1);
+        return '<div class="h-sh rv"><span class="ws-chip">' . s_icon($icon, 15) . e($chip) . '</span><h2 class="ws-h2">' . e($sec($k, 0)) . '</h2>'
+            . ($sub !== '' ? '<p>' . e($sub) . '</p>' : '') . '</div>';
+    };
+    extract($ctx, EXTR_SKIP);
+    ob_start();
+    include $file;
+    return (string) ob_get_clean();
+}
+
+/** إعدادات «اصنع منشورك» للـ JS (home-v2.js) */
+function s_trial_js_config(string $regUrl, string $loginUrl): array
+{
+    return [
+        'trialApi' => s_url('ajax/trial.php'),
+        'reg' => $regUrl,
+        'login' => $loginUrl,
+        'tags' => ['مطعم أو كافيه' => '#أكل_بيتي #مطاعم #عروض_اليوم', 'عيادة أو مركز طبي' => '#صحتك_تهمنا #استشارة #عيادة', 'متجر ملابس' => '#ستايل #كولكشن_جديد #موضة',
+                   'أكاديمية أو كورسات' => '#تعلم #كورسات #مهارات', 'خدمات' => '#خدمات #جودة #ثقة'],
+    ];
+}

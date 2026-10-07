@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'content',
+    'icon' => 'wand',
+    'en' => 'Services',
+    'item' => 'خدمة',
+    'unit' => 'خدمة',
     'table' => 'site_services',
     'title' => 'الخدمات',
     'intro' => 'بتظهر في الرئيسية وفي صفحة «الخدمات» الداخلية.',

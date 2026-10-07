@@ -776,7 +776,7 @@ document.addEventListener('DOMContentLoaded', function () {
       for (var k = 0; k < list.length; k++) {
         if (b.stop) break;
         var r = await fn(list[k], k);
-        if (r && r.ok) ok++; else { fail++; lastErr = (r && r.error) || lastErr; if (r && (r.code === 'credits' || r.code === 'quota' || r.code === 'rate_limit' || r.code === 'brand_gate' || r.code === 'state')) break; }
+        if (r && r.ok) ok++; else { fail++; lastErr = (r && r.error) || lastErr; if (r && (r.code === 'credits' || r.code === 'quota' || r.code === 'subscription' || r.code === 'rate_limit' || r.code === 'brand_gate' || r.code === 'state')) break; }
         b.done = k + 1;
       }
       clearInterval(t);

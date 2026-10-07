@@ -1,6 +1,11 @@
 <?php
 require_once __DIR__ . '/crud.php';
 crud_page([
+    'perm' => 'videos',
+    'icon' => 'video',
+    'en' => 'Videos',
+    'item' => 'فيديو',
+    'unit' => 'فيديو',
     'table' => 'site_videos',
     'title' => 'فيديوهات الشرح',
     'intro' => 'بتظهر في صفحة «شرح المنصة». حط لينك يوتيوب أو Vimeo عادي والنظام بيحوله تلقائيًا.',

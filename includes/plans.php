@@ -351,3 +351,44 @@ function customer_signals(int $uid, ?array $usage = null): array
     } catch (\Throwable $e) {}
     return $out;
 }
+
+/* ═══════════════ شرط الاشتراك قبل التصميم (Create Post) ═══════════════
+ * «مشترك» = عنده دورة باقة نشطة في user_plans (مدفوعة · هدية · يدوي) ولسه ماخلصتش.
+ * الشرط بيتشيّك قبل أي طلب تصميم — مفيش تصميم ولا خصم Credits ولا Job للي مش مشترك.
+ * بيتقفل من «مركز الإعدادات» (design_requires_subscription = 0) — وقبل ترحيل 8-ب (مفيش user_plans) مابيمنعش حد.
+ */
+function plan_subscribed(int $uid): bool
+{
+    if ($uid <= 0) return false;
+    if (!plans_ready()) return true;
+    try {
+        return (bool) db_one('SELECT id FROM user_plans WHERE user_id = ? AND status = "active" AND ends_at > NOW() LIMIT 1', [$uid]);
+    } catch (\Throwable $e) {
+        return true; // لو الجدول فيه مشكلة مانقفلش الخدمة على المشتركين
+    }
+}
+
+function design_requires_subscription(): bool
+{
+    return (string) plans_setting('design_requires_subscription', '1') === '1';
+}
+
+/**
+ * بوابة التصميم: null = مسموح · مصفوفة = رد JSON جاهز (code = subscription) لشاشة الاشتراك
+ */
+function design_subscription_gate(int $uid): ?array
+{
+    if (!design_requires_subscription() || plan_subscribed($uid)) return null;
+    return [
+        'ok' => false,
+        'code' => 'subscription',
+        'error' => 'التصميم والنشر متاحين للمشتركين — اشترك علشان تحوّل منشورك لتصميم وتنشره.',
+        'paywall' => [
+            'title' => 'اشترك لصناعة التصميم والنشر',
+            'body' => 'منشورك جاهز ومحفوظ. تحويله لتصميم ونشره تلقائيًا متاحين ضمن الاشتراك.',
+            'benefits' => ['تصميمات جاهزة للنشر', 'مقاسات مناسبة لكل منصة', 'تطبيق هوية البراند', 'جدولة المحتوى', 'النشر من مكان واحد'],
+            'cta' => 'شوف الباقات',
+            'url' => function_exists('url') ? url('packages.php') : 'packages.php',
+        ],
+    ];
+}

@@ -39,6 +39,26 @@ if (get_setting('trial_enabled', '1') !== '1') {
 $ip = mb_substr((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
 $action = (string) ($_POST['action'] ?? '');
 
+/* ═══════════ 0) مرحلة التصميم: التحقق من الاشتراك (قبل أي تصميم) ═══════════
+ * مابيولّدش حاجة ولا بيخصم ولا بيعمل Job — بيرجّع بس: مشترك ولا لأ + لينك الكمال.
+ * مشترك ← trial-continue.php بينقل المنشور لحسابه ويفتح مرحلة التصميم جوه المنصة.
+ * مش مشترك (أو زائر) ← شاشة الاشتراك على الموقع. */
+if ($action === 'gate') {
+    $token = preg_replace('/[^a-f0-9]/', '', (string) ($_POST['token'] ?? ''));
+    $uid = (int) ($_SESSION['user_id'] ?? 0);
+    $u = $uid ? db_one('SELECT id, status, email_verified_at, approval_status FROM users WHERE id = ?', [$uid]) : null;
+    $active = $u && $u['status'] === 'active' && !empty($u['email_verified_at']) && ($u['approval_status'] ?? 'approved') === 'approved';
+    $subscribed = $active && function_exists('plan_subscribed') && (!design_requires_subscription() || plan_subscribed($uid));
+    trial_out([
+        'ok' => true,
+        'logged_in' => (bool) $active,
+        'subscribed' => (bool) $subscribed,
+        'continue_url' => $subscribed && $token !== '' ? url('trial-continue.php?trial=' . $token) : null,
+        // المسجّل ومش مشترك ← صفحة الباقات جوه المنصة · الزائر ← قسم الأسعار في الموقع
+        'packages_url' => $active ? url('packages.php') : null,
+    ]);
+}
+
 /* ═══════════ 1) توليد الأفكار ═══════════ */
 if ($action === 'ideas') {
     $perHour = max(1, (int) get_setting('trial_per_ip_hour', 5));
