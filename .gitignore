@@ -1,0 +1,9 @@
+# local config with credentials (copy from *.sample.php)
+includes/config.php
+site/config.php
+storage/logs/*.log
+storage/uploads/**/*.png
+storage/uploads/**/*.jpg
+storage/uploads/**/*.webp
+site-assets/uploads/*
+!site-assets/uploads/.gitkeep

@@ -1,0 +1,73 @@
+# Spread AI — Apache config (cPanel-safe)
+Options -Indexes
+
+DirectoryIndex public/index.php index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # ─── Force HTTPS ──────────────────────────────────────────
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # ─── Block sensitive paths ────────────────────────────────
+    RewriteRule ^(includes|sql)/ - [F,L]
+    RewriteRule ^site/(config|db)\.php$ - [F,L]
+    RewriteRule ^storage/logs/ - [F,L]
+    RewriteRule ^storage/.*\.log$ - [F,L]
+
+    # ─── Pass through real folders ────────────────────────────
+    # admin/ و assets/ و storage/ للمنصة — و site/ و site-admin/ و site-assets/ للموقع التعريفي
+    RewriteCond %{REQUEST_URI} ^/(admin|assets|storage|site|site-admin|site-assets)/
+    RewriteRule .* - [L]
+
+    # /site-admin (بدون سلاش) → دخول إدارة الموقع
+    RewriteRule ^site-admin/?$ site-admin/login.php [L]
+
+    # /admin (no trailing slash) → admin login
+    RewriteRule ^admin/?$ admin/login.php [L]
+
+    # ─── Root → الموقع التعريفي (index.php في الجذر) ─────────
+    RewriteCond %{REQUEST_URI} ^/?$
+    RewriteRule .* index.php [L]
+
+    # ─── Anything else: try in /public/ ───────────────────────
+    # If not a real file/dir at root, look inside public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Block sensitive files (dotfiles, sql, log, md, etc.)
+<FilesMatch "(^\.|\.sql$|\.log$|\.md$|composer\.|package\.|\.env)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    Header set Content-Security-Policy "frame-ancestors 'self'"
+</IfModule>
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 week"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
