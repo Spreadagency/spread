@@ -21,7 +21,8 @@ device_cookie();
 // Server-side page view (dashboard "visitors"); same id as the browser PageView.
 $pageViewEventId = new_event_id();
 $leadId = current_lead_id();
-log_event('page_view', $leadId, null, $pageViewEventId, array_filter([
+$isPreview = !empty($_GET['preview']) || !empty($_SESSION['admin_id']); // admin preview / admins don't count as visitors
+if (!$isPreview) log_event('page_view', $leadId, null, $pageViewEventId, array_filter([
     'utm_source' => str_in($_GET, 'utm_source', 100),
     'utm_campaign' => str_in($_GET, 'utm_campaign', 150),
 ]));

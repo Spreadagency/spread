@@ -49,11 +49,11 @@ $socials = array_filter([
 <script type="application/ld+json"><?= json_encode($schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?></script>
 <?php endforeach; ?>
 <script>window.SITE_CONFIG = <?= json_encode($siteConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?>;</script>
-<?php require APP_PATH . '/views/partials/tracking_head.php'; ?>
+<?php if (empty($isPreview)) require APP_PATH . '/views/partials/tracking_head.php'; ?>
 <?php if ($siteConfig['turnstile']): ?><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script><?php endif; ?>
 </head>
 <body>
-<?php require APP_PATH . '/views/partials/tracking_body.php'; ?>
+<?php if (empty($isPreview)) require APP_PATH . '/views/partials/tracking_body.php'; ?>
 <?php require APP_PATH . '/views/partials/icons.php'; ?>
 
 <a href="#main" class="sr-only">تخطي للمحتوى</a>

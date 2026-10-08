@@ -73,7 +73,9 @@ app/               bootstrap, db, helpers, settings, csrf, services/, views/
 storage/           uploads (originals, results) + logs — never web-accessible
 cron/cleanup.php   retention + housekeeping
 install/           schema.sql, set-setting.php, dev-router.php
-public/admin/      admin UI prototype (design only, blocked by .htaccess on the server)
+public/admin/      admin panel (PHP) — /admin
+public/uploads/    logo / doctor photo / OG image uploaded from the admin (PHP execution blocked)
+docs/              design boards, admin prototype, screenshots (docs/screens/live = real admin)
 ```
 
 ### Visitor flow
@@ -106,5 +108,26 @@ Failed and rejected attempts don't use up the quota.
 - `app/`, `storage/`, `install/` and `cron/` all deny web access.
 - Errors are written to `storage/logs/`; visitors never see them.
 
-### Not in this step
-The **PHP admin panel** (login, roles, leads table, settings forms) is the next step. Its UI is designed in `public/admin/` (prototype), and it will read and write the same tables and `settings` keys used here.
+### Admin panel (`/admin`)
+Log in at `https://slim.doctor-domain.com/admin/` with the seeded owner `admin@example.com` / `ChangeMe!2026`. The first login forces a password change. After that, add your own owner from **الإعدادات** and delete or rename the seed account.
+
+| Page | What it does | Role |
+| --- | --- | --- |
+| لوحة التحكم | KPIs with period-over-period deltas and sparklines, leads per day, leads by `utm_campaign`, funnel (visit → lead → upload → generated → WhatsApp), API usage vs daily cap, latest 10 leads | all |
+| المسجلين | Search, filters (status, campaign, period, has image, clicked WhatsApp), bulk status, bulk delete, Excel/CSV export (UTF-8 BOM). Clicking a row opens a drawer with details, the before/after images, events timeline, status, notes, "allow regenerate" and delete. | view / edit |
+| الصور | Before/after pairs with filters, lightbox, download and delete, plus the auto-delete banner with the exact cron command and the last run | view / edit |
+| SEO | Title, description, keywords, canonical, OG title/description/image, favicon, schema toggles, robots.txt, live Google and Facebook/WhatsApp previews | view / edit |
+| التتبع (Pixel) | Pixel ID, masked CAPI token, Graph version, test event code, per-event toggles, GA4, GTM, custom head/body code, extra CSP hosts, **Send test event** | owner |
+| الربط والـ API | Masked Gemini key, models, prompt and safety prompt, timeout/retry, all limits, Turnstile, n8n / Spread CRM webhooks + secret, **Test connection** / **Test webhook** | owner |
+| محتوى الصفحة | Doctor info, photo and logo; hero texts, WhatsApp number and message, website, socials; stats, experience, steps, FAQ and loading facts (add/edit/hide/drag to reorder); branches with map; live mobile preview | view / edit |
+| الإعدادات | Admin users (add with a one-time temp password, change role, reset password, delete), retention days, share-page privacy, maintenance mode, time zone, IP allowlist, brand colors, privacy text, activity log | owner |
+
+Roles: **owner** can do everything. **editor** can do everything except Tracking, Integrations and Settings. **viewer** is read-only, and every form is disabled for them.
+
+Security:
+- Logins use bcrypt and are limited to 5 attempts per 15 min, per IP and per email.
+- The session is regenerated on login, expires after 8 h idle, and is bound to the browser.
+- CSRF protection covers every POST, including fetch requests.
+- The admin pages send a strict CSP with no inline scripts.
+- An optional IP allowlist refuses to save a list that would lock you out.
+- Every change is written to `admin_logs`, shown in the activity log.

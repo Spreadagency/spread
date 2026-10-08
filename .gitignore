@@ -4,3 +4,5 @@
 /storage/logs/*
 !/storage/**/.gitkeep
 .DS_Store
+/public/uploads/site/*
+!/public/uploads/site/.gitkeep
