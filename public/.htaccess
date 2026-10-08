@@ -1,0 +1,49 @@
+# ============================================================
+# Public document root (point the subdomain here: /public)
+# ============================================================
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+AddDefaultCharset UTF-8
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Force HTTPS (works behind Cloudflare / cPanel proxies too)
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteCond %{HTTP:CF-Visitor} !"scheme":"https"
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Pretty URLs
+  RewriteRule ^r/([a-f0-9]{32})/?$ r.php?t=$1 [L,QSA]
+  RewriteRule ^robots\.txt$ robots.php [L]
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+</IfModule>
+
+# Never serve source, logs or dotfiles
+<FilesMatch "(^\.|\.(sql|log|ini|sh|md|bak|dist|lock|json)$)">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # The full Content-Security-Policy is sent by PHP (send_page_headers) so the
+  # admin can add hosts for custom tracking code.
+  <FilesMatch "\.(css|js|png|jpg|jpeg|webp|svg|woff2)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml text/plain application/xml
+</IfModule>
+
+# Uploads: PHP limits (ignored on hosts that use .user.ini — see README)
+<IfModule mod_php.c>
+  php_value upload_max_filesize 12M
+  php_value post_max_size 14M
+  php_value max_execution_time 180
+</IfModule>

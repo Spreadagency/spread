@@ -568,7 +568,7 @@ Sitemap: ${SEO.canonical}sitemap.xml</textarea>
     <div class="page-head"><div><h2>محتوى الصفحة</h2><p>كل اللي بيتغير هنا بيظهر في الصفحة من غير ما حد يلمس الكود</p></div><div class="row"><a class="btn btn-secondary" href="../" target="_blank">${ic('globe', 'sm')}افتح الصفحة</a><button class="btn btn-primary" data-save>${ic('check', 'sm')}انشر التغييرات</button></div></div>
     <div class="grid" style="grid-template-columns:minmax(0,1fr) 360px;align-items:start" id="cGrid">
       <section class="card"><div class="tabs" id="cTabs">${CONTENT_TABS.map(([k, l]) => `<button class="${S.ctab === k ? 'on' : ''}" data-ct="${k}">${l}</button>`).join('')}</div><div id="cBody">${CT[S.ctab]()}</div></section>
-      <aside class="stack" style="gap:12px"><div class="row between"><span class="h-sec">معاينة موبايل</span><span class="status ok"><i></i>مباشر</span></div><div class="phone-frame"><div class="screen"><span class="notch"></span><iframe src="../index.html" title="معاينة الصفحة على الموبايل" loading="lazy" id="prevFrame"></iframe></div></div></aside>
+      <aside class="stack" style="gap:12px"><div class="row between"><span class="h-sec">معاينة موبايل</span><span class="status ok"><i></i>مباشر</span></div><div class="phone-frame"><div class="screen"><span class="notch"></span><iframe src="../" title="معاينة الصفحة على الموبايل" loading="lazy" id="prevFrame"></iframe></div></div></aside>
     </div>`;
   BIND.content = () => {
     bindSave();
