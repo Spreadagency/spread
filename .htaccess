@@ -1,0 +1,11 @@
+# Fallback when the subdomain's document root cannot point at /public:
+# send everything into /public and keep the rest of the project private.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(app|storage|install|cron|docs)(/|$) - [F,L]
+  RewriteCond %{REQUEST_URI} !^/public/
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+<FilesMatch "(^\.|\.(sql|log|md|json|lock)$)">
+  Require all denied
+</FilesMatch>

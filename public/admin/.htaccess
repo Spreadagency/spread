@@ -1,0 +1,14 @@
+# Admin panel (PHP). Access is controlled by the login inside the app.
+# This file intentionally replaces an older version that blocked the folder
+# ("Require all denied") while the admin was only a design prototype.
+Options -Indexes
+DirectoryIndex index.php
+<IfModule mod_authz_core.c>
+  Require all granted
+</IfModule>
+# Leftovers from the static prototype must not be served.
+<FilesMatch "^(index\.html)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
