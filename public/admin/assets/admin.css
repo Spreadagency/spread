@@ -482,10 +482,33 @@ label.fchip{position:relative}
 .lb-x{position:fixed;top:16px;left:16px}
 .switch .small:empty{display:none}
 
-@media(max-width:1180px){.content-grid{grid-template-columns:1fr}.preview-col,.sticky-col{position:static}}
+@media(max-width:1180px){.content-grid{grid-template-columns:minmax(0,1fr)}.preview-col,.sticky-col{position:static}}
 @media(max-width:960px){.status-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.form-inline .input,.form-inline .select{width:100%}}
 .toolbar .select.fchip{width:auto;height:32px;border-radius:999px;padding-inline-start:12px}
 .add-details>summary.add-card{min-height:64px;flex-direction:row}
 td.ltr,th.ltr,dd.ltr{display:table-cell}
 dd.ltr{display:block}
 .pair figure .expired svg{width:28px;height:28px;flex:none}
+
+/* AI provider picker */
+.pick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.pick{position:relative;cursor:pointer}
+.pick input{position:absolute;opacity:0;pointer-events:none}
+.pick-in{display:flex;flex-direction:column;align-items:flex-start;gap:6px;height:100%;padding:14px 16px;border:1.5px solid var(--line);border-radius:12px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.pick-in b{font-size:15px;color:var(--ink)}
+.pick:hover .pick-in{border-color:var(--gray-300,#cbd5e1)}
+.pick input:checked + .pick-in{border-color:var(--primary);box-shadow:0 0 0 3px rgba(31,115,183,.14)}
+.pick input:focus-visible + .pick-in{outline:2px solid var(--primary);outline-offset:2px}
+.pick input:checked + .pick-in::after{content:"المستخدم دلوقتي";position:absolute;top:10px;left:12px;font-size:11px;font-weight:600;color:var(--primary);background:rgba(31,115,183,.08);padding:2px 8px;border-radius:99px}
+[data-provider].off{display:none}
+@media (max-width:900px){.pick-grid{grid-template-columns:1fr}}
+
+/* text groups (محتوى الصفحة ← النصوص) */
+.tgroup{border:1px solid var(--line);border-radius:12px;background:#fff}
+.tgroup>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;cursor:pointer;list-style:none;font-weight:600;color:var(--ink)}
+.tgroup>summary::-webkit-details-marker{display:none}
+.tgroup>summary::after{content:"+";font-size:20px;line-height:1;color:var(--muted)}
+.tgroup[open]>summary::after{content:"−"}
+.tgroup>summary small{font-weight:400;color:var(--muted)}
+.tgroup .tg-body{padding:4px 18px 18px;border-top:1px solid var(--line)}
+.tgroup .tg-body .form-grid{padding-top:14px}

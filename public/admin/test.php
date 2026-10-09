@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * POST test.php {what: gemini | pixel | webhook_n8n | webhook_crm} → JSON
+ * POST test.php {what: gemini | openai | openrouter | pixel | webhook_n8n | webhook_crm} → JSON
  * Owner only. The last result is stored in settings (test_<what>) for the status badges.
  */
 require dirname(__DIR__, 2) . '/app/admin/bootstrap.php';
@@ -12,10 +12,13 @@ admin_post('owner');
 $what = (string) ($_POST['what'] ?? '');
 
 $result = match ($what) {
-    'gemini' => (static function (): array {
+    'gemini', 'openai', 'openrouter' => (static function () use ($what): array {
+        if (!AiService::keySet($what)) {
+            return ['ok' => false, 'message' => 'ضيف الـ API key واحفظ الأول.'];
+        }
         try {
-            $r = GeminiService::fromSettings()->test();
-            return ['ok' => $r['ok'], 'message' => $r['ok'] ? 'الاتصال شغال · ' . Settings::get('gemini_model') . ' · ' . $r['ms'] . 'ms' : 'HTTP ' . $r['status'] . ' — ' . $r['message']];
+            $r = AiService::fromSettings($what)->test();
+            return ['ok' => $r['ok'], 'message' => $r['ok'] ? 'الاتصال شغال · ' . AiService::model($what) . ' · ' . $r['ms'] . 'ms' : 'HTTP ' . $r['status'] . ' — ' . $r['message']];
         } catch (Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
         }

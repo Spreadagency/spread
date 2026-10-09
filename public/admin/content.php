@@ -16,7 +16,7 @@ const ITEM_TABS = [
     'faq' => ['faq', 'الأسئلة الشائعة', 'سؤال', 'بتظهر كـ Accordion وبتتضاف لـ FAQPage schema.'],
     'facts' => ['fact', 'معلومات التحميل', 'معلومة', 'بتتبدل كل 4 ثواني والصورة بتتولد.'],
 ];
-const TABS = ['doctor' => 'الدكتور', 'texts' => 'النصوص والتواصل', 'stats' => 'الأرقام', 'experience' => 'الخبرات', 'steps' => 'الخطوات', 'faq' => 'الأسئلة', 'facts' => 'معلومات التحميل', 'branches' => 'الفروع'];
+const TABS = ['doctor' => 'الدكتور', 'texts' => 'كل النصوص', 'contact' => 'التواصل والروابط', 'stats' => 'الأرقام', 'experience' => 'الخبرات', 'steps' => 'الخطوات', 'faq' => 'الأسئلة', 'facts' => 'معلومات التحميل', 'branches' => 'الفروع'];
 const ICONS = ['chat' => 'محادثة', 'flask' => 'تحاليل', 'pulse' => 'نبض', 'clock' => 'ساعة', 'heart' => 'قلب', 'smile' => 'ابتسامة', 'check' => 'صح', 'spark' => 'نجمة', 'user' => 'شخص', 'lock' => 'قفل', 'pin' => 'مكان', 'phone' => 'تليفون'];
 
 $tab = array_key_exists($_GET['tab'] ?? '', TABS) ? $_GET['tab'] : 'doctor';
@@ -38,6 +38,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                         }
                     }
                     $changed = save_settings_from_post(['doctor_name', 'doctor_title', 'doctor_bio'], ['show_logo_on_result']);
+                } elseif ($tab === 'texts') {
+                    $keys = array_keys(texts_defaults());
+                    $defaults = texts_defaults();
+                    foreach ($keys as $k) {
+                        if (isset($_POST[$k])) {
+                            $v = trim(mb_substr(str_replace("\r\n", "\n", (string) $_POST[$k]), 0, 2000));
+                            $_POST[$k] = $v === $defaults[$k] ? '' : $v; // unchanged default → stored empty, so it follows future defaults
+                        }
+                    }
+                    $changed = save_settings_from_post($keys);
                 } else {
                     $wa = preg_replace('/\D/', '', (string) ($_POST['whatsapp_number'] ?? ''));
                     if ($wa !== '' && str_starts_with($wa, '01')) {
@@ -50,8 +60,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                             throw new RuntimeException('الروابط لازم تبدأ بـ https://');
                         }
                     }
-                    $changed = save_settings_from_post(['hero_badge', 'hero_title', 'hero_subtitle', 'hero_button', 'disclaimer_text', 'encouragement_title', 'encouragement_text', 'footer_disclaimer',
-                        'whatsapp_number', 'whatsapp_message', 'website_url', 'social_facebook', 'social_instagram', 'social_youtube', 'social_tiktok']);
+                    $changed = save_settings_from_post(['whatsapp_number', 'whatsapp_message', 'website_url', 'social_facebook', 'social_instagram', 'social_youtube', 'social_tiktok']);
                 }
                 admin_log('content_update', $tab . ': ' . implode(', ', $changed));
                 flash('ok', 'اتحفظ واتنشر على الصفحة');
@@ -198,15 +207,26 @@ admin_page_start('محتوى الصفحة', 'content.php');
 
     <?php elseif ($tab === 'texts'): ?>
     <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="settings"><input type="hidden" name="tab" value="texts">
+      <div class="card-b stack" style="gap:12px">
+        <p class="hint"><?= ic('info', 'sm') ?> كل كلمة في الصفحة موجودة هنا. لو سبت خانة فاضية هيرجع النص الأصلي، ولو كتبت <b class="ltr mono">-</b> بس النص ده هيختفي من الصفحة.</p>
+        <?php $first = true; foreach (texts_registry() as $gid => [$gTitle, $gHint, $items]): ?>
+        <details class="tgroup"<?= $first ? ' open' : '' ?> id="tg-<?= e($gid) ?>"><summary><span><?= e($gTitle) ?> <small>· <?= e($gHint) ?></small></span></summary>
+          <div class="tg-body"><div class="form-grid">
+          <?php foreach ($items as $key => $def): $o = $def[2] ?? []; $val = (string) (Settings::all()[$key] ?? ''); $val = $val === '' ? $def[1] : $val; $hint = ($o['hint'] ?? '');
+              if ($val !== $def[1]) { $hint .= ($hint ? ' · ' : '') . 'متغيّر — الأصلي: <span class="muted">' . e(mb_strimwidth($def[1], 0, 90, '…')) . '</span>'; } ?>
+            <?= !empty($o['rows']) || mb_strlen($def[1]) > 70
+                ? f_textarea($key, $def[0], $val, ['full' => 1, 'rows' => $o['rows'] ?? 2, 'hint' => $hint])
+                : f_text($key, $def[0], $val, ['placeholder' => $def[1], 'hint' => $hint]) ?>
+          <?php endforeach; ?>
+          </div></div></details>
+        <?php $first = false; endforeach; ?>
+      </div>
+      <div class="card-f"><?= save_bar('انشر التغييرات') ?></div>
+    </form>
+
+    <?php elseif ($tab === 'contact'): ?>
+    <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="settings"><input type="hidden" name="tab" value="contact">
       <div class="card-b form-grid">
-        <?= f_text('hero_title', 'عنوان الهيرو', Settings::get('hero_title')) ?>
-        <?= f_text('hero_badge', 'الشارة فوق العنوان', Settings::get('hero_badge', '')) ?>
-        <?= f_text('hero_subtitle', 'الوصف تحت العنوان', Settings::get('hero_subtitle'), ['full' => 1]) ?>
-        <?= f_text('hero_button', 'زرار البداية', Settings::get('hero_button')) ?>
-        <?= f_text('encouragement_title', 'عنوان كارت التشجيع (تحت النتيجة)', Settings::get('encouragement_title')) ?>
-        <?= f_textarea('encouragement_text', 'نص كارت التشجيع', Settings::get('encouragement_text'), ['full' => 1, 'rows' => 2]) ?>
-        <?= f_textarea('disclaimer_text', 'تنبيه تحت صورة النتيجة (Disclaimer)', Settings::get('disclaimer_text'), ['full' => 1, 'rows' => 2]) ?>
-        <?= f_textarea('footer_disclaimer', 'تنبيه الفوتر', Settings::get('footer_disclaimer'), ['full' => 1, 'rows' => 2]) ?>
         <?= f_text('whatsapp_number', 'رقم الواتساب (دولي)', Settings::get('whatsapp_number', ''), ['ltr' => 1, 'mono' => 1, 'placeholder' => '2010XXXXXXXX', 'hint' => 'لو كتبته 01… هيتحول لـ 201… تلقائي']) ?>
         <?= f_text('website_url', 'رابط موقع الدكتور', Settings::get('website_url', ''), ['ltr' => 1, 'mono' => 1, 'placeholder' => 'https://']) ?>
         <?= f_textarea('whatsapp_message', 'رسالة واتساب الجاهزة', Settings::get('whatsapp_message'), ['full' => 1, 'rows' => 2, 'hint' => '<span class="ltr mono">{name}</span> بيتبدل باسم المسجل']) ?>

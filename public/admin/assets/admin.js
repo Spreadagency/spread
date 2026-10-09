@@ -20,15 +20,45 @@
   }
   $$('#flashes span').forEach(s => toast(s.dataset.type, s.textContent));
 
+  /* ---------------- WAF-safe posts ----------------
+     Hosting firewalls (cPanel ModSecurity, Imunify360…) often answer 403 when a POST
+     contains links, HTML/JS snippets or {placeholders}. Every text field is sent as one
+     base64url field "__p" that app/admin/bootstrap.php unpacks; files stay as they are. */
+  const b64 = s => {
+    const bytes = new TextEncoder().encode(s); let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+  function pack(fd) {
+    if (fd.has('__p')) return fd;
+    const qs = new URLSearchParams(), keys = new Set();
+    for (const [k, v] of fd.entries()) if (typeof v === 'string') { qs.append(k, v); keys.add(k); }
+    if (!keys.size) return fd;
+    keys.forEach(k => fd.delete(k));
+    fd.append('__p', b64(qs.toString()));
+    return fd;
+  }
+  // Normal (non-fetch) form posts: rewrite the entry list right before it is sent.
+  document.addEventListener('formdata', e => { if ((e.target.method || '').toLowerCase() === 'post') pack(e.formData); });
+
   /* ---------------- fetch helper ---------------- */
   async function post(url, data) {
     const body = data instanceof FormData ? data : Object.entries(data).reduce((fd, [k, v]) => { Array.isArray(v) ? v.forEach(x => fd.append(k + '[]', x)) : fd.append(k, v); return fd; }, new FormData());
-    if (!body.has('csrf')) body.append('csrf', csrf);
+    if (!body.has('csrf') && !body.has('__p')) body.append('csrf', csrf);
+    pack(body);
     const res = await fetch(url, { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch', Accept: 'application/json' } });
     let json = {};
     try { json = await res.json(); } catch (_) {}
+    if (res.status === 403 && !json.error) throw new Error('السيرفر رفض الطلب (403) — غالبًا جدار حماية الاستضافة (ModSecurity).');
     if (!res.ok || json.error) throw new Error(json.error || 'حصلت مشكلة (' + res.status + ')');
     return json;
+  }
+
+  /* ---------------- AI provider picker (integrations) ---------------- */
+  const picks = $$('input[name=ai_provider]');
+  if (picks.length) {
+    const sync = () => { const v = (picks.find(p => p.checked) || {}).value; $$('[data-provider]').forEach(c => c.classList.toggle('off', c.dataset.provider !== v)); };
+    picks.forEach(p => p.addEventListener('change', sync)); sync();
   }
 
   /* ---------------- layout ---------------- */

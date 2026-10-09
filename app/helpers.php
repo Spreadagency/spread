@@ -373,7 +373,8 @@ function http_post_json(string $url, array $payload, array $headers = [], int $t
     return http_request('POST', $url, $body, array_merge(['Content-Type: application/json'], $headers), $timeout);
 }
 
-function http_request(string $method, string $url, ?string $body, array $headers = [], int $timeout = 10): array
+/** $body may be an array (multipart/form-data, e.g. with CURLStringFile parts). */
+function http_request(string $method, string $url, string|array|null $body, array $headers = [], int $timeout = 10): array
 {
     $start = microtime(true);
     $ch = curl_init($url);

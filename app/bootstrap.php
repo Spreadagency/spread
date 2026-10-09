@@ -46,6 +46,7 @@ ini_set('error_log', LOG_PATH . '/php-error.log');
 require APP_PATH . '/db.php';
 require APP_PATH . '/helpers.php';
 require APP_PATH . '/settings.php';
+require APP_PATH . '/texts.php';
 require APP_PATH . '/csrf.php';
 
 spl_autoload_register(static function (string $class): void {

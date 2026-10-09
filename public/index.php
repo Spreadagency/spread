@@ -53,6 +53,7 @@ $siteConfig = [
         'ShareResult' => Settings::bool('pixel_event_share'),
     ],
     'turnstile' => Turnstile::enabled() ? Settings::get('turnstile_site_key') : '',
+    't' => texts_for_js(),
 ];
 
 // JSON-LD

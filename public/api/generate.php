@@ -15,8 +15,8 @@ $in = input_json();
 csrf_require($in);
 $lead = require_lead();
 
-if (Settings::get('gemini_api_key', '') === '') {
-    log_error('generate.php called but gemini_api_key is empty');
+if (!AiService::keySet()) {
+    log_error('generate.php called but the ' . AiService::provider() . ' API key is empty');
     json_response(['status' => 'failed', 'message' => 'الخدمة مش متاحة دلوقتي، كلّمنا على واتساب.'], 503);
 }
 

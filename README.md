@@ -1,6 +1,6 @@
 # شوف نفسك بعد التخسيس — AI Weight-Loss Simulator
 
-Lead-generation landing page for **د. محمد حسام الدين المرسي**. A visitor enters a name and phone number, uploads a photo, gets an AI "after weight loss" simulation (Google Gemini), and is pushed to WhatsApp. PHP 8.1+ (no framework) · MySQL/MariaDB · vanilla JS · shared hosting with cPanel.
+Lead-generation landing page for **د. محمد حسام الدين المرسي**. A visitor enters a name and phone number, uploads a photo, gets an AI "after weight loss" simulation (Google Gemini, OpenAI or OpenRouter — picked in the admin), and is pushed to WhatsApp. PHP 8.1+ (no framework) · MySQL/MariaDB · vanilla JS · shared hosting with cPanel.
 
 > صنعت بواسطة [Spread](https://spreadagency.net) — Spreadagency.net
 
@@ -25,10 +25,17 @@ Lead-generation landing page for **د. محمد حسام الدين المرسي
    php install/set-setting.php meta_capi_token "EAAG..."
    php install/set-setting.php --list
    ```
-   المفاتيح السرية (Gemini، CAPI، Turnstile، Webhook secret) بتتشفّر تلقائيًا. ولو حطيتها من phpMyAdmin كنص عادي هتشتغل برضه.
+   المفاتيح السرية (Gemini، OpenAI، OpenRouter، CAPI، Turnstile، Webhook secret) بتتشفّر تلقائيًا. ولو حطيتها من phpMyAdmin كنص عادي هتشتغل برضه.
+   **مصدر الذكاء الاصطناعي:** من لوحة التحكم ← الربط والـ API ← "مصدر الذكاء الاصطناعي" اختار Google Gemini أو OpenAI أو OpenRouter، وحط المفتاح بتاعه ودوس "اختبر الاتصال". البرومبت مشترك بين التلاتة.
 8. **Cron:** من Cron Jobs ضيف مهمة تشتغل مرة في اليوم:
    `0 3 * * * /usr/local/bin/php /home/USER/slim/cron/cleanup.php >/dev/null 2>&1`
 9. **الأرقام والمحتوى:** الإحصائيات (سنين الخبرة، عدد العمليات…) متسجلة **مش مفعّلة** في جدول `content_items`. اكتب الأرقام الحقيقية بعد ما الدكتور يأكدها وخلّي `is_active = 1`. نفس الكلام لمواعيد الفروع ورقم التليفون في جدول `branches`.
+
+### لو الحفظ في لوحة التحكم بيدي Error 403
+ده جدار حماية الاستضافة (ModSecurity أو Imunify360)، مش من الكود. بيرفض أي فورم فيها لينك أو كود أو `{name}`. لوحة التحكم دلوقتي بتبعت كل الحقول متشفّرة base64 في حقل واحد عشان الجدار ميقفش قدامها، وده بيحل المشكلة في أغلب الاستضافات. لو لسه بيحصل:
+1. اعمل Refresh كامل للصفحة (Ctrl+F5) عشان المتصفح ياخد `admin.js` الجديد.
+2. من cPanel ← **ModSecurity** اقفله للدومين (أو الساب دومين) بتاع الصفحة.
+3. لو مش ظاهر عندك، ابعت للدعم الفني: "ModSecurity is blocking POST requests to /admin/ on my domain, please whitelist it". وتقدر تشوف رقم القاعدة اللي بتمنع من cPanel ← **Errors**.
 
 ### اختبار سريع قبل الإعلانات
 - [ ] الصفحة بتفتح على `https://` والقفل ظاهر.
@@ -58,6 +65,9 @@ Lead-generation landing page for **د. محمد حسام الدين المرسي
 
 ### Getting the keys
 - **Gemini:** https://aistudio.google.com/apikey. Enable billing for image generation. The default model is `gemini-2.5-flash-image`; the safety check uses `gemini-2.5-flash`. Both can be changed in `settings`.
+- **OpenAI:** https://platform.openai.com/api-keys. The image edit uses `/v1/images/edits` with `gpt-image-1` (or `gpt-image-1-mini`, cheaper); `gpt-image` models need a verified organization. The safety check uses a vision chat model (`gpt-4.1-mini`). Quality: low / medium / high.
+- **OpenRouter:** https://openrouter.ai/keys, then add credits. The edit is a chat completion with `modalities: ["image","text"]`, so the model must output images (default `google/gemini-2.5-flash-image`). The safety check uses `google/gemini-2.5-flash`.
+- Pick the provider under **الربط والـ API ← مصدر الذكاء الاصطناعي**. Each provider keeps its own key and models; the prompts, timeout and retry are shared. For a proxy or a local mock, set `gemini_base_url`, `openai_base_url` or `openrouter_base_url` in `app/config.php`.
 - **Meta Pixel + Conversions API:** Events Manager → your dataset → Settings → *Generate access token*. Put the Pixel ID in `meta_pixel_id` and the token in `meta_capi_token`. Use `meta_test_event_code` while testing.
 - **Cloudflare Turnstile (optional):** Dashboard → Turnstile → add a widget (mode: *Invisible* or *Managed*). Set `turnstile_site_key` and `turnstile_secret`. If either is empty, the check is skipped.
 - **Webhooks:** set `webhook_n8n_url` / `webhook_crm_url` (HTTPS only) and optionally `webhook_secret`. Each request is then signed with `X-Spread-Signature: sha256=<HMAC of body>`.
@@ -84,7 +94,7 @@ docs/              design boards, admin prototype, screenshots (docs/screens/liv
 | Page load | `index.php` | Renders everything from `settings`, `content_items` and `branches`. Logs `page_view`. Sets the CSRF token and the device cookie. |
 | 1. Lead | `POST api/lead.php` | CSRF check, honeypot, Turnstile, 10 leads/hour per IP, then validation and Egyptian phone normalization. Upserts the lead by phone, so the same phone never creates a duplicate. A new lead is logged as `lead` and sent to Meta CAPI `Lead` with the browser's `event_id`, plus the webhooks. A returning lead with a result gets that result back. |
 | 2. Upload | `POST api/upload.php` | The real MIME type is read from the bytes. The image is re-encoded to JPEG (EXIF stripped), max 1536px, saved under `storage/uploads/originals/xx/` with a random name. |
-| 3. Generate | `POST api/generate.php` | Checks the limits, claims the row atomically, runs the Gemini safety check, then the edit (one automatic retry). Saves the result as WebP and builds a 1200×630 share card. On PHP-FPM/LiteSpeed it answers `processing` at once and keeps working; the page then polls `api/status.php` every 2 s. |
+| 3. Generate | `POST api/generate.php` | Checks the limits, claims the row atomically, runs the safety check, then the edit with the provider picked in the admin — Gemini, OpenAI or OpenRouter (one automatic retry). Saves the result as WebP and builds a 1200×630 share card. On PHP-FPM/LiteSpeed it answers `processing` at once and keeps working; the page then polls `api/status.php` every 2 s. |
 | Result | `img.php` | Images are served only through HMAC-signed URLs that expire in 24 h, or through the share token for `/r/{token}`. |
 | Tracking | `POST api/event.php` | Logs `whatsapp_click`, `view_result`, `share`, `download`, `call_click`, `directions_click` and `website_click`, and mirrors `Contact`, `ViewContent` and `ShareResult` to CAPI with the same `event_id`. A WhatsApp click also fires the webhooks. |
 
@@ -118,8 +128,8 @@ Log in at `https://slim.doctor-domain.com/admin/` with the seeded owner `admin@e
 | الصور | Before/after pairs with filters, lightbox, download and delete, plus the auto-delete banner with the exact cron command and the last run | view / edit |
 | SEO | Title, description, keywords, canonical, OG title/description/image, favicon, schema toggles, robots.txt, live Google and Facebook/WhatsApp previews | view / edit |
 | التتبع (Pixel) | Pixel ID, masked CAPI token, Graph version, test event code, per-event toggles, GA4, GTM, custom head/body code, extra CSP hosts, **Send test event** | owner |
-| الربط والـ API | Masked Gemini key, models, prompt and safety prompt, timeout/retry, all limits, Turnstile, n8n / Spread CRM webhooks + secret, **Test connection** / **Test webhook** | owner |
-| محتوى الصفحة | Doctor info, photo and logo; hero texts, WhatsApp number and message, website, socials; stats, experience, steps, FAQ and loading facts (add/edit/hide/drag to reorder); branches with map; live mobile preview | view / edit |
+| الربط والـ API | AI provider picker (Gemini / OpenAI / OpenRouter), a masked key and models per provider, shared prompt and safety prompt, timeout/retry, all limits, Turnstile, n8n / Spread CRM webhooks + secret, **Test connection** / **Test webhook** | owner |
+| محتوى الصفحة | Doctor info, photo and logo; **every text on the page** (about 120 fields in 12 groups — headings, buttons, form labels, errors, share page, footer; empty = default, `-` = hidden); WhatsApp number and message, website, socials; stats, experience, steps, FAQ and loading facts (add/edit/hide/drag to reorder); branches with map; live mobile preview | view / edit |
 | الإعدادات | Admin users (add with a one-time temp password, change role, reset password, delete), retention days, share-page privacy, maintenance mode, time zone, IP allowlist, brand colors, privacy text, activity log | owner |
 
 Roles: **owner** can do everything. **editor** can do everything except Tracking, Integrations and Settings. **viewer** is read-only, and every form is disabled for them.
@@ -131,3 +141,7 @@ Security:
 - The admin pages send a strict CSP with no inline scripts.
 - An optional IP allowlist refuses to save a list that would lock you out.
 - Every change is written to `admin_logs`, shown in the activity log.
+- Admin form posts are packed client-side into one base64url field (`__p`) and unpacked in `app/admin/bootstrap.php`, so hosting WAFs (ModSecurity / Imunify360) don't answer 403 to links, code or `{placeholders}` in the fields.
+
+### Page texts
+All public texts live in `app/texts.php` (key, label, default) and are read with `t('key')`. The admin edits them under **محتوى الصفحة ← كل النصوص**. An empty value brings back the default, and `-` hides the text. Texts that `site.js` needs are sent in `SITE_CONFIG.t`.

@@ -6,6 +6,21 @@ require dirname(__DIR__) . '/bootstrap.php';
 require APP_PATH . '/services/AdminAuth.php';
 require __DIR__ . '/ui.php';
 
+/*
+ * WAF-safe posts: admin.js sends every text field packed in one base64url field "__p",
+ * because hosting firewalls (ModSecurity / Imunify360) answer 403 to POSTs that contain
+ * links, code snippets or {placeholders}. Unpack it before anything reads $_POST.
+ */
+if (isset($_POST['__p']) && is_string($_POST['__p'])) {
+    $packed = base64_decode(strtr($_POST['__p'], '-_', '+/'), true);
+    unset($_POST['__p']);
+    if ($packed !== false) {
+        parse_str($packed, $fields);
+        $_POST = array_replace($_POST, $fields);
+    }
+    unset($packed, $fields);
+}
+
 header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'");
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');

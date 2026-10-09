@@ -81,7 +81,7 @@ $api = q_row("SELECT SUM(status = 'done') done, SUM(status = 'failed') failed, S
               FROM generations WHERE started_at >= ?", [$today]) ?: [];
 $used = (int) ($api['done'] ?? 0) + (int) ($api['processing'] ?? 0);
 $cap = Settings::int('limit_daily_global', 300);
-$geminiReady = Settings::get('gemini_api_key', '') !== '';
+$geminiReady = AiService::keySet();
 
 $latest = q("SELECT l.*, (SELECT g.status FROM generations g WHERE g.lead_id = l.id ORDER BY g.status = 'done' DESC, g.id DESC LIMIT 1) gen
              FROM leads l ORDER BY l.id DESC LIMIT 10")->fetchAll();
@@ -97,7 +97,7 @@ admin_page_start('لوحة التحكم', 'index.php', ['range' => $range]);
 </div>
 
 <?php if (!$geminiReady && AdminAuth::can('owner')): ?>
-<div class="banner"><span class="bi"><?= ic('alert') ?></span><div class="small" style="flex:1"><b style="color:var(--ink)">مفتاح Gemini مش متضاف.</b> الزوار هيقدروا يسجلوا، بس التوليد مش هيشتغل.</div><a class="btn btn-gold btn-sm" href="integrations.php">ضيف المفتاح</a></div>
+<div class="banner"><span class="bi"><?= ic('alert') ?></span><div class="small" style="flex:1"><b style="color:var(--ink)">مفتاح <?= e(AiService::label()) ?> مش متضاف.</b> الزوار هيقدروا يسجلوا، بس التوليد مش هيشتغل.</div><a class="btn btn-gold btn-sm" href="integrations.php">ضيف المفتاح</a></div>
 <?php endif; ?>
 
 <section class="kpis" aria-label="المؤشرات">
@@ -140,7 +140,7 @@ foreach ($cards as $i => [$label, $val, $d, $icon, $tone, $ser, $color, $sub]): 
       <?php endforeach; ?>
     </div><?php endif; ?>
   </div></div>
-  <div class="card"><div class="card-h"><div><h2>استهلاك الـ API النهارده</h2><p>Gemini · الحد اليومي <?= $cap ?> صورة</p></div><?= $geminiReady ? '<span class="status ok"><i></i>متضاف</span>' : '<span class="status err"><i></i>مش متضاف</span>' ?></div>
+  <div class="card"><div class="card-h"><div><h2>استهلاك الـ API النهارده</h2><p><?= e(AiService::label()) ?> · الحد اليومي <?= $cap ?> صورة</p></div><?= $geminiReady ? '<span class="status ok"><i></i>متضاف</span>' : '<span class="status err"><i></i>مش متضاف</span>' ?></div>
     <div class="card-b stack">
       <div class="row between"><span class="ltr" style="font-size:32px;font-weight:700;color:var(--ink)"><?= $used ?> <span class="muted" style="font-size:16px">/ <?= $cap ?></span></span><span class="badge b-gold"><?= $cap ? round($used / $cap * 100) : 0 ?>% من الحد</span></div>
       <div class="bar gold" style="height:12px"><i style="width:<?= min(100, $cap ? round($used / $cap * 100) : 0) ?>%"></i></div>

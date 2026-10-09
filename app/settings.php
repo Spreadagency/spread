@@ -11,7 +11,7 @@ declare(strict_types=1);
  */
 final class Settings
 {
-    public const SECRET_KEYS = ['gemini_api_key', 'meta_capi_token', 'turnstile_secret', 'webhook_secret'];
+    public const SECRET_KEYS = ['gemini_api_key', 'openai_api_key', 'openrouter_api_key', 'meta_capi_token', 'turnstile_secret', 'webhook_secret'];
 
     private static ?array $cache = null;
 
@@ -34,6 +34,12 @@ final class Settings
         'pixel_event_viewcontent' => '1',
         'pixel_event_contact' => '1',
         'pixel_event_share' => '1',
+        'ai_provider' => 'gemini',
+        'openai_model' => 'gpt-image-1',
+        'openai_safety_model' => 'gpt-4.1-mini',
+        'openai_quality' => 'medium',
+        'openrouter_model' => 'google/gemini-2.5-flash-image',
+        'openrouter_safety_model' => 'google/gemini-2.5-flash',
         'gemini_model' => 'gemini-2.5-flash-image',
         'gemini_safety_model' => 'gemini-2.5-flash',
         'gemini_timeout' => '90',

@@ -74,11 +74,11 @@ final class GenerationService
         $lastError = '';
         for ($i = 1; $i <= $tries; $i++) {
             try {
-                $gemini = GeminiService::fromSettings();
+                $ai = AiService::fromSettings();
                 if ($i === 1) {
-                    $gemini->safetyCheck($jpeg);
+                    $ai->safetyCheck($jpeg);
                 }
-                $bytes = $gemini->edit($jpeg, (string) Settings::get('gemini_prompt'));
+                $bytes = $ai->edit($jpeg, (string) Settings::get('gemini_prompt'));
                 $rel = ImageService::storeResult($bytes);
                 ImageService::shareCard(RESULTS_PATH . '/' . $rel, ImageService::ogPath($rel));
                 q("UPDATE generations SET status = 'done', result_path = ?, share_token = ?, completed_at = ?, duration_ms = ?, error_message = NULL WHERE id = ?", [
@@ -87,7 +87,7 @@ final class GenerationService
                 q('UPDATE leads SET regen_allowed = 0 WHERE id = ?', [$gen['lead_id']]);
                 app_log('info', 'Generation done', ['gen' => $genId, 'ms' => (int) ((microtime(true) - $start) * 1000), 'try' => $i]);
                 return self::payload($genId);
-            } catch (GeminiException $e) {
+            } catch (AiException $e) {
                 $lastError = $e->getMessage();
                 if ($e->kind === 'rejected') {
                     self::fail($genId, 'rejected', $lastError);

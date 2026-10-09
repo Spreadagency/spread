@@ -23,6 +23,12 @@
     ]
   }, window.SITE_CONFIG || {});
 
+  // Page texts edited from the admin (SITE_CONFIG.t); the Arabic fallbacks keep demo mode working.
+  const T = (key, fallback, vars) => {
+    let v = SITE.t && typeof SITE.t[key] === 'string' ? SITE.t[key] : fallback;
+    if (vars) Object.keys(vars).forEach(k => { v = v.split('{' + k + '}').join(vars[k]); });
+    return v;
+  };
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const params = new URLSearchParams(location.search);
@@ -73,12 +79,12 @@
         body: json ? JSON.stringify({ ...json, csrf }) : form
       });
     } catch (e) {
-      throw new ApiError('مفيش اتصال بالإنترنت، اتأكد من النت وجرّب تاني.', 0);
+      throw new ApiError(T('t_err_offline', 'مفيش اتصال بالإنترنت، اتأكد من النت وجرّب تاني.'), 0);
     }
     let data = {};
     try { data = await res.json(); } catch (_) { /* non-JSON (e.g. static preview 404) */ }
     if (!res.ok && !(res.status === 202)) {
-      throw new ApiError(data.error || data.message || 'حصلت مشكلة، جرّب تاني.', res.status, data);
+      throw new ApiError(data.error || data.message || T('t_err_generic', 'حصلت مشكلة، جرّب تاني.'), res.status, data);
     }
     return data;
   }
@@ -96,7 +102,7 @@
   /* ---------- WhatsApp + website links ---------- */
   function waHref() {
     if (!SITE.whatsapp) return '#';
-    const name = state.name || 'مهتم';
+    const name = state.name || T('t_wa_name_fallback', 'مهتم');
     return 'https://wa.me/' + SITE.whatsapp + '?text=' + encodeURIComponent(SITE.waTemplate.replace('{name}', name));
   }
   function refreshLinks() {
@@ -133,9 +139,9 @@
     if (!phoneEl.value) return;
     const ok = PHONE_RE.test(normalizePhone(phoneEl.value));
     phoneEl.classList.toggle('error', !ok); phoneEl.classList.toggle('ok', ok);
-    setMsg(phoneMsg, ok ? 'good' : 'err', ok ? 'رقم صحيح' : 'اكتب رقم موبايل مصري صحيح');
+    setMsg(phoneMsg, ok ? 'good' : 'err', ok ? T('t_phone_ok', 'رقم صحيح') : T('t_phone_error', 'اكتب رقم موبايل مصري صحيح'));
   });
-  phoneEl.addEventListener('input', () => { phoneEl.classList.remove('error'); setMsg(phoneMsg, '', 'رقم موبايل مصري من 11 رقم'); });
+  phoneEl.addEventListener('input', () => { phoneEl.classList.remove('error'); setMsg(phoneMsg, '', T('t_phone_hint', 'رقم موبايل مصري من 11 رقم')); });
   nameEl.addEventListener('input', () => { nameEl.classList.remove('error'); $('#e-name').hidden = true; });
   consentEl.addEventListener('change', () => $('#consentWrap').classList.remove('error'));
 
@@ -149,14 +155,14 @@
     const phone = normalizePhone(phoneEl.value);
     let bad = false;
     if (name.length < 2 || name.length > 60) {
-      nameEl.classList.add('error'); const m = $('#e-name'); m.hidden = false; m.textContent = 'اكتب اسمك (حرفين على الأقل)'; bad = true;
+      nameEl.classList.add('error'); const m = $('#e-name'); m.hidden = false; m.textContent = T('t_name_error', 'اكتب اسمك (حرفين على الأقل)'); bad = true;
     }
-    if (!PHONE_RE.test(phone)) { phoneEl.classList.add('error'); setMsg(phoneMsg, 'err', 'اكتب رقم موبايل مصري صحيح'); bad = true; }
+    if (!PHONE_RE.test(phone)) { phoneEl.classList.add('error'); setMsg(phoneMsg, 'err', T('t_phone_error', 'اكتب رقم موبايل مصري صحيح')); bad = true; }
     if (!consentEl.checked) { $('#consentWrap').classList.add('error'); bad = true; }
     if (bad) { (form.querySelector('.error') || consentEl).focus(); return; }
 
     const btn = $('#leadBtn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span><span>ثانية واحدة…</span>';
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span><span></span>'; btn.lastChild.textContent = T('t_form_loading', 'ثانية واحدة…');
     state.name = name.split(/\s+/)[0];
     let res = null;
     try {
@@ -188,7 +194,7 @@
     else if (state.demo) track('lead');
     if (res && res.lead && res.lead.first_name) state.name = res.lead.first_name;
     refreshLinks();
-    $$('[data-first-name]').forEach(el => { el.textContent = state.name; });
+    $$('[data-first-name]').forEach(el => { el.textContent = state.name || T('t_upload_name_fallback', 'بطل'); });
     $('#tool').hidden = false;
     if (res && res.result && res.result.status === 'done') {   // returning visitor
       $('#returning').hidden = false;
@@ -232,17 +238,17 @@
     const okType = /^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
     if (!okType || file.size > 10 * 1024 * 1024) {
       drop.classList.add('error'); err.hidden = false;
-      err.textContent = !okType ? 'الملف لازم يكون صورة (JPG, PNG, WEBP, HEIC)' : 'حجم الصورة أكبر من 10 ميجا';
+      err.textContent = !okType ? T('t_file_type_error', 'الملف لازم يكون صورة (JPG, PNG, WEBP, HEIC)') : T('t_file_size_error', 'حجم الصورة أكبر من 10 ميجا');
       return;
     }
     try {
       state.dataUrl = await resize(file, 1536);
     } catch (_) {
-      drop.classList.add('error'); err.hidden = false; err.textContent = 'مقدرناش نقرا الصورة دي — جرّب صورة تانية أو صوّرها JPG'; return;
+      drop.classList.add('error'); err.hidden = false; err.textContent = T('t_file_read_error', 'مقدرناش نقرا الصورة دي — جرّب صورة تانية أو صوّرها JPG'); return;
     }
     state.genId = 0;
     $('#previewImg').src = state.dataUrl;
-    $('#fileMeta').textContent = 'صورة واحدة · ' + (file.size / 1048576).toFixed(1) + ' ميجا · جاهزة للمحاكاة';
+    $('#fileMeta').textContent = T('t_preview_meta', 'صورة واحدة · {size} ميجا · جاهزة للمحاكاة', { size: (file.size / 1048576).toFixed(1) });
     show('preview');
   }
 
@@ -322,7 +328,7 @@
       }
     } catch (err) {
       stopLoading();
-      if (err.status === 401) { toast('سجّل اسمك ورقمك الأول'); $('#top').scrollIntoView({ behavior: 'smooth' }); return; }
+      if (err.status === 401) { toast(T('t_need_lead', 'سجّل اسمك ورقمك الأول')); $('#top').scrollIntoView({ behavior: 'smooth' }); return; }
       if (err.data && err.data.code === 'bad_image') { show('upload'); const m = $('#e-file'); m.hidden = false; m.textContent = err.message; drop.classList.add('error'); state.genId = 0; return; }
       return showError(err.data && err.data.status ? err.data.status : 'failed', err.message);
     }
@@ -351,11 +357,11 @@
 
   function showError(kind, message) {
     const copy = {
-      failed: ['مقدرناش نكمّل التوليد المرة دي.', 'حصلت مشكلة بسيطة، جرّب تاني', 'ممكن يكون النت ضعيف أو الصورة مش واضحة بما يكفي. جرّب تاني، ولو فضلت المشكلة جرّب صورة تانية بإضاءة أحسن ووش واضح.'],
-      rejected: ['الصورة دي مش مناسبة للمحاكاة.', 'محتاجين صورة واضحة لشخص واحد بالغ — جرّب صورة تانية', 'اتأكد إن الصورة فيها شخص واحد بس، ووشه وجسمه ظاهرين بوضوح.'],
-      cap: ['الخدمة عليها ضغط دلوقتي.', 'الخدمة عليها ضغط دلوقتي، جرّب بكرة أو كلّم الدكتور على واتساب', 'بياناتك اتسجلت عندنا، وفريق الدكتور هيتواصل معاك. تقدر كمان تكلمنا على واتساب على طول.'],
-      limit: ['وصلت للحد المسموح من المحاولات.', 'استخدمت المحاكاة قبل كده من الجهاز ده', 'بياناتك اتسجلت عندنا. لو محتاج تجرب تاني أو عندك سؤال كلّم الدكتور على واتساب.']
-    }[kind] || [message || 'حصلت مشكلة.', 'حصلت مشكلة بسيطة، جرّب تاني', message || ''];
+      failed: [T('t_err_failed_short', 'مقدرناش نكمّل التوليد المرة دي.'), T('t_err_failed_title', 'حصلت مشكلة بسيطة، جرّب تاني'), T('t_err_failed_body', 'ممكن يكون النت ضعيف أو الصورة مش واضحة بما يكفي. جرّب تاني، ولو فضلت المشكلة جرّب صورة تانية بإضاءة أحسن ووش واضح.')],
+      rejected: [T('t_err_rejected_short', 'الصورة دي مش مناسبة للمحاكاة.'), T('t_err_rejected_title', 'محتاجين صورة واضحة لشخص واحد بالغ — جرّب صورة تانية'), T('t_err_rejected_body', 'اتأكد إن الصورة فيها شخص واحد بس، ووشه وجسمه ظاهرين بوضوح.')],
+      cap: [T('t_err_cap_short', 'الخدمة عليها ضغط دلوقتي.'), T('t_err_cap_title', 'الخدمة عليها ضغط دلوقتي، جرّب بكرة أو كلّم الدكتور على واتساب'), T('t_err_cap_body', 'بياناتك اتسجلت عندنا، وفريق الدكتور هيتواصل معاك. تقدر كمان تكلمنا على واتساب على طول.')],
+      limit: [T('t_err_limit_short', 'وصلت للحد المسموح من المحاولات.'), T('t_err_limit_title', 'استخدمت المحاكاة قبل كده من الجهاز ده'), T('t_err_limit_body', 'بياناتك اتسجلت عندنا. لو محتاج تجرب تاني أو عندك سؤال كلّم الدكتور على واتساب.')]
+    }[kind] || [message || T('t_err_generic', 'حصلت مشكلة، جرّب تاني.'), T('t_err_failed_title', 'حصلت مشكلة بسيطة، جرّب تاني'), message || ''];
     $('#errShort').textContent = copy[0]; $('#errTitle').textContent = copy[1]; $('#errBody').textContent = copy[2];
     $('#retryBtn').hidden = kind !== 'failed';
     $('#reuploadBtn').hidden = !['failed', 'rejected'].includes(kind);
@@ -389,14 +395,14 @@
   const shareUrl = () => (state.result && state.result.share_url) || (location.origin + location.pathname + '?utm_source=share');
   $('#shareBtn').addEventListener('click', async () => {
     track('share');
-    const url = shareUrl(), text = 'شوف شكلي بعد التخسيس بالذكاء الاصطناعي — جرّب إنت كمان';
+    const url = shareUrl(), text = T('t_share_text', 'شوف شكلي بعد التخسيس بالذكاء الاصطناعي — جرّب إنت كمان');
     if (navigator.share && matchMedia('(pointer:coarse)').matches) { try { await navigator.share({ title: document.title, text, url }); return; } catch (_) {} }
     $('#shWa').href = 'https://wa.me/?text=' + encodeURIComponent(text + ' ' + url);
     $('#shFb').href = 'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(url);
     openModal('shareModal');
   });
   $('#shCopy').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(shareUrl()); toast('اتنسخ اللينك'); } catch (_) { toast('مقدرناش ننسخ — انسخه يدوي'); }
+    try { await navigator.clipboard.writeText(shareUrl()); toast(T('t_copied', 'اتنسخ اللينك')); } catch (_) { toast(T('t_copy_failed', 'مقدرناش ننسخ — انسخه يدوي')); }
   });
 
   /* ---------- FAQ (server-rendered; static preview fills it from SITE.faqs) ---------- */

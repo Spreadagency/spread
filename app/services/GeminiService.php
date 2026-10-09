@@ -1,20 +1,15 @@
 <?php
 declare(strict_types=1);
 
-final class GeminiException extends RuntimeException
+final class GeminiException extends AiException
 {
-    /** @param string $kind 'failed' (retryable) or 'rejected' (photo not acceptable) */
-    public function __construct(string $message, public readonly string $kind = 'failed', public readonly string $reason = '')
-    {
-        parent::__construct($message);
-    }
 }
 
 /**
  * Google Gemini REST client (generateContent).
  * The API key is read server-side from settings and never reaches the browser.
  */
-final class GeminiService
+final class GeminiService implements AiProvider
 {
     private const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/';
 

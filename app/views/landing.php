@@ -65,50 +65,50 @@ $socials = array_filter([
   <header class="site-header">
     <div class="container">
       <a href="#top" class="logo" aria-label="<?= e($doctorName) ?> — الصفحة الرئيسية"><img src="<?= e($logo) ?>" alt="<?= e($doctorName . ' — ' . $doctorTitle) ?>" width="152" height="76"></a>
-      <a href="<?= e($wa) ?>" class="btn btn-secondary btn-sm wa-pill" data-wa data-track="whatsapp_click" data-place="header" aria-label="كلّم الدكتور على واتساب">
-        <svg class="ic sm"><use href="#i-wa"/></svg><span>واتساب</span>
+      <a href="<?= e($wa) ?>" class="btn btn-secondary btn-sm wa-pill" data-wa data-track="whatsapp_click" data-place="header" aria-label="<?= e(t('t_header_whatsapp')) ?>">
+        <svg class="ic sm"><use href="#i-wa"/></svg><span><?= e(t('t_header_whatsapp')) ?></span>
       </a>
     </div>
   </header>
 
   <main id="main" class="container hero-grid">
     <section class="hero-copy">
-      <?php if (Settings::get('hero_badge', '')): ?><span class="chip"><svg class="ic sm"><use href="#i-spark"/></svg><?= e(Settings::get('hero_badge')) ?></span><?php endif; ?>
-      <h1 class="h1"><?= e(Settings::get('hero_title')) ?></h1>
-      <p class="lead" style="max-width:500px"><?= e(Settings::get('hero_subtitle')) ?></p>
+      <?php if (t('hero_badge') !== ''): ?><span class="chip"><svg class="ic sm"><use href="#i-spark"/></svg><?= e(t('hero_badge')) ?></span><?php endif; ?>
+      <h1 class="h1"><?= e(t('hero_title')) ?></h1>
+      <p class="lead" style="max-width:500px"><?= e(t('hero_subtitle')) ?></p>
 
       <form class="card hero-form" id="leadForm" novalidate>
         <div class="row">
           <div class="field">
-            <label class="label" for="f-name">الاسم</label>
-            <input id="f-name" name="name" class="input" placeholder="اكتب اسمك" autocomplete="name" maxlength="60" required>
+            <label class="label" for="f-name"><?= e(t('t_name_label')) ?></label>
+            <input id="f-name" name="name" class="input" placeholder="<?= e(t('t_name_placeholder')) ?>" autocomplete="name" maxlength="60" required>
             <span class="msg err" id="e-name" hidden></span>
           </div>
           <div class="field">
-            <label class="label" for="f-phone">رقم التواصل</label>
-            <input id="f-phone" name="phone" class="input" dir="ltr" inputmode="tel" placeholder="01X XXXX XXXX" autocomplete="tel" maxlength="20" required aria-describedby="h-phone">
-            <span class="msg" id="h-phone">رقم موبايل مصري من 11 رقم</span>
+            <label class="label" for="f-phone"><?= e(t('t_phone_label')) ?></label>
+            <input id="f-phone" name="phone" class="input" dir="ltr" inputmode="tel" placeholder="<?= e(t('t_phone_placeholder')) ?>" autocomplete="tel" maxlength="20" required aria-describedby="h-phone">
+            <span class="msg" id="h-phone"><?= e(t('t_phone_hint')) ?></span>
           </div>
         </div>
         <label class="check" id="consentWrap">
           <input type="checkbox" id="f-consent" name="consent" required>
           <span class="box" aria-hidden="true"><svg class="ic sm" style="stroke-width:2.6"><use href="#i-check"/></svg></span>
-          <span>أوافق على استخدام صورتي لإنشاء المحاكاة — <button type="button" class="link" data-open="privacyModal">سياسة الخصوصية</button></span>
+          <span><?= e(t('t_consent')) ?> — <button type="button" class="link" data-open="privacyModal"><?= e(t('t_privacy_link')) ?></button></span>
         </label>
         <div class="hp" aria-hidden="true"><label>اتركه فاضي<input name="website" tabindex="-1" autocomplete="off"></label></div>
         <?php if ($siteConfig['turnstile']): ?><div class="cf-turnstile" data-sitekey="<?= e($siteConfig['turnstile']) ?>" data-language="ar" data-appearance="interaction-only"></div><?php endif; ?>
         <p class="msg err" id="formError" role="alert" hidden></p>
         <button type="submit" class="btn btn-primary btn-lg btn-block" id="leadBtn">
-          <span><?= e(Settings::get('hero_button')) ?></span>
+          <span><?= e(t('hero_button')) ?></span>
           <svg class="ic"><use href="#i-arrow"/></svg>
         </button>
-        <p class="msg" id="returning" hidden><svg class="ic xs"><use href="#i-info"/></svg>ده نتيجتك اللي عملتها قبل كده</p>
+        <p class="msg" id="returning" hidden><svg class="ic xs"><use href="#i-info"/></svg><?= e(t('t_returning')) ?></p>
       </form>
 
       <div class="trust">
-        <span class="chip"><svg class="ic sm"><use href="#i-lock"/></svg>صورتك سرّية</span>
-        <span class="chip"><svg class="ic sm"><use href="#i-user"/></svg>بدون تسجيل</span>
-        <span class="chip"><svg class="ic sm"><use href="#i-clock"/></svg>بياخد 20 ثانية</span>
+        <?php foreach (['t_trust_1' => 'lock', 't_trust_2' => 'user', 't_trust_3' => 'clock'] as $k => $icon): if (t($k) === '') continue; ?>
+        <span class="chip"><svg class="ic sm"><use href="#i-<?= $icon ?>"/></svg><?= e(t($k)) ?></span>
+        <?php endforeach; ?>
       </div>
     </section>
 
@@ -124,9 +124,9 @@ $socials = array_filter([
           <svg x="72" y="64" width="130" height="234" viewBox="0 0 200 360"><g fill="#1F73B7"><circle cx="100" cy="46" r="27"/><path d="M100 84C122 84 139 98 142 124C146 154 147 180 143 204C140 226 138 262 137 340L109 340L104 246L96 246L91 340L63 340C62 262 60 226 57 204C53 180 54 154 58 124C61 98 78 84 100 84Z"/></g></svg>
         </svg>
         <div class="art-steps">
-          <div><strong>1</strong><span>بياناتك</span></div>
-          <div><strong>2</strong><span>صورتك</span></div>
-          <div><strong>3</strong><span>النتيجة</span></div>
+          <div><strong>1</strong><span><?= e(t('t_step_1')) ?></span></div>
+          <div><strong>2</strong><span><?= e(t('t_step_2')) ?></span></div>
+          <div><strong>3</strong><span><?= e(t('t_step_3')) ?></span></div>
         </div>
       </div>
     </section>
@@ -144,8 +144,8 @@ $socials = array_filter([
     </figure>
     <div style="display:flex;flex-direction:column;gap:24px" class="reveal">
       <div style="display:flex;flex-direction:column;gap:10px">
-        <span class="eyebrow">عن الدكتور</span>
-        <h2 class="h2" id="docTitle">الدكتور اللي هتتابع معاه</h2>
+        <?php if (t('t_doctor_eyebrow') !== ''): ?><span class="eyebrow"><?= e(t('t_doctor_eyebrow')) ?></span><?php endif; ?>
+        <h2 class="h2" id="docTitle"><?= e(t('t_doctor_heading')) ?></h2>
         <p class="lead"><?= e_nl(Settings::get('doctor_bio')) ?></p>
       </div>
       <?php if ($stats): ?>
@@ -157,7 +157,7 @@ $socials = array_filter([
       <?php endif; ?>
       <?php if ($experience): ?>
       <div style="display:flex;flex-direction:column;gap:16px">
-        <h3 class="h3">الخبرة والشهادات</h3>
+        <h3 class="h3"><?= e(t('t_experience_heading')) ?></h3>
         <ol class="timeline">
           <?php foreach ($experience as $x): ?>
           <li class="tl"><?php if (trim((string) $x['value']) !== ''): ?><small><?= e($x['value']) ?></small><?php endif; ?><b><?= e($x['title']) ?></b><?php if ($x['body']): ?><span><?= e($x['body']) ?></span><?php endif; ?></li>
@@ -165,7 +165,7 @@ $socials = array_filter([
         </ol>
       </div>
       <?php endif; ?>
-      <a href="<?= e($wa) ?>" class="btn btn-wa" style="align-self:flex-start" data-wa data-track="whatsapp_click" data-place="doctor"><svg class="ic sm"><use href="#i-wa"/></svg>احجز استشارتك</a>
+      <a href="<?= e($wa) ?>" class="btn btn-wa" style="align-self:flex-start" data-wa data-track="whatsapp_click" data-place="doctor"><svg class="ic sm"><use href="#i-wa"/></svg><?= e(t('t_doctor_button')) ?></a>
     </div>
   </div>
 </section>
@@ -175,9 +175,9 @@ $socials = array_filter([
 <section class="section" style="background:var(--sky-50)" aria-labelledby="stepsTitle">
   <div class="container">
     <div class="section-head reveal">
-      <span class="eyebrow">رحلتك مع العملية</span>
-      <h2 class="h2" id="stepsTitle"><?= count($steps) ?> خطوات بسيطة</h2>
-      <p class="lead">من أول استشارة لحد المتابعة بعد العملية.</p>
+      <?php if (t('t_steps_eyebrow') !== ''): ?><span class="eyebrow"><?= e(t('t_steps_eyebrow')) ?></span><?php endif; ?>
+      <h2 class="h2" id="stepsTitle"><?= e(t('t_steps_title', ['{count}' => (string) count($steps)])) ?></h2>
+      <?php if (t('t_steps_lead') !== ''): ?><p class="lead"><?= e(t('t_steps_lead')) ?></p><?php endif; ?>
     </div>
     <ol class="steps">
       <?php foreach ($steps as $i => $st): ?>
@@ -193,18 +193,18 @@ $socials = array_filter([
 <section class="section" id="branches" aria-labelledby="brTitle">
   <div class="container">
     <div class="section-head reveal">
-      <span class="eyebrow">الفروع</span>
-      <h2 class="h2" id="brTitle">تعالى زورنا</h2>
+      <?php if (t('t_branches_eyebrow') !== ''): ?><span class="eyebrow"><?= e(t('t_branches_eyebrow')) ?></span><?php endif; ?>
+      <h2 class="h2" id="brTitle"><?= e(t('t_branches_title')) ?></h2>
     </div>
     <div class="br-grid">
       <div class="branches">
         <?php foreach ($branches as $b): ?>
         <article class="card branch reveal">
           <div class="branch-h"><span class="iconbox sm"><svg class="ic"><use href="#i-pin"/></svg></span><div><b><?= e($b['name']) ?></b><?php if ($b['address']): ?><span><?= e($b['address']) ?></span><?php endif; ?></div></div>
-          <?php if ($b['working_hours']): ?><p class="hours"><svg class="ic sm"><use href="#i-clock"/></svg>مواعيد العمل: <?= e($b['working_hours']) ?></p><?php endif; ?>
+          <?php if ($b['working_hours']): ?><p class="hours"><svg class="ic sm"><use href="#i-clock"/></svg><?= e(trim(t('t_hours_label') . ' ' . $b['working_hours'])) ?></p><?php endif; ?>
           <div class="branch-btns">
-            <?php if ($b['map_url']): ?><a class="btn btn-primary btn-sm" href="<?= e($b['map_url']) ?>" target="_blank" rel="noopener" data-track="directions_click"><svg class="ic sm"><use href="#i-nav"/></svg>اتجاهات</a><?php endif; ?>
-            <?php if ($b['phone']): ?><a class="btn btn-secondary btn-sm" href="tel:<?= e(preg_replace('/[^\d+]/', '', (string) $b['phone'])) ?>" data-track="call_click"><svg class="ic sm"><use href="#i-phone"/></svg>اتصل</a><?php endif; ?>
+            <?php if ($b['map_url']): ?><a class="btn btn-primary btn-sm" href="<?= e($b['map_url']) ?>" target="_blank" rel="noopener" data-track="directions_click"><svg class="ic sm"><use href="#i-nav"/></svg><?= e(t('t_directions_button')) ?></a><?php endif; ?>
+            <?php if ($b['phone']): ?><a class="btn btn-secondary btn-sm" href="tel:<?= e(preg_replace('/[^\d+]/', '', (string) $b['phone'])) ?>" data-track="call_click"><svg class="ic sm"><use href="#i-phone"/></svg><?= e(t('t_call_button')) ?></a><?php endif; ?>
           </div>
         </article>
         <?php endforeach; ?>
@@ -222,8 +222,8 @@ $socials = array_filter([
 <section class="section" style="padding-top:0" aria-labelledby="faqTitle">
   <div class="container">
     <div class="section-head reveal">
-      <span class="eyebrow">أسئلة شائعة</span>
-      <h2 class="h2" id="faqTitle">اللي بيسأل عنه الناس</h2>
+      <?php if (t('t_faq_eyebrow') !== ''): ?><span class="eyebrow"><?= e(t('t_faq_eyebrow')) ?></span><?php endif; ?>
+      <h2 class="h2" id="faqTitle"><?= e(t('t_faq_title')) ?></h2>
     </div>
     <div class="faqs" id="faqs">
       <?php foreach ($faqs as $i => $f): ?>
@@ -242,10 +242,10 @@ $socials = array_filter([
   <div class="cta reveal">
     <svg class="deco" width="320" height="320" viewBox="0 0 320 320" aria-hidden="true"><circle cx="160" cy="160" r="150" fill="none" stroke="#fff" stroke-width="2"/><circle cx="160" cy="160" r="95" fill="none" stroke="#fff" stroke-width="2"/><circle cx="160" cy="160" r="40" fill="none" stroke="#fff" stroke-width="2"/></svg>
     <div style="position:relative;display:flex;flex-direction:column;gap:8px">
-      <h2 class="h2" id="ctaTitle" style="font-size:clamp(26px,4vw,36px)">ابدأ رحلتك النهارده</h2>
-      <p>كلّم الدكتور على واتساب واحجز استشارتك، وهو هيحدد لو العملية مناسبة ليك.</p>
+      <h2 class="h2" id="ctaTitle" style="font-size:clamp(26px,4vw,36px)"><?= e(t('t_cta_title')) ?></h2>
+      <?php if (t('t_cta_text') !== ''): ?><p><?= e(t('t_cta_text')) ?></p><?php endif; ?>
     </div>
-    <a href="<?= e($wa) ?>" class="btn btn-wa btn-lg" data-wa data-track="whatsapp_click" data-place="cta"><svg class="ic"><use href="#i-wa"/></svg>احجز استشارتك على واتساب</a>
+    <a href="<?= e($wa) ?>" class="btn btn-wa btn-lg" data-wa data-track="whatsapp_click" data-place="cta"><svg class="ic"><use href="#i-wa"/></svg><?= e(t('t_cta_button')) ?></a>
   </div>
 </section>
 
@@ -258,9 +258,9 @@ $socials = array_filter([
         <b><?= e($doctorName) ?></b>
         <span><?= e($doctorTitle) ?></span>
       </div>
-      <p class="disclaimer"><?= e(Settings::get('footer_disclaimer')) ?></p>
+      <p class="disclaimer"><?= e(t('footer_disclaimer')) ?></p>
       <div class="foot-links">
-        <button class="link" data-open="privacyModal">سياسة الخصوصية</button>
+        <button class="link" data-open="privacyModal"><?= e(t('t_privacy_link')) ?></button>
         <?php if ($socials): ?>
         <div class="socials">
           <?php foreach ($socials as $icon => [$label, $href]): ?>
@@ -271,7 +271,7 @@ $socials = array_filter([
       </div>
     </div>
     <div class="foot-bottom">
-      <span>© <?= date('Y') ?> <?= e($doctorName) ?> — جميع الحقوق محفوظة</span>
+      <span><?= e(t('t_copyright', ['{year}' => date('Y'), '{doctor}' => $doctorName])) ?></span>
       <span class="made-by">صنعت بواسطة <a href="https://spreadagency.net" target="_blank" rel="noopener">Spread</a> · <a href="https://spreadagency.net" target="_blank" rel="noopener" class="ltr">Spreadagency.net</a></span>
     </div>
   </div>
@@ -279,31 +279,31 @@ $socials = array_filter([
 
 <!-- Sticky WhatsApp (mobile) -->
 <div class="sticky-wa" id="stickyWa">
-  <a href="<?= e($wa) ?>" class="btn btn-wa btn-block" data-wa data-track="whatsapp_click" data-place="sticky"><svg class="ic"><use href="#i-wa"/></svg>اسأل الدكتور على واتساب</a>
+  <a href="<?= e($wa) ?>" class="btn btn-wa btn-block" data-wa data-track="whatsapp_click" data-place="sticky"><svg class="ic"><use href="#i-wa"/></svg><?= e(t('t_sticky_button')) ?></a>
 </div>
 
 <!-- Privacy modal -->
 <div class="modal" id="privacyModal" role="dialog" aria-modal="true" aria-labelledby="pvTitle" hidden>
   <div class="card modal-box">
-    <div class="modal-h"><h2 class="h3" id="pvTitle">سياسة الخصوصية</h2><button class="x" data-close aria-label="إغلاق"><svg class="ic sm"><use href="#i-x"/></svg></button></div>
+    <div class="modal-h"><h2 class="h3" id="pvTitle"><?= e(t('t_privacy_title')) ?></h2><button class="x" data-close aria-label="إغلاق"><svg class="ic sm"><use href="#i-x"/></svg></button></div>
     <div class="muted" style="display:flex;flex-direction:column;gap:10px">
       <?php foreach (preg_split('/\R+/u', trim((string) Settings::get('privacy_text'))) as $para): ?>
       <p><?= e($para) ?></p>
       <?php endforeach; ?>
     </div>
-    <button class="btn btn-primary" data-close>تمام، فهمت</button>
+    <button class="btn btn-primary" data-close><?= e(t('t_privacy_ok')) ?></button>
   </div>
 </div>
 
 <!-- Share modal -->
 <div class="modal" id="shareModal" role="dialog" aria-modal="true" aria-labelledby="shTitle" hidden>
   <div class="card modal-box">
-    <div class="modal-h"><h2 class="h3" id="shTitle">شارك المحاكاة</h2><button class="x" data-close aria-label="إغلاق"><svg class="ic sm"><use href="#i-x"/></svg></button></div>
-    <p class="muted small">اللينك بيعرض صورة "بعد" بس واسمك الأول — رقمك مش بيظهر أبدًا.</p>
+    <div class="modal-h"><h2 class="h3" id="shTitle"><?= e(t('t_share_title')) ?></h2><button class="x" data-close aria-label="إغلاق"><svg class="ic sm"><use href="#i-x"/></svg></button></div>
+    <?php if (t('t_share_note') !== ''): ?><p class="muted small"><?= e(t('t_share_note')) ?></p><?php endif; ?>
     <div class="share-grid">
       <a class="btn btn-ghost" id="shWa" target="_blank" rel="noopener" style="color:var(--wa)"><svg class="ic"><use href="#i-wa"/></svg>واتساب</a>
       <a class="btn btn-ghost" id="shFb" target="_blank" rel="noopener"><svg class="ic"><use href="#i-fb"/></svg>فيسبوك</a>
-      <button class="btn btn-ghost" id="shCopy"><svg class="ic"><use href="#i-copy"/></svg>انسخ اللينك</button>
+      <button class="btn btn-ghost" id="shCopy"><svg class="ic"><use href="#i-copy"/></svg><?= e(t('t_share_copy')) ?></button>
     </div>
   </div>
 </div>
