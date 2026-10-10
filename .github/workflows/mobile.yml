@@ -54,6 +54,8 @@ jobs:
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write   # publish the pre-release with the APK
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -79,12 +81,33 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
           EXPO_PUBLIC_PURCHASES: 'off'
           NODE_ENV: production
+      - name: Verify APK is standalone (JS bundle embedded) and name it
+        id: apk
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          unzip -l "$APK" | grep -q 'assets/index.android.bundle' || { echo "::error::JS bundle missing from APK"; exit 1; }
+          VER=$(node -p "require('./app.json').expo.version")
+          OUT="spread-ai-${VER}-${GITHUB_SHA::7}.apk"
+          cp "$APK" "$OUT"
+          echo "file=mobile-app/$OUT" >> "$GITHUB_OUTPUT"
+          echo "name=$OUT" >> "$GITHUB_OUTPUT"
+          ls -la "$OUT"; sha256sum "$OUT"
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: spread-ai-android-test-apk
-          path: mobile-app/android/app/build/outputs/apk/release/*.apk
+          path: ${{ steps.apk.outputs.file }}
           retention-days: 14
+      - name: Publish as pre-release "android-test-latest" (direct install link)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android-test-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create android-test-latest "${{ steps.apk.outputs.name }}" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Spread AI — Android test APK (${GITHUB_SHA::7})" \
+            --notes "Test build from \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA::7}. Signed with the Android debug key — for testing only, not for Google Play. Install: open this page on the phone, download the APK, allow 'Install unknown apps'."
 
   eas-build:
     name: EAS cloud build (${{ inputs.eas_profile }})

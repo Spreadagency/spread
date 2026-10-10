@@ -20,7 +20,7 @@
 
 | Artifact | How | Signing | Use |
 |---|---|---|---|
-| **Test APK** (any phone) | GitHub Actions → *Mobile app* → artifact `spread-ai-android-test-apk` (runs on every push to `mobile-app/**`) | Android debug key | Sideload for testing. Not for Play. |
+| **Test APK** (any phone) | GitHub → Releases → **android-test-latest** (direct download, refreshed on every push to `mobile-app/**`) · also the workflow artifact `spread-ai-android-test-apk` | Android debug key | Sideload for testing. Not for Play. |
 | **Release APK** (direct distribution) | Actions → *Run workflow* → profile `preview`, platform `android`; or `eas build -p android --profile preview` | EAS-managed release keystore | Install link from expo.dev. |
 | **Play AAB** | profile `production`, platform `android`; or `eas build -p android --profile production` | EAS-managed upload key | Upload to Play Console, or `eas submit -p android`. |
 | **iOS simulator** | profile `simulator`, platform `ios` | none | Run on the Xcode simulator. |
