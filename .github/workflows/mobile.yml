@@ -213,6 +213,151 @@ jobs:
             --title "Spread AI — Google Play AAB (versionCode ${{ steps.aab.outputs.code }})" \
             --notes "Upload this .aab to Google Play Console (Testing → Internal testing → Create release). Signed with the Spread AI upload key; Play App Signing re-signs it for users. Built from \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA::7}."
 
+  ios-ipa:
+    name: iOS IPA (unsigned, for sideloading tests)
+    needs: checks
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write   # publish the pre-release with the IPA
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - run: npm ci
+      - name: Generate native iOS project (runs pod install)
+        run: npx expo prebuild --platform ios --clean
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+      - name: Build Release for iPhone without code signing
+        id: build
+        working-directory: mobile-app/ios
+        run: |
+          xcodebuild -version
+          WS=$(ls -d *.xcworkspace | head -1); SCHEME="${WS%.xcworkspace}"
+          echo "workspace=$WS scheme=$SCHEME"
+          set -o pipefail
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -n 80
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+          NODE_ENV: production
+      - name: Package IPA and verify the JS bundle is embedded
+        id: ipa
+        run: |
+          APP=$(ls -d ios/build/Build/Products/Release-iphoneos/*.app | head -1)
+          [ -f "$APP/main.jsbundle" ] || { echo "::error::main.jsbundle missing from the .app"; exit 1; }
+          VER=$(node -p "require('./app.json').expo.version")
+          OUT="spread-ai-${VER}-${GITHUB_SHA::7}-unsigned.ipa"
+          rm -rf Payload && mkdir Payload && cp -R "$APP" Payload/
+          zip -qry "$OUT" Payload
+          echo "file=mobile-app/$OUT" >> "$GITHUB_OUTPUT"
+          echo "name=$OUT" >> "$GITHUB_OUTPUT"
+          ls -la "$OUT"; shasum -a 256 "$OUT"
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: spread-ai-ios-unsigned-ipa
+          path: ${{ steps.ipa.outputs.file }}
+          retention-days: 14
+      - name: Publish as pre-release "ios-test-latest"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete ios-test-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create ios-test-latest "${{ steps.ipa.outputs.name }}" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Spread AI — iPhone test IPA, unsigned (${GITHUB_SHA::7})" \
+            --notes "Unsigned test build from \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA::7}. Install it with Sideloadly or AltStore using your Apple ID; they sign it on your computer. A free Apple ID's signature expires after 7 days. Not for the App Store; use the TestFlight job for that."
+
+  ios-testflight:
+    name: iOS → TestFlight (App Store Connect API key)
+    needs: checks
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 75
+    env:
+      ASC_KEY_P8_B64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+      ASC_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - name: Check Apple secrets
+        id: key
+        working-directory: .   # runs before checkout
+        run: |
+          if [ -z "$ASC_KEY_P8_B64" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::notice::Skipping TestFlight: add APPLE_API_KEY_P8_BASE64, APPLE_API_KEY_ID, APPLE_API_ISSUER_ID and APPLE_TEAM_ID (docs/04-build-and-release.md §1b)."
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.ok == '1'
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.ok == '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - run: npm ci
+        if: steps.key.outputs.ok == '1'
+      - name: Set team and build number (App Store Connect needs it to grow on every upload)
+        if: steps.key.outputs.ok == '1'
+        run: |
+          node -e '
+            const fs = require("fs"); const p = "app.json"; const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.expo.ios.buildNumber = String(Number(process.env.GITHUB_RUN_NUMBER) + 100);
+            j.expo.ios.appleTeamId = process.env.APPLE_TEAM_ID;
+            fs.writeFileSync(p, JSON.stringify(j, null, 2));
+            console.log("version", j.expo.version, "buildNumber", j.expo.ios.buildNumber);'
+      - name: Generate native iOS project (runs pod install)
+        if: steps.key.outputs.ok == '1'
+        run: npx expo prebuild --platform ios --clean
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+      - name: Archive, sign (cloud-managed, automatic) and upload to App Store Connect
+        if: steps.key.outputs.ok == '1'
+        working-directory: mobile-app/ios
+        run: |
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          echo "$ASC_KEY_P8_B64" | base64 -d > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          WS=$(ls -d *.xcworkspace | head -1); SCHEME="${WS%.xcworkspace}"
+          set -o pipefail
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/app.xcarchive" \
+            "${AUTH[@]}" archive | tail -n 80
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/app.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            "${AUTH[@]}" | tail -n 40
+          rm -f "$KEY"
+          echo "::notice::Uploaded. The build appears in App Store Connect → TestFlight after Apple finishes processing (usually 5–30 min)."
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+          NODE_ENV: production
+
   eas-build:
     name: EAS cloud build (${{ inputs.eas_profile }})
     needs: checks

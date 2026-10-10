@@ -24,6 +24,8 @@
 | **Release APK** (direct distribution) | Actions → *Run workflow* → profile `preview`, platform `android`; or `eas build -p android --profile preview` | EAS-managed release keystore | Install link from expo.dev. |
 | **Play AAB (GitHub)** | GitHub → Releases → **android-play-latest** (job `android-aab`, see §1a) | Owner's upload key from GitHub secrets | Upload to Play Console. |
 | **Play AAB (EAS)** | profile `production`, platform `android`; or `eas build -p android --profile production` | EAS-managed upload key | Upload to Play Console, or `eas submit -p android`. |
+| **iPhone test IPA (GitHub)** | GitHub → Releases → **ios-test-latest** (job `ios-ipa`, §1b) | unsigned; signed on your computer by Sideloadly / AltStore | Install on your own iPhone for testing. |
+| **TestFlight (GitHub)** | job `ios-testflight` (§1b) | Apple cloud-managed signing via App Store Connect API key | Upload to TestFlight / App Store. |
 | **iOS simulator** | profile `simulator`, platform `ios` | none | Run on the Xcode simulator. |
 | **iOS device / TestFlight** | profile `preview` (ad-hoc) or `production`; `eas build -p ios --profile production` | Apple certificates via EAS (needs the Apple account) | `eas submit -p ios` uploads to TestFlight / App Store Connect. |
 
@@ -53,6 +55,38 @@ keytool -genkeypair -v -storetype PKCS12 -keystore spread-upload.keystore -alias
   -keyalg RSA -keysize 4096 -validity 10000
 base64 -w0 spread-upload.keystore   # → ANDROID_UPLOAD_KEYSTORE_BASE64
 ```
+
+### 1b. iPhone without EAS (GitHub Actions, macOS runner)
+
+**Test IPA (`ios-ipa` job)**
+- Builds on every push to `mobile-app/**`. Output is the pre-release **ios-test-latest**: `spread-ai-<version>-<sha>-unsigned.ipa`.
+- The IPA is **unsigned**, so an iPhone won't install it directly.
+- Sign and install it from a computer with **Sideloadly** (Windows/macOS) or **AltStore**, using any Apple ID.
+  - With a free Apple ID the install expires after 7 days. Re-sign it to renew.
+  - On iOS 16+, turn on Settings → Privacy & Security → Developer Mode.
+- Push notifications need a paid account (the aps entitlement). Everything else works.
+
+**TestFlight / App Store (`ios-testflight` job)**
+
+The job needs four secrets. Until they are added it skips with a notice.
+
+| Secret | Where |
+|---|---|
+| `APPLE_API_KEY_P8_BASE64` | App Store Connect → Users and Access → Integrations → App Store Connect API → generate a key with **Admin** access (needed for cloud-managed signing). Download `AuthKey_XXXX.p8` (one download only), then `base64 -i AuthKey_XXXX.p8`. |
+| `APPLE_API_KEY_ID` | The Key ID shown next to the key. |
+| `APPLE_API_ISSUER_ID` | The Issuer ID at the top of the same page. |
+| `APPLE_TEAM_ID` | developer.apple.com → Membership details → Team ID. |
+
+What the job does:
+- Archives with automatic, cloud-managed signing (`-allowProvisioningUpdates` + API key). No certificates or profiles are stored anywhere.
+- Uploads straight to App Store Connect, using `ExportOptions` with `destination: upload`.
+- `buildNumber` = run number + 100.
+
+Before the first run:
+- Create the app record in App Store Connect → Apps → **+** → New App, with bundle ID `net.spreadagency.spreadai`.
+- If the bundle ID isn't listed, register it under developer.apple.com → Identifiers, with Push Notifications enabled.
+
+> Not yet run against a real Apple account. Check the first run's log.
 
 Notes:
 - **Versioning:**
