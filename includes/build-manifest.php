@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-04',
-  'generated' => '2026-10-04 05:21',
+  'date' => '2026-10-10',
+  'generated' => '2026-10-10 14:13',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -88,6 +88,15 @@ return array (
     79 => 'templates/v2/studio.php',
     80 => 'templates/v2/tabbar.php',
     81 => 'templates/v2/topbar.php',
+    82 => 'includes/mobile.php',
+    83 => 'includes/mobile-boot.php',
+    84 => 'includes/mobile-push.php',
+    85 => 'public/api/v1/_init.php',
+    86 => 'public/api/v1/auth.php',
+    87 => 'public/api/v1/app.php',
+    88 => 'public/api/v1/call.php',
+    89 => 'public/api/v1/handoff.php',
+    90 => 'sql/2026_mobile_api.sql',
   ),
   'files' => 
   array (
@@ -393,8 +402,8 @@ return array (
     ),
     'assets/js/main.js' => 
     array (
-      'h' => 'adefc7c86cd454a0742d836d1132fca3',
-      's' => 15630,
+      'h' => 'cc2dbea4889fe688b8aa3e153f47200b',
+      's' => 18419,
     ),
     'assets/js/orb.js' => 
     array (
@@ -423,8 +432,8 @@ return array (
     ),
     'cron/publish-scheduled.php' => 
     array (
-      'h' => '15b7d95c7ca8415d017da4c50552f764',
-      's' => 8609,
+      'h' => '90a9e6f2fee23c08c810b410db4f7f8e',
+      's' => 9219,
     ),
     'includes/account.php' => 
     array (
@@ -468,8 +477,8 @@ return array (
     ),
     'includes/api.php' => 
     array (
-      'h' => 'f51fb43476c57e8dfed930d3ee51c4f0',
-      's' => 6582,
+      'h' => 'dccaaa59ac88b1933dfdbcd58b8b0b3c',
+      's' => 6840,
     ),
     'includes/auth.php' => 
     array (
@@ -478,8 +487,8 @@ return array (
     ),
     'includes/billing.php' => 
     array (
-      'h' => '787f3d94255bd162445dd87a72774ff4',
-      's' => 24632,
+      'h' => 'ca845df622347af070dbf99d6cca2d50',
+      's' => 25048,
     ),
     'includes/brand-brain.php' => 
     array (
@@ -533,8 +542,8 @@ return array (
     ),
     'includes/helpers.php' => 
     array (
-      'h' => '4772d1c6252579ce43cedcafffaf7835',
-      's' => 26064,
+      'h' => '6e4bca76c5da454ab39dd41410ab72c9',
+      's' => 26321,
     ),
     'includes/integrations.php' => 
     array (
@@ -558,8 +567,23 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '080b315e09cf2fc2df597eb16899329b',
-      's' => 9741,
+      'h' => 'b6a4002ab5662b1b4df181d3b0dfa445',
+      's' => 9889,
+    ),
+    'includes/mobile-boot.php' => 
+    array (
+      'h' => 'da334b795b66eb63e244c51db12d8f49',
+      's' => 3032,
+    ),
+    'includes/mobile-push.php' => 
+    array (
+      'h' => '06af83c5d18ed16940a9410838c663c8',
+      's' => 3047,
+    ),
+    'includes/mobile.php' => 
+    array (
+      'h' => '6299f982cb284de1c9d7bfc3c62c9220',
+      's' => 15351,
     ),
     'includes/offers.php' => 
     array (
@@ -573,8 +597,8 @@ return array (
     ),
     'includes/plans.php' => 
     array (
-      'h' => 'd18aecfc664415a9fe39a3613aeb0a2c',
-      's' => 19976,
+      'h' => '85d3b682e0625b133a1f3eb0ef621a4a',
+      's' => 22242,
     ),
     'includes/promo.php' => 
     array (
@@ -608,8 +632,8 @@ return array (
     ),
     'includes/settings-registry.php' => 
     array (
-      'h' => '97b64b9e9752673ec273f1c82490b937',
-      's' => 28558,
+      'h' => 'dad8edc8300f1724441f98c4770e1436',
+      's' => 29669,
     ),
     'includes/smart-ai.php' => 
     array (
@@ -713,8 +737,8 @@ return array (
     ),
     'public/ajax/generate-design.php' => 
     array (
-      'h' => '81022e1e363c7431e76f8e6b50e5953c',
-      's' => 16012,
+      'h' => '503e4b7d208d5f1429df61f8f199043e',
+      's' => 16255,
     ),
     'public/ajax/generate-logo.php' => 
     array (
@@ -778,8 +802,8 @@ return array (
     ),
     'public/ajax/trial.php' => 
     array (
-      'h' => '7aef2614501dc1ac4fe0df7c9cae4e47',
-      's' => 8924,
+      'h' => 'cfd14d95f02464ae5fce2c0ec4cb5e6c',
+      's' => 10442,
     ),
     'public/ajax/upload-image.php' => 
     array (
@@ -835,6 +859,31 @@ return array (
     array (
       'h' => '4ce3dfd5aeeedcf8159a8fd4c3167c0d',
       's' => 30609,
+    ),
+    'public/api/v1/_init.php' => 
+    array (
+      'h' => '10f220f9561e2ddb77cbd706d3c4cba7',
+      's' => 2602,
+    ),
+    'public/api/v1/app.php' => 
+    array (
+      'h' => 'a8e0a0c04c04d63b047a2a654d685075',
+      's' => 14952,
+    ),
+    'public/api/v1/auth.php' => 
+    array (
+      'h' => '5bf4e87c2c5a50d37a86e1c1669ff6db',
+      's' => 11158,
+    ),
+    'public/api/v1/call.php' => 
+    array (
+      'h' => '2d58cf32a426476543ca97b1bba01916',
+      's' => 4656,
+    ),
+    'public/api/v1/handoff.php' => 
+    array (
+      'h' => '9d9abe5e4c1d1d772f8832f060196470',
+      's' => 1815,
     ),
     'public/auth/google-callback.php' => 
     array (
@@ -913,8 +962,8 @@ return array (
     ),
     'public/content-view.php' => 
     array (
-      'h' => '147d3fbd4b2fd793c566dfbc409d6a58',
-      's' => 49880,
+      'h' => '19244061d4289ed95cfc6b611ffdf702',
+      's' => 53084,
     ),
     'public/create-content.php' => 
     array (
@@ -1131,6 +1180,11 @@ return array (
       'h' => '12d9e030176db3ef77a4734bd8f6a96a',
       's' => 1591,
     ),
+    'sql/2026_mobile_api.sql' => 
+    array (
+      'h' => '03ff796c43d06201f29bd5116b788ab9',
+      's' => 1643,
+    ),
     'sql/2026_offers_system.sql' => 
     array (
       'h' => '90ea2dec2e4c922a87794abee693834e',
@@ -1338,8 +1392,8 @@ return array (
     ),
     'templates/v2/campaign.php' => 
     array (
-      'h' => '10a27b71d97cf144a2b4f8ff55329e25',
-      's' => 88051,
+      'h' => '4b95e1e57e9f4597b2b80d3e684e7655',
+      's' => 88080,
     ),
     'templates/v2/contents.php' => 
     array (
@@ -1353,8 +1407,8 @@ return array (
     ),
     'templates/v2/journey.php' => 
     array (
-      'h' => '524154107b5dd3e6cfc43e912adaf063',
-      's' => 20142,
+      'h' => '8d39e0a8889c100a41ac637f957814da',
+      's' => 20158,
     ),
     'templates/v2/research.php' => 
     array (
