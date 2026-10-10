@@ -22,9 +22,37 @@
 |---|---|---|---|
 | **Test APK** (any phone) | GitHub → Releases → **android-test-latest** (direct download, refreshed on every push to `mobile-app/**`) · also the workflow artifact `spread-ai-android-test-apk` | Android debug key | Sideload for testing. Not for Play. |
 | **Release APK** (direct distribution) | Actions → *Run workflow* → profile `preview`, platform `android`; or `eas build -p android --profile preview` | EAS-managed release keystore | Install link from expo.dev. |
-| **Play AAB** | profile `production`, platform `android`; or `eas build -p android --profile production` | EAS-managed upload key | Upload to Play Console, or `eas submit -p android`. |
+| **Play AAB (GitHub)** | GitHub → Releases → **android-play-latest** (job `android-aab`, see §1a) | Owner's upload key from GitHub secrets | Upload to Play Console. |
+| **Play AAB (EAS)** | profile `production`, platform `android`; or `eas build -p android --profile production` | EAS-managed upload key | Upload to Play Console, or `eas submit -p android`. |
 | **iOS simulator** | profile `simulator`, platform `ios` | none | Run on the Xcode simulator. |
 | **iOS device / TestFlight** | profile `preview` (ad-hoc) or `production`; `eas build -p ios --profile production` | Apple certificates via EAS (needs the Apple account) | `eas submit -p ios` uploads to TestFlight / App Store Connect. |
+
+### 1a. Google Play AAB without EAS (GitHub Actions)
+
+The `android-aab` job builds `app-release.aab`. It is signed with the owner's **upload key**, which is kept only in GitHub secrets, never in the repo.
+
+| Secret | Value |
+|---|---|
+| `ANDROID_UPLOAD_KEYSTORE_BASE64` | The keystore file, base64-encoded on one line |
+| `ANDROID_UPLOAD_KEYSTORE_PASSWORD` | The store/key password. The alias is `upload`. |
+
+How the job works:
+- It runs on every push that changes `mobile-app/**`. If the secrets are missing it skips with a notice.
+- `versionCode` = workflow run number + 100, so it grows on every build. `versionName` comes from `app.json` → `version`.
+- Before publishing, it checks that the bundle certificate matches the upload key. If it is still the debug key, the job fails.
+- Output: the GitHub pre-release **android-play-latest**, plus the workflow artifact `spread-ai-play-aab`.
+
+Play setup:
+- Use **Play App Signing**, which is the default. Google holds the app signing key. The upload key only proves the upload came from you.
+- If the upload key is lost, Play Console → Setup → App signing → *Request upload key reset*.
+- Keep an offline backup of the keystore and its password.
+
+To create a new key yourself:
+```bash
+keytool -genkeypair -v -storetype PKCS12 -keystore spread-upload.keystore -alias upload \
+  -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 spread-upload.keystore   # → ANDROID_UPLOAD_KEYSTORE_BASE64
+```
 
 Notes:
 - **Versioning:**

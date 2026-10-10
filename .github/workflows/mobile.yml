@@ -109,6 +109,109 @@ jobs:
             --title "Spread AI — Android test APK (${GITHUB_SHA::7})" \
             --notes "Test build from \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA::7}. Signed with the Android debug key — for testing only, not for Google Play. Install: open this page on the phone, download the APK, allow 'Install unknown apps'."
 
+  android-aab:
+    name: Android AAB (Google Play, upload-key signed)
+    needs: checks
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write   # publish the pre-release with the AAB
+    env:
+      UPLOAD_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+      UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+    steps:
+      - name: Check upload-key secrets
+        id: key
+        run: |
+          if [ -z "$UPLOAD_KEYSTORE_B64" ] || [ -z "$UPLOAD_KEYSTORE_PASSWORD" ]; then
+            echo "::notice::Skipping the Play AAB: add the ANDROID_UPLOAD_KEYSTORE_BASE64 and ANDROID_UPLOAD_KEYSTORE_PASSWORD secrets (docs/04-build-and-release.md §1a)."
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.ok == '1'
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.ok == '1'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - uses: actions/setup-java@v4
+        if: steps.key.outputs.ok == '1'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.key.outputs.ok == '1'
+      - run: npm ci
+        if: steps.key.outputs.ok == '1'
+      - name: Set versionCode from the run number (Play needs it to grow on every upload)
+        if: steps.key.outputs.ok == '1'
+        run: |
+          node -e '
+            const fs = require("fs"); const p = "app.json"; const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.expo.android.versionCode = Number(process.env.GITHUB_RUN_NUMBER) + 100;
+            fs.writeFileSync(p, JSON.stringify(j, null, 2));
+            console.log("version", j.expo.version, "versionCode", j.expo.android.versionCode);'
+      - name: Generate native Android project
+        if: steps.key.outputs.ok == '1'
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+      - name: Build signed release bundle
+        if: steps.key.outputs.ok == '1'
+        working-directory: mobile-app/android
+        run: |
+          echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$RUNNER_TEMP/upload.keystore" \
+            -Pandroid.injected.signing.store.password="$UPLOAD_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias=upload \
+            -Pandroid.injected.signing.key.password="$UPLOAD_KEYSTORE_PASSWORD"
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+          NODE_ENV: production
+      - name: Verify the bundle is signed with the upload key (not the debug key) and name it
+        if: steps.key.outputs.ok == '1'
+        id: aab
+        run: |
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          unzip -l "$AAB" | grep -q 'base/assets/index.android.bundle' || { echo "::error::JS bundle missing from AAB"; exit 1; }
+          WANT=$(keytool -list -v -keystore "$RUNNER_TEMP/upload.keystore" -storepass "$UPLOAD_KEYSTORE_PASSWORD" -alias upload | grep -m1 'SHA256:' | awk '{print $2}')
+          GOT=$(keytool -printcert -jarfile "$AAB" | grep -m1 'SHA256:' | awk '{print $2}')
+          echo "upload key SHA256: $WANT"; echo "bundle cert SHA256: $GOT"
+          [ -n "$WANT" ] && [ "$WANT" = "$GOT" ] || { echo "::error::AAB is not signed with the upload key"; exit 1; }
+          rm -f "$RUNNER_TEMP/upload.keystore"
+          VER=$(node -p "require('./app.json').expo.version")
+          CODE=$(node -p "require('./app.json').expo.android.versionCode")
+          OUT="spread-ai-${VER}-${CODE}.aab"
+          cp "$AAB" "$OUT"
+          echo "file=mobile-app/$OUT" >> "$GITHUB_OUTPUT"
+          echo "name=$OUT" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          ls -la "$OUT"; sha256sum "$OUT"
+      - name: Upload AAB
+        if: steps.key.outputs.ok == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spread-ai-play-aab
+          path: ${{ steps.aab.outputs.file }}
+          retention-days: 30
+      - name: Publish as pre-release "android-play-latest"
+        if: steps.key.outputs.ok == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android-play-latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create android-play-latest "${{ steps.aab.outputs.name }}" \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Spread AI — Google Play AAB (versionCode ${{ steps.aab.outputs.code }})" \
+            --notes "Upload this .aab to Google Play Console (Testing → Internal testing → Create release). Signed with the Spread AI upload key; Play App Signing re-signs it for users. Built from \`${GITHUB_REF_NAME}\` @ ${GITHUB_SHA::7}."
+
   eas-build:
     name: EAS cloud build (${{ inputs.eas_profile }})
     needs: checks
