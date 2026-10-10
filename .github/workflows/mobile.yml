@@ -1,0 +1,116 @@
+name: Mobile app
+
+# Spread AI mobile app (mobile-app/): checks + a testable Android APK on every change,
+# and optional EAS cloud builds (release APK / Play AAB / iOS) when EXPO_TOKEN is configured.
+on:
+  push:
+    paths: ['mobile-app/**', '.github/workflows/mobile.yml']
+  pull_request:
+    paths: ['mobile-app/**', '.github/workflows/mobile.yml']
+  workflow_dispatch:
+    inputs:
+      eas_profile:
+        description: 'EAS build profile (preview = installable APK + iOS ad-hoc, production = AAB + App Store)'
+        required: false
+        default: 'none'
+        type: choice
+        options: ['none', 'preview', 'production', 'simulator']
+      eas_platform:
+        description: 'EAS platform'
+        required: false
+        default: 'all'
+        type: choice
+        options: ['all', 'android', 'ios']
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: mobile-app
+
+jobs:
+  checks:
+    name: Typecheck · lint · tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx expo lint
+      - run: npx jest --ci
+      - name: Validate app config
+        run: npx expo config --type public > /dev/null
+
+  android-apk:
+    name: Android APK (test build, no store signing)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - name: Generate native Android project (Continuous Native Generation)
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+      - name: Build standalone release APK (signed with the Android debug key — for testing only)
+        working-directory: mobile-app/android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL || 'https://ai.spreadagency.net' }}
+          EXPO_PUBLIC_PURCHASES: 'off'
+          NODE_ENV: production
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: spread-ai-android-test-apk
+          path: mobile-app/android/app/build/outputs/apk/release/*.apk
+          retention-days: 14
+
+  eas-build:
+    name: EAS cloud build (${{ inputs.eas_profile }})
+    needs: checks
+    if: github.event_name == 'workflow_dispatch' && inputs.eas_profile != 'none'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add an EXPO_TOKEN repository secret (expo.dev → Account settings → Access tokens) to run EAS builds."
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile-app/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: Start EAS build (artifacts appear on expo.dev → Builds)
+        run: eas build --platform ${{ inputs.eas_platform }} --profile ${{ inputs.eas_profile }} --non-interactive --no-wait
