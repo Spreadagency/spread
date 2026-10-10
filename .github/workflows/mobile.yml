@@ -123,6 +123,7 @@ jobs:
     steps:
       - name: Check upload-key secrets
         id: key
+        working-directory: .   # runs before checkout, so mobile-app/ doesn't exist yet
         run: |
           if [ -z "$UPLOAD_KEYSTORE_B64" ] || [ -z "$UPLOAD_KEYSTORE_PASSWORD" ]; then
             echo "::notice::Skipping the Play AAB: add the ANDROID_UPLOAD_KEYSTORE_BASE64 and ANDROID_UPLOAD_KEYSTORE_PASSWORD secrets (docs/04-build-and-release.md §1a)."
