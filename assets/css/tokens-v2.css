@@ -1,0 +1,81 @@
+/* ═══════════════════════════════════════════════════════════
+   Spread AI — الهوية الجديدة (v2)
+   التوكنز مستخرجة من ملفات التصميم مباشرة.
+
+   بتشتغل فوق main.css: بتعيد تعريف نفس المتغيرات، فكل الصفحات
+   الموجودة بتاخد الهوية الجديدة تلقائيًا من غير ما نلمسها.
+   مفعّلة بس لما body عليه class="ui-v2".
+   ═══════════════════════════════════════════════════════════ */
+
+body.ui-v2 {
+    /* ── الأساس ── */
+    --bg:          #EEF5FB;
+    --surface:     rgba(255, 255, 255, .82);
+    --surface-solid: #FFFFFF;
+    --surface-2:   #F7FAFD;
+    --ink:         #0B1526;   /* النص الأساسي */
+    --ink-2:       #27324A;
+    --mute:        #5B6478;
+    --mute-2:      #8391A6;
+    --line:        #DCE6F0;
+    --line-2:      #E6EEF6;
+    --glass-edge:  rgba(255, 255, 255, .95);
+
+    /* ── الهوية ── */
+    --primary:       #0C87EF;
+    --primary-2:     #2EE3CC;
+    --primary-deep:  #0A5FCF;
+    --primary-soft:  #E3F1FF;
+    --primary-ink:   #0A5FCF;
+    --teal:          #13B5C1;
+    --teal-deep:     #0B6B78;
+    --teal-soft:     #E6F8F6;
+
+    /* التدرجات الأساسية */
+    --grad-brand:  linear-gradient(135deg, #2EE3CC 0%, #0C87EF 100%);
+    --grad-cta:    linear-gradient(135deg, #0A8FA3 0%, #0A5FCF 100%);
+    --grad-pill:   linear-gradient(90deg, #087F95 0%, #0A5FCF 100%);
+    --grad-bar:    linear-gradient(270deg, #2EE3CC, #0C87EF);
+    --grad-soft:   linear-gradient(150deg, #FFFFFF, #E6F8F6 60%, #E1EEFF);
+    --grad-text:   linear-gradient(90deg, #2EE3CC, #0C87EF);
+
+    /* ── الحالات (نظام الحالات الموحّد) ── */
+    --success:      #10A8A0;
+    --success-soft: #E0F7F4;
+    --danger:       #E0526A;
+    --danger-soft:  #FDE8EC;
+    --amber:        #D98A1F;
+    --amber-soft:   #FFF1DC;
+    --violet:       #6E5BE0;
+    --violet-soft:  #EEEAFF;
+
+    /* الألوان القديمة المستخدمة في الصفحات — بنربطها بالهوية الجديدة */
+    --coral: #E0526A;  --coral-soft: #FDE8EC;
+    --mint:  #10A8A0;  --mint-soft:  #E0F7F4;
+    --sky:   #0C87EF;  --sky-soft:   #E3F1FF;
+    --rose:  #D1579B;  --rose-soft:  #FCE8F3;
+
+    /* ── الأشكال ── */
+    --r-xs:  10px;
+    --r-sm:  14px;   /* الحقول والأزرار الصغيرة */
+    --r-md:  16px;   /* عناصر التحكم */
+    --r-lg:  24px;   /* الكروت */
+    --r-xl:  26px;   /* الكروت الكبيرة */
+    --r-pill: 999px;
+
+    /* الظلال — زرقاء ناعمة بدل البنفسجي */
+    --shadow-sm:  0 4px 12px rgba(12, 70, 130, .06);
+    --shadow-md:  0 12px 32px rgba(12, 70, 130, .07);
+    --shadow-lg:  0 18px 44px rgba(12, 70, 130, .10);
+    --shadow-cta: 0 12px 26px rgba(12, 135, 239, .32), 0 0 0 5px rgba(46, 227, 204, .12);
+    --glow:       0 0 10px rgba(46, 227, 204, .6);
+
+    /* ── الخطوط ── */
+    --font-body:    "IBM Plex Sans Arabic", "Readex Pro", system-ui, sans-serif;
+    --font-display: "Readex Pro", "IBM Plex Sans Arabic", system-ui, sans-serif;
+
+    /* ── الحركة ── */
+    --ease:   cubic-bezier(.16, 1, .3, 1);
+    --t-fast: .2s;
+    --t-med:  .35s;
+}
