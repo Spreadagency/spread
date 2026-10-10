@@ -178,6 +178,10 @@ function str_limit(string $str, int $limit = 100, string $suffix = '...'): strin
  */
 function json_response(array $data, int $status = 200): void
 {
+    // تطبيق الموبايل: حفظ الرد لمفتاح العملية (منع الخصم المكرر) — مابيتعرّفش غير في /api/v1
+    if (function_exists('mobile_on_response')) {
+        mobile_on_response($data, $status);
+    }
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);

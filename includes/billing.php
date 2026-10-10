@@ -119,6 +119,13 @@ function notify_user(int $userId, string $kind, string $title, string $body = ''
     } catch (\Throwable $e) {
         error_log('[notify] ' . $e->getMessage());
     }
+    // تطبيق الموبايل: نفس الإشعار كـ push (لو العميل مسجّل من التطبيق)
+    if (!function_exists('mobile_push_user') && is_file(__DIR__ . '/mobile-push.php')) {
+        require_once __DIR__ . '/mobile-push.php';
+    }
+    if (function_exists('mobile_push_user')) {
+        mobile_push_user($userId, $title, $body, ['screen' => 'notifications', 'kind' => $kind]);
+    }
     if ($email && function_exists('get_setting') && get_setting('billing_email_notify', '1') === '1') {
         try {
             if (!function_exists('send_mail')) require_once __DIR__ . '/mailer.php';

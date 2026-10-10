@@ -27,6 +27,10 @@ function api_send(array $payload, int $code = 200): void
     while (ob_get_level() > 0) {
         ob_end_clean();
     }
+    // تطبيق الموبايل: حفظ الرد لمفتاح العملية (منع الخصم المكرر) — مابيتعرّفش غير في /api/v1
+    if (function_exists('mobile_on_response')) {
+        mobile_on_response($payload, $code);
+    }
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
