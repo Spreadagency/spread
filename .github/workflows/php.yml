@@ -17,10 +17,23 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # The platform has no Composer dependencies yet; skip the rest until a composer.json is added.
+    - name: Check for composer.json
+      id: composer
+      run: |
+        if [ -f composer.json ]; then
+          echo "present=1" >> "$GITHUB_OUTPUT"
+        else
+          echo "::notice::No composer.json in the repository; skipping Composer validate/install."
+          echo "present=0" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Validate composer.json and composer.lock
+      if: steps.composer.outputs.present == '1'
       run: composer validate --strict
 
     - name: Cache Composer packages
+      if: steps.composer.outputs.present == '1'
       id: composer-cache
       uses: actions/cache@v3
       with:
@@ -30,6 +43,7 @@ jobs:
           ${{ runner.os }}-php-
 
     - name: Install dependencies
+      if: steps.composer.outputs.present == '1'
       run: composer install --prefer-dist --no-progress
 
     # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
