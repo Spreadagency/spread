@@ -165,7 +165,11 @@ switch ($action) {
                  ($batch === 0 && $k < 4) ? 1 : 0]);
         }
         $_SESSION[$key]['next'] = $batch + 1;
-        if ($batch + 1 >= $batches) unset($_SESSION[$key]);
+        if ($batch + 1 >= $batches) {
+            unset($_SESSION[$key]);
+            require_once __DIR__ . '/../../includes/Notifier.php';
+            Notifier::notify($uid, 'ideas_ready', ['count' => $total, 'campaign' => (string) $c['title']], ['url' => 'campaign.php?id=' . (int) $c['id']]);
+        }
         db_run('UPDATE campaigns SET ideas_count = ?, revision = revision + 1 WHERE id = ?', [min($total, 255), $c['id']]);
         api_ok(['ideas' => campaign_board($c), 'done' => $batch + 1 >= $batches, 'balance' => credits_balance($uid)]);
 

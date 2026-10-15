@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-10',
-  'generated' => '2026-10-10 14:13',
+  'date' => '2026-10-15',
+  'generated' => '2026-10-15 09:04',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -97,6 +97,18 @@ return array (
     88 => 'public/api/v1/call.php',
     89 => 'public/api/v1/handoff.php',
     90 => 'sql/2026_mobile_api.sql',
+    91 => 'includes/Notifier.php',
+    92 => 'admin/whatsapp.php',
+    93 => 'admin/whatsapp-api.php',
+    94 => 'cron/daily_notifications.php',
+    95 => 'public/api/inbox.php',
+    96 => 'public/api/whatsapp.php',
+    97 => 'public/api/wa/_boot.php',
+    98 => 'public/api/wa/pending.php',
+    99 => 'public/api/wa/callback.php',
+    100 => 'public/notifications.php',
+    101 => 'templates/inbox-poll.php',
+    102 => 'sql/2026_whatsapp_messaging.sql',
   ),
   'files' => 
   array (
@@ -147,8 +159,8 @@ return array (
     ),
     'admin/announcements.php' => 
     array (
-      'h' => 'f34af51757fcedf26dc20fd621158219',
-      's' => 16025,
+      'h' => '1374f81b533a846ba574cedb5e497c5e',
+      's' => 17459,
     ),
     'admin/appearance.php' => 
     array (
@@ -157,8 +169,8 @@ return array (
     ),
     'admin/approvals.php' => 
     array (
-      'h' => 'd2e1762c278c4a5f87ef9b2fc6758f7b',
-      's' => 9854,
+      'h' => '7db5b74658e955ccb5608898164be6b1',
+      's' => 10093,
     ),
     'admin/content-history.php' => 
     array (
@@ -232,8 +244,8 @@ return array (
     ),
     'admin/offer-edit.php' => 
     array (
-      'h' => '0a234de647c2feaae9544bd3cba9a021',
-      's' => 27532,
+      'h' => 'c7fcfea48896df04cf17cf2ee0ad3d76',
+      's' => 29376,
     ),
     'admin/offer-redemptions.php' => 
     array (
@@ -360,6 +372,16 @@ return array (
       'h' => '05ae9776f5495eb54c5d601f071cfdb5',
       's' => 12260,
     ),
+    'admin/whatsapp-api.php' => 
+    array (
+      'h' => '0eb78c227345c930bc83d76360ac2cce',
+      's' => 2391,
+    ),
+    'admin/whatsapp.php' => 
+    array (
+      'h' => '51cc4840c1ec69f6e0bd92ca1cb25d08',
+      's' => 51774,
+    ),
     'assets/css/admin-v2.css' => 
     array (
       'h' => '7281643cc4d2e5c7d70589fc84f5442b',
@@ -430,10 +452,20 @@ return array (
       'h' => '8c4ce39795705c02c1424381a4ddf0e0',
       's' => 3516,
     ),
+    'cron/daily_notifications.php' => 
+    array (
+      'h' => '6ef8ff2ae5cb06c37d658bb50b58359a',
+      's' => 3762,
+    ),
     'cron/publish-scheduled.php' => 
     array (
-      'h' => '90a9e6f2fee23c08c810b410db4f7f8e',
-      's' => 9219,
+      'h' => '543efeca156024676c4dc0758f503f0b',
+      's' => 10141,
+    ),
+    'includes/Notifier.php' => 
+    array (
+      'h' => '44c5b95569b37b748727ff33381c20b9',
+      's' => 56261,
     ),
     'includes/account.php' => 
     array (
@@ -452,8 +484,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '6da46a4864d41cad91aa88bbfdb9cf09',
-      's' => 12272,
+      'h' => '6acd64205cae6718bd73b5680348a3e6',
+      's' => 12416,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -487,8 +519,8 @@ return array (
     ),
     'includes/billing.php' => 
     array (
-      'h' => 'ca845df622347af070dbf99d6cca2d50',
-      's' => 25048,
+      'h' => '06589d85213d3c8acc3e006fb74716c9',
+      's' => 25453,
     ),
     'includes/brand-brain.php' => 
     array (
@@ -512,8 +544,8 @@ return array (
     ),
     'includes/credits.php' => 
     array (
-      'h' => 'b6400566d4981c4a8f597412d06fb91e',
-      's' => 25144,
+      'h' => 'b743a7bca2098d1f1a206fec6cb54601',
+      's' => 25415,
     ),
     'includes/crypto.php' => 
     array (
@@ -567,8 +599,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => 'b6a4002ab5662b1b4df181d3b0dfa445',
-      's' => 9889,
+      'h' => 'd35bf17e1788ac2fe7113e8e2f8f6045',
+      's' => 10085,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -587,8 +619,8 @@ return array (
     ),
     'includes/offers.php' => 
     array (
-      'h' => '6ff503cca257566b68edc30a203ddc5a',
-      's' => 23499,
+      'h' => '106ad1727114a73060460e6269e0ec65',
+      's' => 23747,
     ),
     'includes/plan-functions.php' => 
     array (
@@ -737,8 +769,8 @@ return array (
     ),
     'public/ajax/generate-design.php' => 
     array (
-      'h' => '503e4b7d208d5f1429df61f8f199043e',
-      's' => 16255,
+      'h' => 'ab5768cfabe2367b5cffdd3a17572a25',
+      's' => 16580,
     ),
     'public/ajax/generate-logo.php' => 
     array (
@@ -827,8 +859,8 @@ return array (
     ),
     'public/api/campaign-flow.php' => 
     array (
-      'h' => '7180a1a18ac9ee9667bc18d9a33c5f1f',
-      's' => 32135,
+      'h' => '6663b7a60a5bb3eea709ac6a87fcba83',
+      's' => 32382,
     ),
     'public/api/campaigns.php' => 
     array (
@@ -839,6 +871,11 @@ return array (
     array (
       'h' => 'e8e664d455321c5193a6b1866878490d',
       's' => 32379,
+    ),
+    'public/api/inbox.php' => 
+    array (
+      'h' => '743a9c649f7800ec1ac09d183cfd1458',
+      's' => 4007,
     ),
     'public/api/journey.php' => 
     array (
@@ -884,6 +921,26 @@ return array (
     array (
       'h' => '9d9abe5e4c1d1d772f8832f060196470',
       's' => 1815,
+    ),
+    'public/api/wa/_boot.php' => 
+    array (
+      'h' => '7ea799d01de2d7b0d75bab7a83813f9c',
+      's' => 1075,
+    ),
+    'public/api/wa/callback.php' => 
+    array (
+      'h' => '6655a0129e032927cd34538a5ca6d212',
+      's' => 948,
+    ),
+    'public/api/wa/pending.php' => 
+    array (
+      'h' => '0c4e1be42cd14aa22d5070b4b01eb9c9',
+      's' => 393,
+    ),
+    'public/api/whatsapp.php' => 
+    array (
+      'h' => 'fb5b0b04930a004095b17f88a9e91417',
+      's' => 5884,
     ),
     'public/auth/google-callback.php' => 
     array (
@@ -1024,6 +1081,11 @@ return array (
     array (
       'h' => '93eda692cd50c1f2c72c7cf1600c7584',
       's' => 738,
+    ),
+    'public/notifications.php' => 
+    array (
+      'h' => 'ec61f79661eb2881eae393181da55b66',
+      's' => 17239,
     ),
     'public/packages.php' => 
     array (
@@ -1275,6 +1337,11 @@ return array (
       'h' => 'f026f5a07152e3379fcb68e61e1531e1',
       's' => 1438,
     ),
+    'sql/2026_whatsapp_messaging.sql' => 
+    array (
+      'h' => 'b4dd2912183dfd306dc0210a534c478f',
+      's' => 4790,
+    ),
     'sql/features-upgrade.sql' => 
     array (
       'h' => '4563635035b127affa7ad20d0a39ee95',
@@ -1360,6 +1427,11 @@ return array (
       'h' => 'd4d93581a7fa348cb284e2d85e827b73',
       's' => 1159,
     ),
+    'templates/inbox-poll.php' => 
+    array (
+      'h' => 'ed3c5fece11e1ed9b1774d710e4b203a',
+      's' => 4007,
+    ),
     'templates/ratio-picker.php' => 
     array (
       'h' => '71d5214ab91290f44a43fa77f7a62ac6',
@@ -1382,8 +1454,8 @@ return array (
     ),
     'templates/topbar.php' => 
     array (
-      'h' => '698c743286e285174b5a8febb7e49fd3',
-      's' => 1535,
+      'h' => 'c26c2e82d4958d35d7552bcb6741a186',
+      's' => 2877,
     ),
     'templates/v2/auth.php' => 
     array (
@@ -1417,8 +1489,8 @@ return array (
     ),
     'templates/v2/settings.php' => 
     array (
-      'h' => '0e27816e9b604310b34c8815af2e06b8',
-      's' => 34172,
+      'h' => '2b12304da90e99a8b148ebbbf8917599',
+      's' => 35022,
     ),
     'templates/v2/sidebar.php' => 
     array (
@@ -1437,8 +1509,8 @@ return array (
     ),
     'templates/v2/topbar.php' => 
     array (
-      'h' => '8e57e0ed15f31dd7d4eef844ad5cd13c',
-      's' => 7930,
+      'h' => 'be62fabdf73a6181e053ba22d231c73b',
+      's' => 8843,
     ),
   ),
 );

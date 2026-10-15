@@ -87,6 +87,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', $vals);
             admin_log('add_announcement', 'announcement', null, $title);
             flash_set('success', 'تم نشر الإعلان ✓ — ظاهر في سلايدر الرئيسية');
+            // 📲 تبليغ العملاء (نفس جمهور الإعلان: الكل أو باقة معيّنة)
+            if (!empty($_POST['wa_announce'])) {
+                require_once __DIR__ . '/../includes/Notifier.php';
+                $img = $imagePath ? wa_abs_link((string) upload_url($imagePath)) : null;
+                $bid = Notifier::eventBroadcast('announcement_new', ['ann_title' => $title, 'ann_body' => (string) ($vals[1] ?? '')],
+                    $link !== '' && preg_match('#^https://#i', $link) ? $link : 'dashboard.php', $audience === 'package' ? ['plan_ids' => [$pkgId]] : [],
+                    $img && preg_match('#^https://#i', $img) ? $img : null);
+                array_pop($_SESSION['flash']);
+                flash_set('success', 'تم نشر الإعلان ✓' . ($bid ? ' واتعملت حملة #' . $bid . ' لـ ' . wa_broadcast_stats($bid)['total'] . ' عميل' : ' — قالب «إعلان جديد» مقفول، فمحدش اتبلّغ'));
+            }
         }
         redirect('admin/announcements.php');
     }
@@ -191,6 +201,11 @@ include __DIR__ . '/../templates/admin-header.php';
                         <input type="number" name="sort_order" class="input" value="<?= (int) ($edit['sort_order'] ?? 0) ?>">
                     </div>
                 </div>
+                <?php if (!$edit): ?>
+                <label style="display:flex;gap:8px;align-items:center;margin:4px 0 12px;cursor:pointer">
+                    <input type="checkbox" name="wa_announce" value="1" style="width:auto"> 📲 بلّغ العملاء بالإعلان ده (واتساب + المنصة) — بقالب «إعلان جديد» وشروطه
+                </label>
+                <?php endif; ?>
                 <button type="submit" class="btn"><?= $edit ? '💾 حفظ التعديل' : '📣 نشر الإعلان' ?></button>
             </form>
         </div>

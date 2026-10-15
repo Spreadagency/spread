@@ -113,11 +113,19 @@ function billing_action_label(string $a): string
 /** إشعار للعميل: جوه المنصة (الجرس) + إيميل (لو الإيميل مفعّل) */
 function notify_user(int $userId, string $kind, string $title, string $body = '', string $url = '', string $tone = 'brand', bool $email = true): void
 {
+    $notifId = null;
     try {
-        db_insert('INSERT INTO user_notifications (user_id, kind, title, body, url, tone) VALUES (?,?,?,?,?,?)',
+        $notifId = db_insert('INSERT INTO user_notifications (user_id, kind, title, body, url, tone) VALUES (?,?,?,?,?,?)',
             [$userId, mb_substr($kind, 0, 40), mb_substr($title, 0, 190), $body !== '' ? mb_substr($body, 0, 2000) : null, $url !== '' ? mb_substr($url, 0, 255) : null, $tone]);
     } catch (\Throwable $e) {
         error_log('[notify] ' . $e->getMessage());
+    }
+    // واتساب: نفس الإشعار كرسالة (لو العميل مأكد رقمه) — عبر n8n
+    if (!class_exists('Notifier') && is_file(__DIR__ . '/Notifier.php')) {
+        require_once __DIR__ . '/Notifier.php';
+    }
+    if (class_exists('Notifier')) {
+        Notifier::mirrorNotification($userId, $kind, $title, $body, $url, $notifId ?: null);
     }
     // تطبيق الموبايل: نفس الإشعار كـ push (لو العميل مسجّل من التطبيق)
     if (!function_exists('mobile_push_user') && is_file(__DIR__ . '/mobile-push.php')) {

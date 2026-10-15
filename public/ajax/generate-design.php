@@ -294,6 +294,10 @@ if ($isDesignEdit) {
 
 ai_log_usage((int) $user['id'], 'design', $result['model'], [], $contentId);
 
+// واتساب + داخل المنصة (مرة كل 30 دقيقة بالكتير لنفس العميل — منع التكرار في Notifier)
+require_once __DIR__ . '/../../includes/Notifier.php';
+Notifier::notify((int) $user['id'], 'designs_ready', ['count' => 1], ['url' => 'content-view.php?id=' . (int) $contentId]);
+
 json_response([
     'ok' => true,
     'design_id' => $designId,

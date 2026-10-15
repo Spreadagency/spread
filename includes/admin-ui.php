@@ -76,6 +76,7 @@ function admin_nav(): array
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
             ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
             ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],
+            ['whatsapp', 'الرسايل والواتساب', 'Messages & WhatsApp', 'send', 'admin/whatsapp.php', 'view_users', ['whatsapp']],
         ],
         'CONTENT' => [
             ['content', 'المحتوى', 'Content', 'pen', 'admin/content-history.php', 'view_content', ['content']],
