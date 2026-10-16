@@ -29,7 +29,7 @@ if ($action === 'users') {
         array_merge(["%$q%", "%$q%"], $digits !== '' && strlen($digits) >= 3 ? ["%$digits%", "%$digits%"] : []));
     echo json_encode(['ok' => true, 'users' => array_map(fn($u) => [
         'id' => (int) $u['id'], 'name' => (string) $u['name'], 'email' => (string) $u['email'],
-        'wa' => (int) $u['whatsapp_verified'] === 1 && (int) $u['whatsapp_opt_in'] === 1 && !empty($u['whatsapp_phone']),
+        'wa' => (int) $u['whatsapp_opt_in'] === 1 && wa_phone_for($u) !== '',
     ], $rows)], JSON_UNESCAPED_UNICODE);
     exit;
 }

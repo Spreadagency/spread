@@ -159,7 +159,7 @@ body.ui-v2 .nx a.nx-tab.on, body.ui-v2 .nx a.nx-btn.primary { color: #fff; }
   });
   // بانر: مفيش رقم واتساب متحقق
   A.get(A.WA + '?action=home').then(function (d) {
-    if (d.ok && d.enabled && !d.verified) document.getElementById('nx-wa-banner').innerHTML =
+    if (d.ok && d.enabled && !d.verified && !d.fallback) document.getElementById('nx-wa-banner').innerHTML =
       '<div class="nx-warn">📲 خلّي إشعاراتك توصلك على الواتساب — <a href="?tab=whatsapp">ضيف رقمك وأكّده</a></div>';
   });
   load();
@@ -175,7 +175,7 @@ body.ui-v2 .nx a.nx-tab.on, body.ui-v2 .nx a.nx-btn.primary { color: #fff; }
   }
   function render() {
     var d = state;
-    document.getElementById('nx-wa-state').innerHTML = d.verified ? '<span class="nx-ok">✓ متحقق</span>' : 'مش متحقق';
+    document.getElementById('nx-wa-state').innerHTML = d.verified ? '<span class="nx-ok">✓ متحقق</span>' : (d.fallback ? 'رقم الحساب' : 'مش متحقق');
     var h = '';
     if (!d.enabled) h += '<div class="nx-warn">رسايل الواتساب متوقفة مؤقتًا من الإدارة. هتوصلك الإشعارات جوه المنصة عادي.</div>';
     if (d.verified) {
@@ -183,8 +183,12 @@ body.ui-v2 .nx a.nx-tab.on, body.ui-v2 .nx a.nx-btn.primary { color: #fff; }
            '<div class="nx-field"><span>استقبال رسايل الواتساب</span>' + sw('nx-optin', d.opt_in, false, 'استقبال رسايل الواتساب') + '</div>' +
            '<div class="nx-actions"><button class="nx-btn" id="nx-change">تغيير الرقم</button><button class="nx-btn" id="nx-remove">شيل الرقم</button></div>';
     }
+    if (!d.verified && d.fallback) {
+      h += '<p style="margin:0">الرسايل بتوصلك على رقم حسابك: <b dir="ltr">+' + A.esc(d.fallback) + '</b></p>' +
+           '<div class="nx-field"><span>استقبال رسايل الواتساب</span>' + sw('nx-optin', d.opt_in, false, 'استقبال رسايل الواتساب') + '</div>';
+    }
     if (!d.verified || changing) {
-      h += '<p class="nx-note" style="margin-top:' + (d.verified ? '14px' : '0') + '">اكتب رقم الواتساب وهنبعتلك كود من 6 أرقام عليه.</p>' +
+      h += '<p class="nx-note" style="margin-top:' + (d.verified || d.fallback ? '14px' : '0') + '">' + (d.fallback && !d.verified ? 'عايزها على رقم واتساب تاني؟ ' : '') + 'اكتب رقم الواتساب وهنبعتلك كود من 6 أرقام عليه.</p>' +
            '<div class="nx-field"><input class="nx-input" id="nx-phone" type="tel" dir="ltr" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx" value="' +
            A.esc(d.pending_phone || d.suggest || '') + '" aria-label="رقم الواتساب"><button class="nx-btn primary" id="nx-send"' + (d.enabled ? '' : ' disabled') + '>ابعت الكود</button></div>';
       if (codeSent || d.pending_phone) {

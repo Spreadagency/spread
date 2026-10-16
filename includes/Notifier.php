@@ -158,6 +158,7 @@ function wa_default_settings(): array
         'wa_quiet_from'      => '23:00',
         'wa_quiet_to'        => '09:00',
         'wa_mirror_notifications' => '1',   // كل إشعار جديد في المنصة يروح واتساب كمان
+        'wa_use_profile_phone'    => '1',   // مفيش رقم واتساب متحقق؟ نبعت على رقم الموبايل اللي في الحساب
     ];
 }
 
@@ -318,14 +319,40 @@ function wa_user(int $uid): ?array
     }
 }
 
+/**
+ * الرقم اللي هيوصله الواتساب: رقم الواتساب المتحقق، وإلا رقم الموبايل اللي في الحساب
+ * (لو الإعداد wa_use_profile_phone شغّال) — '' = مفيش رقم صالح
+ */
+function wa_phone_for(array $u): string
+{
+    if (!empty($u['whatsapp_phone']) && !empty($u['whatsapp_verified'])) return (string) $u['whatsapp_phone'];
+    if (wa_setting('wa_use_profile_phone') === '1') {
+        $p = wa_normalize_phone((string) ($u['phone'] ?? ''));
+        if ($p !== '') return $p;
+        if (!empty($u['whatsapp_phone'])) return wa_normalize_phone((string) $u['whatsapp_phone']);
+    }
+    return '';
+}
+
 /** ليه الواتساب مش هيوصل للعميل ده؟ ('' = هيوصل) */
 function wa_block_reason(array $u, bool $requireVerified = true): string
 {
     if (!wa_enabled()) return 'wa_disabled';
     if (array_key_exists('whatsapp_opt_in', $u) && (int) $u['whatsapp_opt_in'] !== 1) return 'opted_out';
-    if (empty($u['whatsapp_phone'])) return 'no_phone';
-    if ($requireVerified && empty($u['whatsapp_verified'])) return 'not_verified';
+    if (wa_phone_for($u) === '') {
+        // عنده رقم بس مش متحقق، والإرسال على رقم الحساب مقفول
+        $hasAny = !empty($u['whatsapp_phone']) || wa_normalize_phone((string) ($u['phone'] ?? '')) !== '';
+        return ($requireVerified && $hasAny) ? 'not_verified' : 'no_phone';
+    }
     return '';
+}
+
+/** شرط SQL: العميل عنده رقم ممكن يوصله واتساب (تقريبي — التحقق النهائي في wa_phone_for) */
+function wa_reachable_sql(): string
+{
+    $verified = "(u.whatsapp_verified = 1 AND u.whatsapp_phone IS NOT NULL AND u.whatsapp_phone <> '')";
+    if (wa_setting('wa_use_profile_phone') !== '1') return "u.whatsapp_opt_in = 1 AND $verified";
+    return "u.whatsapp_opt_in = 1 AND ($verified OR CHAR_LENGTH(COALESCE(u.phone, '')) >= 10 OR CHAR_LENGTH(COALESCE(u.whatsapp_phone, '')) >= 10)";
 }
 
 /** تفضيلات العميل للحدث (الافتراضي: الاتنين مفعّلين) */
@@ -450,7 +477,7 @@ function wa_audience_where(array $aud, array &$params): string
             $params[] = max(1, (int) $aud['inactive_days']);
         }
         if (!empty($aud['wa_verified'])) {
-            $w[] = "u.whatsapp_verified = 1 AND u.whatsapp_opt_in = 1 AND u.whatsapp_phone IS NOT NULL AND u.whatsapp_phone <> ''";
+            $w[] = wa_reachable_sql();
         }
     }
     return implode(' AND ', $w);
@@ -478,10 +505,13 @@ function wa_audience_count(array $aud): array
 {
     $p = [];
     $where = wa_audience_where($aud, $p);
-    $r = db_one("SELECT COUNT(*) total,
-                        SUM(u.whatsapp_verified = 1 AND u.whatsapp_opt_in = 1 AND u.whatsapp_phone IS NOT NULL AND u.whatsapp_phone <> '') wa
-                 FROM users u WHERE $where", $p) ?: [];
-    return [(int) ($r['total'] ?? 0), (int) ($r['wa'] ?? 0)];
+    $total = (int) (db_one("SELECT COUNT(*) n FROM users u WHERE $where", $p)['n'] ?? 0);
+    // الأرقام بتتراجع بنفس منطق الإرسال (wa_phone_for) علشان الرقم يبقى مظبوط
+    $wa = 0;
+    foreach (db_all("SELECT u.phone, u.whatsapp_phone, u.whatsapp_verified FROM users u WHERE $where AND " . wa_reachable_sql(), $p) as $u) {
+        if (wa_phone_for($u) !== '') $wa++;
+    }
+    return [$total, $wa];
 }
 
 /** شرط القالب: العميل ده مطابق؟ (مفيش شرط = الكل) */
@@ -522,7 +552,7 @@ function wa_audience_label(array $aud): string
     if (isset($aud['credits_lt']) && $aud['credits_lt'] !== '') $bits[] = 'رصيد أقل من ' . (int) $aud['credits_lt'];
     if (!empty($aud['registered_from']) || !empty($aud['registered_to'])) $bits[] = 'مسجّل ' . ($aud['registered_from'] ?? '…') . ' → ' . ($aud['registered_to'] ?? '…');
     if (!empty($aud['inactive_days'])) $bits[] = 'مدخلش من ' . (int) $aud['inactive_days'] . ' يوم';
-    if (!empty($aud['wa_verified'])) $bits[] = 'واتساب متحقق';
+    if (!empty($aud['wa_verified'])) $bits[] = 'عنده رقم واتساب';
     return $bits ? implode(' · ', $bits) : 'كل العملاء';
 }
 
@@ -600,7 +630,7 @@ final class Notifier
                     $waErr = 'daily_limit';
                 } else {
                     $waStatus = 'pending';
-                    $phone = (string) $u['whatsapp_phone'];
+                    $phone = wa_phone_for($u);
                     if (!$critical && wa_in_quiet()) $sched = wa_quiet_end();
                 }
             }
@@ -851,7 +881,7 @@ final class Notifier
         if ($channel === 'inapp') return ['none', null, null];
         $reason = wa_block_reason($u);
         if ($reason !== '') return ['skipped', $reason, null];
-        return ['pending', null, (string) $u['whatsapp_phone']];
+        return ['pending', null, wa_phone_for($u)];
     }
 }
 

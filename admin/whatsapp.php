@@ -50,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hm = fn($v, $d) => preg_match('/^([01]?\d|2[0-3]):[0-5]\d$/', trim((string) $v)) ? trim((string) $v) : $d;
         set_setting('wa_enabled', !empty($_POST['wa_enabled']) ? '1' : '0');
         set_setting('wa_mirror_notifications', !empty($_POST['wa_mirror_notifications']) ? '1' : '0');
+        set_setting('wa_use_profile_phone', !empty($_POST['wa_use_profile_phone']) ? '1' : '0');
         set_setting('wa_n8n_webhook_url', mb_substr($hook, 0, 500));
         if ($secret !== '') set_setting('wa_shared_secret', $secret);
         set_setting('wa_daily_limit', (string) max(1, min(50, (int) ($_POST['wa_daily_limit'] ?? 3))));
@@ -189,7 +190,7 @@ $enabled = wa_enabled();
 $connected = wa_setting('wa_n8n_webhook_url') !== '' && wa_setting('wa_shared_secret') !== '';
 $queue = db_one("SELECT SUM(wa_status = 'pending') p, SUM(wa_status = 'processing') pr, SUM(wa_status = 'failed' AND wa_attempts >= " . WA_MAX_ATTEMPTS . ") f,
                         SUM(wa_status = 'sent' AND sent_at >= CURDATE()) s FROM messages") ?: [];
-$verifiedUsers = (int) (db_one('SELECT COUNT(*) n FROM users WHERE whatsapp_verified = 1 AND whatsapp_opt_in = 1')['n'] ?? 0);
+$verifiedUsers = wa_audience_count(['type' => 'all'])[1];
 
 $active = 'whatsapp';
 $page_title = 'الرسايل والواتساب';
@@ -213,7 +214,7 @@ function wa_filter_fields(array $packages, array $val = [], string $prefix = '')
     $h .= '<div class="field"><label>مسجّل لحد</label><input class="input" type="date" name="' . $prefix . 'registered_to" value="' . e((string) ($val['registered_to'] ?? '')) . '"></div>';
     $h .= '<div class="field"><label>مدخلش من (يوم)</label><input class="input" type="number" min="0" name="' . $prefix . 'inactive_days" value="' . e((string) ($val['inactive_days'] ?? '')) . '" placeholder="مثلًا 7"></div>';
     $h .= '</div><label style="display:flex;gap:8px;align-items:center;margin-top:6px;cursor:pointer"><input type="checkbox" name="' . $prefix . 'wa_verified" value="1"'
-        . (!empty($val['wa_verified']) ? ' checked' : '') . ' style="width:auto"> عنده رقم واتساب متحقق بس</label>';
+        . (!empty($val['wa_verified']) ? ' checked' : '') . ' style="width:auto"> عنده رقم واتساب بس</label>';
     return $h;
 }
 ?>
@@ -255,7 +256,7 @@ function wa_filter_fields(array $packages, array $val = [], string $prefix = '')
             <div class="wa-kpi"><b><?= (int) ($queue['p'] ?? 0) + (int) ($queue['pr'] ?? 0) ?></b><span>في الطابور / بيتبعت</span></div>
             <div class="wa-kpi"><b><?= (int) ($queue['s'] ?? 0) ?></b><span>اتبعت النهارده</span></div>
             <div class="wa-kpi"><b><?= (int) ($queue['f'] ?? 0) ?></b><span>فشل نهائي</span></div>
-            <div class="wa-kpi"><b><?= $verifiedUsers ?></b><span>عميل رقمه متحقق</span></div>
+            <div class="wa-kpi"><b><?= $verifiedUsers ?></b><span>عميل يوصله واتساب</span></div>
         </div>
 
         <div class="seg wa-tabs">
@@ -570,6 +571,9 @@ function wa_filter_fields(array $packages, array $val = [], string $prefix = '')
                     <div class="field-help">لو مقفول: الإشعارات بتظهر جوه المنصة بس</div></div>
                 <div class="field"><label>كل إشعار في المنصة يروح واتساب</label><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:400">
                     <input type="checkbox" name="wa_mirror_notifications" value="1" <?= wa_setting('wa_mirror_notifications') === '1' ? 'checked' : '' ?> <?= $canSettings ? '' : 'disabled' ?> style="width:auto"> مفعّل</label></div>
+                <div class="field"><label>الإرسال على رقم الموبايل اللي في الحساب</label><label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:400">
+                    <input type="checkbox" name="wa_use_profile_phone" value="1" <?= wa_setting('wa_use_profile_phone') === '1' ? 'checked' : '' ?> <?= $canSettings ? '' : 'disabled' ?> style="width:auto"> مفعّل</label>
+                    <div class="field-help">العميل اللي مأكّدش رقم واتساب، الرسايل بتروح على رقمه المسجّل. لو قفلتها: المتحقق بس.</div></div>
                 <div class="field"><label>الحد اليومي لكل عميل</label><input class="input" type="number" min="1" max="50" name="wa_daily_limit" value="<?= e(wa_setting('wa_daily_limit')) ?>" <?= $canSettings ? '' : 'disabled' ?>>
                     <div class="field-help">الإشعارات المهمة والرسايل الإدارية مش بتتحسب</div></div>
                 <div class="field"><label>ساعات الهدوء من</label><input class="input" type="time" name="wa_quiet_from" value="<?= e(wa_setting('wa_quiet_from')) ?>" <?= $canSettings ? '' : 'disabled' ?>></div>

@@ -52,6 +52,8 @@ function wa_home(int $uid): array
         'phone' => (string) ($u['whatsapp_phone'] ?? ''),
         'suggest' => wa_normalize_phone((string) ($u['phone'] ?? '')),
         'verified' => !empty($u['whatsapp_verified']),
+        // مش متحقق؟ الرسايل بتروح على رقم الحساب (لو الإعداد شغّال)
+        'fallback' => empty($u['whatsapp_verified']) ? wa_phone_for($u) : '',
         'opt_in' => (int) ($u['whatsapp_opt_in'] ?? 1) === 1,
         'pending_phone' => (string) (db_one('SELECT phone FROM wa_otps WHERE user_id = ? AND used_at IS NULL AND expires_at > NOW() ORDER BY id DESC LIMIT 1', [$uid])['phone'] ?? ''),
         'events' => $events,
