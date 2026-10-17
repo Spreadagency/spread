@@ -136,11 +136,13 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
     }
     // ────────────────────────────────────────────────────────
 
-    // Brand Kit: الهوية المنظّمة + بريف البوست (الممنوعات بتتطبق دايمًا)
+    // الهوية الموحّدة (Brand Brain + مركز الهوية + بريف البوست) — بلوك واحد بدل التكرار
     $kitSection = '';
-    if (function_exists('bk_prompt_block') && !empty($brand['user_id'])) {
-        $kitSection = bk_prompt_block((int) $brand['user_id'], 'copy', $options['bk_brief'] ?? null, $options['bk_overrides'] ?? []);
-        if ($kitSection !== '') $kitSection .= "\nلو فيه تعارض بين الهوية دي و«متطلبات هذا المنشور» تحت: متطلبات المنشور ليها الأولوية — ما عدا الممنوعات.";
+    $__unified = function_exists('bk_brand_block') ? bk_brand_block($brand, 'copy', $options['bk_brief'] ?? null, $options['bk_overrides'] ?? []) : null;
+    if ($__unified !== null) {
+        $brandSection = $__unified;
+        $knowledgeSection = '';
+        $kitSection = "\nلو فيه تعارض بين الهوية دي و«متطلبات هذا المنشور» تحت: متطلبات المنشور ليها الأولوية — ما عدا الممنوعات.";
     }
 
     $contentType = $options['content_type'] ?? 'تعريفي';
@@ -156,13 +158,12 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         default => 'متوسط'
     };
     $tone = $options['tone'] ?? ($brand['tone'] ?? 'بسيط');
+    $tone = ['simple' => 'بسيطة وقريبة', 'formal' => 'رسمية', 'fun' => 'مرحة', 'professional' => 'احترافية'][$tone] ?? $tone;
+    if (($options['tone'] ?? '') === '' && $__unified !== null) $tone = 'زي طريقة الكلام في الهوية';
 
     // Dialect (feature 27)
-    $dialect = match ($options['dialect'] ?? 'egyptian') {
-        'gulf' => 'اللهجة الخليجية البيضاء',
-        'msa' => 'العربية الفصحى المبسطة',
-        default => 'اللهجة المصرية الخفيفة'
-    };
+    $dialect = function_exists('bk_dialect_label') ? bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')))
+        : match ($options['dialect'] ?? 'egyptian') { 'gulf', 'khaleeji' => 'اللهجة الخليجية البيضاء', 'msa' => 'العربية الفصحى المبسطة', default => 'اللهجة المصرية الخفيفة' };
 
     // Template snippet (feature 27)
     $templateSection = '';

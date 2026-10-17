@@ -76,7 +76,7 @@
             <b>🔒 لازم هوية البراند تعدّي {{ health.gate }}%</b>
             <p class="sub">هويتك دلوقتي {{ health.pct }}%. المحتوى والتصميم بيتبنوا على Brand Brain علشان الـ AI يكتب ويصمم بأسلوبك.</p>
             <div class="cf-bar"><span :style="{ width: health.pct + '%' }"></span></div>
-            <a :href="base + '/brand-brain.php'" class="cf-btn primary sm">🧠 كمّل Brand Brain</a>
+            <a :href="base + '/brand-brain.php'" class="cf-btn primary sm">🧬 كمّل هوية البراند</a>
         </div>
 
         <!-- التفكير (أي شغل جماعي) -->

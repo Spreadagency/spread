@@ -309,7 +309,7 @@ function bk_defaults(): array
         'logo'         => ['position' => 'bottom-right', 'variants' => ['light' => '', 'dark' => '', 'icon' => '']],
         'colors'       => ['primary' => '', 'secondary' => '', 'accent' => '', 'neutral' => '', 'ratio' => '60-30-10', 'preset_id' => null],
         'typography'   => ['ar' => 'Cairo', 'en' => 'Inter'],
-        'design_style' => ['preset_id' => null, 'icons' => 'thin_line', 'notes' => '', 'avoid' => []],
+        'design_style' => ['preset_id' => null, 'icons' => 'thin_line', 'notes' => '', 'avoid' => [], 'use_inspirations' => true],
         'visuals'      => ['preset_id' => null, 'kind' => '', 'light' => '', 'people' => '', 'places' => [], 'brand_color_in_photos' => 'subtle', 'avoid' => []],
         'voice'        => ['preset_id' => null, 'formal_friendly' => 60, 'serious_fun' => 40, 'scientific_simple' => 70, 'dialect' => 'egyptian', 'emoji' => true,
                            'words_use' => [], 'words_avoid' => [], 'sample_lines' => []],
@@ -362,15 +362,20 @@ function bk_get(int $uid): array
     }
     $data = bk_merge(bk_defaults(), bk_arr($row['data'] ?? '{}'));
 
-    // من brand_profiles (المصدر الأساسي للحقول القديمة)
+    // brand_profiles هو المصدر للحقول المشتركة (أي مكان يعدّلها — Brand Brain · المساعد · التجربة · الأدمن — بيظهر هنا)
     if ($bp = bk_brand_profile($uid)) {
-        $data['business']['name'] = $data['business']['name'] ?: (string) $bp['business_name'];
-        $data['business']['sector'] = $data['business']['sector'] ?: (string) $bp['industry'];
-        $data['business']['location'] = $data['business']['location'] ?: (string) ($bp['address'] ?? '');
-        $data['audience']['description'] = $data['audience']['description'] ?: (string) $bp['audience'];
-        if (!$data['voice']['words_use'] && !empty($bp['keywords_use'])) $data['voice']['words_use'] = bk_lines($bp['keywords_use']);
-        if (!$data['voice']['words_avoid'] && !empty($bp['keywords_avoid'])) $data['voice']['words_avoid'] = bk_lines($bp['keywords_avoid']);
-        if (!empty($bp['dialect']) && empty(bk_arr($row['data'] ?? '{}')['voice']['dialect'])) $data['voice']['dialect'] = bk_dialect_key((string) $bp['dialect']);
+        bk_reconcile_services($uid, $bp);
+        bk_migrate_personal($uid, $bp);
+        $data['business']['name'] = trim((string) $bp['business_name']) ?: $data['business']['name'];
+        $data['business']['sector'] = trim((string) $bp['industry']) ?: $data['business']['sector'];
+        $data['business']['location'] = trim((string) ($bp['address'] ?? '')) ?: $data['business']['location'];
+        $data['business']['description'] = (string) ($bp['description'] ?? '');
+        $data['audience']['description'] = trim((string) $bp['audience']) ?: $data['audience']['description'];
+        $data['voice']['words_use'] = !empty($bp['keywords_use']) ? bk_lines($bp['keywords_use']) : $data['voice']['words_use'];
+        $data['voice']['words_avoid'] = !empty($bp['keywords_avoid']) ? bk_lines($bp['keywords_avoid']) : $data['voice']['words_avoid'];
+        if (!empty($bp['dialect']) && !($data['voice']['dialect'] === 'mixed' && bk_dialect_key((string) $bp['dialect']) === 'egyptian')) {
+            $data['voice']['dialect'] = bk_dialect_key((string) $bp['dialect']);
+        }
         if (!$data['colors']['primary'] && !empty($bp['colors'])) {
             preg_match_all('/#[0-9a-f]{6}\b/i', (string) $bp['colors'], $m);
             foreach (['primary', 'secondary', 'accent', 'neutral'] as $i => $k) if (!empty($m[0][$i])) $data['colors'][$k] = strtoupper($m[0][$i]);
@@ -394,6 +399,13 @@ function bk_dialect_key(string $d): string
     };
 }
 
+/** اللهجة زي ما بتتخزن في brand_profiles (Brand Brain بيستخدم khaleeji) */
+function bk_dialect_store(string $d): string
+{
+    return ['gulf' => 'khaleeji', 'mixed' => 'egyptian'][bk_dialect_key($d)] ?? bk_dialect_key($d);
+}
+
+/** كل مفاتيح اللهجة الموجودة في المنصة (فورم المنشور · Brand Brain · الـ Kit) ← وصف واحد للبرومبت */
 function bk_dialect_label(string $d): string
 {
     return match (bk_dialect_key($d)) {
@@ -439,7 +451,7 @@ function bk_clean_section(string $section, $value)
         case 'design_style':
             return ['preset_id' => !empty($v['preset_id']) ? (int) $v['preset_id'] : null,
                     'icons' => in_array($v['icons'] ?? '', ['thin_line', 'filled', 'hand_drawn', 'none'], true) ? $v['icons'] : 'thin_line',
-                    'notes' => $str($v['notes'] ?? '', 600), 'avoid' => $list($v['avoid'] ?? [])];
+                    'notes' => $str($v['notes'] ?? '', 600), 'avoid' => $list($v['avoid'] ?? []), 'use_inspirations' => !array_key_exists('use_inspirations', $v) || !empty($v['use_inspirations'])];
         case 'visuals':
             return ['preset_id' => !empty($v['preset_id']) ? (int) $v['preset_id'] : null,
                     'kind' => in_array($v['kind'] ?? '', ['photo', '3d', 'flat', 'mixed'], true) ? $v['kind'] : '',
@@ -504,11 +516,164 @@ function bk_save_section(int $uid, string $section, $value, string $by = 'user',
 function bk_write(int $kitId, int $uid, array $stored, string $by, string $note): void
 {
     $by = in_array($by, ['user', 'ai', 'admin'], true) ? $by : 'user';
+    unset($stored['_profile']);
     $json = bk_json($stored);
     db_run('UPDATE brand_kits SET data = ?, version = version + 1 WHERE id = ?', [$json, $kitId]);
     $v = (int) (db_one('SELECT version FROM brand_kits WHERE id = ?', [$kitId])['version'] ?? 1);
-    db_insert('INSERT INTO brand_kit_versions (brand_kit_id, version, data, changed_by, note) VALUES (?,?,?,?,?)', [$kitId, $v, $json, $by, mb_substr($note, 0, 255)]);
+    // النسخة = الـ Kit + الحقول الأساسية من brand_profiles (الرجوع لنسخة بيرجّع الاتنين)
+    $snap = $stored + ['_profile' => bk_profile_snapshot($uid)];
+    db_insert('INSERT INTO brand_kit_versions (brand_kit_id, version, data, changed_by, note) VALUES (?,?,?,?,?)', [$kitId, $v, bk_json($snap), $by, mb_substr($note, 0, 255)]);
     bk_update_completeness($uid);
+    if (class_exists('BrandContext', false)) BrandContext::flush($uid);
+}
+
+/** الحقول الأساسية من brand_profiles اللي بتتحفظ مع كل نسخة */
+function bk_profile_fields(): array
+{
+    return ['business_name', 'industry', 'description', 'audience', 'services', 'tone', 'dialect', 'keywords_use', 'keywords_avoid', 'colors',
+            'address', 'phones', 'whatsapp', 'working_hours', 'website', 'social_facebook', 'social_instagram', 'social_tiktok', 'social_linkedin', 'design_rules'];
+}
+
+function bk_profile_snapshot(int $uid): array
+{
+    $bp = bk_brand_profile($uid) ?: [];
+    $out = [];
+    foreach (bk_profile_fields() as $f) if (array_key_exists($f, $bp)) $out[$f] = $bp[$f];
+    return $out;
+}
+
+/** رجوع لنسخة: الـ Kit + الحقول الأساسية */
+function bk_restore_version(int $uid, int $version, string $by, string $note): bool
+{
+    $kit = bk_get($uid);
+    $v = db_one('SELECT data FROM brand_kit_versions WHERE brand_kit_id = ? AND version = ?', [$kit['id'], $version]);
+    if (!$v) return false;
+    $data = bk_arr($v['data']);
+    $profile = (array) ($data['_profile'] ?? []);
+    unset($data['_profile']);
+    if ($profile && ($bp = bk_brand_profile($uid))) {
+        $set = [];
+        $vals = [];
+        foreach (bk_profile_fields() as $f) {
+            if (array_key_exists($f, $profile) && array_key_exists($f, $bp)) { $set[] = "`$f` = ?"; $vals[] = $profile[$f]; }
+        }
+        if ($set) { $vals[] = $bp['id']; db_run('UPDATE brand_profiles SET ' . implode(', ', $set) . ' WHERE id = ?', $vals); }
+        // الخدمات: نص النسخة ← الجدول
+        if (array_key_exists('services', $profile)) bk_services_from_text($uid, (string) $profile['services'], true);
+    }
+    bk_write($kit['id'], $uid, $data, $by, $note);
+    return true;
+}
+
+/**
+ * أي تعديل في brand_profiles من بره مركز الهوية (Brand Brain · المساعد · الاقتراحات · التجربة · الأدمن · الموبايل)
+ * ← ينعكس على الـ Kit (النبرة · الخدمات · الألوان) + نسخة جديدة باسم اللي عدّل
+ */
+function bk_profile_changed(int $uid, array $fields, string $by = 'user', string $note = ''): void
+{
+    if ($uid <= 0 || !$fields) return;
+    try {
+        bk_ensure_schema();
+        $bp = bk_brand_profile($uid);
+        if (!$bp) return;
+        $kit = bk_get($uid);
+        $row = db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']]);
+        $stored = bk_arr($row['data'] ?? '{}');
+        $d = $kit['data'];
+        if (in_array('tone', $fields, true) && in_array($bp['tone'] ?? '', ['simple', 'formal', 'fun', 'professional'], true) && bk_tone_from_voice($d['voice']) !== $bp['tone']) {
+            $map = ['simple' => 'قريب وودود', 'formal' => 'رسمي وخبير', 'fun' => 'خفيف ومرح', 'professional' => 'رسمي وخبير'];
+            $p = db_one('SELECT id, data FROM style_presets WHERE kind = "tone" AND name = ? AND is_active = 1', [$map[$bp['tone']] ?? '']);
+            $voice = $d['voice'];
+            if ($p) $voice = array_merge($voice, bk_arr($p['data'])['voice'] ?? [], ['preset_id' => (int) $p['id']]);
+            if ($bp['tone'] === 'professional') { $voice['scientific_simple'] = 45; $voice['serious_fun'] = 20; }
+            $stored['voice'] = bk_clean_section('voice', $voice);
+        }
+        if (in_array('colors', $fields, true) && !empty($bp['colors'])) {
+            preg_match_all('/#[0-9a-f]{6}\b/i', (string) $bp['colors'], $m);
+            if ($m[0]) {
+                $c = $d['colors'];
+                foreach (['primary', 'secondary', 'accent', 'neutral'] as $i => $k) $c[$k] = isset($m[0][$i]) ? strtoupper($m[0][$i]) : $c[$k];
+                $stored['colors'] = bk_clean_section('colors', $c);
+            }
+        }
+        if (in_array('services', $fields, true)) bk_services_from_text($uid, (string) $bp['services'], false);
+        if (in_array('industry', $fields, true) && empty($kit['sector_template_id'])) {
+            $sid = bk_detect_sector($uid);
+            if ($sid) db_run('UPDATE brand_kits SET sector_template_id = ? WHERE id = ?', [$sid, $kit['id']]);
+        }
+        $labels = function_exists('brand_fields') ? array_map(fn($f) => brand_fields()[$f][0] ?? $f, $fields) : $fields;
+        bk_write($kit['id'], $uid, $stored, $by, $note ?: ('تعديل: ' . implode('، ', array_slice($labels, 0, 4))));
+    } catch (\Throwable $e) {
+        error_log('[brand-kit] profile_changed: ' . $e->getMessage());
+    }
+}
+
+/** النبرة القديمة (4 قيم) محسوبة من طريقة الكلام — علشان المسارات القديمة والموبايل */
+function bk_tone_from_voice(array $v): string
+{
+    if ((int) $v['serious_fun'] >= 66) return 'fun';
+    if ((int) $v['formal_friendly'] <= 33) return (int) $v['scientific_simple'] <= 50 ? 'professional' : 'formal';
+    if ((int) $v['scientific_simple'] <= 40) return 'professional';
+    return 'simple';
+}
+
+/* ─── الخدمات: الجدول هو الأصل · brand_profiles.services نسخة نصية منه ─── */
+
+function bk_service_lines(string $text): array
+{
+    $out = [];
+    foreach (preg_split('/\R|[•·]|(?<=\S)\s*[،,]\s*(?=\S)/u', $text) as $l) {
+        $l = trim(preg_replace('/^[\-\*\d\.\)\s]+/u', '', $l));
+        if ($l !== '' && mb_strlen($l) <= 150) $out[mb_strtolower($l)] = $l;
+    }
+    return array_values($out);
+}
+
+/** النص (من أي مصدر) ← خدمات جديدة في الجدول · $exact: يطابق النص بالظبط (رجوع لنسخة) */
+function bk_services_from_text(int $uid, string $text, bool $exact): void
+{
+    $lines = bk_service_lines($text);
+    $have = [];
+    foreach (db_all('SELECT id, name FROM brand_services WHERE user_id = ?', [$uid]) as $r) $have[mb_strtolower(trim($r['name']))] = (int) $r['id'];
+    $order = count($have);
+    foreach ($lines as $l) {
+        if (isset($have[mb_strtolower($l)])) continue;
+        db_insert('INSERT INTO brand_services (user_id, name, priority, sort_order) VALUES (?,?,"medium",?)', [$uid, mb_substr($l, 0, 150), ++$order]);
+    }
+    if ($exact) {
+        $keep = array_map('mb_strtolower', $lines);
+        foreach ($have as $name => $id) {
+            if (!in_array($name, $keep, true)) db_run('UPDATE brand_services SET is_active = 0 WHERE id = ?', [$id]);
+            else db_run('UPDATE brand_services SET is_active = 1 WHERE id = ?', [$id]);
+        }
+    }
+    bk_services_to_text($uid);
+}
+
+/** الجدول ← brand_profiles.services (سطر لكل خدمة شغالة) */
+function bk_services_to_text(int $uid): void
+{
+    $rows = db_all('SELECT name, description FROM brand_services WHERE user_id = ? AND is_active = 1 ORDER BY is_focus DESC, FIELD(priority, "high","medium","low"), sort_order, id', [$uid]);
+    $text = implode("\n", array_map(fn($r) => $r['name'], $rows));
+    db_run('UPDATE brand_profiles SET services = ? WHERE user_id = ?', [$text !== '' ? $text : null, $uid]);
+}
+
+/** مرة لكل طلب: سطور في النص القديم مش في الجدول (اتكتبت من بره) ← تتضاف */
+function bk_reconcile_services(int $uid, array $bp): void
+{
+    static $done = [];
+    if (isset($done[$uid])) return;
+    $done[$uid] = true;
+    $text = trim((string) ($bp['services'] ?? ''));
+    if ($text === '') {
+        // الجدول فيه خدمات والنص القديم فاضي ← نكتبه (للمسارات القديمة والموبايل)
+        if ((int) (db_one('SELECT COUNT(*) n FROM brand_services WHERE user_id = ? AND is_active = 1', [$uid])['n'] ?? 0) > 0) bk_services_to_text($uid);
+        return;
+    }
+    $names = array_map(fn($n) => mb_strtolower(trim($n)), array_column(db_all('SELECT name FROM brand_services WHERE user_id = ?', [$uid]), 'name'));
+    foreach (bk_service_lines($text) as $l) {
+        if (!in_array(mb_strtolower($l), $names, true)) { bk_services_from_text($uid, $text, false); return; }
+    }
 }
 
 /** الحقول القديمة اللي باقي المنصة بتقراها */
@@ -526,7 +691,8 @@ function bk_sync_profile(int $uid, string $section, $clean): void
     } elseif ($section === 'voice') {
         $set['keywords_use'] = implode('، ', $clean['words_use']) ?: null;
         $set['keywords_avoid'] = implode('، ', $clean['words_avoid']) ?: null;
-        $set['dialect'] = $clean['dialect'] === 'gulf' ? 'khaleeji' : ($clean['dialect'] === 'mixed' ? 'egyptian' : $clean['dialect']);
+        $set['dialect'] = bk_dialect_store($clean['dialect']);
+        $set['tone'] = bk_tone_from_voice($clean);
     } elseif ($section === 'colors') {
         $c = array_filter([$clean['primary'], $clean['secondary'], $clean['accent'], $clean['neutral']]);
         if ($c) $set['colors'] = mb_substr(implode(', ', $c), 0, 100);
@@ -574,40 +740,54 @@ function bk_platform_to_format(string $f): string
 
 /* ═══════════════ الاكتمال ═══════════════ */
 
-/** @return array{pct:int, missing:array<int,array{key:string,label:string,weight:int}>} */
+/**
+ * اكتمال الهوية الموحّد (مركز الهوية + Brand Brain + البوابة اللي بتقفل المحتوى) — رقم واحد في كل المنصة
+ * @return array{pct:int, missing:array<int,array{key:string,label:string,weight:int,section:string}>, filled:array}
+ */
 function bk_completeness(int $uid, ?array $kit = null): array
 {
+    static $memo = [];
+    if ($kit === null && isset($memo[$uid])) return $memo[$uid];
     $kit = $kit ?: bk_get($uid);
     $d = $kit['data'];
+    $bp = bk_brand_profile($uid) ?: [];
+    $f = fn($k) => trim((string) ($bp[$k] ?? '')) !== '';
     $count = fn(string $sql) => (int) (db_one($sql, [$uid])['n'] ?? 0);
+    $stored = bk_arr(db_one('SELECT data FROM brand_kits WHERE user_id = ?', [$uid])['data'] ?? '{}');
+    $sector = bk_sector($kit['sector_template_id']);
+    // [مفتاح, اسم, وزن, متكامل؟, القسم اللي يتفتح]
     $checks = [
-        ['business', 'اسم النشاط والمجال', 10, $d['business']['name'] !== '' && $d['business']['sector'] !== ''],
-        ['audience', 'مين جمهورك', 10, $d['audience']['description'] !== '' || $d['audience']['pains']],
-        ['services', 'الخدمات', 15, $count('SELECT COUNT(*) n FROM brand_services WHERE user_id = ? AND is_active = 1') > 0],
-        ['topics', 'المواضيع', 10, $count('SELECT COUNT(*) n FROM brand_topics WHERE user_id = ? AND is_active = 1') >= 3],
-        ['voice', 'طريقة الكلام', 10, !empty($d['voice']['preset_id']) || $d['voice']['sample_lines'] || $d['voice']['words_use'] || isset(bk_arr(db_one('SELECT data FROM brand_kits WHERE user_id = ?', [$uid])['data'] ?? '{}')['voice'])],
-        ['colors', 'الألوان', 10, $d['colors']['primary'] !== ''],
-        ['logo', 'اللوجو', 8, !empty($d['logo']['path'])],
-        ['visuals', 'طبيعة الصور', 7, $d['visuals']['kind'] !== ''],
-        ['design_style', 'استايل التصميم', 5, !empty($d['design_style']['preset_id']) || $d['design_style']['notes'] !== ''],
-        ['pillars', 'اتجاه المحتوى', 8, count($d['pillars']) >= 2],
-        ['formats', 'أشكال المحتوى', 5, $count('SELECT COUNT(*) n FROM brand_formats WHERE user_id = ? AND is_enabled = 1') > 0],
-        ['personality', 'شخصية البراند', 2, count($d['personality']) > 0],
+        ['business', 'اسم النشاط والمجال', 10, $f('business_name') && $f('industry'), 'basics'],
+        ['description', 'وصف النشاط أو اللي بيميزك', 6, $f('description') || $d['business']['usp'] !== '', 'basics'],
+        ['audience', 'مين جمهورك', 8, $f('audience') || $d['audience']['pains'], 'business'],
+        ['services', 'الخدمات', 12, $count('SELECT COUNT(*) n FROM brand_services WHERE user_id = ? AND is_active = 1') > 0, 'services'],
+        ['topics', 'المواضيع (3 على الأقل)', 6, $count('SELECT COUNT(*) n FROM brand_topics WHERE user_id = ? AND is_active = 1') >= 3, 'services'],
+        ['voice', 'طريقة الكلام', 10, isset($stored['voice']) || $f('tone'), 'voice'],
+        ['colors', 'الألوان', 8, $d['colors']['primary'] !== '' || $f('colors'), 'colors'],
+        ['logo', 'اللوجو', 8, $f('logo_path'), 'logo'],
+        ['contact', 'بيانات التواصل', 8, $f('phones') || $f('whatsapp') || $f('address'), 'basics'],
+        ['links', 'الموقع أو السوشيال', 4, $f('website') || $f('social_facebook') || $f('social_instagram') || $f('social_tiktok') || $f('social_linkedin'), 'basics'],
+        ['pillars', 'اتجاه المحتوى', 6, count($d['pillars']) >= 2 || count($sector['default_pillars'] ?? []) >= 2, 'pillars'],
+        ['formats', 'أشكال المحتوى', 2, $count('SELECT COUNT(*) n FROM brand_formats WHERE user_id = ? AND is_enabled = 1') > 0 || !$count('SELECT COUNT(*) n FROM brand_formats WHERE user_id = ?'), 'formats'],
+        ['visuals', 'طبيعة الصور', 6, $d['visuals']['kind'] !== '', 'visuals'],
+        ['design_style', 'استايل التصميم', 4, !empty($d['design_style']['preset_id']) || $d['design_style']['notes'] !== '' || $f('design_rules') || $f('visual_identity'), 'colors'],
+        ['personality', 'شخصية البراند', 2, count($d['personality']) > 0, 'business'],
     ];
     $pct = 0;
     $missing = [];
-    foreach ($checks as [$key, $label, $w, $ok]) {
-        if ($ok) $pct += $w;
-        else $missing[] = ['key' => $key, 'label' => $label, 'weight' => $w];
+    $filled = [];
+    foreach ($checks as [$key, $label, $w, $ok, $sec]) {
+        if ($ok) { $pct += $w; $filled[] = $key; }
+        else $missing[] = ['key' => $key, 'label' => $label, 'weight' => $w, 'section' => $sec];
     }
     usort($missing, fn($a, $b) => $b['weight'] <=> $a['weight']);
-    return ['pct' => min(100, $pct), 'missing' => $missing];
+    return $memo[$uid] = ['pct' => min(100, $pct), 'missing' => $missing, 'filled' => $filled];
 }
 
 function bk_update_completeness(int $uid): int
 {
     try {
-        $c = bk_completeness($uid);
+        $c = bk_completeness($uid, bk_get($uid));
         db_run('UPDATE brand_kits SET completeness = ? WHERE user_id = ?', [$c['pct'], $uid]);
         return $c['pct'];
     } catch (\Throwable $e) {
@@ -924,6 +1104,18 @@ function bk_suggestion_decide(int $uid, int $id, bool $accept): array
     db_run('UPDATE brand_suggestions SET status = ?, decided_at = NOW() WHERE id = ?', [$accept ? 'accepted' : 'rejected', $id]);
     if (!$accept) return ['ok' => true];
     $v = bk_arr($s['proposed_value']);
+    // اقتراح مواضيع (من البحث العميق / الترندات) ← تتضاف للمواضيع
+    if (($v['type'] ?? '') === 'topics') {
+        $have = array_map('mb_strtolower', array_column(db_all('SELECT title FROM brand_topics WHERE user_id = ?', [$uid]), 'title'));
+        foreach ((array) ($v['titles'] ?? []) as $t) {
+            $t = mb_substr(trim((string) $t), 0, 255);
+            if ($t === '' || in_array(mb_strtolower($t), $have, true)) continue;
+            db_insert('INSERT INTO brand_topics (user_id, title, source) VALUES (?,?,"ai")', [$uid, $t]);
+            $have[] = mb_strtolower($t);
+        }
+        bk_update_completeness($uid);
+        return ['ok' => true];
+    }
     $sec = (string) ($v['section'] ?? '');
     if (!in_array($sec, BK_SECTIONS, true)) return ['ok' => true];
     $kit = bk_get($uid);
@@ -932,6 +1124,8 @@ function bk_suggestion_decide(int $uid, int $id, bool $accept): array
         $cur['sample_lines'] = $cur['sample_lines'];
         $p = db_one('SELECT * FROM style_presets WHERE kind = "tone" AND name = ? AND is_active = 1', [(string) $v['value']]);
         if ($p) $cur = array_merge($cur, bk_arr($p['data'])['voice'] ?? [], ['preset_id' => (int) $p['id']]);
+    } elseif (isset($v['merge']) && is_array($v['merge'])) {
+        $cur = array_merge($cur, $v['merge']);
     } else {
         $cur[(string) $v['key']] = $v['value'];
     }
@@ -1311,7 +1505,6 @@ final class BrandContext
         switch ($agent) {
             case 'ideas':
                 $L[] = 'هوية البراند (Brand Kit):';
-                if ($ctx['business']['usp'] !== '') $L[] = '- اللي بيميزنا: ' . $ctx['business']['usp'];
                 if ($ctx['services']) {
                     $L[] = '- الخدمات (بالأولوية):';
                     foreach ($ctx['services'] as $s) $L[] = '  • ' . $s['name'] . ($s['focus'] ? ' ⭐ خدمة الشهر — أعطيها نصيب أكبر من الأفكار' : '') . ' [' . $s['priority'] . ']' . ($s['seasons'] ? ' (مواسم: ' . implode('، ', $s['seasons']) . ')' : '');
@@ -1330,7 +1523,6 @@ final class BrandContext
             case 'copy':
                 $v = $ctx['voice'];
                 $L[] = 'هوية البراند (Brand Kit):';
-                if ($ctx['business']['usp'] !== '') $L[] = '- اللي بيميزنا: ' . $ctx['business']['usp'];
                 if ($ctx['business']['price_range'] !== '') $L[] = '- مستوى الأسعار: ' . $ctx['business']['price_range'];
                 $a = $ctx['audience'];
                 if ($a['age'] !== '' || $a['gender'] !== '') $L[] = '- الجمهور: ' . trim($a['age'] . ' ' . $a['gender']);
@@ -1528,6 +1720,64 @@ final class BrandContext
         }
     }
 
+    /**
+     * الحقائق (brand_profiles + الخدمات + التواصل + المستندات) — الجزء الثابت من بلوك الهوية الموحّد
+     * ideas: من غير التواصل · copy: كامل · design: الاسم والمجال وقواعد العميل بس
+     */
+    public static function factsBlock(int $uid, string $agent): string
+    {
+        $bp = bk_brand_profile($uid) ?: [];
+        $kit = self::base($uid)['kit'];
+        $d = $kit['data'];
+        $v = fn($k) => trim((string) ($bp[$k] ?? ''));
+        if ($agent === 'design') {
+            $L = ['Brand: ' . $v('business_name')];
+            if ($v('industry') !== '') $L[] = 'Industry: ' . $v('industry');
+            if ($d['colors']['primary'] === '' && $v('colors') !== '') $L[] = 'BRAND COLORS: ' . $v('colors');
+            if ($v('design_rules') !== '') $L[] = 'DESIGN RULES written by the client (must follow strictly): ' . mb_substr($v('design_rules'), 0, 800);
+            // تحليل الهوية البصرية القديم: بس لو العميل لسه ماحددش استايل في مركز الهوية
+            $ds = $d['design_style'];
+            if ($v('visual_identity') !== '' && empty($ds['preset_id']) && $ds['notes'] === '') {
+                $L[] = 'Visual identity notes (from analysis of the client\'s past designs): ' . mb_substr($v('visual_identity'), 0, 700);
+            }
+            return implode("\n", $L);
+        }
+        $L = ['بيانات البراند:'];
+        foreach (['business_name' => 'اسم النشاط', 'industry' => 'المجال', 'description' => 'الوصف'] as $k => $l) {
+            if ($v($k) !== '') $L[] = '- ' . $l . ': ' . mb_substr($v($k), 0, 800);
+        }
+        if ($d['business']['usp'] !== '') $L[] = '- اللي بيميزنا: ' . $d['business']['usp'];
+        if ($v('audience') !== '') $L[] = '- الجمهور المستهدف: ' . mb_substr($v('audience'), 0, 600);
+        if ($agent === 'copy') {
+            $svc = self::base($uid)['services'];
+            if ($svc) {
+                $L[] = '- الخدمات/المنتجات:';
+                foreach (array_slice($svc, 0, 15) as $x) $L[] = '  • ' . $x['name'] . ($x['description'] ? ' — ' . mb_substr((string) $x['description'], 0, 160) : '');
+            }
+            $c = [];
+            foreach (['address' => 'العنوان', 'phones' => 'أرقام التواصل', 'whatsapp' => 'واتساب', 'working_hours' => 'مواعيد العمل', 'website' => 'الموقع'] as $k => $l) {
+                if ($v($k) !== '') $c[] = $l . ': ' . $v($k);
+            }
+            $soc = [];
+            foreach (['social_facebook' => 'فيسبوك', 'social_instagram' => 'انستجرام', 'social_tiktok' => 'تيك توك', 'social_linkedin' => 'لينكدإن'] as $k => $l) {
+                if ($v($k) !== '') $soc[] = $l . ': ' . $v($k);
+            }
+            if ($soc) $c[] = 'السوشيال: ' . implode(' · ', $soc);
+            if ($c) {
+                $L[] = '- بيانات التواصل (للـ CTA لما تكون مناسبة): ' . implode(' | ', $c);
+                $L[] = 'ماتخترعش أرقام أو عناوين أو أسعار غير الموجودة هنا.';
+            }
+        }
+        if ($v('notes') !== '') $L[] = '- ملاحظات العميل: ' . mb_substr($v('notes'), 0, 500);
+        // ملخص الهوية القديم: بس لو الـ Kit لسه فاضي (وإلا بيبقى قديم ومتعارض)
+        if ($v('ai_summary') !== '' && $kit['completeness'] < 40) $L[] = '- ملخص الهوية: ' . mb_substr($v('ai_summary'), 0, 600);
+        if (!empty($bp['id']) && function_exists('get_brand_knowledge')) {
+            $k = get_brand_knowledge((int) $bp['id']);
+            if ($k !== '') $L[] = "\nمعلومات موثّقة عن البيزنس (من مستندات العميل — مصدر حقائق، ماتخترعش حاجة تخالفها):\n" . mb_substr($k, 0, $agent === 'copy' ? 4000 : 2500);
+        }
+        return implode("\n", $L);
+    }
+
     /** أداة واحدة للبرومبتات: السياق + البريف كنص (بأمان — أي خطأ = نص فاضي) */
     public static function promptFor(int $uid, string $agent, ?array $brief = null, array $overrides = []): string
     {
@@ -1601,4 +1851,165 @@ function bk_brief_for_content(array $content, int $uid, array $newOverrides = []
     if (empty($o['topic_id']) && empty($o['topic']) && !empty($prev['topic'])) $o['topic'] = $prev['topic'];
     if (!empty($content['extra_notes']) && empty($o['request'])) $o['request'] = (string) $content['extra_notes'];
     return BrandContext::brief($uid, $o);
+}
+
+
+/**
+ * بلوك الهوية الموحّد لأي برومبت: الحقائق + الـ Kit للـ Agent ده + البريف — مكان واحد بدل بلوكين
+ * null = مركز الهوية مقفول (المسار القديم يشتغل زي ما هو)
+ */
+function bk_brand_block(array $brand, string $agent, ?array $brief = null, array $overrides = []): ?string
+{
+    $uid = (int) ($brand['user_id'] ?? 0);
+    if (!bk_enabled() || $uid <= 0) return null;
+    try {
+        if (!function_exists('get_brand_knowledge') && is_file(__DIR__ . '/source-extract.php')) require_once __DIR__ . '/source-extract.php';
+        $facts = BrandContext::factsBlock($uid, $agent);
+        $kit = BrandContext::promptFor($uid, $agent, $brief, $overrides);
+        return trim($facts . ($kit !== '' ? "\n\n" . $kit : ''));
+    } catch (\Throwable $e) {
+        error_log('[brand-kit] block: ' . $e->getMessage());
+        return null;
+    }
+}
+
+
+/** اقتراح للهوية (صندوق الاقتراحات الموحّد) — مابيتكررش لو نفس الحقل مستني رد */
+function bk_suggest(int $uid, string $field, string $message, array $proposed): ?int
+{
+    try {
+        bk_ensure_schema();
+        if (db_one('SELECT id FROM brand_suggestions WHERE user_id = ? AND field = ? AND status = "pending"', [$uid, $field])) return null;
+        return (int) db_insert('INSERT INTO brand_suggestions (user_id, field, message, proposed_value) VALUES (?,?,?,?)',
+            [$uid, mb_substr($field, 0, 100), mb_substr($message, 0, 2000), bk_json($proposed)]);
+    } catch (\Throwable $e) {
+        return null;
+    }
+}
+
+/**
+ * تحليل الهوية البصرية (Brand Brain) ← اقتراحات لقسم الشكل بدل نص طويل في البرومبت:
+ * الألوان (الأكواد اللي اتذكرت) + ملاحظات التصميم
+ */
+function bk_suggest_from_visual_identity(int $uid, string $text): int
+{
+    if (!bk_enabled() || trim($text) === '') return 0;
+    $n = 0;
+    preg_match_all('/#[0-9a-f]{6}\b/i', $text, $m);
+    $hex = array_values(array_unique(array_map('strtoupper', $m[0])));
+    if ($hex) {
+        $merge = [];
+        foreach (['primary', 'secondary', 'accent', 'neutral'] as $i => $k) if (isset($hex[$i])) $merge[$k] = $hex[$i];
+        if (bk_suggest($uid, 'vi_colors', 'تحليل تصميماتك طلّع الألوان دي: ' . implode(' · ', array_slice($hex, 0, 4)) . ' — نخليها ألوان البراند؟', ['section' => 'colors', 'merge' => $merge])) $n++;
+    }
+    $lines = array_values(array_filter(array_map('trim', preg_split('/\R/u', $text)), fn($l) => mb_strlen($l) > 12));
+    $notes = mb_substr(implode(' ', array_slice($lines, 0, 6)), 0, 600);
+    if ($notes !== '' && bk_suggest($uid, 'vi_notes', 'من تحليل تصميماتك: «' . mb_substr($notes, 0, 160) . '…» — نحطها في ملاحظات التصميم؟', ['section' => 'design_style', 'key' => 'notes', 'value' => $notes])) $n++;
+    return $n;
+}
+
+/**
+ * الصورة الشخصية القديمة (Brand Brain) ← شخصية «صاحب البراند» في الـ Kit — مرة واحدة
+ * العميل رفعها بنفسه علشان تظهر في التصميمات، فالموافقة متسجّلة إنها «من الصورة الشخصية»
+ */
+function bk_migrate_personal(int $uid, array $bp): void
+{
+    static $done = [];
+    if (isset($done[$uid])) return;
+    $done[$uid] = true;
+    try {
+        $paths = [];
+        if (!empty($bp['personal_image_path'])) $paths[] = (string) $bp['personal_image_path'];
+        foreach (db_all('SELECT image_path FROM brand_images WHERE brand_profile_id = ? AND image_type = "personal" AND image_path IS NOT NULL ORDER BY id LIMIT 7', [(int) $bp['id']]) as $r) $paths[] = (string) $r['image_path'];
+        $paths = array_values(array_unique(array_filter($paths)));
+        if (!$paths) return;
+        if (db_one('SELECT c.id FROM brand_characters c JOIN brand_character_images i ON i.character_id = c.id WHERE c.user_id = ? AND i.image_path = ? LIMIT 1', [$uid, $paths[0]])) return;
+        $cid = db_insert('INSERT INTO brand_characters (user_id, name, type, role, description, use_in, share_percent, consent_confirmed, consent_at, is_active)
+                          VALUES (?, "الصورة الشخصية", "real_person", "من Brand Brain (الصورة الشخصية / المنتج)", NULL, "image,story", 0, 1, NOW(), 1)', [$uid]);
+        foreach ($paths as $i => $path) db_insert('INSERT INTO brand_character_images (character_id, image_path, is_primary) VALUES (?,?,?)', [$cid, $path, $i === 0 ? 1 : 0]);
+    } catch (\Throwable $e) {
+        error_log('[brand-kit] migrate personal: ' . $e->getMessage());
+    }
+}
+
+
+/**
+ * تعديلات «مساعد الهوية» على مركز الهوية (من [KIT] في المحادثة) — نسخة باسم الـ AI
+ * @return string[] اللي اتغيّر (للرد على العميل)
+ */
+function bk_agent_apply(int $uid, array $j): array
+{
+    $done = [];
+    $kit = bk_get($uid);
+    $row = db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']]);
+    $stored = bk_arr($row['data'] ?? '{}');
+    $d = $kit['data'];
+    $changed = false;
+    $have = array_map(fn($n) => mb_strtolower(trim($n)), array_column(db_all('SELECT name FROM brand_services WHERE user_id = ?', [$uid]), 'name'));
+    $nS = 0;
+    foreach (array_slice((array) ($j['add_services'] ?? []), 0, 10) as $sv) {
+        $name = mb_substr(trim((string) (is_array($sv) ? ($sv['name'] ?? '') : $sv)), 0, 150);
+        if ($name === '' || in_array(mb_strtolower($name), $have, true)) continue;
+        $prio = is_array($sv) && in_array($sv['priority'] ?? '', ['high', 'medium', 'low'], true) ? $sv['priority'] : 'medium';
+        db_insert('INSERT INTO brand_services (user_id, name, description, priority, sort_order) VALUES (?,?,?,?,?)',
+            [$uid, $name, is_array($sv) ? (mb_substr(trim((string) ($sv['description'] ?? '')), 0, 1000) ?: null) : null, $prio, count($have) + 1]);
+        $have[] = mb_strtolower($name);
+        $nS++;
+    }
+    if ($nS) { bk_services_to_text($uid); $done[] = $nS . ' خدمة'; }
+    $topics = array_values(array_filter(array_map(fn($t) => mb_substr(trim((string) $t), 0, 255), (array) ($j['add_topics'] ?? []))));
+    if ($topics) {
+        $haveT = array_map('mb_strtolower', array_column(db_all('SELECT title FROM brand_topics WHERE user_id = ?', [$uid]), 'title'));
+        $nT = 0;
+        foreach (array_slice($topics, 0, 15) as $t) {
+            if (in_array(mb_strtolower($t), $haveT, true)) continue;
+            db_insert('INSERT INTO brand_topics (user_id, title, source) VALUES (?,?,"ai")', [$uid, $t]);
+            $nT++;
+        }
+        if ($nT) $done[] = $nT . ' موضوع';
+    }
+    if (!empty($j['add_offers']) && is_array($j['add_offers'])) {
+        $stored['offers'] = bk_clean_section('offers', array_merge($d['offers'], $j['add_offers']));
+        $done[] = 'العروض';
+        $changed = true;
+    }
+    if (!empty($j['pillars']) && is_array($j['pillars'])) {
+        $stored['pillars'] = bk_clean_section('pillars', $j['pillars']);
+        $done[] = 'اتجاهات المحتوى';
+        $changed = true;
+    }
+    if (!empty($j['voice_preset'])) {
+        $p = db_one('SELECT id, data FROM style_presets WHERE kind = "tone" AND name = ? AND is_active = 1', [(string) $j['voice_preset']]);
+        if ($p) {
+            $stored['voice'] = bk_clean_section('voice', array_merge($d['voice'], bk_arr($p['data'])['voice'] ?? [], ['preset_id' => (int) $p['id']]));
+            $done[] = 'طريقة الكلام';
+            $changed = true;
+        }
+    }
+    if (!empty($j['forbidden_words']) && is_array($j['forbidden_words'])) {
+        $v = $stored['voice'] ?? $d['voice'];
+        $v['words_avoid'] = array_values(array_unique(array_merge($d['voice']['words_avoid'], $j['forbidden_words'])));
+        $stored['voice'] = bk_clean_section('voice', $v);
+        $done[] = 'الكلمات الممنوعة';
+        $changed = true;
+    }
+    if (!empty($j['forbidden_topics']) && is_array($j['forbidden_topics'])) {
+        $stored['forbidden_topics'] = bk_clean_section('forbidden_topics', array_merge($d['forbidden_topics'], $j['forbidden_topics']));
+        $done[] = 'المواضيع الممنوعة';
+        $changed = true;
+    }
+    if (!empty($j['focus_service']) && is_string($j['focus_service'])) {
+        $f = db_one('SELECT id FROM brand_services WHERE user_id = ? AND name = ?', [$uid, trim($j['focus_service'])]);
+        if ($f) {
+            db_run('UPDATE brand_services SET is_focus = (id = ?) WHERE user_id = ?', [$f['id'], $uid]);
+            $stored['focus'] = bk_clean_section('focus', ['mode' => 'service', 'service_id' => (int) $f['id']]);
+            $done[] = 'خدمة الشهر';
+            $changed = true;
+        }
+    }
+    if ($changed || $done) {
+        bk_write($kit['id'], $uid, $stored, 'ai', 'من مساعد الهوية: ' . implode('، ', $done));
+        if (isset($stored['voice'])) bk_sync_profile($uid, 'voice', $stored['voice']);
+    }
+    return $done;
 }

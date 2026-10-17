@@ -83,6 +83,12 @@ function brand_gate_pct(): int
 function brand_health(?array $brand): array
 {
     $brand = $brand ?: [];
+    // الهوية الموحّدة: نفس رقم «مركز الهوية» (Brand Kit + Brand Brain) في البوابة والسايدبار والرحلة
+    if (!empty($brand['user_id']) && brand_kit_on()) {
+        $c = bk_completeness((int) $brand['user_id']);
+        $gate = brand_gate_pct();
+        return ['pct' => $c['pct'], 'missing' => $c['missing'], 'filled' => $c['filled'], 'gate' => $gate, 'unlocked' => $gate === 0 || $c['pct'] >= $gate];
+    }
     $pct = 0;
     $missing = [];
     $filled = [];
@@ -111,6 +117,22 @@ function brand_health(?array $brand): array
     $gate = brand_gate_pct();
     $pct = min(100, $pct);
     return ['pct' => $pct, 'missing' => $missing, 'filled' => $filled, 'gate' => $gate, 'unlocked' => $gate === 0 || $pct >= $gate];
+}
+
+/** مركز الهوية مفعّل؟ (بيحمّل brand-kit.php لو موجود) */
+function brand_kit_on(): bool
+{
+    static $on = null;
+    if ($on !== null) return $on;
+    if (!is_file(__DIR__ . '/brand-kit.php')) return $on = false;
+    require_once __DIR__ . '/brand-kit.php';
+    return $on = bk_enabled();
+}
+
+/** أي تعديل في brand_profiles ← ينعكس على مركز الهوية + نسخة جديدة */
+function brand_kit_notify(int $userId, array $fields, string $by = 'user', string $note = ''): void
+{
+    if ($userId > 0 && $fields && brand_kit_on()) bk_profile_changed($userId, array_values(array_unique($fields)), $by, $note);
 }
 
 function brand_for_user(int $userId): ?array
@@ -186,6 +208,7 @@ function brand_fact_apply(int $factId, int $userId, ?string $editedValue = null)
     db_run('UPDATE brand_facts SET status = "rejected", decided_at = NOW()
             WHERE brand_profile_id = ? AND field = ? AND status = "suggested" AND id <> ?',
         [$f['brand_profile_id'], $field, $factId]);
+    brand_kit_notify($userId, [$field], 'user', 'اقتراح مقبول (' . (brand_source_labels()[$f['source']][0] ?? 'AI') . '): ' . (brand_fields()[$field][0] ?? $field));
     return ['ok' => true, 'field' => $field, 'value' => $value];
 }
 
@@ -567,6 +590,8 @@ function brand_to_api(array $brand): array
         'health'      => $health,
         'fields'      => $fields,
         'approved_at' => $brand['brand_approved_at'] ?? null,
+        // الموبايل/أي عميل API: الهوية الموحّدة (الخدمات والكلام والتصميم والشخصيات) في صفحة «هوية البراند»
+        'kit'         => brand_kit_on() ? ['on' => true, 'page' => 'brand-kit.php'] : null,
         'suggestions' => array_map(fn($f) => [
             'id' => (int) $f['id'], 'field' => $f['field'], 'label' => $all[$f['field']][0] ?? $f['field'],
             'value' => $f['value'], 'current' => (string) ($brand[$f['field']] ?? ''),
@@ -650,6 +675,7 @@ function brand_field_save(array $brand, int $userId, string $field, string $valu
     // الاقتراحات القديمة لنفس الحقل بقت مالهاش لازمة
     db_run('UPDATE brand_facts SET status = "rejected", decided_at = NOW() WHERE brand_profile_id = ? AND field = ? AND status = "suggested"',
         [$brand['id'], $field]);
+    brand_kit_notify($userId, [$field], 'user', 'تعديل: ' . ($fields[$field][0] ?? $field));
     return ['ok' => true, 'error' => null];
 }
 

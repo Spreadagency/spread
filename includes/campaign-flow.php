@@ -94,6 +94,9 @@ function campaign_ai(string $prompt, int $maxTokens, string $task, array $ctx = 
 /** سطور هوية البراند للبرومبتات — + Brand Kit للـ Agent ده (والبريف لو بوست واحد) */
 function campaign_brand_block(array $brand, string $agent = 'copy', ?array $brief = null): string
 {
+    if (!function_exists('bk_brand_block')) require_once __DIR__ . '/brand-kit.php';
+    $__u = bk_brand_block($brand, $agent, $brief);
+    if ($__u !== null) return $__u;
     $lines = [];
     foreach (['business_name' => 'اسم النشاط', 'industry' => 'المجال', 'description' => 'الوصف', 'audience' => 'الجمهور',
               'services' => 'الخدمات والمنتجات', 'tone' => 'النبرة', 'colors' => 'ألوان البراند',
@@ -102,8 +105,7 @@ function campaign_brand_block(array $brand, string $agent = 'copy', ?array $brie
     }
     if (!empty($brand['ai_summary'])) $lines[] = '- ملخص الهوية: ' . mb_substr((string) $brand['ai_summary'], 0, 600);
     $k = !empty($brand['id']) ? get_brand_knowledge((int) $brand['id']) : '';
-    if (!function_exists('bk_prompt_block')) require_once __DIR__ . '/brand-kit.php';
-    $kit = !empty($brand['user_id']) ? bk_prompt_block((int) $brand['user_id'], $agent, $brief) : '';
+    $kit = '';
     return "بيانات البراند:\n" . implode("\n", $lines)
         . ($k !== '' ? "\n\nمعلومات موثّقة عن البيزنس (مصدر حقائق — ماتخترعش حاجة تخالفها):\n" . mb_substr($k, 0, 3000) : '')
         . $kit;

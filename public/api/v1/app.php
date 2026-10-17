@@ -244,7 +244,7 @@ switch ($action) {
         $user = mobile_require_user();
         v1_rate('handoff', 20, 600, (int) $user['id']);
         $target = api_str('target', 300);
-        $allowed = ['social-accounts.php', 'brand-brain.php', 'brand-profile.php', 'sources.php', 'content-plan.php',
+        $allowed = ['social-accounts.php', 'brand-brain.php', 'brand-kit.php', 'brand-profile.php', 'sources.php', 'content-plan.php',
                     'research.php', 'campaigns.php', 'help.php', 'profile.php', 'payments.php'];
         if (v1_purchases_mode() === 'web') {
             $allowed[] = 'packages.php';

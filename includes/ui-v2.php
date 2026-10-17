@@ -78,6 +78,9 @@ function ui_icon(string $name, int $size = 20, string $class = ''): string
  */
 function ui_sections(): array
 {
+    // صفحة واحدة للهوية (مركز الهوية) لما يكون مفعّل
+    $__bk = is_file(__DIR__ . '/brand-kit.php') && (require_once __DIR__ . '/brand-kit.php') && bk_enabled();
+    $__brandUrl = $__bk ? 'brand-kit.php' : 'brand-brain.php';
     return [
         'dashboard' => ['الرئيسية', 'home', 'dashboard.php', ['dashboard'], []],
         'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan'], [
@@ -94,9 +97,8 @@ function ui_sections(): array
         ]],
         'analytics' => ['التحليلات', 'chart', 'analytics.php', ['analytics'], []],
         // ⑦-ب البحث العميق: صفحة مستقلة زي ما هي — بس جوه Brand Brain (بيقرا الهوية وبيسجّل فيها)
-        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources', 'research', 'brand-kit'], [
-            ['Brand Brain', 'brand-brain.php', 'brand-brain', null],
-            ['مركز الهوية', 'brand-kit.php', 'brand-kit', null],
+        'brand' => [$__bk ? 'هوية البراند' : 'Brand Brain · الهوية', 'brain', $__brandUrl, ['brand-brain', 'brand', 'brand-agent', 'sources', 'research', 'brand-kit'], [
+            [$__bk ? 'هوية البراند' : 'Brand Brain', $__brandUrl, $__bk ? 'brand-kit' : 'brand-brain', null],
             ['البحث العميق', 'research.php', 'research', 'research'],
             ['المساعد الذكي', 'brand-agent.php', 'brand-agent', 'brand-agent'],
             ['المستندات', 'sources.php', 'sources', 'sources'],

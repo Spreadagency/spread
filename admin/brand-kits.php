@@ -11,6 +11,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/prompt-builder.php';
 require_once __DIR__ . '/../includes/brand-kit.php';
+require_once __DIR__ . '/../includes/uploader.php';
 
 require_admin();
 require_admin_can('view_users');
@@ -45,10 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('admin/brand-kits.php?user=' . $uid);
     }
     if (!empty($_POST['restore']) && $canEdit) {
-        $kit = bk_get($uid);
-        $v = db_one('SELECT data FROM brand_kit_versions WHERE brand_kit_id = ? AND version = ?', [$kit['id'], (int) $_POST['restore']]);
-        if ($v) {
-            bk_write($kit['id'], $uid, bk_arr($v['data']), 'admin', 'رجوع لنسخة ' . (int) $_POST['restore'] . ' (فريق Spread)');
+        if (bk_restore_version($uid, (int) $_POST['restore'], 'admin', 'رجوع لنسخة ' . (int) $_POST['restore'] . ' (فريق Spread)')) {
             admin_log('brand_kit_restore', 'brand_kits', $uid, (string) $_POST['restore']);
             flash_set('success', 'رجعنا للنسخة ' . (int) $_POST['restore']);
         }
@@ -105,6 +103,10 @@ include __DIR__ . '/../templates/admin-header.php';
     $sectors = bk_sectors(false);
     $editable = ['business', 'audience', 'personality', 'voice', 'pillars', 'content', 'colors', 'typography', 'design_style', 'visuals', 'logo', 'offers', 'forbidden_topics'];
 ?>
+        <div class="tabs" style="display:flex;gap:6px;margin:0 0 14px">
+            <a class="btn ghost sm" href="<?= url('admin/user-brand.php?user_id=' . $uid) ?>">البيانات واللوجو والتواصل</a>
+            <a class="btn sm" href="<?= url('admin/brand-kits.php?user=' . $uid) ?>">Brand Kit (الكلام والتصميم والشخصيات والنسخ)</a>
+        </div>
         <div class="card" style="margin-bottom:16px">
             <div class="card-head"><h3><?= e($u['name']) ?> <small class="text-mute" style="font-weight:400"><?= e($u['email']) ?></small></h3>
                 <div style="display:flex;gap:6px;align-items:center"><span class="chip chip-mint">اكتمال <?= $comp['pct'] ?>%</span><span class="chip">نسخة <?= $kit['version'] ?></span>

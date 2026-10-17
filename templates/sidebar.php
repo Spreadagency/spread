@@ -60,7 +60,12 @@ $balance = user_credits();
             <span class="ico">▤</span> المحتوى السابق
         </a>
         <?php endif; ?>
-        <?php if (menu_visible('brand-profile')): ?>
+        <?php $__bkOn = is_file(__DIR__ . '/../includes/brand-kit.php') && (require_once __DIR__ . '/../includes/brand-kit.php') && bk_enabled(); ?>
+        <?php if ($__bkOn): ?>
+        <a href="<?= url('brand-kit.php') ?>" class="<?= in_array($active, ['brand-kit', 'brand-brain', 'brand'], true) ? 'active' : '' ?>">
+            <span class="ico">🧬</span> هوية البراند
+        </a>
+        <?php elseif (menu_visible('brand-profile')): ?>
         <?php if (function_exists('ui_v2_enabled') && ui_v2_enabled()): ?>
         <a href="<?= url('brand-brain.php') ?>" class="<?= in_array($active, ['brand-brain', 'brand'], true) ? 'active' : '' ?>">
             <span class="ico">🧠</span> Brand Brain · الهوية
@@ -70,11 +75,6 @@ $balance = user_credits();
             <span class="ico">◈</span> هوية البراند
         </a>
         <?php endif; ?>
-        <?php endif; ?>
-        <?php if (function_exists('bk_enabled') ? bk_enabled() : get_setting('brand_kit_enabled', '1') === '1'): ?>
-        <a href="<?= url('brand-kit.php') ?>" class="<?= $active === 'brand-kit' ? 'active' : '' ?>">
-            <span class="ico">🧬</span> مركز الهوية
-        </a>
         <?php endif; ?>
         <?php if (menu_visible('sources')): ?>
         <a href="<?= url('sources.php') ?>" class="<?= $active === 'sources' ? 'active' : '' ?>">

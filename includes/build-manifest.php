@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-17',
-  'generated' => '2026-10-17 13:27',
+  'generated' => '2026-10-17 21:28',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -189,8 +189,8 @@ return array (
     ),
     'admin/brand-kits.php' => 
     array (
-      'h' => '062e985b69e6747151a63bdb414b4511',
-      's' => 23014,
+      'h' => '929b5fd2ea378e1700953f728e4484c3',
+      's' => 23283,
     ),
     'admin/brand-learning.php' => 
     array (
@@ -379,8 +379,8 @@ return array (
     ),
     'admin/user-brand.php' => 
     array (
-      'h' => '8f29fc953ddab707c781c6cd4f784902',
-      's' => 11057,
+      'h' => '4d61095561221da039a49041960d8ba9',
+      's' => 12041,
     ),
     'admin/user-view.php' => 
     array (
@@ -424,8 +424,8 @@ return array (
     ),
     'assets/css/brand-kit.css' => 
     array (
-      'h' => '6edcb380af9d45db35ec6ddd627dc1e0',
-      's' => 17683,
+      'h' => 'edb239e84a3e004f6d6e1c1da23507dd',
+      's' => 19054,
     ),
     'assets/css/campaign-v2.css' => 
     array (
@@ -469,8 +469,8 @@ return array (
     ),
     'assets/js/brand-kit.js' => 
     array (
-      'h' => '251d2b87be785403785023c9569e1095',
-      's' => 24635,
+      'h' => 'a476c15b20647cf935546bdb442205cf',
+      's' => 30468,
     ),
     'assets/js/main.js' => 
     array (
@@ -579,18 +579,18 @@ return array (
     ),
     'includes/brand-brain.php' => 
     array (
-      'h' => 'd2ee3f5002b075a3a43b9672429e6880',
-      's' => 42131,
+      'h' => '10862627109e22769a81d1d2efeb3e95',
+      's' => 43815,
     ),
     'includes/brand-kit.php' => 
     array (
-      'h' => '7fb59abc181780211629770425ffa002',
-      's' => 97424,
+      'h' => 'ee7e9a898c53df9de980d368e213b68b',
+      's' => 121692,
     ),
     'includes/campaign-flow.php' => 
     array (
-      'h' => '53144c0272cc33925949976aaa6ed772',
-      's' => 34308,
+      'h' => '761ee90d32bb45397a6859996526442e',
+      's' => 34307,
     ),
     'includes/config.sample.php' => 
     array (
@@ -634,8 +634,8 @@ return array (
     ),
     'includes/helpers.php' => 
     array (
-      'h' => '7e514335aa1f09e0980a3bd7f4311e9c',
-      's' => 27418,
+      'h' => '27e0f4bcb57a247706a97d7acbbd46da',
+      's' => 27752,
     ),
     'includes/integrations.php' => 
     array (
@@ -684,8 +684,8 @@ return array (
     ),
     'includes/plan-functions.php' => 
     array (
-      'h' => '0f36642907623bcffe7cab12bebfb3ad',
-      's' => 16831,
+      'h' => '2b54903ef2fbfa4f8e7eb6d55b1efc67',
+      's' => 16535,
     ),
     'includes/plans.php' => 
     array (
@@ -699,8 +699,8 @@ return array (
     ),
     'includes/prompt-builder.php' => 
     array (
-      'h' => '7d1f186199bfb534d27d3a35cd5a0389',
-      's' => 13862,
+      'h' => '4b7ae87df127908c5bb106025d830445',
+      's' => 14299,
     ),
     'includes/rate-limit.php' => 
     array (
@@ -714,8 +714,8 @@ return array (
     ),
     'includes/research.php' => 
     array (
-      'h' => '120688fd7b30e3c1ede8072c8bf9edfc',
-      's' => 58894,
+      'h' => 'd983d0cd305b469b9a83a9dd1b85ccdf',
+      's' => 59601,
     ),
     'includes/safe-http.php' => 
     array (
@@ -764,8 +764,8 @@ return array (
     ),
     'includes/ui-v2.php' => 
     array (
-      'h' => 'b1b4c1f6cf6871ea95521c258bb2d092',
-      's' => 18910,
+      'h' => '0ece35111dd3894f888e9441347d1225',
+      's' => 19181,
     ),
     'includes/uploader.php' => 
     array (
@@ -799,13 +799,13 @@ return array (
     ),
     'public/ajax/analyze-visual-identity.php' => 
     array (
-      'h' => '8f5d8c0a7dc4497264958af17f858704',
-      's' => 7464,
+      'h' => 'b816e18463e93adc2aa3bebb58058ddf',
+      's' => 7792,
     ),
     'public/ajax/brand-agent.php' => 
     array (
-      'h' => '1187613954c628dd7d33171f7d002852',
-      's' => 11443,
+      'h' => '3276b91ccb17a64e7d6fed7054059e5d',
+      's' => 14382,
     ),
     'public/ajax/buy-package.php' => 
     array (
@@ -829,18 +829,18 @@ return array (
     ),
     'public/ajax/generate-content.php' => 
     array (
-      'h' => '5e9d3fbc5b2dbefb38d9ea0932434a52',
-      's' => 6275,
+      'h' => '376805b50033e5ea580e708d9357b609',
+      's' => 6334,
     ),
     'public/ajax/generate-design.php' => 
     array (
-      'h' => '1fd334158f0ae337e8db2fbf5f1a6a70',
-      's' => 18221,
+      'h' => '96172913b67d2b9c5d054282902396e6',
+      's' => 19671,
     ),
     'public/ajax/generate-logo.php' => 
     array (
-      'h' => '699bc4e4f263d33fa00608f8fde785a8',
-      's' => 3781,
+      'h' => 'afc33d0ea8f0dd0bc9b20256f2f359b2',
+      's' => 3940,
     ),
     'public/ajax/generate-plan-ideas.php' => 
     array (
@@ -849,8 +849,8 @@ return array (
     ),
     'public/ajax/generate-stream.php' => 
     array (
-      'h' => 'dbdf3960f20ff68eea0c55b09abdce91',
-      's' => 6190,
+      'h' => 'f3178f6c2f161c616ca49a498d724cb3',
+      's' => 6249,
     ),
     'public/ajax/plan-idea-action.php' => 
     array (
@@ -884,8 +884,8 @@ return array (
     ),
     'public/ajax/studio-design.php' => 
     array (
-      'h' => 'b4e795c475c1ba3c80932067f160d410',
-      's' => 20227,
+      'h' => '2cb38f37be276179d664e2f8aa911913',
+      's' => 20315,
     ),
     'public/ajax/studio-select.php' => 
     array (
@@ -919,13 +919,13 @@ return array (
     ),
     'public/api/brand-kit.php' => 
     array (
-      'h' => '8385cd06b651a2caba7580313f4e7d33',
-      's' => 35205,
+      'h' => 'a9e848f112050310c3fbb8232a0658cc',
+      's' => 45788,
     ),
     'public/api/brand.php' => 
     array (
-      'h' => '5a7de1b8d3f75e6da70d2671a82dad49',
-      's' => 9288,
+      'h' => 'd32a65f1bde9f834b045b624a6b28664',
+      's' => 9364,
     ),
     'public/api/campaign-flow.php' => 
     array (
@@ -964,8 +964,8 @@ return array (
     ),
     'public/api/studio.php' => 
     array (
-      'h' => '4ce3dfd5aeeedcf8159a8fd4c3167c0d',
-      's' => 30609,
+      'h' => 'acb7077755580ed17f8adfba953d0b41',
+      's' => 31255,
     ),
     'public/api/v1/_init.php' => 
     array (
@@ -974,8 +974,8 @@ return array (
     ),
     'public/api/v1/app.php' => 
     array (
-      'h' => 'a8e0a0c04c04d63b047a2a654d685075',
-      's' => 14952,
+      'h' => '08a15fe2cde8293dc6ce25e377a7db7f',
+      's' => 14969,
     ),
     'public/api/v1/auth.php' => 
     array (
@@ -1034,18 +1034,18 @@ return array (
     ),
     'public/brand-brain.php' => 
     array (
-      'h' => 'deb2d2c92e7b14df6bc7fec2eaff0404',
-      's' => 31471,
+      'h' => 'c55091554902ab8e512e4bf79b508a8b',
+      's' => 31638,
     ),
     'public/brand-kit.php' => 
     array (
-      'h' => '1e85f80a2a654f39df9e8554a9588398',
-      's' => 42318,
+      'h' => '3d950cedd1a1a1ae9591b0c2ecf6db41',
+      's' => 53533,
     ),
     'public/brand-profile.php' => 
     array (
-      'h' => '6811085e1c251a024228dcd2b16e18ea',
-      's' => 31050,
+      'h' => '28169719f3c9cc99da93b7966f09ee30',
+      's' => 31394,
     ),
     'public/campaign-export.php' => 
     array (
@@ -1099,8 +1099,8 @@ return array (
     ),
     'public/create-content.php' => 
     array (
-      'h' => '509df83c3c1b8d9e3f805583de868ae3',
-      's' => 18726,
+      'h' => '2d0a126786066abab14a449c96d667df',
+      's' => 19293,
     ),
     'public/credits.php' => 
     array (
@@ -1529,8 +1529,8 @@ return array (
     ),
     'templates/sidebar.php' => 
     array (
-      'h' => 'ad2c8497d3a613a821dc4f97b5d64b60',
-      's' => 6870,
+      'h' => 'dd19da5b41b7c9cb001dbf431975f5fc',
+      's' => 6955,
     ),
     'templates/style-ref-picker.php' => 
     array (
@@ -1554,8 +1554,8 @@ return array (
     ),
     'templates/v2/campaign.php' => 
     array (
-      'h' => 'f08285e18f370f693be71e2e77283089',
-      's' => 91154,
+      'h' => '11c62d3b3b78359abbfab051f07bfe9c',
+      's' => 91166,
     ),
     'templates/v2/contents.php' => 
     array (
@@ -1574,8 +1574,8 @@ return array (
     ),
     'templates/v2/research.php' => 
     array (
-      'h' => '26672f40affee9b181c0f81e049882b8',
-      's' => 44375,
+      'h' => '83e8dce8d615fd262c0ed0fe3b5d5c27',
+      's' => 44387,
     ),
     'templates/v2/settings.php' => 
     array (

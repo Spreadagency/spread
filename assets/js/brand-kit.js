@@ -14,10 +14,13 @@
       loading: true, busy: false, s: null, open: '', modal: null, toast: null,
       ed: null, prop: {}, regenText: {}, newTopic: {}, sugTopics: { sid: -1, list: [], pick: [] },
       fm: [], dragI: -1, svc: null, ch: null, versions: [],
-      createUrl: D.create, sourcesUrl: D.sources, brainUrl: D.brain,
-      onb: { step: 1, url: '', linkDone: false, answers: {}, more: {}, draft: null, conf: {}, pick: {}, skip: false },
+      createUrl: D.create, sourcesUrl: D.sources, brainUrl: D.brain, base: D.base,
+      bs: {}, sugMore: false, inspLink: '', srcUrl: '', gen: { style: 0, look: '' },
+      genLooks: ['راجل', 'ست', 'شاب', 'في الأربعينات', 'نضارة', 'بالطو أبيض', 'لبس كاجوال', 'محجبة', 'ابتسامة واثقة', 'ستايل كرتوني 3D'],
+      onb: { step: 1, url: '', linkDone: false, answers: {}, more: {}, draft: null, conf: {}, pick: {}, facts: [], skip: false },
 
       contentSections: [
+        { key: 'basics', label: 'الأساسيات والتواصل', icon: '🪪' },
         { key: 'business', label: 'النشاط والجمهور', icon: '🏷' },
         { key: 'services', label: 'الخدمات والمواضيع', icon: '🧩' },
         { key: 'voice', label: 'طريقة الكلام', icon: '🗣' },
@@ -30,6 +33,7 @@
         { key: 'colors', label: 'الألوان والاستايل', icon: '🎨' },
         { key: 'visuals', label: 'طبيعة الصور', icon: '📷' },
         { key: 'characters', label: 'الشخصيات الثابتة', icon: '🧑' },
+        { key: 'inspiration', label: 'تصميمات بتعجبك', icon: '💡' },
       ],
       questions: [
         { key: 'goal', label: 'هدفك الأساسي من السوشيال؟', options: ['حجوزات', 'مبيعات', 'انتشار', 'ثقة', 'تفاعل'], multi: false, ph: 'مثلًا: عايز حجوزات أكتر يوم الجمعة' },
@@ -81,6 +85,7 @@
 
       set: function (state) {
         this.s = state;
+        this.bs = Object.assign({}, state.basics || {});
         var k = clone(state.kit);
         k.voice.words_use_t = (k.voice.words_use || []).join('\n');
         k.voice.words_avoid_t = (k.voice.words_avoid || []).join('\n');
@@ -119,8 +124,8 @@
       },
       openMissing: function () {
         var m = this.s.completeness.missing[0];
-        var map = { topics: 'services', personality: 'business', audience: 'business', design_style: 'colors' };
-        this.toggle(map[m.key] || m.key);
+        this.open = '';
+        this.toggle(m.section || m.key);
       },
       secGroup: { business: ['business', 'audience', 'personality'], pillars: ['pillars', 'content'], services: ['services', 'topics'] },
       isUnsure: function (k) {
@@ -144,7 +149,9 @@
           case 'logo': return this.s.logo_url ? 'موجود · ' + this.logoPos[d.logo.position] : 'مفيش لوجو';
           case 'colors': return d.colors.primary ? [d.colors.primary, d.colors.secondary].filter(Boolean).join(' ') : 'اختار ألوانك';
           case 'visuals': return d.visuals.kind ? this.vKinds[d.visuals.kind] : 'إزاي صورك تبان';
-          case 'characters': return this.s.characters.length ? this.s.characters.length + ' شخصية' : 'شخصيات بتتكرر في المحتوى';
+          case 'characters': return this.s.characters.length ? this.s.characters.length + ' شخصية' : 'صورتك أو شخصية/ماسكوت بالـ AI';
+          case 'inspiration': return this.s.insp.length ? this.s.insp.length + ' تصميم' : 'صور أو لينكات لتصميمات عاجباك';
+          case 'basics': return [this.s.basics.phones || this.s.basics.whatsapp, this.s.basics.address].filter(Boolean).join(' · ') || 'الاسم والتواصل والسوشيال';
         }
         return '';
       },
@@ -298,6 +305,7 @@
         ev.target.value = '';
         if (!r || !r.ok) return this.fail(r);
         this.set(r.state); this.syncChar(); this.say('الصورة اترفعت ✓');
+        if (this.ch.type === 'real_person' && this.ch.images.length < 3) this.say('اترفعت ✓ — ارفع ' + (3 - this.ch.images.length) + ' كمان علشان الملامح تثبت');
       },
       charPrimary: async function (im) { if (await this.post('character_primary', { image_id: im.id })) this.syncChar(); },
       charImgDel: async function (im) { if (confirm('تحذف الصورة؟') && await this.post('character_image_delete', { image_id: im.id })) this.syncChar(); },
@@ -317,7 +325,93 @@
       },
       restore: async function (v) { if (confirm('ترجع للنسخة ' + v + '؟ (النسخة الحالية هتفضل محفوظة)') && await this.post('version_restore', { version: v }, 'رجعنا للنسخة ' + v)) this.modal = null; },
 
-      decide: function (g, acc) { this.post('suggestion', { id: g.id, accept: acc }, acc ? 'اتحدّثت هويتك ✓' : 'تمام، مش هنغيّرها'); },
+      decide: async function (g, acc) {
+        if (g.kind === 'fact') {
+          this.busy = true;
+          var r = await A.post('brand', 'decide', { id: g.id, decision: acc ? 'apply' : 'reject' });
+          this.busy = false;
+          if (!r.ok) return this.fail(r);
+          this.say(acc ? 'اتضافت لهويتك ✓' : 'تمام');
+          return this.load();
+        }
+        this.post('suggestion', { id: g.id, accept: acc }, acc ? 'اتحدّثت هويتك ✓' : 'تمام، مش هنغيّرها');
+      },
+
+      /* الأساسيات والتواصل: نفس حقول Brand Brain (save_field) — المتغير بس */
+      saveBasics: async function () {
+        var changed = Object.keys(this.bs).filter(function (k) { return k !== 'design_rules'; }).filter((function (k) { return String(this.bs[k] || '') !== String(this.s.basics[k] || ''); }).bind(this));
+        if (!changed.length) return this.say('مفيش تغيير');
+        this.busy = true;
+        for (var i = 0; i < changed.length; i++) {
+          var r = await A.post('brand', 'save_field', { field: changed[i], value: this.bs[changed[i]] || '' });
+          if (!r.ok) { this.busy = false; return this.fail(r); }
+        }
+        this.busy = false;
+        this.say('اتحفظ ✓');
+        this.load();
+      },
+      upload: async function (endpoint, data, file, field) {
+        var fd = new FormData();
+        Object.keys(data).forEach(function (k) { fd.append(k, data[k]); });
+        fd.append(field, file);
+        fd.append('csrf', (document.querySelector('meta[name="csrf-token"]') || {}).content || '');
+        this.busy = true;
+        var r = null;
+        try { r = await (await fetch(D.base + '/api/' + endpoint + '.php', { method: 'POST', body: fd, credentials: 'same-origin' })).json(); } catch (e) { r = null; }
+        this.busy = false;
+        return r || { ok: false, error: 'مشكلة في الاتصال' };
+      },
+      logoUpload: async function (ev) {
+        var f = ev.target.files && ev.target.files[0]; if (!f) return;
+        var r = await this.upload('brand', { action: 'upload_logo' }, f, 'logo');
+        ev.target.value = '';
+        if (!r.ok) return this.fail(r);
+        this.say('اللوجو اترفع ✓'); this.load();
+      },
+      logoColors: async function () {
+        this.busy = true;
+        var r = await A.post('brand', 'logo_colors', {});
+        this.busy = false;
+        if (!r.ok) return this.fail(r);
+        this.say('طلّعنا ألوان اللوجو — هتلاقيها في الاقتراحات فوق'); this.load();
+      },
+      inspAdd: async function () {
+        this.busy = true;
+        var r = await A.post('brand', 'insp_link', { url: this.inspLink });
+        this.busy = false;
+        if (!r.ok) return this.fail(r);
+        this.inspLink = ''; this.say('اتضاف ✓'); this.load();
+      },
+      inspUpload: async function (ev) {
+        var f = ev.target.files && ev.target.files[0]; if (!f) return;
+        var r = await this.upload('brand', { action: 'insp_upload' }, f, 'file');
+        ev.target.value = '';
+        if (!r.ok) return this.fail(r);
+        this.say('اتضاف ✓'); this.load();
+      },
+      inspDel: async function (it) {
+        if (!confirm('تشيل التصميم ده؟')) return;
+        var r = await A.post('brand', 'insp_delete', { id: it.id });
+        if (!r.ok) return this.fail(r);
+        this.load();
+      },
+      analyzeSrc: async function () {
+        this.busy = true;
+        var r = await A.post('brand', 'analyze_url', { url: this.srcUrl });
+        this.busy = false;
+        if (!r.ok) return this.fail(r);
+        this.srcUrl = ''; this.say('قرينا اللينك ✓ — راجع الاقتراحات فوق'); this.load();
+      },
+      srcToggle: async function (d) {
+        var r = await A.post('brand-kit', 'source_toggle', { id: d.id });
+        if (!r.ok) return this.fail(r);
+        this.s.sources = r.sources;
+      },
+      charGen: async function (mode) {
+        if (!this.ch.id) return this.say('احفظ الشخصية الأول', 'danger');
+        var r = await this.post('character_generate', { id: this.ch.id, mode: mode, look: this.gen.look, style_preset_id: this.gen.style || 0 }, 'الصورة جاهزة ✓');
+        if (r) { this.syncChar(); this.gen.look = ''; }
+      },
 
       /* Onboarding */
       onbHas: function (k, o) { var a = this.onb.answers[k]; return Array.isArray(a) ? a.indexOf(o) > -1 : a === o; },
@@ -329,8 +423,8 @@
       },
       analyzeLink: async function () {
         this.busy = true;
+        // مفيش تطبيق تلقائي: اللي اتقرا من الصفحة بيظهر في المراجعة والعميل يختار
         var r = await A.post('brand', 'analyze_url', { url: this.onb.url });
-        if (r.ok) await A.post('brand', 'apply_all', {});
         this.busy = false;
         if (!r.ok) return this.fail(r);
         this.onb.linkDone = true;
@@ -351,13 +445,19 @@
         var pick = {};
         this.draftSections.forEach(function (sec) { pick[sec.key] = true; });
         this.onb.pick = pick;
+        this.onb.facts = (r.facts || []).map(function (f) { f.on = f.confidence >= 75; return f; });
         this.onb.step = 3;
       },
       applyDraft: async function () {
         var me = this, secs = Object.keys(this.onb.pick).filter(function (k) { return me.onb.pick[k]; });
         var unsure = secs.filter(function (k) { return (me.onb.conf[k] !== undefined) && me.onb.conf[k] < 0.7; });
+        // اقتراحات اللينك اللي العميل علّم عليها ← تتطبق على البيانات الأساسية (الباقي يفضل في صندوق الاقتراحات)
+        var facts = (this.onb.facts || []).filter(function (f) { return f.on; });
+        this.busy = true;
+        for (var i = 0; i < facts.length; i++) await A.post('brand', 'decide', { id: facts[i].id, decision: 'apply' });
+        this.busy = false;
         var r = await this.post('apply_draft', { draft: this.onb.draft, sections: secs, unsure: unsure }, 'هويتك جاهزة 🎉');
-        if (r) { this.onb = Object.assign(this.onb, { step: 1, draft: null, skip: true }); }
+        if (r) { this.onb = Object.assign(this.onb, { step: 1, draft: null, facts: [], skip: true }); }
       },
     };
 

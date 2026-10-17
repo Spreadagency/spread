@@ -12,7 +12,14 @@ import { qk } from '@/lib/queries';
 import { colors, radius } from '@/theme/tokens';
 
 type Field = { key: string; label: string; group: string; weight: number; question: string; value: string; filled: boolean };
-type Brand = { id: number; name: string; health: { pct: number; gate: number; unlocked: boolean }; fields: Field[] };
+type Missing = { key: string; label: string; section?: string };
+type Brand = {
+  id: number;
+  name: string;
+  health: { pct: number; gate: number; unlocked: boolean; missing?: Missing[] };
+  fields: Field[];
+  kit?: { on: boolean; page: string } | null;
+};
 
 const GROUPS: Record<string, string> = { basic: 'الأساسيات', audience: 'الجمهور والخدمات', style: 'الأسلوب', visual: 'الهوية البصرية', contact: 'التواصل', links: 'الروابط' };
 const MULTILINE = new Set(['description', 'audience', 'services', 'keywords_use', 'address', 'working_hours']);
@@ -83,7 +90,17 @@ export default function BrandScreen() {
             <AppText variant="caption">
               {b.health.unlocked ? 'هويتك جاهزة — المحتوى بيطلع بأسلوب براندك ✓' : `كمّل لحد ${b.health.gate}% علشان تفتح كتابة المنشورات من الأفكار.`}
             </AppText>
+            {b.kit?.on && b.health.missing?.length ? (
+              <AppText variant="caption">ناقص: {b.health.missing.slice(0, 4).map((m) => m.label).join('، ')}</AppText>
+            ) : null}
           </Card>
+          {b.kit?.on ? (
+            <Card style={{ gap: 8 }}>
+              <AppText variant="label">الخدمات وطريقة الكلام والتصميم والشخصيات والتصميمات اللي عاجباك</AppText>
+              <AppText variant="caption">دي كلها في صفحة «هوية البراند» على الموقع — نفس الهوية اللي هنا، وأي تعديل هنا بيوصل هناك.</AppText>
+              <Button title="افتح هوية البراند كاملة" icon="external-link" kind="secondary" size="sm" onPress={() => void openOnWebsite(b.kit!.page)} />
+            </Card>
+          ) : null}
           {groups.map((g) => (
             <Card key={g} style={{ gap: 14 }}>
               <SectionTitle title={GROUPS[g]} />
@@ -121,7 +138,9 @@ export default function BrandScreen() {
                 )}
             </Card>
           ))}
-          <Button title="مصادر البراند وتحليل الموقع (على الموقع)" kind="ghost" icon="external-link" onPress={() => void openOnWebsite('brand-brain.php')} />
+          {b.kit?.on ? null : (
+            <Button title="مصادر البراند وتحليل الموقع (على الموقع)" kind="ghost" icon="external-link" onPress={() => void openOnWebsite('brand-brain.php')} />
+          )}
         </>
       ) : null}
     </Screen>

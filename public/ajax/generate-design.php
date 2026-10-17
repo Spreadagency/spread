@@ -166,6 +166,26 @@ if (bk_enabled() && !empty($content['bk_character_id']) && ($_POST['design_edit'
             $refLog[] = ['role' => 'character', 'path' => $__img['image_path']];
             $inputImages[] = ['uri' => $__uri, 'role' => "the brand's recurring CHARACTER «" . $__ch['name'] . "» — show this exact person/character with the SAME face, features, hairstyle and outfit (do not change identity)."];
             $bkDesignBrief['character_desc'] = trim($__ch['name'] . ($__ch['role'] ? ' (' . $__ch['role'] . ')' : '') . '. ' . (string) $__ch['description']);
+            // شخص واحد بس في التصميم: الشخصية الثابتة بدل الصورة الشخصية القديمة
+            foreach ($refLog as $__i => $__r) {
+                if (($__r['role'] ?? '') === 'personal') { unset($refLog[$__i], $inputImages[$__i]); }
+            }
+            $refLog = array_values($refLog);
+            $inputImages = array_values($inputImages);
+        }
+    }
+}
+
+// «تصميمات بتعجبك» من الهوية: مرجع استايل خفيف لو العميل ماختارش مرجع
+$__inspUri = null;
+if (bk_enabled() && !$sourceImagePath && !$externalStyleUri && ($_POST['design_edit'] ?? '') !== '1') {
+    $__ds = bk_get((int) $user['id'])['data']['design_style'];
+    if (!empty($__ds['use_inspirations'])) {
+        $__ins = db_one('SELECT image_path FROM brand_inspirations WHERE brand_profile_id = ? AND image_path IS NOT NULL ORDER BY RAND() LIMIT 1', [(int) $brand['id']]);
+        $__inspUri = $__ins ? image_data_uri($__ins['image_path']) : null;
+        if ($__inspUri) {
+            $refLog[] = ['role' => 'inspiration', 'path' => $__ins['image_path']];
+            $inputImages[] = ['uri' => $__inspUri, 'role' => "a design the client LIKES — take only mood, color harmony, typography feel and composition cues from it. Do NOT copy its content, text, people or logo."];
         }
     }
 }
@@ -192,14 +212,18 @@ if (count($inputImages) > 4) {
 
 // ═══ بناء برومبت التصميم من الهوية ═══
 $identity = [];
+$__bkDesign = bk_brand_block($brand + ['user_id' => (int) $user['id']], 'design', $bkDesignBrief ? $bkDesignBrief + ['service' => '', 'topic' => ''] : null);
+if ($__bkDesign !== null) {
+    $identityBlock = $__bkDesign . "\n";
+} else {
 $identity[] = 'Brand: ' . ($brand['business_name'] ?? '');
 if (!empty($brand['industry'])) $identity[] = 'Industry: ' . $brand['industry'];
 if (!empty($brand['colors']))   $identity[] = 'BRAND COLORS (primary palette): ' . $brand['colors'];
 if (!empty($brand['design_rules'])) $identity[] = 'DESIGN RULES from the client (must follow strictly): ' . $brand['design_rules'];
 if (!empty($brand['visual_identity'])) $identity[] = 'VISUAL IDENTITY GUIDE (follow these style rules precisely): ' . mb_substr($brand['visual_identity'], 0, 1500);
 if (!empty($brand['ai_summary'])) $identity[] = 'Brand identity summary: ' . mb_substr($brand['ai_summary'], 0, 700);
-$identityBlock = implode("\n", $identity) . "\n"
-    . ltrim(bk_prompt_block((int) $user['id'], 'design', $bkDesignBrief ? $bkDesignBrief + ['service' => '', 'topic' => ''] : null)) . "\n";
+$identityBlock = implode("\n", $identity) . "\n";
+}
 
 if ($format === 'carousel' && $slide) {
     $pos = $slideNo === 1 ? 'the COVER slide (strong hook, invites swiping)' : ($slideNo === $slidesTotal ? 'the LAST slide (clear call-to-action)' : 'a middle slide');

@@ -19,7 +19,7 @@ bk_get((int) $user['id']);
 
 $__v2 = function_exists('ui_v2_enabled') && ui_v2_enabled();
 $active = 'brand-kit';
-$page_title = 'مركز الهوية';
+$page_title = 'هوية البراند';
 $use_app = true;
 $body_class = 'bk-page';
 include __DIR__ . '/../templates/header.php';
@@ -47,7 +47,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     <b>{{ s.completeness.pct }}<small>%</small></b><span>اكتمال الهوية</span>
                 </div>
                 <div class="bk-hero-txt">
-                    <h1>مركز الهوية</h1>
+                    <h1>هوية البراند</h1>
                     <p v-if="s.completeness.missing.length">أهم حاجة ناقصة: <b>{{ s.completeness.missing[0].label }}</b></p>
                     <p v-else>هويتك كاملة ✓ — كل بوست هيطلع بيها.</p>
                     <div class="bk-hero-act">
@@ -64,13 +64,15 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                 <button class="bk-chip ghost" @click="loadVersions()">النسخ السابقة</button>
             </div>
 
-            <!-- ═══ «اتعلمنا من تعديلاتك» ═══ -->
+            <!-- ═══ صندوق الاقتراحات (من اللينك · الملفات · البحث · اللوجو · تعديلاتك) ═══ -->
             <section v-if="s.suggestions.length" class="bk-card bk-learn">
-                <h2>💡 اتعلمنا من تعديلاتك</h2>
-                <div v-for="g in s.suggestions" :key="g.id" class="bk-sug">
-                    <p>{{ g.message }}</p>
-                    <div><button class="bk-btn pri sm" @click="decide(g, 1)">أيوه، غيّرها</button><button class="bk-btn sm" @click="decide(g, 0)">لأ</button></div>
+                <h2>💡 اقتراحات لهويتك <small class="bk-mute">({{ s.suggestions.length }})</small></h2>
+                <p class="bk-mute" style="margin:2px 0 6px">مفيش حاجة بتتغيّر في هويتك غير لما توافق.</p>
+                <div v-for="g in s.suggestions.slice(0, sugMore ? 50 : 4)" :key="g.kind + g.id" class="bk-sug">
+                    <p><span class="bk-pill">{{ g.source }}</span> {{ g.message }}<span v-if="g.value" class="bk-sug-v">{{ g.value }}</span></p>
+                    <div><button class="bk-btn pri sm" :disabled="busy" @click="decide(g, 1)">{{ g.kind === 'fact' ? 'ضيفها' : 'أيوه، غيّرها' }}</button><button class="bk-btn sm" :disabled="busy" @click="decide(g, 0)">لأ</button></div>
                 </div>
+                <button v-if="s.suggestions.length > 4" class="bk-link" @click="sugMore = !sugMore">{{ sugMore ? 'أقل' : 'كل الاقتراحات (' + s.suggestions.length + ')' }}</button>
             </section>
 
             <!-- ═══ Onboarding: ابدأ في 3 خطوات ═══ -->
@@ -115,6 +117,13 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <input type="checkbox" v-model="onb.pick[sec.key]">
                         <span><b>{{ sec.label }}</b><span v-if="(onb.conf[sec.key] ?? 1) < 0.7" class="bk-warn">مش متأكدين — راجع</span><br><small>{{ sec.text }}</small></span>
                     </label>
+                    <div v-if="onb.facts && onb.facts.length" class="bk-facts">
+                        <h3>اللي لقيناه في صفحتك <small class="bk-mute">— علّم على الصح</small></h3>
+                        <label v-for="f in onb.facts" :key="f.id" class="bk-draft" :class="{unsure: f.confidence < 75}">
+                            <input type="checkbox" v-model="f.on">
+                            <span><b>{{ f.label }}</b> <small class="bk-mute">· {{ f.source }}</small><span v-if="f.confidence < 75" class="bk-warn">مش متأكدين</span><br><small>{{ f.value }}</small></span>
+                        </label>
+                    </div>
                     <div class="bk-row end"><button class="bk-btn ghost" @click="onb.step = 1">رجوع</button><button class="bk-btn pri" :disabled="busy" @click="applyDraft()">احفظ الهوية</button></div>
                 </div>
             </section>
@@ -129,6 +138,38 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     </button>
                     <div v-if="open === sec.key" class="bk-sec-b">
                         <div v-if="isUnsure(sec.key)" class="bk-unsure">الـ AI مش متأكد من القسم ده. <button class="bk-btn sm" @click="confirmSec(sec.key)">تمام، أكّد</button></div>
+
+                        <!-- الأساسيات والتواصل (نفس بيانات Brand Brain) -->
+                        <div class="bk-tpl" v-if="sec.key === 'basics'">
+                            <div class="bk-two">
+                                <label class="bk-f">اسم النشاط<input class="bk-in" v-model="bs.business_name"></label>
+                                <label class="bk-f">المجال<input class="bk-in" v-model="bs.industry" placeholder="مثلًا: عيادة أسنان"></label>
+                            </div>
+                            <div class="bk-sector">
+                                <span>القطاع: <b>{{ s.sector ? s.sector.name : 'من غير قالب' }}</b><small v-if="s.sector && s.sector_auto" class="bk-mute"> — اتعرف تلقائي من مجالك</small></span>
+                                <select class="bk-in xs" style="width:auto" :value="s.sector ? s.sector.id : ''" @change="setSector($event.target.value)" aria-label="اختار القطاع">
+                                    <option value="">— من غير قالب —</option><option v-for="x in s.sectors" :value="x.id">{{ x.name }}</option></select>
+                                <button v-if="s.sector && s.sector_auto" class="bk-link" @click="post('sector_confirm', {}, 'تمام ✓')">صح</button>
+                            </div>
+                            <label class="bk-f">وصف النشاط في جملتين<textarea class="bk-in" rows="2" v-model="bs.description"></textarea></label>
+                            <div class="bk-two">
+                                <label class="bk-f">أرقام التواصل<input class="bk-in" dir="ltr" v-model="bs.phones" placeholder="01xxxxxxxxx"></label>
+                                <label class="bk-f">واتساب<input class="bk-in" dir="ltr" v-model="bs.whatsapp" placeholder="2010xxxxxxxx"></label>
+                                <label class="bk-f">العنوان<input class="bk-in" v-model="bs.address"></label>
+                                <label class="bk-f">مواعيد العمل<input class="bk-in" v-model="bs.working_hours" placeholder="يوميًا 12 الضهر لـ 12 بالليل"></label>
+                            </div>
+                            <details class="bk-adv"><summary>الموقع والسوشيال</summary>
+                                <div class="bk-two">
+                                    <label class="bk-f">الموقع<input class="bk-in" dir="ltr" v-model="bs.website" placeholder="https://"></label>
+                                    <label class="bk-f">فيسبوك<input class="bk-in" dir="ltr" v-model="bs.social_facebook"></label>
+                                    <label class="bk-f">انستجرام<input class="bk-in" dir="ltr" v-model="bs.social_instagram"></label>
+                                    <label class="bk-f">تيك توك<input class="bk-in" dir="ltr" v-model="bs.social_tiktok"></label>
+                                    <label class="bk-f">لينكدإن<input class="bk-in" dir="ltr" v-model="bs.social_linkedin"></label>
+                                </div>
+                            </details>
+                            <p class="bk-mute">بيانات التواصل بتتحط في الـ CTA بس لما تكون مناسبة — والـ AI مابيخترعش أرقام.</p>
+                            <button class="bk-btn pri" :disabled="busy" @click="saveBasics()">حفظ</button>
+                        </div>
 
                         <!-- الخدمات والمواضيع -->
                         <div class="bk-tpl" v-if="sec.key === 'services'">
@@ -303,7 +344,8 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <!-- اللوجو -->
                         <div class="bk-tpl" v-if="sec.key === 'logo'">
                             <div class="bk-logo"><img v-if="s.logo_url" :src="s.logo_url" alt="اللوجو"><span v-else class="bk-mute">مفيش لوجو لسه</span>
-                                <a class="bk-btn sm" :href="brainUrl">{{ s.logo_url ? 'غيّر اللوجو' : 'ارفع اللوجو' }}</a></div>
+                                <label class="bk-btn sm"><input type="file" accept="image/png,image/jpeg,image/webp" hidden @change="logoUpload($event)">{{ s.logo_url ? 'غيّر اللوجو' : 'ارفع اللوجو' }}</label>
+                                <button v-if="s.logo_url" class="bk-btn sm ghost" :disabled="busy" @click="logoColors()">🎨 ألوانه</button></div>
                             <div class="bk-lbl">مكان اللوجو في التصميم</div>
                             <div class="bk-chips"><button v-for="(l, k) in logoPos" class="bk-chip" :class="{on: ed.logo.position === k}" @click="ed.logo.position = k; saveSec('logo', ed.logo)">{{ l }}</button></div>
                         </div>
@@ -370,6 +412,44 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                                 </div>
                             </div>
                             <button class="bk-btn" @click="editChar(null)">+ شخصية</button>
+                            <p class="bk-mute" style="margin-top:8px">ارفع صور لشخص حقيقي (بموافقته)، أو ابني شخصية أو ماسكوت بالـ AI — الصورة الأساسية بتبقى مرجع ثابت لملامحها في كل التصميمات.</p>
+                        </div>
+
+                        <!-- تصميمات بتعجبك -->
+                        <div class="bk-tpl" v-if="sec.key === 'inspiration'">
+                            <p class="bk-mute">ارفع صور أو حط لينكات (Behance · Pinterest · إنستجرام · صورة) لتصميمات عاجباك — بنستلهم منها الإحساس والألوان والتكوين (من غير ما ننسخها).</p>
+                            <div class="bk-imgs insp">
+                                <div v-for="it in s.insp" :key="it.id" class="bk-img">
+                                    <img v-if="it.img" :src="it.img" alt=""><a v-else :href="it.link" target="_blank" rel="noopener nofollow" class="bk-insp-link">🔗 {{ it.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 28) }}</a>
+                                    <button @click="inspDel(it)" aria-label="حذف">×</button>
+                                </div>
+                                <label v-if="s.insp.length < s.insp_max" class="bk-img add"><input type="file" accept="image/png,image/jpeg,image/webp" @change="inspUpload($event)" hidden>+ صورة</label>
+                            </div>
+                            <div class="bk-row"><input class="bk-in" dir="ltr" v-model="inspLink" placeholder="لينك تصميم عاجبك…" @keyup.enter="inspAdd()"><button class="bk-btn sm" :disabled="busy || !inspLink" @click="inspAdd()">إضافة</button></div>
+                            <label class="bk-check"><input type="checkbox" v-model="ed.design_style.use_inspirations" @change="saveSec('design_style', Object.assign({}, ed.design_style, {avoid: lines(ed.design_style.avoid_t)}), 'اتحفظ ✓')"> استخدمها كمرجع للاستايل في التصميمات لما مايكونش فيه مرجع مختار</label>
+                        </div>
+                    </div>
+                </article>
+
+                <h2 class="bk-gt">المصادر</h2>
+                <article class="bk-card bk-sec" :class="{open: open === 'sources'}" id="bk-sources">
+                    <button class="bk-sec-h" @click="toggle('sources')" :aria-expanded="open === 'sources'">
+                        <span class="ic">📚</span><span class="t"><b>اللينكات والمستندات والبحث</b><small>{{ s.sources.length }} مستند · اللي الـ AI بيتعلم منه عن نشاطك</small></span><span class="ar">⌄</span>
+                    </button>
+                    <div v-if="open === 'sources'" class="bk-sec-b">
+                        <div class="bk-lbl">حلّل لينك (موقعك · صفحتك · منيو)</div>
+                        <div class="bk-row"><input class="bk-in" dir="ltr" v-model="srcUrl" placeholder="https://"><button class="bk-btn sm" :disabled="busy || !srcUrl" @click="analyzeSrc()">حلّل <span class="cr" v-if="s.analyze_cost">· {{ s.analyze_cost }}</span></button></div>
+                        <p class="bk-mute">اللي بنلاقيه بيظهر في «اقتراحات لهويتك» فوق — وانت اللي بتوافق.</p>
+                        <div class="bk-lbl">المستندات <small>(علّم على اللي يدخل في المحتوى)</small></div>
+                        <div v-for="d in s.sources" :key="d.id" class="bk-src">
+                            <span>{{ d.type === 'link' ? '🔗' : '📄' }} {{ d.title }}</span>
+                            <label class="bk-sw" :title="d.use ? 'بيدخل في المحتوى' : 'مش بيدخل'"><input type="checkbox" :checked="d.use" @change="srcToggle(d)"><span></span></label>
+                        </div>
+                        <p v-if="!s.sources.length" class="bk-mute">مفيش مستندات لسه.</p>
+                        <div class="bk-row">
+                            <a class="bk-btn sm" :href="sourcesUrl">📄 ارفع ملف</a>
+                            <a v-if="s.research" class="bk-btn sm" :href="base + '/research.php'">🔬 بحث عميق عن السوق</a>
+                            <a class="bk-btn sm" :href="base + '/brand-agent.php'">🤖 اتكلم مع مساعد الهوية</a>
                         </div>
                     </div>
                 </article>
@@ -380,7 +460,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                 <div class="bk-sheet">
                     <button class="bk-x" @click="modal = null" aria-label="إغلاق">×</button>
 
-                    <div class="bk-tpl" v-if="modal === 'service'">
+                    <div class="bk-tpl" v-if="modal === 'service' && svc">
                         <h3>{{ svc.id ? 'تعديل الخدمة' : 'خدمة جديدة' }}</h3>
                         <label class="bk-f">اسم الخدمة<input class="bk-in" v-model="svc.name"></label>
                         <label class="bk-f">وصف ومميزات (اختياري)<textarea class="bk-in" rows="3" v-model="svc.description"></textarea></label>
@@ -392,7 +472,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <div class="bk-row end"><button v-if="svc.id" class="bk-btn danger" @click="delService()">حذف</button><button class="bk-btn pri" :disabled="busy" @click="saveService()">حفظ</button></div>
                     </div>
 
-                    <div class="bk-tpl" v-if="modal === 'character'">
+                    <div class="bk-tpl" v-if="modal === 'character' && ch">
                         <h3>{{ ch.id ? 'تعديل الشخصية' : 'شخصية جديدة' }}</h3>
                         <div class="bk-chips"><button v-for="(l, k) in charTypes" class="bk-chip" :class="{on: ch.type === k}" @click="ch.type = k">{{ l }}</button></div>
                         <div class="bk-two">
@@ -410,7 +490,18 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <div class="bk-imgs">
                                 <div v-for="im in ch.images" :key="im.id" class="bk-img" :class="{pri: +im.is_primary}">
                                     <img :src="im.url" alt=""><button @click="charPrimary(im)" title="الأساسية">★</button><button @click="charImgDel(im)" aria-label="حذف">×</button></div>
-                                <label v-if="ch.images.length < 8" class="bk-img add"><input type="file" accept="image/png,image/jpeg,image/webp" @change="charUpload($event)" hidden>+ صورة</label>
+                                <label v-if="ch.images.length < 8" class="bk-img add"><input type="file" accept="image/png,image/jpeg,image/webp" @change="charUpload($event)" hidden>+ ارفع صورة</label>
+                            </div>
+                            <div v-if="ch.type !== 'real_person'" class="bk-gen">
+                                <div class="bk-lbl">✨ أو ابنيها بالـ AI</div>
+                                <div class="bk-chips"><button v-for="p in presets('character_style')" class="bk-chip" :class="{on: +gen.style === +p.id}" @click="gen.style = +gen.style === +p.id ? 0 : p.id">{{ p.name }}</button></div>
+                                <div class="bk-chips"><button v-for="x in genLooks" class="bk-chip ghost" @click="gen.look = (gen.look ? gen.look + '، ' : '') + x">+ {{ x }}</button></div>
+                                <textarea class="bk-in" rows="2" v-model="gen.look" placeholder="الملامح واللبس والإحساس (لو الوصف فوق مش كفاية)"></textarea>
+                                <div class="bk-row">
+                                    <button class="bk-btn sm ai" :disabled="busy" @click="charGen('new')">{{ ch.images.length ? 'ولّد صورة جديدة' : 'ابنيها' }} <span class="cr" v-if="s.costs.character">· {{ s.costs.character }}</span></button>
+                                    <button v-if="ch.images.length" class="bk-btn sm ghost" :disabled="busy" @click="charGen('variation')">نفس الملامح في وضع تاني</button>
+                                </div>
+                                <small class="bk-mute">الصورة اللي عليها ★ هي الأساس — كل التصميمات بتحافظ على نفس ملامحها.</small>
                             </div>
                         </div>
                         <p v-else class="bk-mute">احفظ الأول وبعدين ارفع الصور المرجعية.</p>
@@ -428,7 +519,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                 </div>
             </div>
 
-            <div v-if="toast" class="bk-toast" :class="toast.type" role="status">{{ toast.msg }}</div>
+            <div v-if="toast" class="bk-toast" :class="toast && toast.type" role="status">{{ toast && toast.msg }}</div>
             </div>
         </div>
     </main>

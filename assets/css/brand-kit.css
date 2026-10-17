@@ -214,3 +214,15 @@ textarea.bk-in { resize: vertical; line-height: 1.7; }
   .bk-imgs { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) { .bk * { transition: none !important; } }
+
+/* الدمج: الاقتراحات الموحّدة · الأساسيات · المصادر · الإلهام · بناء الشخصية */
+.bk-sug-v { display: block; margin-top: 4px; font-size: 12.5px; color: var(--bk-mute); background: var(--bk-soft); border-radius: 8px; padding: 4px 8px; white-space: pre-line; }
+.bk-sector { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: var(--bk-soft); font-size: 13px; margin: 4px 0 8px; }
+.bk-src { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--bk-line); font-size: 13.5px; }
+.bk-src span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-gen { margin-top: 10px; padding: 12px; border-radius: 14px; border: 1.5px dashed #BFE3FF; background: #F7FBFF; }
+.bk-imgs.insp .bk-img button { left: 4px; right: auto; }
+.bk-insp-link { display: flex; align-items: center; justify-content: center; height: 100%; padding: 6px; font-size: 11.5px; text-align: center; background: var(--bk-soft); color: var(--bk-pri-2); word-break: break-all; text-decoration: none; }
+.bk-facts { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--bk-line); }
+.bk-facts h3 { font-size: 15px; margin-bottom: 4px; }
+label.bk-btn { cursor: pointer; }

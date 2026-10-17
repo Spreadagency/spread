@@ -549,6 +549,10 @@ function trial_claim(int $userId): ?int
         }
 
         db_run('UPDATE trial_sessions SET claimed_user_id = ?, claimed_at = NOW() WHERE id = ?', [$userId, $t['id']]);
+        if (is_file(__DIR__ . '/brand-brain.php')) {
+            require_once __DIR__ . '/brand-brain.php';
+            brand_kit_notify($userId, ['business_name', 'industry', 'audience', 'services', 'tone', 'dialect', 'description', 'phones', 'website', 'social_facebook'], 'user', 'من التجربة المجانية');
+        }
         if (function_exists('trial_set_cookie')) {
             trial_set_cookie('');
         }
