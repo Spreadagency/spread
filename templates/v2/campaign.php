@@ -136,6 +136,24 @@
                 </section>
 
                 <section class="cf-ideas">
+                <section class="cf-card cf-cbrief" v-if="brief" style="margin-bottom:12px">
+                    <button type="button" class="cf-split" style="width:100%;border:0;background:none;font:inherit;cursor:pointer;padding:0" @click="briefOpen = !briefOpen" :aria-expanded="briefOpen">
+                        <b>📋 بريف الحملة <small style="font-weight:400;color:var(--mute)">— من مركز الهوية</small></b><span>{{ briefOpen ? '▴' : '▾' }}</span>
+                    </button>
+                    <div v-if="briefOpen" style="font-size:13.5px;line-height:1.9;margin-top:8px">
+                        <div v-if="brief.focus">⭐ <b>تركيز الشهر:</b> {{ brief.focus }}</div>
+                        <div v-if="brief.services && brief.services.length"><b>الخدمات:</b> {{ brief.services.join('، ') }}</div>
+                        <div v-if="brief.pillars && brief.pillars.length"><b>الاتجاهات:</b> {{ brief.pillars.map(p => p.name + ' ' + p.percent + '%').join('، ') }}</div>
+                        <div v-if="brief.topics && brief.topics.length"><b>مواضيع متاحة:</b> {{ brief.topics.slice(0, 10).join('، ') }}</div>
+                        <div v-if="brief.methods && brief.methods.length"><b>طرق الكتابة:</b> {{ brief.methods.join('، ') }}</div>
+                        <div v-if="brief.formats && brief.formats.length"><b>الأشكال في الأسبوع:</b> {{ brief.formats.map(f => f.format + ' ×' + f.per_week).join('، ') }}</div>
+                        <div v-if="brief.voice"><b>طريقة الكلام:</b> {{ brief.voice }}</div>
+                        <div v-if="brief.seasons && brief.seasons.length"><b>المواسم:</b> {{ brief.seasons.join('، ') }}</div>
+                        <div v-if="brief.offers && brief.offers.length"><b>عروض شغالة:</b> {{ brief.offers.map(o => o.title).join('، ') }}</div>
+                        <div v-if="brief.forbidden && brief.forbidden.words && brief.forbidden.words.length">⛔ <b>ممنوع:</b> {{ brief.forbidden.words.join('، ') }}</div>
+                        <a :href="base + '/brand-kit.php'" class="cf-pill" style="display:inline-block;margin-top:6px">عدّل الهوية ←</a>
+                    </div>
+                </section>
                     <div class="cf-split">
                         <h3>أفكار حملتك</h3>
                         <span class="cf-muted" v-if="ideas.length">
@@ -224,7 +242,9 @@
                     </div>
                     <div class="cf-card cf-editor" v-if="cur()">
                         <div class="cf-split">
-                            <div><small class="cf-n blue">الفكرة #{{ cur().n }} · {{ fmtOf(cur()).e }} {{ cur().format_label }}<span v-if="cur().format === 'carousel'"> · {{ cur().slides_count }} شرائح</span></small><h3>{{ cur().title }}</h3></div>
+                            <div><small class="cf-n blue">الفكرة #{{ cur().n }} · {{ fmtOf(cur()).e }} {{ cur().format_label }}<span v-if="cur().format === 'carousel'"> · {{ cur().slides_count }} شرائح</span></small><h3>{{ cur().title }}</h3>
+                                <small class="cf-pbrief" v-if="cur().brief" style="display:block;color:var(--mute);font-size:12.5px;margin-top:4px">📋 {{ [cur().brief.service, cur().brief.topic, cur().brief.pillar, cur().brief.method].filter(Boolean).join(' · ') }}</small>
+                                <small v-if="cur().reasons && cur().reasons.length" style="display:block;color:var(--mute);font-size:12px;margin-top:2px" :title="cur().reasons.join(' · ')">💡 {{ cur().reasons[0] }}<span v-if="cur().content"> · <a :href="base + '/content-view.php?id=' + cur().content.id" style="color:inherit;text-decoration:underline">ليه وغيّر الهوية للبوست</a></span></small></div>
                             <div class="cf-row" v-if="cur().content">
                                 <button type="button" class="cf-pill" @click="regen(cur())" :disabled="bulk.on || locked(cur())">↻ إعادة توليد</button>
                                 <button type="button" class="cf-pill" @click="copyCur()">نسخ</button>
@@ -560,7 +580,7 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   var app = SpreadApp.reactive({
-    base: base, c: init.campaign, ideas: init.ideas, counts: init.counts, bases: init.bases, stages: init.stages,
+    base: base, c: init.campaign, ideas: init.ideas, brief: init.brief || null, briefOpen: false, counts: init.counts, bases: init.bases, stages: init.stages,
     health: init.health, costs: init.costs, pub: init.publish, brand: init.brand,
     stageKeys: { 1: 'bulb', 2: 'doc', 3: 'star', 4: 'image', 5: 'calendar', 6: 'send' },
     icons: {
@@ -751,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async reload() {
       var r = await SpreadAPI.get('campaign-flow', { action: 'board', id: this.c.id });
       if (!r.ok) return;
-      this.setIdeas(r.ideas); this.counts = r.counts; this.costs = r.costs; this.pub = r.publish; this.health = r.health;
+      this.setIdeas(r.ideas); this.counts = r.counts; this.costs = r.costs; this.pub = r.publish; this.health = r.health; this.brief = r.brief || null;
       this.c.eval_skipped = r.campaign.eval_skipped;
     },
     // تحديث الفكرة في مكانها — v-for بالـ key بيعيد استخدام نفس العنصر، فاستبدال الكائن كله مابيوصلش للشاشة

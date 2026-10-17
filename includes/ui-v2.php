@@ -94,8 +94,9 @@ function ui_sections(): array
         ]],
         'analytics' => ['التحليلات', 'chart', 'analytics.php', ['analytics'], []],
         // ⑦-ب البحث العميق: صفحة مستقلة زي ما هي — بس جوه Brand Brain (بيقرا الهوية وبيسجّل فيها)
-        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources', 'research'], [
+        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources', 'research', 'brand-kit'], [
             ['Brand Brain', 'brand-brain.php', 'brand-brain', null],
+            ['مركز الهوية', 'brand-kit.php', 'brand-kit', null],
             ['البحث العميق', 'research.php', 'research', 'research'],
             ['المساعد الذكي', 'brand-agent.php', 'brand-agent', 'brand-agent'],
             ['المستندات', 'sources.php', 'sources', 'sources'],

@@ -430,6 +430,10 @@ function campaign_idea_api(array $i, ?array $content, array $designs): array
         'formats' => array_values(array_filter(explode('|', (string) ($i['formats'] ?? '')))),
         'selected' => (bool) $i['selected'], 'approved' => (bool) $i['approved'],
         'content' => $co,
+        // بريف البوست: من الفكرة (خدمة · موضوع · اتجاه) + اللي اتكتب بيه المحتوى + «ليه الـ AI عمل كده»
+        'brief' => array_filter(array_merge((array) (json_decode((string) ($i['brief_json'] ?? ''), true) ?: []),
+            array_intersect_key((array) (json_decode((string) ($content['brief_json'] ?? ''), true) ?: []), array_flip(['service', 'topic', 'pillar', 'method', 'character', 'hook'])))) ?: null,
+        'reasons' => $content ? (json_decode((string) ($content['ai_reasoning'] ?? ''), true) ?: []) : [],
         'script' => $script,
         'eval' => $eval ? $eval + ['ready' => (int) ($eval['score'] ?? 0) >= CAMP_EVAL_READY] : null,
         'designs' => $designs,
@@ -538,6 +542,8 @@ function campaign_board_payload(array $c, int $uid): array
         'campaign' => campaign_to_api($c) + ['eval_skipped' => !empty($c['eval_skipped']), 'period_month' => (string) $c['period_month'],
                                              'prefs' => campaign_prefs($c)],
         'ideas'    => campaign_board($c),
+        // Brand Kit: بريف الحملة (بيتبني مع أول دفعة أفكار)
+        'brief'    => json_decode((string) ($c['brief_json'] ?? ''), true) ?: null,
         'counts'   => campaign_flow_counts((int) $c['id']),
         'bases'    => campaign_flow_bases(),
         'stages'   => campaign_stages(),

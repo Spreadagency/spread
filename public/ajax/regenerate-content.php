@@ -40,8 +40,11 @@ $options = [
 $bkNew = bk_overrides_from_input($_POST);
 $bkBrief = bk_enabled() ? bk_brief_for_content($content, (int) $user['id'], $bkNew) : null;
 $options['bk_brief'] = $bkBrief;
-$options['tone'] = $bkNew['tone'] ?? $options['tone'];
-if (!empty($bkNew['caption_length'])) $options['length'] = $bkNew['caption_length'];
+// chips البوست (المحفوظة + الجديدة) ليها الأولوية على اختيارات المرة اللي فاتت
+$bkAllO = array_merge(bk_arr($content['brand_overrides'] ?? ''), $bkNew);
+$options['tone'] = $bkAllO['tone'] ?? $options['tone'];
+if (!empty($bkAllO['caption_length'])) $options['length'] = $bkAllO['caption_length'];
+$options['bk_overrides'] = array_intersect_key($bkAllO, ['tone' => 1, 'caption_length' => 1, 'goal' => 1]);
 $finalPrompt = build_final_prompt($brand, $options, $options['extra_notes']);
 
 // Consume credits FIRST — refund on failure

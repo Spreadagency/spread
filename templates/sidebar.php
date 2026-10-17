@@ -71,6 +71,11 @@ $balance = user_credits();
         </a>
         <?php endif; ?>
         <?php endif; ?>
+        <?php if (function_exists('bk_enabled') ? bk_enabled() : get_setting('brand_kit_enabled', '1') === '1'): ?>
+        <a href="<?= url('brand-kit.php') ?>" class="<?= $active === 'brand-kit' ? 'active' : '' ?>">
+            <span class="ico">🧬</span> مركز الهوية
+        </a>
+        <?php endif; ?>
         <?php if (menu_visible('sources')): ?>
         <a href="<?= url('sources.php') ?>" class="<?= $active === 'sources' ? 'active' : '' ?>">
             <span class="ico">📄</span> مستندات الهوية
