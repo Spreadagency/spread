@@ -116,6 +116,8 @@ function a2_op_catalog(): array
         'brand_summary_cost'        => ['◈ ملخص الهوية الذكي', 'brand', 2],
         'visual_identity_cost'      => ['🖌 تحليل الهوية البصرية', 'brand', 2],
         'campaign_eval_cost'        => ['⭐ تقييم منشور', 'eval', 0],
+        'brand_kit_ai_cost'         => ['🧬 اقتراح في مركز الهوية', 'brand', 1],
+        'brand_kit_draft_cost'      => ['🧬 مسودة الهوية', 'brand', 2],
         'research_cost_quick'       => ['🔬 بحث عميق — سريع', 'research', 2],
         'research_cost_medium'      => ['🔬 بحث عميق — متوسط', 'research', 4],
         'research_cost_deep'        => ['🔬 بحث عميق — عميق', 'research', 8],

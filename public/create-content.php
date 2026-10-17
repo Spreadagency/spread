@@ -111,20 +111,24 @@ include __DIR__ . '/../templates/header.php';
                     <div class="field">
                         <label>نبرة الكلام</label>
                         <div class="seg">
-                            <?php foreach (['simple' => 'بسيط', 'formal' => 'رسمي', 'fun' => 'مرح', 'professional' => 'احترافي'] as $k => $v): ?>
-                                <button type="button" data-val="<?= $k ?>" class="<?= $k === 'simple' ? 'on' : '' ?>" onclick="setSeg(this, 'tone')"><?= $v ?></button>
+                            <?php $__bkOn = is_file(__DIR__ . '/../includes/brand-kit.php') && (require_once __DIR__ . '/../includes/brand-kit.php') && bk_enabled();
+                            $__toneDef = $__bkOn ? '' : 'simple';
+                            foreach (($__bkOn ? ['' => 'زي الهوية'] : []) + ['simple' => 'بسيط', 'formal' => 'رسمي', 'fun' => 'مرح', 'professional' => 'احترافي'] as $k => $v): ?>
+                                <button type="button" data-val="<?= $k ?>" class="<?= $k === $__toneDef ? 'on' : '' ?>" onclick="setSeg(this, 'tone')"><?= $v ?></button>
                             <?php endforeach; ?>
                         </div>
-                        <input type="hidden" name="tone" value="simple">
+                        <input type="hidden" name="tone" value="<?= $__toneDef ?>">
 
                         <div class="field">
                             <label>لهجة الكتابة</label>
                             <div class="seg">
-                                <button type="button" data-val="egyptian" class="on" onclick="setSeg(this, 'dialect')">مصري</button>
-                                <button type="button" data-val="gulf" onclick="setSeg(this, 'dialect')">خليجي</button>
-                                <button type="button" data-val="msa" onclick="setSeg(this, 'dialect')">فصحى</button>
+                                <?php $__dl = function_exists('bk_dialect_key') ? bk_dialect_key((string) ($brand['dialect'] ?? 'egyptian')) : 'egyptian';
+                                $__dl = in_array($__dl, ['egyptian', 'gulf', 'levantine', 'msa'], true) ? $__dl : 'egyptian';
+                                foreach (['egyptian' => 'مصري', 'gulf' => 'خليجي', 'levantine' => 'شامي', 'msa' => 'فصحى'] as $k => $v): ?>
+                                <button type="button" data-val="<?= $k ?>" class="<?= $k === $__dl ? 'on' : '' ?>" onclick="setSeg(this, 'dialect')"><?= $v ?></button>
+                                <?php endforeach; ?>
                             </div>
-                            <input type="hidden" name="dialect" value="egyptian">
+                            <input type="hidden" name="dialect" value="<?= $__dl ?>">
                         </div>
 
                         <?php if (!empty($templates)): ?>

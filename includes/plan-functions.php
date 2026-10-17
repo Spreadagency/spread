@@ -57,9 +57,7 @@ function build_plan_ideas_prompt(array $brand, array $plan): string
     $notes = trim((string) ($plan['notes'] ?? ''));
 
     return prompt_or_default('plan_ideas', "أنت استراتيجي محتوى سوشيال ميديا محترف. مطلوب منك توليد {$count} فكرة منشور متنوعة لخطة محتوى شهرية.") . "\n\n"
-        . "بيانات البراند:\n"
-        . implode("\n", $brandLines)
-    . $knowledge
+        . ((function_exists('bk_brand_block') ? bk_brand_block($brand, 'ideas') : null) ?? ("بيانات البراند:\n" . implode("\n", $brandLines) . $knowledge))
     . "\n\nهدف الخطة: {$goal}"
     . ($notes !== '' ? "\nتوجيهات العميل: {$notes}" : '')
     . <<<EOT
@@ -153,15 +151,10 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
         default        => 'منشور توعوي يوضح قيمة أو معلومة مهمة للجمهور بأسلوب بسيط.',
     };
 
-    $dialect = match ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')) {
-        'gulf' => 'اللهجة الخليجية البيضاء',
-        'msa'  => 'العربية الفصحى المبسطة',
-        default => 'اللهجة المصرية الخفيفة',
-    };
+    $dialect = bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')));
 
     return prompt_or_default('plan_produce', "أنت كاتب محتوى تسويقي محترف. اكتب منشور سوشيال ميديا كامل بناءً على الفكرة التالية.") . "\n\n"
-        . "بيانات البراند:\n" . implode("\n", $brandLines)
-        . $knowledge
+        . ((function_exists('bk_brand_block') ? bk_brand_block($brand, 'copy', $options['bk_brief'] ?? null) : null) ?? ("بيانات البراند:\n" . implode("\n", $brandLines) . $knowledge))
         . "\n\nالفكرة المطلوبة:\n"
         . "- العنوان: {$idea['title']}\n"
         . "- الأسلوب: {$angleLabel}\n"

@@ -11,6 +11,8 @@ $user = $user ?? current_user();
 $active = $active ?? '';
 $__section = ui_section_of($active);
 $__notif = ui_notifications((int) $user['id']);
+// عدد غير المقروء من user_notifications وقت الرسم — الـ polling بيحدّث العداد بالفرق
+try { $__unread0 = (int) (db_one('SELECT COUNT(*) n FROM user_notifications WHERE user_id = ? AND read_at IS NULL', [(int) $user['id']])['n'] ?? 0); } catch (\Throwable $e) { $__unread0 = 0; }
 $__secLabel = $__section ? ui_sections()[$__section][0] : '';
 $__title = $page_title ?? $__secLabel;
 if ($__section === 'dashboard') $__title = 'لوحة التحكم';
@@ -37,8 +39,8 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
     </form>
 
     <div class="v2-top-act">
-        <div class="v2-bell-wrap">
-            <button type="button" class="v2-iconbtn v2-bell" aria-label="الإشعارات" aria-expanded="false" aria-haspopup="true"
+        <div class="v2-bell-wrap" data-inbox data-dot="v2-dot" data-badge="<?= (int) $__notif['badge'] ?>" data-unread="<?= $__unread0 ?>">
+            <button type="button" class="v2-iconbtn v2-bell" data-inbox-btn aria-label="الإشعارات" aria-expanded="false" aria-haspopup="true"
                     onclick="v2Bell(event)">
                 <?= ui_icon('bell', 20) ?>
                 <?php if ($__notif['badge'] > 0): ?><em class="v2-dot"><?= $__notif['badge'] ?></em><?php endif; ?>
@@ -61,6 +63,7 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
                 <?php if (count(array_filter($__notif['items'], fn($i) => $i['type'] === 'action')) === 0): ?>
                     <div class="v2-note-empty">✓ مفيش حاجة محتاجة تعديل</div>
                 <?php endif; ?>
+                <a class="v2-note-all" href="<?= url('notifications.php') ?>">عرض كل الرسايل ←</a>
             </div>
         </div>
 
@@ -84,6 +87,7 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
             ['credits.php', 'coin', 'الرصيد'],
             ['profile.php#sx-h-acc', 'link', 'الحسابات المرتبطة'],
             ['social-accounts.php', 'send', 'ربط السوشيال'],
+            ['notifications.php', 'bell', 'الرسايل والإشعارات'],
             ['help.php', 'help', 'دليل المنصة'],
         ];
         ?>
@@ -108,6 +112,8 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
 
 <?= render_flash() ?>
 
+<style>.v2-note-all { display: block; text-align: center; padding: 10px; font-size: 13px; font-weight: 700; color: var(--primary-deep, #0A5FCF); text-decoration: none; border-top: 1px solid var(--line-2, #E6EEF6); }</style>
+<?php include __DIR__ . '/../inbox-poll.php'; ?>
 <script>
 function v2Bell(e) {
   e.stopPropagation();

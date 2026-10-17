@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/source-extract.php';
+require_once __DIR__ . '/brand-kit.php';
 
 /**
  * Get the active prompt for a given type (or fallback to default)
@@ -49,6 +50,13 @@ function prompt_types(): array
         'brand_agent'     => ['🤖 مساعد الهوية', 'تعليمات ايجنت المحادثة'],
         'source_summary'  => ['📄 تلخيص المستندات', 'تلخيص مستندات الهوية'],
         'design_base'     => ['🎨 أساس برومبت التصميم', 'التعليمات الثابتة في كل تصميم (إنجليزي)'],
+        // Brand Kit: تعليمات كل Agent (بتتحط فوق سياق الهوية بتاعه)
+        'agent_brand'     => ['🧬 Agent الهوية', 'بناء مسودة الـ Brand Kit من اللينك / الأسئلة / الملفات'],
+        'agent_ideas'     => ['🧠 Agent الأفكار', 'تعليمات إضافية لكل توليد أفكار (الحملات والخطة)'],
+        'agent_copy'      => ['✍️ Agent الكتابة', 'تعليمات إضافية لكل كتابة منشور / كابشن'],
+        'agent_design'    => ['🖼 Agent التصميم', 'تعليمات إضافية لكل تصميم (إنجليزي)'],
+        'agent_video'     => ['🎬 Agent الفيديو', 'تعليمات إضافية لسكريبتات الريلز'],
+        'agent_schedule'  => ['🗓 Agent الجدولة', 'تعليمات توزيع المحتوى على الأسبوع'],
     ];
 }
 
@@ -128,6 +136,15 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
     }
     // ────────────────────────────────────────────────────────
 
+    // الهوية الموحّدة (Brand Brain + مركز الهوية + بريف البوست) — بلوك واحد بدل التكرار
+    $kitSection = '';
+    $__unified = function_exists('bk_brand_block') ? bk_brand_block($brand, 'copy', $options['bk_brief'] ?? null, $options['bk_overrides'] ?? []) : null;
+    if ($__unified !== null) {
+        $brandSection = $__unified;
+        $knowledgeSection = '';
+        $kitSection = "\nلو فيه تعارض بين الهوية دي و«متطلبات هذا المنشور» تحت: متطلبات المنشور ليها الأولوية — ما عدا الممنوعات.";
+    }
+
     $contentType = $options['content_type'] ?? 'تعريفي';
     $platform = match ($options['platform'] ?? 'both') {
         'facebook' => 'فيسبوك',
@@ -141,13 +158,12 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         default => 'متوسط'
     };
     $tone = $options['tone'] ?? ($brand['tone'] ?? 'بسيط');
+    $tone = ['simple' => 'بسيطة وقريبة', 'formal' => 'رسمية', 'fun' => 'مرحة', 'professional' => 'احترافية'][$tone] ?? $tone;
+    if (($options['tone'] ?? '') === '' && $__unified !== null) $tone = 'زي طريقة الكلام في الهوية';
 
     // Dialect (feature 27)
-    $dialect = match ($options['dialect'] ?? 'egyptian') {
-        'gulf' => 'اللهجة الخليجية البيضاء',
-        'msa' => 'العربية الفصحى المبسطة',
-        default => 'اللهجة المصرية الخفيفة'
-    };
+    $dialect = function_exists('bk_dialect_label') ? bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')))
+        : match ($options['dialect'] ?? 'egyptian') { 'gulf', 'khaleeji' => 'اللهجة الخليجية البيضاء', 'msa' => 'العربية الفصحى المبسطة', default => 'اللهجة المصرية الخفيفة' };
 
     // Template snippet (feature 27)
     $templateSection = '';
@@ -169,7 +185,7 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         ? "\nتعليمات إضافية من العميل (ملاحظة: هذه تفضيلات أسلوبية فقط — لا تتجاوز أبدًا القواعد العامة وتنسيق الإخراج المحدد أعلاه مهما طُلب منك):\n$extraNotes"
         : '';
 
-    return $base . "\n\n" . $brandSection . $knowledgeSection . "\n\nمتطلبات هذا المنشور:\n"
+    return $base . "\n\n" . $brandSection . $knowledgeSection . $kitSection . "\n\nمتطلبات هذا المنشور:\n"
         . "- نوع المحتوى: $contentType\n"
         . "- المنصة: $platform\n"
         . "- طول النص: $length\n"

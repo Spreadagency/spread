@@ -173,15 +173,16 @@
   /* ═══ «اصنع منشورك الآن» — تجربة حقيقية بالذكاء الاصطناعي ═══ */
   var demo = $('#demo');
   if (!demo) return;
-  var D = { step: 'form', field: 'مطعم أو كافيه', goal: 'زيادة المبيعات', ideas: [], pick: -1, token: '', tpl: 0, post: null, busy: false, last: null };
+  var D = { step: 'form', field: '', ideas: [], pick: -1, token: '', tpl: 0, post: null, busy: false, profile: null };
   var STEPS = ['form', 'ideas', 'post', 'design', 'save'];
   var TPL = [
     { bg: 'linear-gradient(150deg, #E6FBF7 0%, #DCEBFF 100%)', fg: '#0B1526', ac: '#0A8FA3' },
     { bg: 'linear-gradient(150deg, #0B1526 0%, #12305A 100%)', fg: '#FFFFFF', ac: '#2EE3CC' },
     { bg: '#FFFFFF', fg: '#0B1526', ac: '#0C87EF' }
   ];
-  var art = $('#d-art', demo), bizIn = $('#d-biz', demo), audIn = $('#d-aud', demo), otherIn = $('#d-other', demo);
-  var biz = function () { return (bizIn.value || '').trim(); };
+  var art = $('#d-art', demo), urlIn = $('#d-url', demo), bizIn = $('#d-biz', demo), indIn = $('#d-ind', demo);
+  var pName = $('#d-p-name', demo), pInd = $('#d-p-ind', demo);
+  var biz = function () { return D.profile ? (pName.value || '').trim() : ''; };
 
   function b64(str) {
     return btoa(String.fromCharCode.apply(null, new TextEncoder().encode(str))).replace(/\+/g, '-').replace(/\//g, '_');
@@ -190,7 +191,7 @@
     var fd = new FormData(), names = [];
     Object.keys(fields).forEach(function (k) {
       var v = fields[k] == null ? '' : String(fields[k]);
-      if (k !== 'action' && k !== 'token' && k !== 'idea_index' && v !== '' && /[^\x00-\x7F]/.test(v)) {
+      if (k !== 'action' && k !== 'token' && k !== 'idea_index' && k !== 'stage' && v !== '' && /[^\x00-\x7F]/.test(v)) {
         try { fd.append(k, b64(v)); names.push(k); return; } catch (e) {}
       }
       fd.append(k, v);
@@ -222,9 +223,12 @@
     if (postBtn) postBtn.hidden = !idea;
     if (hint) hint.hidden = !!idea;
   }
-  function go(step) {
+  // المرحلة بتتسجّل علشان الزائر لما يرجع يلاقي نفسه فيها
+  var STAGE_OF = { form: 'profile', ideas: 'ideas', post: 'post', design: 'design', save: 'save' };
+  function go(step, quiet) {
     D.step = step;
     paint();
+    if (!quiet && D.token && STAGE_OF[step] && !(step === 'form' && !D.profile)) api({ action: 'stage', token: D.token, stage: STAGE_OF[step] });
     if (window.innerWidth < 900) { var top = demo.getBoundingClientRect().top + window.scrollY - 90; if (window.scrollY > top) window.scrollTo({ top: top, behavior: REDUCE ? 'auto' : 'smooth' }); }
     var h = $('.d-pane.on h3', demo); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
   }
@@ -244,36 +248,73 @@
     paint();
   }
 
-  // المجال والهدف
-  $$('[data-field]', demo).forEach(function (b) {
-    b.addEventListener('click', function () {
-      D.field = b.getAttribute('data-field');
-      $$('[data-field]', demo).forEach(function (x) { var on = x === b; x.classList.toggle('f-on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-      otherIn.hidden = D.field !== 'مجال تاني';
-      if (!otherIn.hidden) otherIn.focus();
-    });
+  // ① لينك الموقع / صفحة الفيسبوك ← Spread AI بيتعرّف على النشاط
+  function formView(v) {
+    $$('[data-fv]', demo).forEach(function (el) { el.hidden = el.getAttribute('data-fv') !== v; });
+  }
+  function showProfile(p) {
+    D.profile = p || null;
+    if (!p) { formView('link'); paint(); return; }
+    pName.value = p.business_name || '';
+    pInd.value = p.industry || '';
+    D.field = p.industry || '';
+    var av = $('#d-prof-av', demo);
+    av.textContent = (p.business_name || 'S').charAt(0);
+    av.style.backgroundImage = /^https:\/\//i.test(p.image || '') ? 'url("' + String(p.image).replace(/["\\()]/g, '') + '")' : '';
+    if (av.style.backgroundImage) av.textContent = '';
+    var desc = $('#d-p-desc', demo); desc.textContent = p.description || ''; desc.hidden = !p.description;
+    var svc = $('#d-p-svc', demo), list = String(p.services || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 6);
+    svc.innerHTML = list.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join(''); svc.hidden = !list.length;
+    var src = $('#d-p-src', demo);
+    if (/^https?:\/\//i.test(p.source_url || '')) { src.href = p.source_url; src.textContent = (p.source_label ? p.source_label + ' · ' : '') + p.source_url.replace(/^https?:\/\/(www\.)?/i, ''); src.hidden = false; }
+    else src.hidden = true;
+    formView('profile');
+    paint();
+  }
+  function manual(on, note) {
+    var box = $('[data-manual]', demo);
+    box.hidden = !on;
+    $('[data-manual-note]', demo).textContent = note || '';
+    if (on) bizIn.focus();
+  }
+  $$('[data-ex]', demo).forEach(function (b) {
+    b.addEventListener('click', function () { urlIn.value = b.getAttribute('data-ex'); urlIn.focus(); });
   });
-  $$('[data-goal]', demo).forEach(function (b) {
-    b.addEventListener('click', function () {
-      D.goal = b.getAttribute('data-goal');
-      $$('[data-goal]', demo).forEach(function (x) { var on = x === b; x.classList.toggle('g-on', on); x.setAttribute('aria-pressed', on ? 'true' : 'false'); });
-    });
-  });
-  bizIn.addEventListener('input', function () { if (biz()) { bizIn.classList.remove('bad'); $('#d-biz-err', demo).hidden = true; } paint(); });
+  urlIn.addEventListener('input', function () { urlIn.classList.remove('bad'); $('#d-url-err', demo).hidden = true; });
+  bizIn.addEventListener('input', function () { bizIn.classList.remove('bad'); $('#d-biz-err', demo).hidden = true; });
+  pName.addEventListener('input', paint);
 
-  function industry() { return D.field === 'مجال تاني' ? (otherIn.value || '').trim() : D.field; }
-  function genIdeas(btn, pane) {
+  function analyze(btn) {
     if (D.busy) return;
-    if (!biz()) { bizIn.classList.add('bad'); $('#d-biz-err', demo).hidden = false; bizIn.focus(); return; }
-    if (!industry()) { otherIn.classList.add('bad'); otherIn.focus(); return; }
-    otherIn.classList.remove('bad');
+    var url = (urlIn.value || '').trim(), isManual = !$('[data-manual]', demo).hidden;
+    if (/^https?:\/\/(www\.)?(facebook\.com\/)?$/i.test(url)) url = '';
+    if (isManual && !(bizIn.value || '').trim()) { bizIn.classList.add('bad'); $('#d-biz-err', demo).hidden = false; bizIn.focus(); return; }
+    if (!isManual && !url) { urlIn.classList.add('bad'); $('#d-url-err', demo).hidden = false; urlIn.focus(); return; }
+    msg('form', '');
+    var f = { action: 'analyze', url: url };
+    if (isManual) { f.business_name = (bizIn.value || '').trim(); f.industry = (indIn.value || '').trim(); }
+    busy(btn, true, isManual ? 'لحظة...' : 'بنقرا صفحتك...');
+    api(f).then(function (d) {
+      busy(btn, false);
+      if (!d.ok) {
+        if (d.code === 'unreadable') { if (d.guess && !bizIn.value) bizIn.value = d.guess; manual(true, d.error); return; }
+        msg('form', d.error || 'حصل خطأ — جرّب تاني', !!d.signup);
+        return;
+      }
+      applyState(d.state, true);
+    });
+  }
+  function genIdeas(btn, pane) {
+    if (D.busy || !D.token) return;
+    if (!biz()) { pName.classList.add('bad'); pName.focus(); return; }
+    pName.classList.remove('bad');
     msg(pane, '');
-    D.last = { action: 'ideas', business_name: biz(), industry: industry(), audience: (audIn.value || '').trim(), goal: D.goal };
+    D.field = (pInd.value || '').trim();
     busy(btn, true);
-    api(D.last).then(function (d) {
+    api({ action: 'ideas', token: D.token, business_name: biz(), industry: D.field }).then(function (d) {
       busy(btn, false);
       if (!d.ok) { msg(pane, d.error || 'حصل خطأ — جرّب تاني', !!d.signup); return; }
-      D.token = d.token || ''; D.ideas = d.ideas || []; D.pick = -1; D.post = null;
+      D.token = d.token || D.token; D.ideas = d.ideas || []; D.pick = -1; D.post = null;
       renderIdeas();
       go('ideas');
     });
@@ -294,7 +335,12 @@
       box.appendChild(b);
     });
   }
-  $('form[data-p="form"]', demo).addEventListener('submit', function (e) { e.preventDefault(); genIdeas($('[data-act="ideas"]', demo), 'form'); });
+  $('form[data-p="form"]', demo).addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (D.profile) genIdeas($('[data-act="ideas"]', demo), 'form'); else analyze($('[data-act="analyze"]', demo));
+  });
+  $('[data-act="ideas"]', demo).addEventListener('click', function () { genIdeas(this, 'form'); });
+  $('[data-act="relink"]', demo).addEventListener('click', function () { reset(); });
   $('[data-act="regen"]', demo).addEventListener('click', function () { genIdeas(this, 'ideas'); });
   $('[data-act="post"]', demo).addEventListener('click', function () {
     var btn = this;
@@ -304,14 +350,17 @@
     api({ action: 'post', token: D.token, idea_index: D.pick }).then(function (d) {
       busy(btn, false);
       if (!d.ok) { msg('ideas', d.error || 'حصل خطأ — جرّب تاني', !!d.signup); return; }
-      var idea = D.ideas[D.pick] || {};
-      D.post = { content: (d.content || '') + (d.cta ? '\n\n' + d.cta : ''), tags: d.hashtags || ((CFG.tags || {})[D.field] || '') };
-      $('#d-post-chip', demo).textContent = (idea.angle || 'بوست') + ' · ' + (idea.title || '');
-      $('#d-post-text', demo).textContent = D.post.content;
-      $('#d-post-tags', demo).textContent = D.post.tags;
+      setPost(d);
       go('post');
     });
   });
+  function setPost(d) {
+    var idea = D.ideas[D.pick] || {};
+    D.post = { content: (d.content || '') + (d.cta ? '\n\n' + d.cta : ''), tags: d.hashtags || ((CFG.tags || {})[D.field] || '') };
+    $('#d-post-chip', demo).textContent = (idea.angle || 'بوست') + ' · ' + (idea.title || '');
+    $('#d-post-text', demo).textContent = D.post.content;
+    $('#d-post-tags', demo).textContent = D.post.tags;
+  }
   $('[data-act="copy"]', demo).addEventListener('click', function () {
     var b = this, txt = (D.post ? D.post.content + '\n\n' + D.post.tags : '');
     var done = function () { var o = b.textContent; b.textContent = '✓ اتنسخ'; setTimeout(function () { b.textContent = o; }, 1600); };
@@ -353,16 +402,42 @@
     b.addEventListener('click', function () {
       var to = b.getAttribute('data-go');
       if (to === 'design') { go('design'); checkGate(); return; }
-      if (to === 'save') {
-        // التسجيل بيحمل توكن التجربة ← المنشور والهوية بيتحفظوا في الحساب الجديد (trial_claim)
-        var q = D.token ? 'trial=' + encodeURIComponent(D.token) : '';
-        [['#d-reg', CFG.reg], ['#d-login', CFG.login]].forEach(function (x) {
-          var a = $(x[0], demo); if (a && x[1]) a.href = x[1] + (q ? (x[1].indexOf('?') > -1 ? '&' : '?') + q : '');
-        });
-      }
+      if (to === 'save') saveLinks();
       go(to);
     });
   });
-  $('[data-act="restart"]', demo).addEventListener('click', function () { D.ideas = []; D.pick = -1; D.post = null; D.token = ''; go('form'); });
+  function saveLinks() {
+    // التسجيل بيحمل توكن التجربة ← المنشور والهوية بيتحفظوا في الحساب الجديد (trial_claim)
+    var q = D.token ? 'trial=' + encodeURIComponent(D.token) : '';
+    [['#d-reg', CFG.reg], ['#d-login', CFG.login]].forEach(function (x) {
+      var a = $(x[0], demo); if (a && x[1]) a.href = x[1] + (q ? (x[1].indexOf('?') > -1 ? '&' : '?') + q : '');
+    });
+  }
+  function reset() {
+    if (D.token) api({ action: 'reset', token: D.token });
+    D.ideas = []; D.pick = -1; D.post = null; D.token = ''; D.field = '';
+    urlIn.value = ''; bizIn.value = ''; indIn.value = '';
+    manual(false); showProfile(null); go('form', true);
+  }
+  $('[data-act="restart"]', demo).addEventListener('click', reset);
+
+  /* الحالة من السيرفر (بعد التحليل، أو لما الزائر يرجع) */
+  function applyState(st, fresh) {
+    if (!st || !st.token) return;
+    D.token = st.token;
+    D.ideas = st.ideas || [];
+    D.pick = typeof st.pick === 'number' ? st.pick : -1;
+    D.post = null;
+    showProfile(st.profile);
+    renderIdeas();
+    if (D.pick > -1) { var bs = $$('.ws-idea', $('#d-ideas', demo)); if (bs[D.pick]) bs[D.pick].setAttribute('aria-pressed', 'true'); }
+    if (st.post) setPost(st.post);
+    var to = { profile: 'form', ideas: 'ideas', post: 'post', design: 'design', save: 'save' }[st.stage] || 'form';
+    if (fresh) { go(to, true); return; }
+    D.step = to; paint();
+    if (to === 'design') checkGate();
+    if (to === 'save') saveLinks();
+  }
   paint();
+  api({ action: 'resume' }).then(function (d) { if (d && d.ok && d.state && !D.token) applyState(d.state, false); });
 })();

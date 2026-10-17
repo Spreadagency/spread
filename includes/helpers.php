@@ -178,6 +178,10 @@ function str_limit(string $str, int $limit = 100, string $suffix = '...'): strin
  */
 function json_response(array $data, int $status = 200): void
 {
+    // تطبيق الموبايل: حفظ الرد لمفتاح العملية (منع الخصم المكرر) — مابيتعرّفش غير في /api/v1
+    if (function_exists('mobile_on_response')) {
+        mobile_on_response($data, $status);
+    }
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -463,13 +467,19 @@ function trial_capture_token(): void
 function trial_claim(int $userId): ?int
 {
     $token = preg_replace('/[^a-f0-9]/', '', (string) ($_SESSION['trial_token'] ?? ''));
-    if ($token === '') {
-        return null;
-    }
     unset($_SESSION['trial_token']);
+    if (is_file(__DIR__ . '/trial-brand.php')) {
+        require_once __DIR__ . '/trial-brand.php';
+    }
 
     try {
-        $t = db_one('SELECT * FROM trial_sessions WHERE token = ? AND claimed_user_id IS NULL', [$token]);
+        $t = $token !== '' ? db_one('SELECT * FROM trial_sessions WHERE token = ? AND claimed_user_id IS NULL', [$token]) : null;
+        // مفيش توكن في الجلسة (أكّد الإيميل من متصفح تاني مثلًا)؟ آخر تجربة للزائر ده (الكوكي ← نفس الـ IP والمتصفح)
+        $fallback = false;
+        if (!$t && function_exists('trial_find_open')) {
+            $t = trial_find_open(3);
+            $fallback = (bool) $t;
+        }
         if (!$t) {
             return null;
         }
@@ -491,6 +501,10 @@ function trial_claim(int $userId): ?int
                 if ($v === null || $v === '') {
                     continue;
                 }
+                // من غير توكن صريح: مانكتبش فوق هوية العميل الموجودة — الحقول الفاضية بس
+                if ($fallback && trim((string) ($brand[$k] ?? '')) !== '') {
+                    continue;
+                }
                 $set[] = "`{$k}` = ?";
                 $vals[] = $v;
             }
@@ -505,6 +519,11 @@ function trial_claim(int $userId): ?int
                  VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [$userId, $t['business_name'] ?: 'براندي', $t['industry'], $t['audience'], $t['services'], $t['tone'], $t['dialect'] ?: 'egyptian']
             );
+        }
+
+        // معلومات الرابط (الموقع / صفحة الفيسبوك): الوصف · الروابط · التليفونات · مصدر معرفة
+        if (function_exists('trial_claim_profile')) {
+            trial_claim_profile($t, (int) $brandId, $userId);
         }
 
         // 2) المنشور اللي اتولد في التجربة
@@ -530,6 +549,13 @@ function trial_claim(int $userId): ?int
         }
 
         db_run('UPDATE trial_sessions SET claimed_user_id = ?, claimed_at = NOW() WHERE id = ?', [$userId, $t['id']]);
+        if (is_file(__DIR__ . '/brand-brain.php')) {
+            require_once __DIR__ . '/brand-brain.php';
+            brand_kit_notify($userId, ['business_name', 'industry', 'audience', 'services', 'tone', 'dialect', 'description', 'phones', 'website', 'social_facebook'], 'user', 'من التجربة المجانية');
+        }
+        if (function_exists('trial_set_cookie')) {
+            trial_set_cookie('');
+        }
         return $contentId ? (int) $contentId : null;
     } catch (\Throwable $e) {
         return null;

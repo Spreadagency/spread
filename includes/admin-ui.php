@@ -76,6 +76,7 @@ function admin_nav(): array
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
             ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
             ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],
+            ['whatsapp', 'الرسايل والواتساب', 'Messages & WhatsApp', 'send', 'admin/whatsapp.php', 'view_users', ['whatsapp']],
         ],
         'CONTENT' => [
             ['content', 'المحتوى', 'Content', 'pen', 'admin/content-history.php', 'view_content', ['content']],
@@ -92,6 +93,10 @@ function admin_nav(): array
             ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
             ['prompts', 'مكتبة البرومبتات', 'Prompt Library', 'text', 'admin/prompts.php', 'ai_settings', ['prompts', 'type-prompts']],
+            ['brand-learning', 'مكتبة التعلّم', 'Learning Library', 'flask', 'admin/brand-learning.php', 'ai_settings', ['brand-learning']],
+            ['brand-kits', 'هويات العملاء (Brand Kit)', 'Brand Kits', 'palette', 'admin/brand-kits.php', 'view_users', ['brand-kits']],
+            ['sector-templates', 'قوالب القطاعات', 'Sector Templates', 'layout', 'admin/sector-templates.php', 'ai_settings', ['sector-templates']],
+            ['style-presets', 'مكتبة الـ Presets', 'Style Presets', 'sliders', 'admin/style-presets.php', 'ai_settings', ['style-presets']],
             ['ai-logs', 'سجل طلبات الـ AI', 'AI Request Logs', 'list', 'admin/ai-runs.php', 'view_costs', ['ai-logs', 'ai-runs']],
             ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
         ],

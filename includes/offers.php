@@ -483,6 +483,9 @@ function referral_reward(int $referralId, ?int $adminId = null): array
 
     if ($res['ok']) {
         db_run('UPDATE referrals SET status = "rewarded", rewarded_at = NOW() WHERE id = ?', [$referralId]);
+        require_once __DIR__ . '/Notifier.php';
+        Notifier::notify((int) $ref['referrer_user_id'], 'referral_reward', ['reward' => wa_credit_amount_text((int) ($res['credits'] ?? 0))],
+            ['url' => 'referrals.php', 'tone' => 'ok']);
     }
     return $res;
 }

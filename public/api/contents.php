@@ -325,6 +325,10 @@ switch ($action) {
         db_run('UPDATE contents SET generated_text = ?, hashtags = ?, cta = ?, status = "edited" WHERE id = ? AND user_id = ?',
             [$text, $tags ?: null, $cta ?: null, $c['id'], $uid]);
         $isAi = api_str('source', 20) === 'ai_edit';
+        if (!$isAi) {   // التعلّم من تعديلات العميل (Brand Kit)
+            require_once __DIR__ . '/../../includes/brand-kit.php';
+            bk_feedback_text_edit($uid, (int) $c['id'], (string) $c['generated_text'], $text);
+        }
         $note = $isAi ? ('بالكلام: ' . mb_substr(api_str('note', 200), 0, 200)) : 'تعديل من مكتبة المحتوى';
         save_content_version((int) $c['id'], $text, $tags ?: null, $cta ?: null, $isAi ? 'ai_edit' : 'edited', $note);
         $fresh = db_one('SELECT updated_at FROM contents WHERE id = ?', [$c['id']]);
@@ -435,7 +439,11 @@ switch ($action) {
         if (!empty($brand['audience']))      $ctx[] = 'الجمهور: ' . mb_substr($brand['audience'], 0, 300);
         if (!empty($brand['tone']))          $ctx[] = 'النبرة: ' . ($tones[$brand['tone']] ?? $brand['tone']);
         if (!empty($brand['dialect']))       $ctx[] = 'اللهجة: ' . ($dialects[$brand['dialect']] ?? $brand['dialect']);
-        if (!empty($brand['keywords_avoid'])) $ctx[] = 'كلمات ممنوعة: ' . mb_substr($brand['keywords_avoid'], 0, 200);
+        require_once __DIR__ . '/../../includes/brand-kit.php';
+        $__forb = bk_enabled() ? BrandContext::forbidden($uid)['words'] : [];
+        if ($__forb) $ctx[] = 'كلمات ممنوعة نهائيًا: ' . mb_substr(implode('، ', $__forb), 0, 400);
+        elseif (!empty($brand['keywords_avoid'])) $ctx[] = 'كلمات ممنوعة: ' . mb_substr($brand['keywords_avoid'], 0, 200);
+        if (bk_enabled()) $ctx[] = 'طريقة الكلام: ' . BrandContext::voiceText(bk_get($uid)['data']['voice']);
         if (!empty($c['campaign_id'])) {
             $cp = db_one('SELECT title, goal, topic FROM campaigns WHERE id = ? AND user_id = ?', [$c['campaign_id'], $uid]);
             if ($cp) $ctx[] = 'الحملة: ' . $cp['title'] . ($cp['topic'] ? ' — ' . $cp['topic'] : '');
@@ -473,7 +481,7 @@ switch ($action) {
         }
         // لو الـ AI ماغيّرش الهاشتاجات/الـ CTA وسابهم فاضيين، نحتفظ بالقديم
         $new = [
-            'text'     => trim($parsed['content']),
+            'text'     => bk_enabled() ? BrandContext::enforce(trim($parsed['content']), $uid) : trim($parsed['content']),
             'hashtags' => trim((string) ($parsed['hashtags'] ?? '')) ?: (string) ($c['hashtags'] ?? ''),
             'cta'      => trim((string) ($parsed['cta'] ?? '')) ?: (string) ($c['cta'] ?? ''),
         ];

@@ -91,9 +91,12 @@ function campaign_ai(string $prompt, int $maxTokens, string $task, array $ctx = 
         'error' => 'محرك الذكاء الاصطناعي مشغول حاليًا — جرّب تاني بعد دقيقة', 'usage' => ['in' => 0, 'out' => 0]], $t0, $primary);
 }
 
-/** سطور هوية البراند للبرومبتات */
-function campaign_brand_block(array $brand): string
+/** سطور هوية البراند للبرومبتات — + Brand Kit للـ Agent ده (والبريف لو بوست واحد) */
+function campaign_brand_block(array $brand, string $agent = 'copy', ?array $brief = null): string
 {
+    if (!function_exists('bk_brand_block')) require_once __DIR__ . '/brand-kit.php';
+    $__u = bk_brand_block($brand, $agent, $brief);
+    if ($__u !== null) return $__u;
     $lines = [];
     foreach (['business_name' => 'اسم النشاط', 'industry' => 'المجال', 'description' => 'الوصف', 'audience' => 'الجمهور',
               'services' => 'الخدمات والمنتجات', 'tone' => 'النبرة', 'colors' => 'ألوان البراند',
@@ -102,8 +105,10 @@ function campaign_brand_block(array $brand): string
     }
     if (!empty($brand['ai_summary'])) $lines[] = '- ملخص الهوية: ' . mb_substr((string) $brand['ai_summary'], 0, 600);
     $k = !empty($brand['id']) ? get_brand_knowledge((int) $brand['id']) : '';
+    $kit = '';
     return "بيانات البراند:\n" . implode("\n", $lines)
-        . ($k !== '' ? "\n\nمعلومات موثّقة عن البيزنس (مصدر حقائق — ماتخترعش حاجة تخالفها):\n" . mb_substr($k, 0, 3000) : '');
+        . ($k !== '' ? "\n\nمعلومات موثّقة عن البيزنس (مصدر حقائق — ماتخترعش حاجة تخالفها):\n" . mb_substr($k, 0, 3000) : '')
+        . $kit;
 }
 
 function campaign_dialect(array $brand): string
@@ -123,7 +128,7 @@ function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitle
     $details = trim((string) ($c['topic'] ?? '') . "\n" . (string) ($c['notes'] ?? ''));
     $fm = implode('، ', CAMP_FORMATS);
     return "أنت استراتيجي حملات سوشيال ميديا محترف. مطلوب {$n} أفكار لحملة شهرية واحدة متماسكة.\n\n"
-        . campaign_brand_block($brand) . "\n\n"
+        . campaign_brand_block($brand, 'ideas') . "\n\n"
         . "أساس الحملة: {$basis}\n"
         . "اسم الحملة: " . ($c['title'] ?? '') . "\n"
         . ($details !== '' ? "تفاصيل من العميل: {$details}\n" : '')
@@ -132,9 +137,10 @@ function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitle
         . "- كل فكرة زاوية مختلفة (خلف الكواليس، عرض وقيمة، تفاعل، موسم ومناسبة، آراء العملاء، تعليمي، قصة، سؤال شائع…)\n"
         . "- محددة وقابلة للتنفيذ فورًا ومربوطة بالبيزنس الحقيقي — مش عناوين عامة\n"
         . "- الـ Hook جملة افتتاحية قوية بـ " . campaign_dialect($brand) . "\n"
-        . "- formats من القايمة دي بس: {$fm}\n\n"
+        . "- formats من القايمة دي بس: {$fm}\n"
+        . "- لكل فكرة: service = الخدمة اللي بتخدمها (من خدمات العميل بالظبط أو فاضي)، topic = الموضوع، pillar = الاتجاه\n\n"
         . "أعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:\n"
-        . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"]}]}';
+        . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":""}]}';
 }
 
 /** قراءة JSON من رد الـ AI (بيتحمل ```json ونصوص زيادة) */
@@ -168,6 +174,11 @@ function campaign_parse_ideas(string $response): array
             'audience' => mb_substr(trim((string) ($i['audience'] ?? '')), 0, 255),
             'hook'     => mb_substr(trim((string) ($i['hook'] ?? '')), 0, 500),
             'formats'  => $formats ?: ['منشور'],
+            'brief'    => array_filter([
+                'service' => mb_substr(trim((string) ($i['service'] ?? '')), 0, 150),
+                'topic'   => mb_substr(trim((string) ($i['topic'] ?? '')), 0, 255),
+                'pillar'  => mb_substr(trim((string) ($i['pillar'] ?? '')), 0, 80),
+            ], fn($v) => $v !== ''),
         ];
     }
     return $out;
@@ -187,13 +198,14 @@ function campaign_idea_format(array $idea): string
  *   carousel → كابشن + N شرائح (عنوان · نص · فكرة تصميم لكل شريحة) — الأولى غلاف والأخيرة CTA
  *   video    → كابشن + سكريبت مشاهد حسب المدة + فكرة التصوير
  */
-function campaign_content_prompt(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية'): string
+function campaign_content_prompt(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null): string
 {
     $format = $format ?: campaign_idea_format($idea);
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام';
     $head = "أنت كاتب محتوى تسويقي محترف. اكتب محتوى كامل لفكرة من حملة «" . ($c['title'] ?? '') . "» (أساسها: {$basis}).\n"
         . 'شكل المحتوى: ' . content_format_label($format) . ($format === 'carousel' ? " من {$slides} شرائح" : '') . "\n\n"
-        . campaign_brand_block($brand) . "\n\n"
+        . campaign_brand_block($brand, 'copy', $brief)
+        . ($format === 'video' && !empty($brand['user_id']) ? bk_prompt_block((int) $brand['user_id'], 'video') : '') . "\n\n"
         . "الفكرة:\n- الزاوية: {$idea['angle']}\n- العنوان: {$idea['title']}\n"
         . (!empty($idea['description']) ? "- التفاصيل: {$idea['description']}\n" : '')
         . (!empty($idea['audience']) ? "- الجمهور: {$idea['audience']}\n" : '')
@@ -420,6 +432,10 @@ function campaign_idea_api(array $i, ?array $content, array $designs): array
         'formats' => array_values(array_filter(explode('|', (string) ($i['formats'] ?? '')))),
         'selected' => (bool) $i['selected'], 'approved' => (bool) $i['approved'],
         'content' => $co,
+        // بريف البوست: من الفكرة (خدمة · موضوع · اتجاه) + اللي اتكتب بيه المحتوى + «ليه الـ AI عمل كده»
+        'brief' => array_filter(array_merge((array) (json_decode((string) ($i['brief_json'] ?? ''), true) ?: []),
+            array_intersect_key((array) (json_decode((string) ($content['brief_json'] ?? ''), true) ?: []), array_flip(['service', 'topic', 'pillar', 'method', 'character', 'hook'])))) ?: null,
+        'reasons' => $content ? (json_decode((string) ($content['ai_reasoning'] ?? ''), true) ?: []) : [],
         'script' => $script,
         'eval' => $eval ? $eval + ['ready' => (int) ($eval['score'] ?? 0) >= CAMP_EVAL_READY] : null,
         'designs' => $designs,
@@ -528,6 +544,8 @@ function campaign_board_payload(array $c, int $uid): array
         'campaign' => campaign_to_api($c) + ['eval_skipped' => !empty($c['eval_skipped']), 'period_month' => (string) $c['period_month'],
                                              'prefs' => campaign_prefs($c)],
         'ideas'    => campaign_board($c),
+        // Brand Kit: بريف الحملة (بيتبني مع أول دفعة أفكار)
+        'brief'    => json_decode((string) ($c['brief_json'] ?? ''), true) ?: null,
         'counts'   => campaign_flow_counts((int) $c['id']),
         'bases'    => campaign_flow_bases(),
         'stages'   => campaign_stages(),

@@ -130,9 +130,32 @@ if ($__brand) {
     foreach (brand_overview($__brand, (int) $user['id'])['missing'] as $m) $__missing[] = $m['label'];
 }
 
+// مركز الهوية: الخدمات · المواضيع · طريقة الكلام · الاتجاهات · العروض — المساعد يقدر يعدّلهم كمان
+$__kitOn = brand_kit_on();
+$__kitKnown = '';
+if ($__kitOn) {
+    BrandContext::flush((int) $user['id']);
+    $__k = bk_get((int) $user['id']);
+    $__svc = array_column(bk_services((int) $user['id'], true), 'name');
+    $__tp = array_column(array_slice(bk_topics((int) $user['id']), 0, 15), 'title');
+    $__kitKnown = "هوية المحتوى الحالية (مركز الهوية):\n"
+        . '- الخدمات: ' . ($__svc ? implode('، ', $__svc) : 'لسه مفيش') . "\n"
+        . '- مواضيع: ' . ($__tp ? implode('، ', $__tp) : 'لسه مفيش') . "\n"
+        . '- طريقة الكلام: ' . BrandContext::voiceText($__k['data']['voice']) . "\n"
+        . '- اتجاهات المحتوى: ' . ($__k['data']['pillars'] ? implode('، ', array_map(fn($p) => $p['name'] . ' ' . $p['percent'] . '%', $__k['data']['pillars'])) : 'لسه مفيش') . "\n"
+        . '- عروض شغالة: ' . ($__k['data']['offers'] ? implode('، ', array_column($__k['data']['offers'], 'title')) : 'مفيش') . "\n\n";
+}
+$__tones = $__kitOn ? implode('، ', array_column(db_all('SELECT name FROM style_presets WHERE kind = "tone" AND is_active = 1'), 'name')) : '';
+
 $system = "أنت «مساعد الهوية» — خبير استراتيجية براندات مصري ودود على منصة محتوى بالذكاء الاصطناعي. مهمتك تبني هوية العميل بالكامل عبر المحادثة.\n\n"
     . ($__known ? "المعلومات الموجودة فعلًا في هوية العميل (ماتسألش عنها تاني إلا لو طلب يعدّلها):\n" . implode("\n", $__known) . "\n\n" : '')
     . ($__missing ? "المعلومات الناقصة — ابدأ منها بالترتيب ده: " . implode('، ', $__missing) . "\n\n" : '')
+    . $__kitKnown
+    . ($__kitOn ? "تقدر كمان تعدّل هوية المحتوى فورًا لما العميل يطلب (يضيف خدمة أو موضوع أو عرض، يغيّر الاتجاهات أو النبرة، كلمات أو مواضيع ممنوعة، يركّز على خدمة الشهر ده):\n"
+        . "اكتب رد قصير يأكد اللي هتعمله + [KIT] ثم JSON فيه المفاتيح اللي محتاجها بس: "
+        . '{"add_services":[{"name":"","description":"","priority":"high|medium|low"}],"add_topics":[""],"add_offers":[{"title":"","until":"YYYY-MM-DD"}],'
+        . '"pillars":[{"name":"","percent":30}],"focus_service":"","voice_preset":"","forbidden_words":[""],"forbidden_topics":[""]}'
+        . " ثم [/KIT]. voice_preset واحدة من: {$__tones}. ماتحطش [KIT] غير لما العميل يطلب تغيير صريح.\n\n" : '')
     . "القواعد:\n"
     . "1. اسأل سؤال واحد بس في كل رد — قصير وواضح بالعامية المصرية، وممكن تدي مثال يساعده.\n"
     . "2. لازم تجمع بالترتيب: اسم البيزنس والمجال، وصف النشاط وأهم الخدمات/المنتجات، الجمهور المستهدف، نبرة الكلام (رسمي/ودود/شبابي...)، الألوان المفضلة، اللهجة (مصري/فصحى/خليجي)، كلمات أو عبارات يحب تظهر، كلمات ممنوعة، شروط التصميم (مكان اللوجو، ألوان ممنوعة، الستايل).\n"
@@ -188,6 +211,9 @@ if (preg_match('/\[PROFILE\](.*?)\[\/PROFILE\]/s', $reply, $m)) {
                 }
             }
             $profileSaved = true;
+            $__bkF = [];
+            foreach ($sets as $__s) if (preg_match('/`(\w+)`/', $__s, $__m)) $__bkF[] = $__m[1];
+            brand_kit_notify((int) $user['id'], $__bkF, 'ai', 'من المساعد الذكي');
         }
     }
 
@@ -199,6 +225,15 @@ if (preg_match('/\[PROFILE\](.*?)\[\/PROFILE\]/s', $reply, $m)) {
     if ($profileSaved) {
         $reply .= "\n\n✅ **حفظتلك الهوية كاملة!** راجعها وعدّل أي حاجة من صفحة «هوية البراند» — ودلوقتي أي محتوى أو تصميم هيتبني عليها. يلا نبدأ أول خطة؟ 🗓";
     }
+}
+
+// ── تعديلات مركز الهوية من المحادثة ──
+$kitSaved = [];
+if ($__kitOn && preg_match('/\[KIT\](.*?)\[\/KIT\]/su', $reply, $km)) {
+    $kj = bk_json_from_ai($km[1]);
+    if ($kj) $kitSaved = bk_agent_apply((int) $user['id'], $kj);
+    $reply = trim(preg_replace('/\[KIT\].*?\[\/KIT\]/su', '', $reply)) ?: 'تمام ✓';
+    if ($kitSaved) $reply .= "\n\n✅ اتحدّث في هوية البراند: " . implode('، ', $kitSaved);
 }
 
 $messages[] = ['role' => 'assistant', 'content' => $reply];

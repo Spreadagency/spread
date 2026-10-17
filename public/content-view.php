@@ -89,6 +89,8 @@ include __DIR__ . '/../templates/header.php';
                     </div>
                 </div>
 
+                <?php require_once __DIR__ . '/../includes/brand-kit.php'; $bkpContentId = $id; $bkpScheduleUrl = '#schedule'; include __DIR__ . '/../templates/brand-kit-post.php'; ?>
+
                 <!-- ✨ تعديل المنشور بالكلام / بناءً على تعليق (نفس مسار مكتبة المحتوى: اقتراح ← مقارنة ← اعتماد) -->
                 <div class="card mt-20 cv-ai" id="ai-edit">
                     <div class="card-head"><h3>✨ عدّل المنشور بتعليق</h3></div>

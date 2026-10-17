@@ -90,6 +90,9 @@ function settings_registry(): array
                     ['key' => 'ai_model_fallback', 'label' => 'الموديل الاحتياطي', 'type' => 'text', 'default' => '', 'ltr' => true, 'ph' => 'anthropic/claude-3-5-haiku'],
                     ['key' => 'ai_image_model', 'label' => 'موديل توليد الصور', 'type' => 'text', 'default' => '', 'ltr' => true, 'ph' => 'google/gemini-2.5-flash-image'],
                 ]],
+                ['title' => 'مركز الهوية (Brand Kit)', 'fields' => [
+                    ['key' => 'brand_kit_enabled', 'label' => 'مركز الهوية وتأثيره على المحتوى', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل — كل Agent بيقرا الهوية المنظّمة وبيطلع بريف لكل بوست', '0' => 'مقفول — المحتوى يرجع زي الأول (بيانات الهوية القديمة بس)'], 'help' => 'الممنوعات وبريف البوست و«ليه الـ AI عمل كده» بيشتغلوا لما ده مفعّل. المكتبة والقطاعات من «مركز الـ AI».'],
+                ]],
                 ['title' => 'البحث العميق', 'fields' => [
                     ['key' => 'research_enabled', 'label' => 'البحث العميق للعملاء', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل', '0' => 'مقفول']],
                     ['key' => 'research_auto_brain', 'label' => 'البحث بيسجّل في Brand Brain تلقائيًا', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل — الرؤى تتضاف للهوية + اقتراحات للحقول الناقصة', '0' => 'العميل يختار بنفسه'], 'help' => 'البحث العميق شغّال على الـ Smart Router بس — الموديل بيتحدد من «الموديلات والـ Router» (مهمة بحث الويب)'],
@@ -100,6 +103,8 @@ function settings_registry(): array
                 ['الموديلات والـ Router', 'admin/ai-router.php', 'سلسلة البدائل لكل مهمة وتشغيل البوابة', 'ai_settings'],
                 ['تكاليف الـ AI', 'admin/ai-costs.php', 'أسعار الموديلات وسعر الدولار', 'view_costs'],
                 ['مكتبة البرومبتات', 'admin/prompts.php', 'برومبت كل نوع محتوى وتصميم', 'ai_settings'],
+                ['مكتبة التعلّم', 'admin/brand-learning.php', 'طرق الكتابة والـ Hooks والقواعد والمراجع ← مواضيع', 'ai_settings'],
+                ['هويات العملاء', 'admin/brand-kits.php', 'Brand Kit لكل عميل · جرّب · مراجعة الجودة', 'view_users'],
                 ['إعدادات التصميم', 'admin/studio-settings.php', 'المقاسات والأنماط', 'site_settings'],
             ],
         ],
@@ -338,6 +343,7 @@ function settings_portable_extra(): array
         'alerts_email' => ['type' => 'email'], 'alerts_email_min_level' => ['type' => 'select', 'options' => ['warn' => 1, 'critical' => 1]],
         'ai_breaker_threshold' => $n(1, 50), 'ai_breaker_window_min' => $n(1, 120), 'ai_breaker_cooldown_min' => $n(1, 1440), 'ai_failover_alert_per_hour' => $n(1, 1000),
         'margin_alert_pct' => $n(0, 100), 'video_whatsapp' => ['type' => 'digits'],
+        'brand_kit_ai_cost' => $n(0, 999), 'brand_kit_draft_cost' => $n(0, 999),
     ];
 }
 

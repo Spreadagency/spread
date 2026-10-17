@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-04',
-  'generated' => '2026-10-04 05:21',
+  'date' => '2026-10-17',
+  'generated' => '2026-10-17 21:28',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -88,6 +88,42 @@ return array (
     79 => 'templates/v2/studio.php',
     80 => 'templates/v2/tabbar.php',
     81 => 'templates/v2/topbar.php',
+    82 => 'includes/mobile.php',
+    83 => 'includes/mobile-boot.php',
+    84 => 'includes/mobile-push.php',
+    85 => 'public/api/v1/_init.php',
+    86 => 'public/api/v1/auth.php',
+    87 => 'public/api/v1/app.php',
+    88 => 'public/api/v1/call.php',
+    89 => 'public/api/v1/handoff.php',
+    90 => 'sql/2026_mobile_api.sql',
+    91 => 'includes/Notifier.php',
+    92 => 'admin/whatsapp.php',
+    93 => 'admin/whatsapp-api.php',
+    94 => 'cron/daily_notifications.php',
+    95 => 'public/api/inbox.php',
+    96 => 'public/api/whatsapp.php',
+    97 => 'public/api/wa/_boot.php',
+    98 => 'public/api/wa/pending.php',
+    99 => 'public/api/wa/callback.php',
+    100 => 'public/notifications.php',
+    101 => 'templates/inbox-poll.php',
+    102 => 'sql/2026_whatsapp_messaging.sql',
+    103 => 'includes/trial-brand.php',
+    104 => 'sql/2026_trial_link.sql',
+    105 => 'includes/brand-kit.php',
+    106 => 'public/api/brand-kit.php',
+    107 => 'public/brand-kit.php',
+    108 => 'assets/js/brand-kit.js',
+    109 => 'assets/js/brand-kit-post.js',
+    110 => 'assets/css/brand-kit.css',
+    111 => 'templates/brand-kit-post.php',
+    112 => 'admin/brand-learning.php',
+    113 => 'admin/brand-kits.php',
+    114 => 'admin/sector-templates.php',
+    115 => 'admin/style-presets.php',
+    116 => 'cron/brand_learning.php',
+    117 => 'sql/2026_brand_kit.sql',
   ),
   'files' => 
   array (
@@ -138,8 +174,8 @@ return array (
     ),
     'admin/announcements.php' => 
     array (
-      'h' => 'f34af51757fcedf26dc20fd621158219',
-      's' => 16025,
+      'h' => '1374f81b533a846ba574cedb5e497c5e',
+      's' => 17459,
     ),
     'admin/appearance.php' => 
     array (
@@ -148,8 +184,18 @@ return array (
     ),
     'admin/approvals.php' => 
     array (
-      'h' => 'd2e1762c278c4a5f87ef9b2fc6758f7b',
-      's' => 9854,
+      'h' => '7db5b74658e955ccb5608898164be6b1',
+      's' => 10093,
+    ),
+    'admin/brand-kits.php' => 
+    array (
+      'h' => '929b5fd2ea378e1700953f728e4484c3',
+      's' => 23283,
+    ),
+    'admin/brand-learning.php' => 
+    array (
+      'h' => 'c9eb494f37a742ed7cd443b105c0fe74',
+      's' => 21890,
     ),
     'admin/content-history.php' => 
     array (
@@ -223,8 +269,8 @@ return array (
     ),
     'admin/offer-edit.php' => 
     array (
-      'h' => '0a234de647c2feaae9544bd3cba9a021',
-      's' => 27532,
+      'h' => 'c7fcfea48896df04cf17cf2ee0ad3d76',
+      's' => 29376,
     ),
     'admin/offer-redemptions.php' => 
     array (
@@ -273,8 +319,8 @@ return array (
     ),
     'admin/pricing.php' => 
     array (
-      'h' => '1bef751e7a58bc24ae73bf0d5c8845f9',
-      's' => 8585,
+      'h' => '42980294360ba9cac34554600cd2797b',
+      's' => 8948,
     ),
     'admin/prompt-view.php' => 
     array (
@@ -291,6 +337,11 @@ return array (
       'h' => 'a4c222e9eeb1a72fa3818ecddc99749f',
       's' => 9886,
     ),
+    'admin/sector-templates.php' => 
+    array (
+      'h' => '22ad9f41a40712492898feb76370d145',
+      's' => 9523,
+    ),
     'admin/settings.php' => 
     array (
       'h' => '61d8784b842fcc92806ff67adb2f033c',
@@ -305,6 +356,11 @@ return array (
     array (
       'h' => '8ccda4422f8535983adeea79d6ff9387',
       's' => 43013,
+    ),
+    'admin/style-presets.php' => 
+    array (
+      'h' => 'fa772fe496ac30f3b75722f4ad6ba95b',
+      's' => 13039,
     ),
     'admin/templates.php' => 
     array (
@@ -323,8 +379,8 @@ return array (
     ),
     'admin/user-brand.php' => 
     array (
-      'h' => '8f29fc953ddab707c781c6cd4f784902',
-      's' => 11057,
+      'h' => '4d61095561221da039a49041960d8ba9',
+      's' => 12041,
     ),
     'admin/user-view.php' => 
     array (
@@ -351,10 +407,25 @@ return array (
       'h' => '05ae9776f5495eb54c5d601f071cfdb5',
       's' => 12260,
     ),
+    'admin/whatsapp-api.php' => 
+    array (
+      'h' => '08cfdff1d14a5c82b045f7190245af52',
+      's' => 2347,
+    ),
+    'admin/whatsapp.php' => 
+    array (
+      'h' => 'ade39dd246196bcd50351d2ef4c30508',
+      's' => 52440,
+    ),
     'assets/css/admin-v2.css' => 
     array (
       'h' => '7281643cc4d2e5c7d70589fc84f5442b',
       's' => 33821,
+    ),
+    'assets/css/brand-kit.css' => 
+    array (
+      'h' => 'edb239e84a3e004f6d6e1c1da23507dd',
+      's' => 19054,
     ),
     'assets/css/campaign-v2.css' => 
     array (
@@ -391,10 +462,20 @@ return array (
       'h' => '4b0233ffc40f3811e7f657885ebe0838',
       's' => 9240,
     ),
+    'assets/js/brand-kit-post.js' => 
+    array (
+      'h' => '648cb24d5855071e1822ab3b781d7308',
+      's' => 6742,
+    ),
+    'assets/js/brand-kit.js' => 
+    array (
+      'h' => 'a476c15b20647cf935546bdb442205cf',
+      's' => 30468,
+    ),
     'assets/js/main.js' => 
     array (
-      'h' => 'adefc7c86cd454a0742d836d1132fca3',
-      's' => 15630,
+      'h' => 'cc2dbea4889fe688b8aa3e153f47200b',
+      's' => 18419,
     ),
     'assets/js/orb.js' => 
     array (
@@ -421,10 +502,25 @@ return array (
       'h' => '8c4ce39795705c02c1424381a4ddf0e0',
       's' => 3516,
     ),
+    'cron/brand_learning.php' => 
+    array (
+      'h' => 'd88f8d1f29f0ca75ce7231a7e1589062',
+      's' => 3088,
+    ),
+    'cron/daily_notifications.php' => 
+    array (
+      'h' => '6ef8ff2ae5cb06c37d658bb50b58359a',
+      's' => 3762,
+    ),
     'cron/publish-scheduled.php' => 
     array (
-      'h' => '15b7d95c7ca8415d017da4c50552f764',
-      's' => 8609,
+      'h' => '543efeca156024676c4dc0758f503f0b',
+      's' => 10141,
+    ),
+    'includes/Notifier.php' => 
+    array (
+      'h' => 'fda0698507f43041f462f57c00750171',
+      's' => 58480,
     ),
     'includes/account.php' => 
     array (
@@ -438,13 +534,13 @@ return array (
     ),
     'includes/admin-metrics.php' => 
     array (
-      'h' => '6d946499887bc4999eacbf6fc3c3c05f',
-      's' => 9087,
+      'h' => '37b594afbe77f925f4c74fef9dcec69e',
+      's' => 9273,
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '6da46a4864d41cad91aa88bbfdb9cf09',
-      's' => 12272,
+      'h' => '04f5f7f8a57df0b4a73df44acbd95697',
+      's' => 13028,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -468,8 +564,8 @@ return array (
     ),
     'includes/api.php' => 
     array (
-      'h' => 'f51fb43476c57e8dfed930d3ee51c4f0',
-      's' => 6582,
+      'h' => 'dccaaa59ac88b1933dfdbcd58b8b0b3c',
+      's' => 6840,
     ),
     'includes/auth.php' => 
     array (
@@ -478,18 +574,23 @@ return array (
     ),
     'includes/billing.php' => 
     array (
-      'h' => '787f3d94255bd162445dd87a72774ff4',
-      's' => 24632,
+      'h' => '06589d85213d3c8acc3e006fb74716c9',
+      's' => 25453,
     ),
     'includes/brand-brain.php' => 
     array (
-      'h' => 'd2ee3f5002b075a3a43b9672429e6880',
-      's' => 42131,
+      'h' => '10862627109e22769a81d1d2efeb3e95',
+      's' => 43815,
+    ),
+    'includes/brand-kit.php' => 
+    array (
+      'h' => 'ee7e9a898c53df9de980d368e213b68b',
+      's' => 121692,
     ),
     'includes/campaign-flow.php' => 
     array (
-      'h' => 'a87fea42f28a62e73eba8e312415eabe',
-      's' => 32501,
+      'h' => '761ee90d32bb45397a6859996526442e',
+      's' => 34307,
     ),
     'includes/config.sample.php' => 
     array (
@@ -503,8 +604,8 @@ return array (
     ),
     'includes/credits.php' => 
     array (
-      'h' => 'b6400566d4981c4a8f597412d06fb91e',
-      's' => 25144,
+      'h' => 'b743a7bca2098d1f1a206fec6cb54601',
+      's' => 25415,
     ),
     'includes/crypto.php' => 
     array (
@@ -533,8 +634,8 @@ return array (
     ),
     'includes/helpers.php' => 
     array (
-      'h' => '4772d1c6252579ce43cedcafffaf7835',
-      's' => 26064,
+      'h' => '27e0f4bcb57a247706a97d7acbbd46da',
+      's' => 27752,
     ),
     'includes/integrations.php' => 
     array (
@@ -558,23 +659,38 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '080b315e09cf2fc2df597eb16899329b',
-      's' => 9741,
+      'h' => '46acd90066d08ef023b406175abd25c0',
+      's' => 10599,
+    ),
+    'includes/mobile-boot.php' => 
+    array (
+      'h' => 'da334b795b66eb63e244c51db12d8f49',
+      's' => 3032,
+    ),
+    'includes/mobile-push.php' => 
+    array (
+      'h' => '06af83c5d18ed16940a9410838c663c8',
+      's' => 3047,
+    ),
+    'includes/mobile.php' => 
+    array (
+      'h' => '6299f982cb284de1c9d7bfc3c62c9220',
+      's' => 15351,
     ),
     'includes/offers.php' => 
     array (
-      'h' => '6ff503cca257566b68edc30a203ddc5a',
-      's' => 23499,
+      'h' => '106ad1727114a73060460e6269e0ec65',
+      's' => 23747,
     ),
     'includes/plan-functions.php' => 
     array (
-      'h' => '450cd0fb1e81271adcc4ab7f3ea06ef9',
-      's' => 16540,
+      'h' => '2b54903ef2fbfa4f8e7eb6d55b1efc67',
+      's' => 16535,
     ),
     'includes/plans.php' => 
     array (
-      'h' => 'd18aecfc664415a9fe39a3613aeb0a2c',
-      's' => 19976,
+      'h' => '85d3b682e0625b133a1f3eb0ef621a4a',
+      's' => 22242,
     ),
     'includes/promo.php' => 
     array (
@@ -583,8 +699,8 @@ return array (
     ),
     'includes/prompt-builder.php' => 
     array (
-      'h' => '184960d6a1eb33647555530422e879f7',
-      's' => 12296,
+      'h' => '4b7ae87df127908c5bb106025d830445',
+      's' => 14299,
     ),
     'includes/rate-limit.php' => 
     array (
@@ -598,8 +714,8 @@ return array (
     ),
     'includes/research.php' => 
     array (
-      'h' => '120688fd7b30e3c1ede8072c8bf9edfc',
-      's' => 58894,
+      'h' => 'd983d0cd305b469b9a83a9dd1b85ccdf',
+      's' => 59601,
     ),
     'includes/safe-http.php' => 
     array (
@@ -608,8 +724,8 @@ return array (
     ),
     'includes/settings-registry.php' => 
     array (
-      'h' => '97b64b9e9752673ec273f1c82490b937',
-      's' => 28558,
+      'h' => '1e0f124bb1b4ca347a39b5cb57638b95',
+      's' => 30788,
     ),
     'includes/smart-ai.php' => 
     array (
@@ -641,10 +757,15 @@ return array (
       'h' => 'deeb910ae2093092c52d8c9fed1277f3',
       's' => 11317,
     ),
+    'includes/trial-brand.php' => 
+    array (
+      'h' => 'ae7204ac33edcd3bee9633ad049a14c1',
+      's' => 16540,
+    ),
     'includes/ui-v2.php' => 
     array (
-      'h' => '0a5d880adaeb7135a48eb5ad8636ddfb',
-      's' => 18822,
+      'h' => '0ece35111dd3894f888e9441347d1225',
+      's' => 19181,
     ),
     'includes/uploader.php' => 
     array (
@@ -678,13 +799,13 @@ return array (
     ),
     'public/ajax/analyze-visual-identity.php' => 
     array (
-      'h' => '8f5d8c0a7dc4497264958af17f858704',
-      's' => 7464,
+      'h' => 'b816e18463e93adc2aa3bebb58058ddf',
+      's' => 7792,
     ),
     'public/ajax/brand-agent.php' => 
     array (
-      'h' => '1187613954c628dd7d33171f7d002852',
-      's' => 11443,
+      'h' => '3276b91ccb17a64e7d6fed7054059e5d',
+      's' => 14382,
     ),
     'public/ajax/buy-package.php' => 
     array (
@@ -708,18 +829,18 @@ return array (
     ),
     'public/ajax/generate-content.php' => 
     array (
-      'h' => 'b2e340fe862e9b62cb0a7f297d3a4c27',
-      's' => 5407,
+      'h' => '376805b50033e5ea580e708d9357b609',
+      's' => 6334,
     ),
     'public/ajax/generate-design.php' => 
     array (
-      'h' => '81022e1e363c7431e76f8e6b50e5953c',
-      's' => 16012,
+      'h' => '96172913b67d2b9c5d054282902396e6',
+      's' => 19671,
     ),
     'public/ajax/generate-logo.php' => 
     array (
-      'h' => '699bc4e4f263d33fa00608f8fde785a8',
-      's' => 3781,
+      'h' => 'afc33d0ea8f0dd0bc9b20256f2f359b2',
+      's' => 3940,
     ),
     'public/ajax/generate-plan-ideas.php' => 
     array (
@@ -728,8 +849,8 @@ return array (
     ),
     'public/ajax/generate-stream.php' => 
     array (
-      'h' => '34c4a336f0a26ecdbfe988235d6013ad',
-      's' => 5322,
+      'h' => 'f3178f6c2f161c616ca49a498d724cb3',
+      's' => 6249,
     ),
     'public/ajax/plan-idea-action.php' => 
     array (
@@ -738,8 +859,8 @@ return array (
     ),
     'public/ajax/produce-idea.php' => 
     array (
-      'h' => '7a45ad5cd226a19af30be9f3dcd134d4',
-      's' => 5311,
+      'h' => '307617e9550fdca85a0678bbd6c71236',
+      's' => 5879,
     ),
     'public/ajax/publish-direct.php' => 
     array (
@@ -748,13 +869,13 @@ return array (
     ),
     'public/ajax/regenerate-content.php' => 
     array (
-      'h' => '5d150e5d8a6a36b9aa63d2fb888e8b5c',
-      's' => 2992,
+      'h' => '6c2baf76458f70cb69aea5855c3c0321',
+      's' => 4503,
     ),
     'public/ajax/save-content.php' => 
     array (
-      'h' => 'dde6190452511bd4bce540db15013439',
-      's' => 1315,
+      'h' => 'e67ae6a3b6d7bb17c5b940dd0fea6bff',
+      's' => 1481,
     ),
     'public/ajax/schedule-content.php' => 
     array (
@@ -763,8 +884,8 @@ return array (
     ),
     'public/ajax/studio-design.php' => 
     array (
-      'h' => '494af78bda589cff35a13ee303e5baa2',
-      's' => 19945,
+      'h' => '2cb38f37be276179d664e2f8aa911913',
+      's' => 20315,
     ),
     'public/ajax/studio-select.php' => 
     array (
@@ -778,8 +899,8 @@ return array (
     ),
     'public/ajax/trial.php' => 
     array (
-      'h' => '7aef2614501dc1ac4fe0df7c9cae4e47',
-      's' => 8924,
+      'h' => '5a4ecc63e6a81b50ad09e4208d397633',
+      's' => 16246,
     ),
     'public/ajax/upload-image.php' => 
     array (
@@ -796,15 +917,20 @@ return array (
       'h' => 'c04a691d0ddff0fbecc18a5bbf77dba4',
       's' => 3692,
     ),
+    'public/api/brand-kit.php' => 
+    array (
+      'h' => 'a9e848f112050310c3fbb8232a0658cc',
+      's' => 45788,
+    ),
     'public/api/brand.php' => 
     array (
-      'h' => '5a7de1b8d3f75e6da70d2671a82dad49',
-      's' => 9288,
+      'h' => 'd32a65f1bde9f834b045b624a6b28664',
+      's' => 9364,
     ),
     'public/api/campaign-flow.php' => 
     array (
-      'h' => '7180a1a18ac9ee9667bc18d9a33c5f1f',
-      's' => 32135,
+      'h' => 'd20be6497b4b0e087208b8f542632fd5',
+      's' => 35137,
     ),
     'public/api/campaigns.php' => 
     array (
@@ -813,8 +939,13 @@ return array (
     ),
     'public/api/contents.php' => 
     array (
-      'h' => 'e8e664d455321c5193a6b1866878490d',
-      's' => 32379,
+      'h' => '86c64f58519391beff1cabc1599a5e30',
+      's' => 33096,
+    ),
+    'public/api/inbox.php' => 
+    array (
+      'h' => '743a9c649f7800ec1ac09d183cfd1458',
+      's' => 4007,
     ),
     'public/api/journey.php' => 
     array (
@@ -833,8 +964,53 @@ return array (
     ),
     'public/api/studio.php' => 
     array (
-      'h' => '4ce3dfd5aeeedcf8159a8fd4c3167c0d',
-      's' => 30609,
+      'h' => 'acb7077755580ed17f8adfba953d0b41',
+      's' => 31255,
+    ),
+    'public/api/v1/_init.php' => 
+    array (
+      'h' => '10f220f9561e2ddb77cbd706d3c4cba7',
+      's' => 2602,
+    ),
+    'public/api/v1/app.php' => 
+    array (
+      'h' => '08a15fe2cde8293dc6ce25e377a7db7f',
+      's' => 14969,
+    ),
+    'public/api/v1/auth.php' => 
+    array (
+      'h' => '5bf4e87c2c5a50d37a86e1c1669ff6db',
+      's' => 11158,
+    ),
+    'public/api/v1/call.php' => 
+    array (
+      'h' => '2d58cf32a426476543ca97b1bba01916',
+      's' => 4656,
+    ),
+    'public/api/v1/handoff.php' => 
+    array (
+      'h' => '9d9abe5e4c1d1d772f8832f060196470',
+      's' => 1815,
+    ),
+    'public/api/wa/_boot.php' => 
+    array (
+      'h' => '7ea799d01de2d7b0d75bab7a83813f9c',
+      's' => 1075,
+    ),
+    'public/api/wa/callback.php' => 
+    array (
+      'h' => '6655a0129e032927cd34538a5ca6d212',
+      's' => 948,
+    ),
+    'public/api/wa/pending.php' => 
+    array (
+      'h' => '0c4e1be42cd14aa22d5070b4b01eb9c9',
+      's' => 393,
+    ),
+    'public/api/whatsapp.php' => 
+    array (
+      'h' => '33e8126edcd3863a04bab974031ba584',
+      's' => 6077,
     ),
     'public/auth/google-callback.php' => 
     array (
@@ -858,13 +1034,18 @@ return array (
     ),
     'public/brand-brain.php' => 
     array (
-      'h' => 'deb2d2c92e7b14df6bc7fec2eaff0404',
-      's' => 31471,
+      'h' => 'c55091554902ab8e512e4bf79b508a8b',
+      's' => 31638,
+    ),
+    'public/brand-kit.php' => 
+    array (
+      'h' => '3d950cedd1a1a1ae9591b0c2ecf6db41',
+      's' => 53533,
     ),
     'public/brand-profile.php' => 
     array (
-      'h' => '6811085e1c251a024228dcd2b16e18ea',
-      's' => 31050,
+      'h' => '28169719f3c9cc99da93b7966f09ee30',
+      's' => 31394,
     ),
     'public/campaign-export.php' => 
     array (
@@ -898,8 +1079,8 @@ return array (
     ),
     'public/content-edit.php' => 
     array (
-      'h' => 'f5b62c6ecfd6f286ec2b610aa13b82dc',
-      's' => 4122,
+      'h' => '450cb92b5991be23102e5b3b7daaf559',
+      's' => 4294,
     ),
     'public/content-history.php' => 
     array (
@@ -913,13 +1094,13 @@ return array (
     ),
     'public/content-view.php' => 
     array (
-      'h' => '147d3fbd4b2fd793c566dfbc409d6a58',
-      's' => 49880,
+      'h' => 'ffecc539513a15490a84c5492bbbb1a2',
+      's' => 53269,
     ),
     'public/create-content.php' => 
     array (
-      'h' => '509df83c3c1b8d9e3f805583de868ae3',
-      's' => 18726,
+      'h' => '2d0a126786066abab14a449c96d667df',
+      's' => 19293,
     ),
     'public/credits.php' => 
     array (
@@ -975,6 +1156,11 @@ return array (
     array (
       'h' => '93eda692cd50c1f2c72c7cf1600c7584',
       's' => 738,
+    ),
+    'public/notifications.php' => 
+    array (
+      'h' => '8798cd677690055bb5b22e2af3ab846a',
+      's' => 17766,
     ),
     'public/packages.php' => 
     array (
@@ -1126,10 +1312,20 @@ return array (
       'h' => 'a33a4ce9290bce0afd81e269666942c8',
       's' => 2363,
     ),
+    'sql/2026_brand_kit.sql' => 
+    array (
+      'h' => '06f8d1ba5e46a049c3c931ae4bf98eaa',
+      's' => 7530,
+    ),
     'sql/2026_google_auth.sql' => 
     array (
       'h' => '12d9e030176db3ef77a4734bd8f6a96a',
       's' => 1591,
+    ),
+    'sql/2026_mobile_api.sql' => 
+    array (
+      'h' => '03ff796c43d06201f29bd5116b788ab9',
+      's' => 1643,
     ),
     'sql/2026_offers_system.sql' => 
     array (
@@ -1216,10 +1412,20 @@ return array (
       'h' => 'bc344a4a7102167057a73cb456facbdb',
       's' => 4067,
     ),
+    'sql/2026_trial_link.sql' => 
+    array (
+      'h' => '0703712272b5634bfadbfa7660b96f52',
+      's' => 1182,
+    ),
     'sql/2026_ui_v2.sql' => 
     array (
       'h' => 'f026f5a07152e3379fcb68e61e1531e1',
       's' => 1438,
+    ),
+    'sql/2026_whatsapp_messaging.sql' => 
+    array (
+      'h' => 'b4dd2912183dfd306dc0210a534c478f',
+      's' => 4790,
     ),
     'sql/features-upgrade.sql' => 
     array (
@@ -1286,6 +1492,11 @@ return array (
       'h' => 'd34b08bf9350ccd581c24f5a00dc4d41',
       's' => 8436,
     ),
+    'templates/brand-kit-post.php' => 
+    array (
+      'h' => '5ff5bbbc0568b4a71e3dab2a68299a4d',
+      's' => 1791,
+    ),
     'templates/footer.php' => 
     array (
       'h' => 'fd2b9cc5465ba46f72d487c8b3c9ea8f',
@@ -1306,6 +1517,11 @@ return array (
       'h' => 'd4d93581a7fa348cb284e2d85e827b73',
       's' => 1159,
     ),
+    'templates/inbox-poll.php' => 
+    array (
+      'h' => 'ed3c5fece11e1ed9b1774d710e4b203a',
+      's' => 4007,
+    ),
     'templates/ratio-picker.php' => 
     array (
       'h' => '71d5214ab91290f44a43fa77f7a62ac6',
@@ -1313,8 +1529,8 @@ return array (
     ),
     'templates/sidebar.php' => 
     array (
-      'h' => '08c5b22e0772a6331a1c7b015d55053b',
-      's' => 6551,
+      'h' => 'dd19da5b41b7c9cb001dbf431975f5fc',
+      's' => 6955,
     ),
     'templates/style-ref-picker.php' => 
     array (
@@ -1328,8 +1544,8 @@ return array (
     ),
     'templates/topbar.php' => 
     array (
-      'h' => '698c743286e285174b5a8febb7e49fd3',
-      's' => 1535,
+      'h' => 'c26c2e82d4958d35d7552bcb6741a186',
+      's' => 2877,
     ),
     'templates/v2/auth.php' => 
     array (
@@ -1338,8 +1554,8 @@ return array (
     ),
     'templates/v2/campaign.php' => 
     array (
-      'h' => '10a27b71d97cf144a2b4f8ff55329e25',
-      's' => 88051,
+      'h' => '11c62d3b3b78359abbfab051f07bfe9c',
+      's' => 91166,
     ),
     'templates/v2/contents.php' => 
     array (
@@ -1353,18 +1569,18 @@ return array (
     ),
     'templates/v2/journey.php' => 
     array (
-      'h' => '524154107b5dd3e6cfc43e912adaf063',
-      's' => 20142,
+      'h' => '8d39e0a8889c100a41ac637f957814da',
+      's' => 20158,
     ),
     'templates/v2/research.php' => 
     array (
-      'h' => '26672f40affee9b181c0f81e049882b8',
-      's' => 44375,
+      'h' => '83e8dce8d615fd262c0ed0fe3b5d5c27',
+      's' => 44387,
     ),
     'templates/v2/settings.php' => 
     array (
-      'h' => '0e27816e9b604310b34c8815af2e06b8',
-      's' => 34172,
+      'h' => '2b12304da90e99a8b148ebbbf8917599',
+      's' => 35022,
     ),
     'templates/v2/sidebar.php' => 
     array (
@@ -1383,8 +1599,8 @@ return array (
     ),
     'templates/v2/topbar.php' => 
     array (
-      'h' => '8e57e0ed15f31dd7d4eef844ad5cd13c',
-      's' => 7930,
+      'h' => 'be62fabdf73a6181e053ba22d231c73b',
+      's' => 8843,
     ),
   ),
 );

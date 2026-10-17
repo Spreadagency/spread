@@ -150,6 +150,11 @@ $text = trim(preg_replace('/\[\/?[A-Z_]+\]/', '', $ai['response'] ?? ''));
 $text = mb_substr($text, 0, 6000);
 
 db_run('UPDATE brand_profiles SET visual_identity = ?, visual_identity_at = NOW() WHERE id = ?', [$text, $brand['id']]);
+// مركز الهوية: التحليل يبقى اقتراحات لقسم الشكل (ألوان + ملاحظات) — العميل يوافق
+if (is_file(__DIR__ . '/../../includes/brand-kit.php')) {
+    require_once __DIR__ . '/../../includes/brand-kit.php';
+    bk_suggest_from_visual_identity((int) $user['id'], $text);
+}
 ai_log_usage((int) $user['id'], 'visual_identity', $ai['model'] ?? 'router', $ai['usage'] ?? [], (int) $brand['id']);
 
 json_response([
