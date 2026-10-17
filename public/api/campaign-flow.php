@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../includes/api.php';
 require_once __DIR__ . '/../../includes/social.php';
 require_once __DIR__ . '/../../includes/campaign-flow.php';
 require_once __DIR__ . '/../../includes/brand-brain.php';
+require_once __DIR__ . '/../../includes/brand-kit.php';
 
 $user = api_boot(true, true);   // بيكتب في الجلسة
 $uid = (int) $user['id'];
@@ -46,6 +47,26 @@ function cf_idea_out(array $c, int $uid, int $ideaId): array
     $content = $i['content_id'] ? db_one('SELECT * FROM contents WHERE id = ? AND user_id = ?', [$i['content_id'], $uid]) : null;
     $designs = $content ? (campaign_designs([(int) $content['id']])[(int) $content['id']] ?? []) : [];
     return campaign_idea_api($i, $content ?: null, $designs);
+}
+
+/** overrides البريف من الفكرة: الخدمة (بالاسم) · الموضوع · الاتجاه · الشكل — إعادة الكتابة بتحافظ على اختيارات المرة اللي فاتت */
+function cf_brief_overrides(int $uid, array $idea, string $fmt, ?array $old): array
+{
+    $ib = bk_arr($idea['brief_json'] ?? '');
+    $o = ['format' => bk_platform_to_format($fmt), 'topic' => (string) (($ib['topic'] ?? '') ?: $idea['title'])];
+    if (!empty($ib['pillar'])) $o['pillar'] = (string) $ib['pillar'];
+    if (!empty($ib['service'])) {
+        foreach (bk_services($uid, true) as $s) {
+            if (mb_strtolower(trim($s['name'])) === mb_strtolower(trim($ib['service']))) { $o['service_id'] = (int) $s['id']; break; }
+        }
+    }
+    if ($old) {
+        $prev = bk_arr($old['brief_json'] ?? '');
+        foreach (['service_id', 'method_id', 'pillar'] as $k) if (!isset($o[$k]) && !empty($prev[$k])) $o[$k] = $prev[$k];
+        if (array_key_exists('character_id', $prev)) $o['character_id'] = (int) $prev['character_id'];
+        $o = array_merge($o, array_diff_key(bk_arr($old['brand_overrides'] ?? ''), ['format' => 1]));
+    }
+    return $o;
 }
 
 /** المحتوى والتقييم والتصميم محتاجين هوية البراند فوق الحد (الأفكار مفتوحة) */
@@ -158,11 +179,15 @@ switch ($action) {
         }
         $order = (int) (db_one('SELECT COALESCE(MAX(sort_order), 0) m FROM campaign_ideas WHERE campaign_id = ?', [$c['id']])['m'] ?? 0);
         foreach (array_slice($ideas, 0, $n) as $k => $i) {
-            db_insert('INSERT INTO campaign_ideas (campaign_id, user_id, sort_order, angle, title, description, audience, hook, formats, selected)
-                       VALUES (?,?,?,?,?,?,?,?,?,?)',
+            db_insert('INSERT INTO campaign_ideas (campaign_id, user_id, sort_order, angle, title, description, audience, hook, formats, selected, brief_json)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                 [$c['id'], $uid, ++$order, $i['angle'], $i['title'], $i['desc'], $i['audience'], $i['hook'], implode('|', $i['formats']),
                  // أول 4 بتتختار تلقائيًا (زي التصميم) — العميل يغيّر براحته
-                 ($batch === 0 && $k < 4) ? 1 : 0]);
+                 ($batch === 0 && $k < 4) ? 1 : 0, $i['brief'] ? bk_json($i['brief']) : null]);
+        }
+        // بريف الحملة (الهوية وقت الأفكار) — بيظهر للعميل في الحملة
+        if ($batch === 0 && bk_enabled()) {
+            db_run('UPDATE campaigns SET brief_json = ? WHERE id = ?', [bk_json(BrandContext::campaignBrief($uid, $c)), $c['id']]);
         }
         $_SESSION[$key]['next'] = $batch + 1;
         if ($batch + 1 >= $batches) {
@@ -236,9 +261,15 @@ switch ($action) {
         if ($old && cf_video_locked($old)) api_fail('الفيديو ده اتبعت للتنفيذ — مش هنعيد كتابته', 'locked', 409);
         $extra = $old && !$formatChanged ? "اكتب نسخة جديدة مختلفة عن اللي فات (Hook مختلف وزاوية طرح مختلفة)." : '';
         $dur = $fmt === 'video' && $old ? video_brief($old)['duration'] : '30 ثانية';
-        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $fmt, $slides, $dur), $fmt === 'carousel' ? 2600 : 1800, 'campaign_content',
+        // Brand Kit: بريف البوست من الفكرة (خدمة · موضوع · اتجاه) + شكلها — والباقي من الهوية
+        $bkO = cf_brief_overrides($uid, $i, $fmt, $old);
+        $bkBrief = bk_enabled() ? BrandContext::brief($uid, $bkO) : null;
+        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $fmt, $slides, $dur, $bkBrief), $fmt === 'carousel' ? 2600 : 1800, 'campaign_content',
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id']]);
-        $p = $ai['ok'] ? campaign_parse_content((string) $ai['response']) : null;
+        $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
+        if ($p) {   // الممنوعات دايمًا
+            foreach (['hook', 'body', 'cta', 'script'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
+        }
         if ($p && $fmt === 'video' && $p['script'] === '') $p = null;          // فيديو من غير سكريبت = رد ناقص
         if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
             cf_refund($uid, $cost, 'محتوى فكرة #' . $i['id'], (int) $i['id']);
@@ -265,6 +296,7 @@ switch ($action) {
             ] + $ff + ($fmt === 'video' ? ['video_status_at' => date('Y-m-d H:i:s')] : []));
             save_content_version($cid, $text, $p['tags'] ?: null, $p['cta'] ?: null, 'ai', 'من الحملة');
         }
+        if ($bkBrief) BrandContext::attach($cid, $uid, $bkBrief, BrandContext::parseWhy((string) $ai['response']), $bkO);
         // السكريبت على الفكرة (للتصدير والأرقام) — للفيديو بس
         $script = ['hook' => $p['hook'], 'body' => $p['script'], 'cta' => $p['cta'], 'tags' => $p['tags'], 'design' => $p['shoot']];
         // محتوى جديد = تقييم قديم مايبقاش صالح
@@ -318,6 +350,7 @@ switch ($action) {
         db_run('UPDATE contents SET generated_text = ?, hashtags = ?, cta = ?, design_direction = ?, status = "edited" WHERE id = ?',
             [$text, $tags ?: null, $cta ?: null, $design ?: null, $content['id']]);
         if ($textChanged) {
+            bk_feedback_text_edit($uid, (int) $content['id'], (string) $content['generated_text'], $text);
             save_content_version((int) $content['id'], $text, $tags ?: null, $cta ?: null, 'edited', 'تعديل من الحملة');
             // التقييم كان على النص القديم
             db_run('UPDATE campaign_ideas SET eval_score = NULL, eval_json = NULL, approved = 0 WHERE id = ?', [$i['id']]);
@@ -371,9 +404,14 @@ switch ($action) {
             foreach (content_slides($content) as $sl) $extra .= 'شريحة ' . $sl['n'] . ' | ' . $sl['title'] . ' | ' . $sl['text'] . "\n";
         }
         if ($ifmt === 'video') $extra .= "\nالسكريبت الحالي:\n" . mb_substr(video_script_text(video_brief($content)), 0, 2000);
-        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $ifmt, $islides, video_brief($content)['duration']), $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
+        $bkBrief = bk_enabled() ? bk_brief_for_content($content, $uid) : null;
+        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $ifmt, $islides, video_brief($content)['duration'], $bkBrief), $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id'], 'temperature' => 0.7]);
-        $p = $ai['ok'] ? campaign_parse_content((string) $ai['response']) : null;
+        $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
+        if ($p) {
+            foreach (['hook', 'body', 'cta', 'script'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
+            if ($bkBrief) BrandContext::attach((int) $content['id'], $uid, $bkBrief, BrandContext::parseWhy((string) $ai['response']));
+        }
         if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
             cf_refund($uid, $cost, 'تحسين منشور #' . $content['id'], (int) $i['id']);
             api_fail($ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التحسين'), 'ai_failed', 502);

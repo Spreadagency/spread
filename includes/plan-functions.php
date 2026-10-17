@@ -60,6 +60,7 @@ function build_plan_ideas_prompt(array $brand, array $plan): string
         . "بيانات البراند:\n"
         . implode("\n", $brandLines)
     . $knowledge
+    . (function_exists('bk_prompt_block') && !empty($brand['user_id']) ? bk_prompt_block((int) $brand['user_id'], 'ideas') : '')
     . "\n\nهدف الخطة: {$goal}"
     . ($notes !== '' ? "\nتوجيهات العميل: {$notes}" : '')
     . <<<EOT
@@ -162,6 +163,7 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
     return prompt_or_default('plan_produce', "أنت كاتب محتوى تسويقي محترف. اكتب منشور سوشيال ميديا كامل بناءً على الفكرة التالية.") . "\n\n"
         . "بيانات البراند:\n" . implode("\n", $brandLines)
         . $knowledge
+        . (function_exists('bk_prompt_block') && !empty($brand['user_id']) ? bk_prompt_block((int) $brand['user_id'], 'copy', $options['bk_brief'] ?? null) : '')
         . "\n\nالفكرة المطلوبة:\n"
         . "- العنوان: {$idea['title']}\n"
         . "- الأسلوب: {$angleLabel}\n"

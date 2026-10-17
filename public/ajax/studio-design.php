@@ -220,6 +220,10 @@ if ($brand) {
     if (!empty($brand['visual_identity'])) $identity[] = 'VISUAL IDENTITY GUIDE (follow these style rules precisely): ' . mb_substr($brand['visual_identity'], 0, 1500);
 }
 $identityBlock = $identity ? implode("\n", $identity) . "\n" : '';
+// Brand Kit: الألوان · الخطوط · الاستايل · طبيعة الصور · الممنوعات
+require_once __DIR__ . '/../../includes/brand-kit.php';
+$__bkD = ltrim(bk_prompt_block((int) $user['id'], 'design'));
+if ($__bkD !== '') $identityBlock .= $__bkD . "\n";
 
 $concept = match ($mode) {
     'from_content' => ($designIdea !== '' ? "Design concept (follow closely): {$designIdea}\n" : '')

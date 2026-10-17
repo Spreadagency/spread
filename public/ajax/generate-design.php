@@ -153,6 +153,23 @@ if ($includeImages) {
     }
 }
 
+// Brand Kit: بريف البوست + الشخصية الثابتة (صورتها المرجعية) — نفس الملامح في كل بوست
+require_once __DIR__ . '/../../includes/brand-kit.php';
+$bkDesignBrief = bk_enabled() ? bk_arr($content['brief_json'] ?? '') : [];
+if (bk_enabled() && !empty($content['bk_character_id']) && ($_POST['design_edit'] ?? '') !== '1') {
+    $__ch = db_one('SELECT * FROM brand_characters WHERE id = ? AND user_id = ? AND is_active = 1', [(int) $content['bk_character_id'], (int) $user['id']]);
+    $__useIn = $__ch ? array_filter(explode(',', (string) $__ch['use_in'])) : [];
+    if ($__ch && ($__ch['type'] !== 'real_person' || (int) $__ch['consent_confirmed'] === 1) && (!$__useIn || in_array('image', $__useIn, true))) {
+        $__img = db_one('SELECT image_path FROM brand_character_images WHERE character_id = ? ORDER BY is_primary DESC, id ASC LIMIT 1', [$__ch['id']]);
+        $__uri = $__img ? image_data_uri($__img['image_path']) : null;
+        if ($__uri) {
+            $refLog[] = ['role' => 'character', 'path' => $__img['image_path']];
+            $inputImages[] = ['uri' => $__uri, 'role' => "the brand's recurring CHARACTER «" . $__ch['name'] . "» — show this exact person/character with the SAME face, features, hairstyle and outfit (do not change identity)."];
+            $bkDesignBrief['character_desc'] = trim($__ch['name'] . ($__ch['role'] ? ' (' . $__ch['role'] . ')' : '') . '. ' . (string) $__ch['description']);
+        }
+    }
+}
+
 $styleUri = $externalStyleUri ?: ($sourceImagePath ? image_data_uri($sourceImagePath) : null);
 if ($styleUri) {
     // تعديل تصميم موجود: الصورة دي هي التصميم نفسه اللي هيتعدّل — مش مجرد إلهام بالستايل
@@ -181,7 +198,8 @@ if (!empty($brand['colors']))   $identity[] = 'BRAND COLORS (primary palette): '
 if (!empty($brand['design_rules'])) $identity[] = 'DESIGN RULES from the client (must follow strictly): ' . $brand['design_rules'];
 if (!empty($brand['visual_identity'])) $identity[] = 'VISUAL IDENTITY GUIDE (follow these style rules precisely): ' . mb_substr($brand['visual_identity'], 0, 1500);
 if (!empty($brand['ai_summary'])) $identity[] = 'Brand identity summary: ' . mb_substr($brand['ai_summary'], 0, 700);
-$identityBlock = implode("\n", $identity) . "\n";
+$identityBlock = implode("\n", $identity) . "\n"
+    . ltrim(bk_prompt_block((int) $user['id'], 'design', $bkDesignBrief ? $bkDesignBrief + ['service' => '', 'topic' => ''] : null)) . "\n";
 
 if ($format === 'carousel' && $slide) {
     $pos = $slideNo === 1 ? 'the COVER slide (strong hook, invites swiping)' : ($slideNo === $slidesTotal ? 'the LAST slide (clear call-to-action)' : 'a middle slide');

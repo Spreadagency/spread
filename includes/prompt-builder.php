@@ -8,6 +8,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/source-extract.php';
+require_once __DIR__ . '/brand-kit.php';
 
 /**
  * Get the active prompt for a given type (or fallback to default)
@@ -49,6 +50,13 @@ function prompt_types(): array
         'brand_agent'     => ['🤖 مساعد الهوية', 'تعليمات ايجنت المحادثة'],
         'source_summary'  => ['📄 تلخيص المستندات', 'تلخيص مستندات الهوية'],
         'design_base'     => ['🎨 أساس برومبت التصميم', 'التعليمات الثابتة في كل تصميم (إنجليزي)'],
+        // Brand Kit: تعليمات كل Agent (بتتحط فوق سياق الهوية بتاعه)
+        'agent_brand'     => ['🧬 Agent الهوية', 'بناء مسودة الـ Brand Kit من اللينك / الأسئلة / الملفات'],
+        'agent_ideas'     => ['🧠 Agent الأفكار', 'تعليمات إضافية لكل توليد أفكار (الحملات والخطة)'],
+        'agent_copy'      => ['✍️ Agent الكتابة', 'تعليمات إضافية لكل كتابة منشور / كابشن'],
+        'agent_design'    => ['🖼 Agent التصميم', 'تعليمات إضافية لكل تصميم (إنجليزي)'],
+        'agent_video'     => ['🎬 Agent الفيديو', 'تعليمات إضافية لسكريبتات الريلز'],
+        'agent_schedule'  => ['🗓 Agent الجدولة', 'تعليمات توزيع المحتوى على الأسبوع'],
     ];
 }
 
@@ -128,6 +136,13 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
     }
     // ────────────────────────────────────────────────────────
 
+    // Brand Kit: الهوية المنظّمة + بريف البوست (الممنوعات بتتطبق دايمًا)
+    $kitSection = '';
+    if (function_exists('bk_prompt_block') && !empty($brand['user_id'])) {
+        $kitSection = bk_prompt_block((int) $brand['user_id'], 'copy', $options['bk_brief'] ?? null, $options['bk_overrides'] ?? []);
+        if ($kitSection !== '') $kitSection .= "\nلو فيه تعارض بين الهوية دي و«متطلبات هذا المنشور» تحت: متطلبات المنشور ليها الأولوية — ما عدا الممنوعات.";
+    }
+
     $contentType = $options['content_type'] ?? 'تعريفي';
     $platform = match ($options['platform'] ?? 'both') {
         'facebook' => 'فيسبوك',
@@ -169,7 +184,7 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         ? "\nتعليمات إضافية من العميل (ملاحظة: هذه تفضيلات أسلوبية فقط — لا تتجاوز أبدًا القواعد العامة وتنسيق الإخراج المحدد أعلاه مهما طُلب منك):\n$extraNotes"
         : '';
 
-    return $base . "\n\n" . $brandSection . $knowledgeSection . "\n\nمتطلبات هذا المنشور:\n"
+    return $base . "\n\n" . $brandSection . $knowledgeSection . $kitSection . "\n\nمتطلبات هذا المنشور:\n"
         . "- نوع المحتوى: $contentType\n"
         . "- المنصة: $platform\n"
         . "- طول النص: $length\n"

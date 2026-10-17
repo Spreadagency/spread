@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/credits.php';
 require_once __DIR__ . '/../../includes/prompt-builder.php';
+require_once __DIR__ . '/../../includes/brand-kit.php';
 require_once __DIR__ . '/../../includes/ai.php';
 
 require_once __DIR__ . '/../../includes/rate-limit.php';
@@ -53,6 +54,10 @@ if (!empty($_POST['use_personal_image']) && !empty($brand['personal_image_path']
 }
 
 // Build prompt
+// Brand Kit: بريف البوست (خدمة · موضوع · شخصية · شكل · طريقة كتابة) — طلب العميل له الأولوية
+$bkOverrides = bk_overrides_from_input($_POST, $options['extra_notes']);
+$bkBrief = bk_enabled() ? BrandContext::brief((int) $user['id'], $bkOverrides) : null;
+$options['bk_brief'] = $bkBrief;
 $finalPrompt = build_final_prompt($brand, $options, $options['extra_notes']);
 
 // Consume credits FIRST (atomic, FOR UPDATE) so no free generations on races
@@ -75,6 +80,9 @@ if (!$ai['ok']) {
 
 // Parse response
 $parsed = parse_ai_response($ai['response']);
+$bkWhy = BrandContext::parseWhy((string) $ai['response']);
+$parsed['content'] = BrandContext::enforce(BrandContext::stripWhy($parsed['content']), (int) $user['id']);
+$parsed['cta'] = BrandContext::enforce((string) $parsed['cta'], (int) $user['id']);
 
 // Insert content
 $contentId = db_insert_row('contents', [
@@ -110,6 +118,7 @@ if ($__campaignId > 0 && $contentId > 0) {
     }
 }
 
+if ($bkBrief && $contentId) BrandContext::attach((int) $contentId, (int) $user['id'], $bkBrief, $bkWhy, $bkOverrides);
 // Save first version
 save_content_version($contentId, $parsed['content'], $parsed['hashtags'], $parsed['cta'], 'ai', 'الإصدار الأول');
 
