@@ -96,6 +96,7 @@ $parsed = parse_ai_response($ai['response']);
 $bkWhy = BrandContext::parseWhy((string) $ai['response']);
 $parsed['content'] = BrandContext::enforce(BrandContext::stripWhy($parsed['content']), (int) $user['id']);
 $parsed['cta'] = BrandContext::enforce((string) $parsed['cta'], (int) $user['id']);
+$parsed['hashtags'] = BrandContext::enforce((string) $parsed['hashtags'], (int) $user['id']);
 
 $contentId = db_insert_row('contents', [
     'user_id'            => $user['id'],

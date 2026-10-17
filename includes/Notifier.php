@@ -195,6 +195,11 @@ function wa_event_catalog(): array
             'عرض جديد 🎁 {{offer_title}}', "🎁 *عرض جديد:* {{offer_title}}\n{{offer_desc}}\nاستخدم الكود *{{code}}* 👈 {{link}}", 1],
         'announcement_new'      => ['إعلان جديد في المنصة', ['ann_title', 'ann_body'], 0, 'both',
             '{{ann_title}}', "📣 *{{ann_title}}*\n{{ann_body}}\n{{link}}", 1],
+        // Brand Kit
+        'brand_suggestion'      => ['اقتراح لهويتك من تعديلاتك', ['message'], 0, 'inapp',
+            'اتعلمنا من تعديلاتك 💡', "💡 {{message}}\nوافق أو ارفض من مركز الهوية 👈 {{link}}", 1],
+        'brand_refresh'         => ['تذكير تحديث الهوية (كل 90 يوم)', [], 0, 'both',
+            'في جديد عندك؟ ✨', "أهلًا {{first_name}} 👋\nفي خدمات أو عروض جديدة عندك؟ حدّثها في مركز الهوية علشان المحتوى يطلع عنها 👈 {{link}}", 1],
         'otp'                   => ['كود التحقق من رقم الواتساب', ['code'], 1, 'whatsapp',
             'كود التحقق', 'كود التحقق بتاعك في Spread AI: *{{code}}* (صالح 10 دقايق)', 1],
     ];

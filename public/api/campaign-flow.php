@@ -268,7 +268,7 @@ switch ($action) {
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id']]);
         $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
         if ($p) {   // الممنوعات دايمًا
-            foreach (['hook', 'body', 'cta', 'script'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
+            foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
         }
         if ($p && $fmt === 'video' && $p['script'] === '') $p = null;          // فيديو من غير سكريبت = رد ناقص
         if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
@@ -409,7 +409,7 @@ switch ($action) {
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id'], 'temperature' => 0.7]);
         $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
         if ($p) {
-            foreach (['hook', 'body', 'cta', 'script'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
+            foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
             if ($bkBrief) BrandContext::attach((int) $content['id'], $uid, $bkBrief, BrandContext::parseWhy((string) $ai['response']));
         }
         if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
