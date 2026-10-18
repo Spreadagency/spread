@@ -226,3 +226,35 @@ textarea.bk-in { resize: vertical; line-height: 1.7; }
 .bk-facts { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--bk-line); }
 .bk-facts h3 { font-size: 15px; margin-bottom: 4px; }
 label.bk-btn { cursor: pointer; }
+
+/* «خلّي الـ AI يبني هويتك» */
+.bk-magic { margin-top: 0; margin-bottom: 12px; border: 1.5px solid #BFE3FF; background: linear-gradient(180deg, #F3F9FF, #fff); }
+.bk-magic h2 { font-size: 18px; }
+.bk-magic > p { margin: 4px 0 10px; }
+.bk-magic > .bk-in { margin-top: 8px; }
+.bk-magic-in { display: flex; gap: 8px; flex-wrap: wrap; }
+.bk-magic-in .bk-in { flex: 1 1 220px; min-width: 0; }
+.bk-magic-in .bk-btn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-magic .bk-row { margin-top: 10px; flex-wrap: wrap; }
+.bk-btn.on { border-color: var(--bk-mint); background: #F1FBF8; }
+.bk-btn.dis { opacity: .5; pointer-events: none; }
+.bk-magic-run { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--bk-soft); color: var(--bk-mute); font-size: 13.5px; }
+.bk-magic-run::before { content: ''; display: inline-block; width: 12px; height: 12px; margin-inline-end: 8px; border-radius: 50%; border: 2px solid var(--bk-pri); border-top-color: transparent; vertical-align: -1px; animation: bk-spin .8s linear infinite; }
+@keyframes bk-spin { to { transform: rotate(360deg); } }
+.bk-magic-res { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #F1FBF8; border: 1px solid #BFEDE2; font-size: 13.5px; }
+.bk-magic-res p { margin: 3px 0; }
+.bk-warn-t { color: #9A5B00; }
+
+/* باليتات مقترحة */
+.bk-pals { display: grid; gap: 8px; margin: 8px 0 10px; }
+.bk-pal { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--bk-line); border-radius: 12px; }
+.bk-pal .sw { display: flex; flex: none; }
+.bk-pal .sw i { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 2px #fff; margin-inline-end: -6px; }
+.bk-pal .t { flex: 1; min-width: 0; display: flex; flex-direction: column; margin-inline-start: 6px; }
+.bk-pal .t small { color: var(--bk-mute); font-size: 12px; }
+
+/* اقتراحات اللوجو + شخصية من صورة */
+.bk-imgs.logo .bk-img { background: #fff; border: 1px solid var(--bk-line); }
+.bk-imgs.logo .bk-img img { object-fit: contain; }
+.bk-imgs.logo .bk-img button.pick { background: var(--bk-mint); }
+.bk-photo { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #BFE3FF; display: grid; gap: 6px; justify-items: start; }

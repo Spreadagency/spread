@@ -174,7 +174,7 @@ function brand_fact_suggest(array $brand, int $userId, string $field, string $va
 }
 
 /** تطبيق اقتراح على الهوية (مع إمكانية تعديل القيمة قبل التطبيق) */
-function brand_fact_apply(int $factId, int $userId, ?string $editedValue = null): array
+function brand_fact_apply(int $factId, int $userId, ?string $editedValue = null, bool $notify = true): array
 {
     $f = db_one('SELECT f.*, b.user_id AS owner FROM brand_facts f JOIN brand_profiles b ON b.id = f.brand_profile_id
                  WHERE f.id = ?', [$factId]);
@@ -208,7 +208,7 @@ function brand_fact_apply(int $factId, int $userId, ?string $editedValue = null)
     db_run('UPDATE brand_facts SET status = "rejected", decided_at = NOW()
             WHERE brand_profile_id = ? AND field = ? AND status = "suggested" AND id <> ?',
         [$f['brand_profile_id'], $field, $factId]);
-    brand_kit_notify($userId, [$field], 'user', 'اقتراح مقبول (' . (brand_source_labels()[$f['source']][0] ?? 'AI') . '): ' . (brand_fields()[$field][0] ?? $field));
+    if ($notify) brand_kit_notify($userId, [$field], 'user', 'اقتراح مقبول (' . (brand_source_labels()[$f['source']][0] ?? 'AI') . '): ' . (brand_fields()[$field][0] ?? $field));
     return ['ok' => true, 'field' => $field, 'value' => $value];
 }
 

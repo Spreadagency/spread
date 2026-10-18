@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-17',
-  'generated' => '2026-10-17 21:28',
+  'date' => '2026-10-18',
+  'generated' => '2026-10-18 12:27',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -424,8 +424,8 @@ return array (
     ),
     'assets/css/brand-kit.css' => 
     array (
-      'h' => 'edb239e84a3e004f6d6e1c1da23507dd',
-      's' => 19054,
+      'h' => 'd485bfbe2b56ef85d457a5eac4e395a5',
+      's' => 21354,
     ),
     'assets/css/campaign-v2.css' => 
     array (
@@ -469,8 +469,8 @@ return array (
     ),
     'assets/js/brand-kit.js' => 
     array (
-      'h' => 'a476c15b20647cf935546bdb442205cf',
-      's' => 30468,
+      'h' => '96a809ae48cb0da45dc9beb400bbeec7',
+      's' => 34799,
     ),
     'assets/js/main.js' => 
     array (
@@ -579,8 +579,8 @@ return array (
     ),
     'includes/brand-brain.php' => 
     array (
-      'h' => '10862627109e22769a81d1d2efeb3e95',
-      's' => 43815,
+      'h' => '8ca580841726f11c29bfd339168e2ade',
+      's' => 43849,
     ),
     'includes/brand-kit.php' => 
     array (
@@ -804,8 +804,8 @@ return array (
     ),
     'public/ajax/brand-agent.php' => 
     array (
-      'h' => '3276b91ccb17a64e7d6fed7054059e5d',
-      's' => 14382,
+      'h' => 'd5ee6536975243d64f88800f757df4b5',
+      's' => 16210,
     ),
     'public/ajax/buy-package.php' => 
     array (
@@ -919,8 +919,8 @@ return array (
     ),
     'public/api/brand-kit.php' => 
     array (
-      'h' => 'a9e848f112050310c3fbb8232a0658cc',
-      's' => 45788,
+      'h' => 'd263c503e00b50606679576ffd2a7237',
+      's' => 72097,
     ),
     'public/api/brand.php' => 
     array (
@@ -1039,8 +1039,8 @@ return array (
     ),
     'public/brand-kit.php' => 
     array (
-      'h' => '3d950cedd1a1a1ae9591b0c2ecf6db41',
-      's' => 53533,
+      'h' => 'cc6161f4b5ac5f4d94dbe2cae6aefafc',
+      's' => 60338,
     ),
     'public/brand-profile.php' => 
     array (

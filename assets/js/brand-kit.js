@@ -17,7 +17,10 @@
       createUrl: D.create, sourcesUrl: D.sources, brainUrl: D.brain, base: D.base,
       bs: {}, sugMore: false, inspLink: '', srcUrl: '', gen: { style: 0, look: '' },
       genLooks: ['راجل', 'ست', 'شاب', 'في الأربعينات', 'نضارة', 'بالطو أبيض', 'لبس كاجوال', 'محجبة', 'ابتسامة واثقة', 'ستايل كرتوني 3D'],
-      onb: { step: 1, url: '', linkDone: false, answers: {}, more: {}, draft: null, conf: {}, pick: {}, facts: [], skip: false },
+      onb: { step: 1, url: '', linkDone: false, answers: {}, more: {}, draft: null, conf: {}, pick: {}, facts: [], skip: false, open: false },
+      mg: { url: '', file: null, name: '', res: null, running: '' },
+      lg: { style: 'minimal', notes: '' }, pals: [], photoOk: false,
+      logoStyles: { minimal: 'بسيط وحديث', icon: 'رمز مميز', wordmark: 'الاسم بخط مميز', arabic: 'خط عربي', emblem: 'شعار في إطار', playful: 'مرح وودود' },
 
       contentSections: [
         { key: 'basics', label: 'الأساسيات والتواصل', icon: '🪪' },
@@ -62,7 +65,13 @@
       useIn: { image: 'صور', reel: 'ريلز', voice: 'فويس', story: 'قصص' },
       byLabel: { user: 'إنت', ai: 'الـ AI (بموافقتك)', admin: 'فريق Spread' },
 
-      get showOnboard() { return !!this.s && !this.onb.skip && (this.onb.step > 1 || this.s.completeness.pct < 35); },
+      // الأسئلة السريعة بقت اختيارية — «خلّي الـ AI يبني هويتك» فوق هو البداية
+      get showOnboard() { return !!this.s && !this.onb.skip && (this.onb.step > 1 || this.onb.open); },
+      get magicCost() {
+        if (!this.s) return 0;
+        var c = this.s.completeness.missing.length ? this.s.costs.draft : 0;
+        return c + ((this.mg.url || (this.mg.file && !/^image\//.test(this.mg.file.type))) ? this.s.analyze_cost : 0);
+      },
       get focusId() { var f = ((this.s && this.s.services) || []).filter(function (v) { return +v.is_focus === 1; })[0]; return f ? +f.id : 0; },
       get pillarSum() { return ((this.ed && this.ed.pillars) || []).reduce(function (a, p) { return a + (+p.percent || 0); }, 0); },
       get draftSections() {
@@ -295,6 +304,7 @@
       delChar: async function () { if (confirm('تحذف الشخصية وصورها؟') && await this.post('character_delete', { id: this.ch.id }, 'اتحذفت')) this.modal = null; },
       charUpload: async function (ev) {
         var f = ev.target.files && ev.target.files[0]; if (!f) return;
+        if (!(await this.ensureChar())) { ev.target.value = ''; return; }
         var fd = new FormData();
         fd.append('action', 'character_upload'); fd.append('id', this.ch.id); fd.append('image', f);
         fd.append('csrf', (document.querySelector('meta[name="csrf-token"]') || {}).content || '');
@@ -407,8 +417,56 @@
         if (!r.ok) return this.fail(r);
         this.s.sources = r.sources;
       },
+      /* «ابدأ هنا»: لينك أو ملف ← الـ AI يملا الفاضي ويكمّل الناقص */
+      magic: async function () {
+        var m = this.mg;
+        if (!m.url && !m.file && !m.name && !this.s.basics.business_name) return this.say('حط لينك أو ارفع ملف أو اكتب اسم نشاطك', 'danger');
+        m.res = null;
+        var steps = m.url ? ['بنقرا اللينك…', 'بنسحب البيانات…', 'الـ AI بيكمّل هويتك…'] : (m.file ? ['بنقرا الملف…', 'بنسحب البيانات…', 'الـ AI بيكمّل هويتك…'] : ['الـ AI بيكمّل هويتك…']);
+        var i = 0; m.running = steps[0];
+        var t = setInterval(function () { i = Math.min(i + 1, steps.length - 1); m.running = steps[i]; }, 6000);
+        var data = { action: 'autofill', url: m.url, name: m.name, build: '1' }, r;
+        if (m.file) r = await this.upload('brand-kit', data, m.file, 'file');
+        else { this.busy = true; r = await A.post('brand-kit', 'autofill', data); this.busy = false; }
+        clearInterval(t); m.running = '';
+        if (!r || !r.ok) return this.fail(r);
+        if (r.state) this.set(r.state);
+        m.res = { read: r.read, filled: r.filled || [], built: r.built || [], warn: r.warn };
+        m.url = ''; m.file = null; m.name = '';
+        this.say('هويتك اتحدّثت ✓');
+      },
+
+      /* اللوجو بالـ AI */
+      logoGen: async function () { await this.post('logo_generate', { style: this.lg.style, notes: this.lg.notes }, 'اقتراح اللوجو جاهز ✓ — اختار اللي يعجبك'); },
+      logoPick: async function (c) { await this.post('logo_pick', { path: c.path }, 'ده بقى اللوجو بتاعك ✓'); },
+      logoDiscard: async function (path) { if ((path || confirm('تمسح كل الاقتراحات؟'))) await this.post('logo_discard', { path: path }); },
+
+      /* الألوان: من تصميماتك + اقتراحات AI */
+      palSuggest: async function (ai) {
+        var r = await this.post('palette_suggest', { ai: ai ? '1' : '0' });
+        if (r) { this.pals = r.palettes || []; if (!ai && !r.images) this.say('مفيش تصميمات أو لوجو لسه — جرّب «اقترح ألوان»'); }
+      },
+      palUse: async function (p) { if (await this.post('palette_apply', p, 'ألوانك اتحفظت ✓')) this.pals = []; },
+
+      /* الشخصيات: الحفظ تلقائي قبل الصور */
+      ensureChar: async function () {
+        if (this.ch.id) return true;
+        if (!this.ch.name) this.ch.name = this.ch.type === 'mascot' ? 'ماسكوت البراند' : 'شخصية البراند';
+        await this.saveChar();
+        return !!this.ch.id;
+      },
+      charPhoto: async function (ev) {
+        var f = ev.target.files && ev.target.files[0]; if (!f) return;
+        if (!this.photoOk) { ev.target.value = ''; return this.say('أكّد إن عندك إذن باستخدام الصورة', 'danger'); }
+        if (!(await this.ensureChar())) { ev.target.value = ''; return; }
+        this.say('بنحوّل الصورة لشخصية… ثواني');
+        var r = await this.upload('brand-kit', { action: 'character_generate', id: this.ch.id, mode: 'photo', consent: 1, look: this.gen.look, style_preset_id: this.gen.style || 0 }, f, 'photo');
+        ev.target.value = '';
+        if (!r.ok) return this.fail(r);
+        this.set(r.state); this.syncChar(); this.gen.look = ''; this.say('الشخصية جاهزة ✓');
+      },
       charGen: async function (mode) {
-        if (!this.ch.id) return this.say('احفظ الشخصية الأول', 'danger');
+        if (!(await this.ensureChar())) return;
         var r = await this.post('character_generate', { id: this.ch.id, mode: mode, look: this.gen.look, style_preset_id: this.gen.style || 0 }, 'الصورة جاهزة ✓');
         if (r) { this.syncChar(); this.gen.look = ''; }
       },

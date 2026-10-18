@@ -22,6 +22,8 @@ require_once __DIR__ . '/../../includes/brand-brain.php';
 require_once __DIR__ . '/../../includes/brand-kit.php';
 require_once __DIR__ . '/../../includes/source-extract.php';
 require_once __DIR__ . '/../../includes/uploader.php';
+require_once __DIR__ . '/../../includes/ai.php';
+if (is_file(__DIR__ . '/../../includes/smart-ai.php')) require_once __DIR__ . '/../../includes/smart-ai.php';
 
 $user = api_boot();
 $uid = (int) $user['id'];
@@ -73,7 +75,8 @@ function bkapi_state(int $uid): array
         'presets' => $presets,
         'seasons' => bk_current_seasons(),
         'logo_url' => !empty($kit['data']['logo']['path']) ? upload_url($kit['data']['logo']['path']) : '',
-        'costs' => ['ai' => cost_for_bk('brand_kit_ai_cost', 1), 'draft' => cost_for_bk('brand_kit_draft_cost', 2), 'character' => bkapi_char_cost()],
+        'costs' => ['ai' => cost_for_bk('brand_kit_ai_cost', 1), 'draft' => cost_for_bk('brand_kit_draft_cost', 2), 'character' => bkapi_char_cost(), 'logo' => bkapi_logo_cost()],
+        'logo_candidates' => array_map(fn($p) => ['path' => $p, 'url' => upload_url($p)], bkapi_logo_candidates($uid)),
         'research' => function_exists('ui_research_on') ? ui_research_on() : get_setting('research_enabled', '1') === '1',
         'analyze_cost' => max(0, (int) get_setting('brand_analyze_cost', 1)),
         'labels' => ['formats' => bk_format_labels(), 'hooks' => bk_hook_types()],
@@ -168,6 +171,305 @@ function bkapi_own_character(int $uid, int $id): array
     $c = db_one('SELECT * FROM brand_characters WHERE id = ? AND user_id = ?', [$id, $uid]);
     if (!$c) api_fail('الشخصية مش موجودة', 'not_found', 404);
     return $c;
+}
+
+const BKAPI_DRAFT_SECTIONS = ['business', 'audience', 'personality', 'voice', 'pillars', 'content', 'visuals', 'colors', 'services', 'topics'];
+
+/** مسودة هوية كاملة بالـ AI من كل اللي نعرفه (بيانات البراند + اقتراحات اللينك + المستندات + الإجابات) — بتخصم وبترجّع لو فشلت */
+function bkapi_build_draft(int $uid, array $answersIn = [], bool $soft = false): array
+{
+    $kit = bk_get($uid);
+    $bp = bk_brand_profile($uid) ?: [];
+    $sector = bk_sector($kit['sector_template_id']);
+    $answers = [];
+    foreach ($answersIn as $q => $a) {
+        $a = is_array($a) ? implode('، ', array_map('strval', $a)) : (string) $a;
+        if (trim($a) !== '' && trim($a) !== 'ai') $answers[] = '- ' . mb_substr((string) $q, 0, 120) . ': ' . mb_substr($a, 0, 500);
+    }
+    $facts = [];
+    foreach (['business_name' => 'الاسم', 'industry' => 'المجال', 'description' => 'الوصف', 'audience' => 'الجمهور', 'services' => 'الخدمات', 'address' => 'العنوان',
+              'colors' => 'الألوان', 'ai_summary' => 'ملخص', 'design_rules' => 'قواعد التصميم', 'keywords_use' => 'كلمات مفضلة', 'keywords_avoid' => 'كلمات ممنوعة'] as $k => $l) {
+        if (!empty($bp[$k])) $facts[] = '- ' . $l . ': ' . mb_substr((string) $bp[$k], 0, 700);
+    }
+    // اقتراحات اللينك/الملفات اللي لسه العميل ماراجعهاش — بتدخل المسودة كـ «غير مؤكد» وبتظهر في المراجعة
+    $pendingFacts = !empty($bp['id']) ? db_all('SELECT id, field, value, source, confidence FROM brand_facts WHERE brand_profile_id = ? AND status = "suggested" ORDER BY confidence DESC, id DESC LIMIT 25', [$bp['id']]) : [];
+    foreach ($pendingFacts as $pf) $facts[] = '- (من اللينك — غير مؤكد) ' . (brand_fields()[$pf['field']][0] ?? $pf['field']) . ': ' . mb_substr((string) $pf['value'], 0, 500);
+    $knowledge = !empty($bp['id']) ? mb_substr(get_brand_knowledge((int) $bp['id']), 0, 5000) : '';
+    if (!$facts && !$answers && $knowledge === '') {
+        if ($soft) return ['__error' => 'محتاجين لينك أو ملف أو اسم النشاط على الأقل'];
+        api_fail('ابدأ بلينك صفحتك أو جاوب على الأسئلة الأول', 'empty', 422);
+    }
+    $cost = cost_for_bk('brand_kit_draft_cost', 2);
+    if ($soft && $cost > 0 && credits_balance($uid) < $cost) return ['__error' => credits_short_msg($cost)];
+    bkapi_charge($uid, $cost, 'مسودة الهوية (Brand Kit)');
+    $admin = BrandContext::agentPrompt('brand');
+    $j = bkapi_ai($uid, ($admin !== '' ? $admin . "\n\n" : '')
+        . "انت خبير هوية تجارية وتسويق محتوى. ابني مسودة Brand Kit من المعلومات دي.\n"
+        . ($sector ? "قالب القطاع: {$sector['name']} — اتجاهات افتراضية: " . implode('، ', array_map(fn($p) => $p['name'] . ' ' . $p['percent'] . '%', $sector['default_pillars'])) . "\n" : '')
+        . ($facts ? "بيانات البراند:\n" . implode("\n", $facts) . "\n" : '')
+        . ($answers ? "إجابات العميل:\n" . implode("\n", $answers) . "\n" : '')
+        . ($knowledge !== '' ? "من مستندات العميل وصفحاته:\n" . $knowledge . "\n" : '')
+        . "\nالقواعد: ماتخترعش حقائق (أسعار، عناوين، أرقام). الحاجة اللي مش واضحة حط لها confidence أقل من 0.7.\n"
+        . "الألوان: لو في ألوان في بيانات البراند استخدمها، غير كده اقترح 3 ألوان hex مناسبة للمجال والشخصية (متناسقة ومقروءة).\n"
+        . "رجّع JSON بس بالشكل ده:\n"
+        . '{"business":{"name":"","sector":"","location":"","usp":"","price_range":""},'
+        . '"audience":{"description":"","age":"","gender":"","pains":[],"objections":[]},'
+        . '"personality":["","",""],'
+        . '"voice":{"formal_friendly":60,"serious_fun":40,"scientific_simple":70,"dialect":"egyptian","emoji":true,"words_use":[],"words_avoid":[],"sample_lines":["",""]},'
+        . '"pillars":[{"name":"","percent":30}],'
+        . '"content":{"goal":"trust","hooks":["question","story"],"caption_length":"medium","platforms":["facebook","instagram"],"posts_per_month":12},'
+        . '"visuals":{"kind":"photo","light":"bright","people":"egyptian","places":[],"brand_color_in_photos":"subtle","avoid":[]},'
+        . '"services":[{"name":"","description":"","priority":"high"}],'
+        . '"topics":["",""],'
+        . '"colors":{"primary":"#","secondary":"#","accent":"#"},'
+        . '"confidence":{"business":0.9,"audience":0.6,"personality":0.6,"voice":0.6,"pillars":0.7,"content":0.6,"visuals":0.5,"services":0.8}}'
+        . "\nقيم goal: bookings|sales|reach|trust|engagement · hooks: question|story|number|problem|myth|offer|tip · kind: photo|3d|flat|mixed · light: bright|warm|dramatic · people: egyptian|arab|characters_only|none", 2600);
+    if (isset($j['__error']) || empty($j['business'])) {
+        bkapi_refund($uid, $cost, 'مسودة الهوية');
+        $err = $j['__error'] ?? 'الرد مكانش مظبوط — الكريدت رجعلك، جرّب تاني';
+        if ($soft) return ['__error' => $err];
+        api_fail($err, 'ai_failed', 502);
+    }
+    $draft = [];
+    foreach (['business', 'audience', 'personality', 'voice', 'pillars', 'content', 'visuals', 'colors'] as $sec) {
+        if (isset($j[$sec])) $draft[$sec] = bk_clean_section($sec, $j[$sec]);
+    }
+    $draft['services'] = array_values(array_filter(array_map(fn($s) => is_array($s) ? ['name' => mb_substr(trim((string) ($s['name'] ?? '')), 0, 150),
+        'description' => mb_substr(trim((string) ($s['description'] ?? '')), 0, 500), 'priority' => in_array($s['priority'] ?? '', ['high', 'medium', 'low'], true) ? $s['priority'] : 'medium'] : null,
+        array_slice((array) ($j['services'] ?? []), 0, 12)), fn($s) => $s && $s['name'] !== ''));
+    $draft['topics'] = array_values(array_slice(array_filter(array_map(fn($t) => mb_substr(trim((string) $t), 0, 255), (array) ($j['topics'] ?? []))), 0, 15));
+    $conf = [];
+    foreach ((array) ($j['confidence'] ?? []) as $k => $v) if (is_numeric($v)) $conf[$k] = max(0, min(1, (float) $v));
+    return ['draft' => $draft, 'confidence' => $conf,
+            'facts' => array_map(fn($f) => ['id' => (int) $f['id'], 'field' => $f['field'], 'label' => brand_fields()[$f['field']][0] ?? $f['field'],
+                'value' => mb_substr((string) $f['value'], 0, 300), 'source' => brand_source_labels()[$f['source']][0] ?? '', 'confidence' => (int) $f['confidence']], $pendingFacts)];
+}
+
+/** حفظ أقسام من المسودة (نسخة واحدة) + الخدمات والمواضيع من غير تكرار */
+function bkapi_apply_draft(int $uid, array $draft, array $sections, array $unsure, string $note): void
+{
+    $kit = bk_get($uid);
+    $row = db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']]);
+    $stored = bk_arr($row['data'] ?? '{}');
+    foreach ($sections as $sec) {
+        if (in_array($sec, BK_SECTIONS, true) && isset($draft[$sec])) {
+            $stored[$sec] = bk_clean_section($sec, $draft[$sec]);
+            bk_sync_profile($uid, $sec, $stored[$sec]);
+        }
+    }
+    // الحاجات اللي الـ AI مش متأكد منها: بتتعلّم في الواجهة لحد ما العميل يأكدها
+    $stored['confidence'] = array_fill_keys($unsure, 0.5) + (array) ($stored['confidence'] ?? []);
+    bk_write($kit['id'], $uid, $stored, 'ai', $note);
+    if (in_array('services', $sections, true)) {
+        $have = array_map('mb_strtolower', array_column(db_all('SELECT name FROM brand_services WHERE user_id = ?', [$uid]), 'name'));
+        foreach ((array) ($draft['services'] ?? []) as $i => $s) {
+            $n = mb_substr(trim((string) ($s['name'] ?? '')), 0, 150);
+            if ($n === '' || in_array(mb_strtolower($n), $have, true)) continue;
+            db_insert('INSERT INTO brand_services (user_id, name, description, priority, sort_order) VALUES (?,?,?,?,?)',
+                [$uid, $n, mb_substr((string) ($s['description'] ?? ''), 0, 1000) ?: null, in_array($s['priority'] ?? '', ['high', 'medium', 'low'], true) ? $s['priority'] : 'medium', $i + 1]);
+            $have[] = mb_strtolower($n);
+        }
+    }
+    if (in_array('services', $sections, true)) bk_services_to_text($uid);
+    if (in_array('topics', $sections, true)) {
+        $have = array_map('mb_strtolower', array_column(db_all('SELECT title FROM brand_topics WHERE user_id = ?', [$uid]), 'title'));
+        foreach ((array) ($draft['topics'] ?? []) as $t) {
+            $t = mb_substr(trim((string) $t), 0, 255);
+            if ($t === '' || in_array(mb_strtolower($t), $have, true)) continue;
+            db_insert('INSERT INTO brand_topics (user_id, title, source) VALUES (?,?,"ai")', [$uid, $t]);
+            $have[] = mb_strtolower($t);
+        }
+    }
+    bk_update_completeness($uid);
+}
+
+/** العميل الجديد ممكن ميكونش عنده brand_profile لسه */
+function bkapi_profile(int $uid): array
+{
+    $bp = brand_for_user($uid);
+    if (!$bp) {
+        db_insert('INSERT INTO brand_profiles (user_id, business_name) VALUES (?, "")', [$uid]);
+        $bp = brand_for_user($uid);
+    }
+    return $bp;
+}
+
+/** اقتراحات اللينك/الملف ← الحقول الفاضية بتتملى على طول (أعلى ثقة لكل حقل) · المليانة بتفضل اقتراح يراجعه العميل */
+function bkapi_fill_empty(int $uid): array
+{
+    $bp = brand_for_user($uid);
+    if (!$bp) return [];
+    $done = [];
+    foreach (db_all('SELECT id, field FROM brand_facts WHERE brand_profile_id = ? AND status = "suggested" ORDER BY confidence DESC, id DESC', [$bp['id']]) as $f) {
+        if (isset($done[$f['field']]) || trim((string) ($bp[$f['field']] ?? '')) !== '') continue;
+        $r = brand_fact_apply((int) $f['id'], $uid, null, false);
+        if ($r['ok']) $done[$f['field']] = brand_fields()[$f['field']][0] ?? $f['field'];
+    }
+    if ($done) brand_kit_notify($uid, array_keys($done), 'ai', 'اتملت تلقائيًا من اللينك/الملف: ' . implode('، ', $done));
+    return array_values($done);
+}
+
+/** ألوان من صور العميل (اللوجو + تصميماته السابقة + التصميمات اللي عاجباه) — من غير AI */
+function bkapi_colors_from_images(int $uid, array $extra = []): array
+{
+    $paths = $extra;
+    $bp = brand_for_user($uid);
+    if ($bp && !empty($bp['logo_path'])) $paths[] = $bp['logo_path'];
+    $q = function (string $sql, array $p) use (&$paths) {
+        try { foreach (db_all($sql, $p) as $r) $paths[] = $r['image_path']; } catch (\Throwable $e) {}
+    };
+    $q('SELECT image_path FROM content_designs WHERE user_id = ? ORDER BY id DESC LIMIT 10', [$uid]);
+    $q('SELECT image_path FROM studio_designs WHERE user_id = ? AND image_path IS NOT NULL ORDER BY id DESC LIMIT 6', [$uid]);
+    if ($bp) $q('SELECT image_path FROM brand_inspirations WHERE brand_profile_id = ? AND image_path IS NOT NULL ORDER BY id DESC LIMIT 6', [$bp['id']]);
+    $base = realpath(STORAGE_PATH);
+    $votes = [];
+    $n = 0;
+    foreach (array_unique(array_filter(array_map('strval', $paths))) as $rel) {
+        $abs = realpath(STORAGE_PATH . '/' . ltrim($rel, '/'));
+        if (!$abs || !$base || strpos($abs, $base) !== 0) continue;
+        $cols = brand_logo_colors($abs, 4);
+        if (!$cols) continue;
+        $n++;
+        foreach ($cols as $i => $hex) {
+            $rgb = array_map('hexdec', str_split(ltrim($hex, '#'), 2));
+            $hit = false;
+            foreach ($votes as &$v) {
+                if (sqrt(($v[0][0] - $rgb[0]) ** 2 + ($v[0][1] - $rgb[1]) ** 2 + ($v[0][2] - $rgb[2]) ** 2) < 60) { $v[1] += 4 - $i; $hit = true; break; }
+            }
+            unset($v);
+            if (!$hit) $votes[] = [$rgb, 4 - $i];
+        }
+    }
+    if (!$votes) return ['images' => $n, 'palette' => null];
+    usort($votes, fn($a, $b) => $b[1] <=> $a[1]);
+    $sat = fn(array $c) => (max($c) - min($c)) / 255;
+    $hex = fn(array $c) => sprintf('#%02X%02X%02X', $c[0], $c[1], $c[2]);
+    $vivid = array_values(array_filter($votes, fn($v) => $sat($v[0]) >= 0.18));
+    $dull = array_values(array_filter($votes, fn($v) => $sat($v[0]) < 0.18));
+    $pick = array_merge($vivid, $dull);
+    return ['images' => $n, 'palette' => [
+        'name' => 'من تصميماتك', 'why' => 'الألوان اللي بتتكرر في اللوجو وتصميماتك',
+        'primary' => $hex($pick[0][0]), 'secondary' => isset($pick[1]) ? $hex($pick[1][0]) : '',
+        'accent' => isset($pick[2]) ? $hex($pick[2][0]) : '', 'neutral' => $dull ? $hex($dull[0][0]) : '',
+    ]];
+}
+
+/** 3 باليتات مقترحة بالـ AI حسب النشاط والشخصية */
+function bkapi_ai_palettes(int $uid, ?array $fromDesigns): array
+{
+    $d = bk_get($uid)['data'];
+    $j = bkapi_ai($uid, "انت مصمم هوية بصرية. اقترح 3 باليتات ألوان مختلفة لبراند «{$d['business']['name']}» في مجال «{$d['business']['sector']}».\n"
+        . ($d['personality'] ? 'شخصية البراند: ' . implode('، ', $d['personality']) . "\n" : '')
+        . ($d['audience']['description'] !== '' ? 'الجمهور: ' . mb_substr($d['audience']['description'], 0, 300) . "\n" : '')
+        . ($fromDesigns ? 'ألوان موجودة في تصميماته: ' . implode(', ', array_filter([$fromDesigns['primary'], $fromDesigns['secondary'], $fromDesigns['accent']])) . " — خلّي باليتة منهم قريبة منها.\n" : '')
+        . "كل باليتة: primary و secondary و accent و neutral (hex)، متناسقة ومقروءة على الموبايل، واسم قصير وسبب في جملة بالعامية المصرية.\n"
+        . 'رجّع JSON بس: {"palettes":[{"name":"","why":"","primary":"#","secondary":"#","accent":"#","neutral":"#"}]}', 900);
+    $ok = fn($c) => is_string($c) && preg_match('/^#[0-9A-Fa-f]{6}$/', $c);
+    $out = [];
+    foreach (array_slice((array) ($j['palettes'] ?? []), 0, 3) as $p) {
+        if (!is_array($p) || !$ok($p['primary'] ?? null)) continue;
+        $out[] = ['name' => mb_substr(trim((string) ($p['name'] ?? '')), 0, 40) ?: 'باليتة', 'why' => mb_substr(trim((string) ($p['why'] ?? '')), 0, 160),
+                  'primary' => strtoupper($p['primary']), 'secondary' => $ok($p['secondary'] ?? null) ? strtoupper($p['secondary']) : '',
+                  'accent' => $ok($p['accent'] ?? null) ? strtoupper($p['accent']) : '', 'neutral' => $ok($p['neutral'] ?? null) ? strtoupper($p['neutral']) : ''];
+    }
+    return $out;
+}
+
+/** «كمّل بالـ AI»: الأقسام اللي العميل ماحفظهاش بس — وأي حاجة كتبها العميل ماتتغيّرش */
+function bkapi_apply_draft_empty(int $uid, array $draft, array $conf): array
+{
+    $kit = bk_get($uid);
+    $stored = bk_arr(db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']])['data'] ?? '{}');
+    $secs = [];
+    $labels = [];
+    foreach (['business', 'audience', 'personality', 'voice', 'pillars', 'content', 'visuals', 'colors'] as $sec) {
+        if (!isset($draft[$sec])) continue;
+        if (in_array($sec, ['business', 'audience'], true)) {
+            // الموجود يفضل زي ما هو — بنملا الفاضي بس
+            $merged = $kit['data'][$sec];
+            $ch = false;
+            foreach ((array) $draft[$sec] as $k => $v) {
+                $empty = !isset($merged[$k]) || $merged[$k] === '' || $merged[$k] === [] || $merged[$k] === null;
+                if ($empty && $v !== '' && $v !== [] && $v !== null) { $merged[$k] = $v; $ch = true; }
+            }
+            if (!$ch) continue;
+            $draft[$sec] = $merged;
+        } elseif (isset($stored[$sec]) || ($sec === 'colors' && $kit['data']['colors']['primary'] !== '')) {
+            continue;
+        }
+        $secs[] = $sec;
+        $labels[] = bk_section_label($sec);
+    }
+    if ((int) (db_one('SELECT COUNT(*) n FROM brand_services WHERE user_id = ?', [$uid])['n'] ?? 0) === 0 && !empty($draft['services'])) { $secs[] = 'services'; $labels[] = 'الخدمات'; }
+    if ((int) (db_one('SELECT COUNT(*) n FROM brand_topics WHERE user_id = ? AND is_active = 1', [$uid])['n'] ?? 0) < 3 && !empty($draft['topics'])) { $secs[] = 'topics'; $labels[] = 'المواضيع'; }
+    if (!$secs) return [];
+    // اللي اتبنى بالـ AI بيتعلّم بإطار أصفر «راجعه» — إلا اللي الـ AI متأكد منه
+    $unsure = array_values(array_filter($secs, fn($s) => in_array($s, BK_SECTIONS, true) && ($conf[$s] ?? 0.5) < 0.8));
+    bkapi_apply_draft($uid, $draft, $secs, $unsure, 'الـ AI كمّل الهوية: ' . implode('، ', $labels));
+    return $labels;
+}
+
+/** رابط/ملف «ابدأ هنا» ← اقتراحات (بيخصم تكلفة التحليل وبيرجّعها لو مطلعش حاجة) */
+function bkapi_read_source(int $uid, array $bp, string $url, ?array $file): array
+{
+    $cost = max(0, (int) get_setting('brand_analyze_cost', 1));
+    $charge = function () use ($uid, $cost) {
+        if ($cost > 0 && (credits_balance($uid) < $cost || !credits_consume($uid, $cost, 'تحليل براند (ابدأ هنا)', 'brand_analyze', null))) api_fail(credits_short_msg($cost), 'credits', 402);
+    };
+    $refund = fn() => $cost > 0 ? credits_add($uid, $cost, 'استرداد — التحليل ما طلعش معلومات', null, 'refund', null) : null;
+    if ($url !== '') {
+        if (get_setting('brand_analyze_enabled', '1') !== '1') api_fail('التحليل متوقف مؤقتًا', 'disabled', 403);
+        if (!preg_match('#^https?://#i', $url)) $url = 'https://' . ltrim($url, '/');
+        $v = safe_http_validate($url);
+        if (!$v['ok']) api_fail($v['error'], 'bad_url', 422);
+        $charge();
+        $r = brand_analyze_url($bp, $uid, $url);
+        if (!$r['ok'] || $r['suggested'] === 0) $refund();
+        $social = in_array($r['type'], ['facebook', 'instagram', 'tiktok', 'linkedin'], true) && !$r['ai'];
+        return ['read' => $r['ok'] ? 'قرينا اللينك' : '', 'warn' => !$r['ok'] ? ($r['error'] ?: 'تعذّر قراءة اللينك')
+            : ($social ? 'صفحات السوشيال مقفولة قدام الزوار — سجّلنا اللينك، وكمّلنا الباقي بالـ AI. لنتيجة أدق ضيف موقعك أو ارفع ملف.' : null), 'images' => []];
+    }
+    if (!$file || empty($file['name'])) return ['read' => '', 'warn' => null, 'images' => []];
+    $ext = strtolower(pathinfo((string) $file['name'], PATHINFO_EXTENSION));
+    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+        // صورة = تصميم/لوجو/صورة للبراند ← بتتحفظ في «تصميمات عاجباك» وبناخد منها الألوان
+        if (brand_insp_count((int) $bp['id']) >= brand_insp_max()) api_fail('«تصميمات عاجباك» مليانة — امسح صورة الأول', 'limit', 422);
+        $r = brand_insp_add_upload($bp, $uid, $file, 'من «ابدأ هنا»');
+        if (!$r['ok']) api_fail($r['error'], 'invalid', 422);
+        $last = db_one('SELECT image_path FROM brand_inspirations WHERE brand_profile_id = ? ORDER BY id DESC LIMIT 1', [$bp['id']]);
+        return ['read' => 'الصورة اتحفظت في «تصميمات عاجباك»', 'warn' => null, 'images' => $last ? [$last['image_path']] : []];
+    }
+    $types = ['pdf' => 'pdf', 'docx' => 'docx', 'txt' => 'txt'];
+    if (!isset($types[$ext])) api_fail('النوع ده مش مدعوم — ارفع PDF أو Word أو TXT أو صورة', 'invalid', 422);
+    if (($file['error'] ?? 1) !== UPLOAD_ERR_OK || (int) $file['size'] > 20 * 1024 * 1024) api_fail('فشل الرفع أو الملف أكبر من 20 ميجا', 'invalid', 422);
+    if ((int) (db_one('SELECT COUNT(*) n FROM brand_sources WHERE brand_profile_id = ?', [$bp['id']])['n'] ?? 0) >= 15) api_fail('عندك 15 مصدر — امسح مصدر قديم الأول', 'limit', 422);
+    $dir = UPLOADS_PATH . '/sources';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $safe = 'src_' . $uid . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $safe)) api_fail('فشل حفظ الملف', 'invalid', 500);
+    $title = mb_substr(pathinfo((string) $file['name'], PATHINFO_FILENAME), 0, 180);
+    $id = db_insert('INSERT INTO brand_sources (brand_profile_id, user_id, type, title, file_path) VALUES (?,?,?,?,?)', [$bp['id'], $uid, $types[$ext], $title, 'uploads/sources/' . $safe]);
+    $ex = source_extract($id);
+    if (!$ex['ok']) return ['read' => 'الملف اتحفظ', 'warn' => 'معرفناش نقرا نص من الملف' . ($ext === 'pdf' ? ' (ممكن يكون صورة ممسوحة)' : '') . ' — كمّلنا بالـ AI من اللي عندنا', 'images' => []];
+    $charge();
+    $txt = (string) (db_one('SELECT raw_text FROM brand_sources WHERE id = ?', [$id])['raw_text'] ?? '');
+    $ai = brand_ai_extract($txt, $uid, 'ملف «' . $title . '»');
+    $n = 0;
+    if ($ai['ok']) foreach ($ai['facts'] as $field => $value) if (brand_fact_suggest($bp, $uid, $field, $value, 'file', $title, 75)) $n++;
+    if (!$n) $refund();
+    return ['read' => 'قرينا الملف', 'warn' => $ai['ok'] ? null : ($ai['error'] ?? null), 'images' => []];
+}
+
+/** اقتراحات اللوجو (لحد ما العميل يختار واحد) */
+function bkapi_logo_candidates(int $uid): array
+{
+    $d = bk_arr(db_one('SELECT data FROM brand_kits WHERE user_id = ?', [$uid])['data'] ?? '{}');
+    return array_values(array_filter((array) ($d['_logo_candidates'] ?? []), 'is_string'));
+}
+
+function bkapi_logo_cost(): int
+{
+    return max(0, (int) get_setting('logo_generate_cost', 3));
 }
 
 switch ($action) {
@@ -413,103 +715,16 @@ switch ($action) {
     case 'draft':
         if (!rate_limit('bk_draft', 'u' . $uid, 5, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
         $in = api_input();
-        $kit = bk_get($uid);
-        $bp = bk_brand_profile($uid) ?: [];
-        $sector = bk_sector($kit['sector_template_id']);
-        $answers = [];
-        foreach ((array) ($in['answers'] ?? []) as $q => $a) {
-            $a = is_array($a) ? implode('، ', array_map('strval', $a)) : (string) $a;
-            if (trim($a) !== '' && trim($a) !== 'ai') $answers[] = '- ' . mb_substr((string) $q, 0, 120) . ': ' . mb_substr($a, 0, 500);
-        }
-        $facts = [];
-        foreach (['business_name' => 'الاسم', 'industry' => 'المجال', 'description' => 'الوصف', 'audience' => 'الجمهور', 'services' => 'الخدمات', 'address' => 'العنوان',
-                  'colors' => 'الألوان', 'ai_summary' => 'ملخص', 'design_rules' => 'قواعد التصميم', 'keywords_use' => 'كلمات مفضلة', 'keywords_avoid' => 'كلمات ممنوعة'] as $k => $l) {
-            if (!empty($bp[$k])) $facts[] = '- ' . $l . ': ' . mb_substr((string) $bp[$k], 0, 700);
-        }
-        // اقتراحات اللينك/الملفات اللي لسه العميل ماراجعهاش — بتدخل المسودة كـ «غير مؤكد» وبتظهر في المراجعة
-        $pendingFacts = !empty($bp['id']) ? db_all('SELECT id, field, value, source, confidence FROM brand_facts WHERE brand_profile_id = ? AND status = "suggested" ORDER BY confidence DESC, id DESC LIMIT 25', [$bp['id']]) : [];
-        foreach ($pendingFacts as $pf) $facts[] = '- (من اللينك — غير مؤكد) ' . (brand_fields()[$pf['field']][0] ?? $pf['field']) . ': ' . mb_substr((string) $pf['value'], 0, 500);
-        $knowledge = !empty($bp['id']) ? mb_substr(get_brand_knowledge((int) $bp['id']), 0, 5000) : '';
-        if (!$facts && !$answers && $knowledge === '') api_fail('ابدأ بلينك صفحتك أو جاوب على الأسئلة الأول', 'empty', 422);
-        $cost = cost_for_bk('brand_kit_draft_cost', 2);
-        bkapi_charge($uid, $cost, 'مسودة الهوية (Brand Kit)');
-        $admin = BrandContext::agentPrompt('brand');
-        $j = bkapi_ai($uid, ($admin !== '' ? $admin . "\n\n" : '')
-            . "انت خبير هوية تجارية وتسويق محتوى. ابني مسودة Brand Kit من المعلومات دي.\n"
-            . ($sector ? "قالب القطاع: {$sector['name']} — اتجاهات افتراضية: " . implode('، ', array_map(fn($p) => $p['name'] . ' ' . $p['percent'] . '%', $sector['default_pillars'])) . "\n" : '')
-            . ($facts ? "بيانات البراند:\n" . implode("\n", $facts) . "\n" : '')
-            . ($answers ? "إجابات العميل:\n" . implode("\n", $answers) . "\n" : '')
-            . ($knowledge !== '' ? "من مستندات العميل وصفحاته:\n" . $knowledge . "\n" : '')
-            . "\nالقواعد: ماتخترعش حقائق (أسعار، عناوين، أرقام). الحاجة اللي مش واضحة حط لها confidence أقل من 0.7.\n"
-            . "رجّع JSON بس بالشكل ده:\n"
-            . '{"business":{"name":"","sector":"","location":"","usp":"","price_range":""},'
-            . '"audience":{"description":"","age":"","gender":"","pains":[],"objections":[]},'
-            . '"personality":["","",""],'
-            . '"voice":{"formal_friendly":60,"serious_fun":40,"scientific_simple":70,"dialect":"egyptian","emoji":true,"words_use":[],"words_avoid":[],"sample_lines":["",""]},'
-            . '"pillars":[{"name":"","percent":30}],'
-            . '"content":{"goal":"trust","hooks":["question","story"],"caption_length":"medium","platforms":["facebook","instagram"],"posts_per_month":12},'
-            . '"visuals":{"kind":"photo","light":"bright","people":"egyptian","places":[],"brand_color_in_photos":"subtle","avoid":[]},'
-            . '"services":[{"name":"","description":"","priority":"high"}],'
-            . '"topics":["",""],'
-            . '"confidence":{"business":0.9,"audience":0.6,"personality":0.6,"voice":0.6,"pillars":0.7,"content":0.6,"visuals":0.5,"services":0.8}}'
-            . "\nقيم goal: bookings|sales|reach|trust|engagement · hooks: question|story|number|problem|myth|offer|tip · kind: photo|3d|flat|mixed · light: bright|warm|dramatic · people: egyptian|arab|characters_only|none", 2600);
-        if (isset($j['__error']) || empty($j['business'])) {
-            bkapi_refund($uid, $cost, 'مسودة الهوية');
-            api_fail($j['__error'] ?? 'الرد مكانش مظبوط — الكريدت رجعلك، جرّب تاني', 'ai_failed', 502);
-        }
-        $draft = [];
-        foreach (['business', 'audience', 'personality', 'voice', 'pillars', 'content', 'visuals'] as $sec) {
-            if (isset($j[$sec])) $draft[$sec] = bk_clean_section($sec, $j[$sec]);
-        }
-        $draft['services'] = array_values(array_filter(array_map(fn($s) => is_array($s) ? ['name' => mb_substr(trim((string) ($s['name'] ?? '')), 0, 150),
-            'description' => mb_substr(trim((string) ($s['description'] ?? '')), 0, 500), 'priority' => in_array($s['priority'] ?? '', ['high', 'medium', 'low'], true) ? $s['priority'] : 'medium'] : null,
-            array_slice((array) ($j['services'] ?? []), 0, 12)), fn($s) => $s && $s['name'] !== ''));
-        $draft['topics'] = array_values(array_slice(array_filter(array_map(fn($t) => mb_substr(trim((string) $t), 0, 255), (array) ($j['topics'] ?? []))), 0, 15));
-        $conf = [];
-        foreach ((array) ($j['confidence'] ?? []) as $k => $v) if (is_numeric($v)) $conf[$k] = max(0, min(1, (float) $v));
-        api_ok(['draft' => $draft, 'confidence' => $conf, 'balance' => credits_balance($uid),
-                'facts' => array_map(fn($f) => ['id' => (int) $f['id'], 'field' => $f['field'], 'label' => brand_fields()[$f['field']][0] ?? $f['field'],
-                    'value' => mb_substr((string) $f['value'], 0, 300), 'source' => brand_source_labels()[$f['source']][0] ?? '', 'confidence' => (int) $f['confidence']], $pendingFacts)]);
+        $r = bkapi_build_draft($uid, (array) ($in['answers'] ?? []));
+        api_ok($r + ['balance' => credits_balance($uid)]);
 
     /* مراجعة المسودة ← الحفظ (الأقسام اللي العميل أكدها) */
     case 'apply_draft':
         $in = api_input();
         $draft = (array) ($in['draft'] ?? []);
-        $sections = array_values(array_intersect((array) ($in['sections'] ?? []), ['business', 'audience', 'personality', 'voice', 'pillars', 'content', 'visuals', 'services', 'topics']));
+        $sections = array_values(array_intersect((array) ($in['sections'] ?? []), BKAPI_DRAFT_SECTIONS));
         $unsure = array_values(array_intersect((array) ($in['unsure'] ?? []), BK_SECTIONS));
-        $kit = bk_get($uid);
-        $row = db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']]);
-        $stored = bk_arr($row['data'] ?? '{}');
-        foreach ($sections as $sec) {
-            if (in_array($sec, BK_SECTIONS, true) && isset($draft[$sec])) {
-                $stored[$sec] = bk_clean_section($sec, $draft[$sec]);
-                bk_sync_profile($uid, $sec, $stored[$sec]);
-            }
-        }
-        // الحاجات اللي الـ AI مش متأكد منها: بتتعلّم في الواجهة لحد ما العميل يأكدها
-        $stored['confidence'] = array_fill_keys($unsure, 0.5) + (array) ($stored['confidence'] ?? []);
-        bk_write($kit['id'], $uid, $stored, 'ai', 'مسودة الهوية من الـ AI');
-        if (in_array('services', $sections, true)) {
-            $have = array_map('mb_strtolower', array_column(db_all('SELECT name FROM brand_services WHERE user_id = ?', [$uid]), 'name'));
-            foreach ((array) ($draft['services'] ?? []) as $i => $s) {
-                $n = mb_substr(trim((string) ($s['name'] ?? '')), 0, 150);
-                if ($n === '' || in_array(mb_strtolower($n), $have, true)) continue;
-                db_insert('INSERT INTO brand_services (user_id, name, description, priority, sort_order) VALUES (?,?,?,?,?)',
-                    [$uid, $n, mb_substr((string) ($s['description'] ?? ''), 0, 1000) ?: null, in_array($s['priority'] ?? '', ['high', 'medium', 'low'], true) ? $s['priority'] : 'medium', $i + 1]);
-                $have[] = mb_strtolower($n);
-            }
-        }
-        if (in_array('services', $sections, true)) bk_services_to_text($uid);
-        if (in_array('topics', $sections, true)) {
-            $have = array_map('mb_strtolower', array_column(db_all('SELECT title FROM brand_topics WHERE user_id = ?', [$uid]), 'title'));
-            foreach ((array) ($draft['topics'] ?? []) as $t) {
-                $t = mb_substr(trim((string) $t), 0, 255);
-                if ($t === '' || in_array(mb_strtolower($t), $have, true)) continue;
-                db_insert('INSERT INTO brand_topics (user_id, title, source) VALUES (?,?,"ai")', [$uid, $t]);
-                $have[] = mb_strtolower($t);
-            }
-        }
-        bk_update_completeness($uid);
+        bkapi_apply_draft($uid, $draft, $sections, $unsure, 'مسودة الهوية من الـ AI');
         api_ok(['state' => bkapi_state($uid)]);
 
     case 'confirm':
@@ -598,26 +813,50 @@ switch ($action) {
         if ($c['type'] === 'real_person') api_fail('الشخص الحقيقي صوره بتترفع بس — مش بتتولّد', 'invalid', 422);
         if ((int) (db_one('SELECT COUNT(*) n FROM brand_character_images WHERE character_id = ?', [$c['id']])['n'] ?? 0) >= 8) api_fail('أقصى حاجة 8 صور — امسح صورة الأول', 'limit', 422);
         if (!rate_limit('bk_char_gen', 'u' . $uid, 6, 900)) api_fail('ولّدت صور كتير بسرعة — استنى شوية', 'rate_limit', 429);
-        $mode = api_str('mode', 12) === 'variation' ? 'variation' : 'new';
+        $mode = in_array(api_str('mode', 12), ['variation', 'photo'], true) ? api_str('mode', 12) : 'new';
         $look = api_str('look', 600);
         $preset = api_int('style_preset_id') ? db_one('SELECT data FROM style_presets WHERE id = ? AND kind = "character_style" AND is_active = 1', [api_int('style_preset_id')]) : null;
         $styleEn = $preset ? (string) (bk_arr($preset['data'])['en'] ?? '') : '';
         $desc = trim((string) $c['description'] . ($look !== '' ? "\n" . $look : ''));
-        if ($mode === 'new' && mb_strlen($desc) < 8) api_fail('اوصف شكل الشخصية الأول (الملامح واللبس)', 'invalid', 422);
         $kit = bk_get($uid);
+        if ($mode === 'new' && mb_strlen($desc) < 8) {
+            // من غير وصف: الـ AI يتخيّل شخصية مناسبة للنشاط وشخصيته
+            $bd = $kit['data'];
+            $desc = 'Invent a fitting, likeable look for a ' . ($bd['business']['sector'] ?: 'local business') . ' brand'
+                . ($bd['personality'] ? ' with a ' . implode(', ', $bd['personality']) . ' personality' : '')
+                . ($bd['audience']['description'] !== '' ? '; the audience is: ' . mb_substr($bd['audience']['description'], 0, 200) : '')
+                . '. Middle-eastern/Egyptian features if human, modest friendly outfit.';
+        }
         $colors = array_filter([$kit['data']['colors']['primary'], $kit['data']['colors']['secondary']]);
         $refs = [];
-        if ($mode === 'variation') {
+        $tmpPhoto = null;
+        if ($mode === 'photo') {
+            if (bkapi_char_cost() > 0 && credits_balance($uid) < bkapi_char_cost()) api_fail(credits_short_msg(bkapi_char_cost()), 'credits', 402);
+            // صورة من العميل (شخص · رسمة · منتج) ← الـ AI يحولها لشخصية البراند الثابتة
+            if (empty($_FILES['photo']['name'])) api_fail('ارفع الصورة الأول', 'invalid', 422);
+            if (api_int('consent') !== 1) api_fail('أكّد إن عندك إذن باستخدام الصورة دي', 'consent', 422);
+            $up = upload_image($_FILES['photo'], 'characters');
+            if (!$up['ok']) api_fail($up['error'], 'invalid', 422);
+            $tmpPhoto = $up['path'];
+            $uri = image_data_uri($tmpPhoto);
+            if (!$uri) { delete_upload($tmpPhoto); api_fail('معرفناش نقرا الصورة', 'invalid', 422); }
+            $refs[] = $uri;
+        } elseif ($mode === 'variation') {
             $pri = db_one('SELECT image_path FROM brand_character_images WHERE character_id = ? ORDER BY is_primary DESC, id LIMIT 1', [$c['id']]);
             $uri = $pri ? image_data_uri($pri['image_path']) : null;
             if (!$uri) api_fail('ارفع أو ولّد الصورة الأساسية الأول', 'invalid', 422);
             $refs[] = $uri;
         }
-        $prompt = ($mode === 'variation'
+        $prompt = ($mode === 'photo'
+                ? "Turn the person/subject in the attached photo into the brand's recurring " . ($c['type'] === 'mascot' ? 'MASCOT' : 'CHARACTER') . ' "' . $c['name'] . '"' . ($c['role'] ? ' — ' . $c['role'] : '') . ".\n"
+                  . "Keep the recognizable features (face shape, hair, skin tone, distinctive details) so it is clearly the same subject.\n"
+                  . ($desc !== '' ? 'Extra details: ' . $desc . "\n" : '')
+                : '')
+            . ($mode === 'photo' ? '' : ($mode === 'variation'
                 ? "Create a new image of the EXACT SAME character shown in the attached reference image — identical face, features, hairstyle, proportions and outfit. Only change the pose/angle/expression: " . ($look !== '' ? $look : 'a friendly three-quarter view, natural pose') . ".\n"
                 : "Create a clean CHARACTER REFERENCE image for a brand's recurring " . ($c['type'] === 'mascot' ? 'MASCOT' : 'CHARACTER') . ".\n"
                   . 'Character: ' . $c['name'] . ($c['role'] ? ' — ' . $c['role'] : '') . "\n"
-                  . 'Look (follow precisely): ' . $desc . "\n")
+                  . 'Look (follow precisely): ' . $desc . "\n"))
             . ($styleEn !== '' ? 'Style: ' . $styleEn . "\n" : ($c['type'] === 'mascot' ? "Style: friendly cartoon mascot, simple shapes\n" : "Style: realistic, natural\n"))
             . ($colors ? 'Brand colors (use subtly in clothing/accessories): ' . implode(', ', $colors) . "\n" : '')
             . "Full body or waist-up, front-facing, plain light neutral background, even soft lighting, no text, no logo, no watermark. "
@@ -631,6 +870,7 @@ switch ($action) {
             ai_log_set_context(['kind' => 'design', 'user_id' => $uid, 'reference_type' => 'brand_character', 'reference_id' => (int) $c['id']]);
             $res = ai_generate_image($prompt, $refs);
         }
+        if ($tmpPhoto) delete_upload($tmpPhoto);   // الصورة الأصلية مرجع بس — مش بتتحفظ
         if (empty($res['ok']) || empty($res['path'])) {
             bkapi_refund($uid, $cost, 'صورة الشخصية');
             api_fail(($res['error'] ?? '') ?: 'تعذّر توليد الصورة — الكريدت رجعلك', 'ai_failed', 502);
@@ -640,6 +880,142 @@ switch ($action) {
         if ($look !== '' && $mode === 'new' && trim((string) $c['description']) === '') db_run('UPDATE brand_characters SET description = ? WHERE id = ?', [mb_substr($look, 0, 1500), $c['id']]);
         if (function_exists('ai_log_usage')) ai_log_usage($uid, 'design', $res['model'] ?? '', [], (int) $c['id']);
         api_ok(['state' => bkapi_state($uid), 'balance' => credits_balance($uid)]);
+
+    /* ══════════ «ابدأ هنا»: لينك أو ملف ← الـ AI يملا ويكمّل الهوية ══════════ */
+    case 'autofill':
+        if (!rate_limit('bk_autofill', 'u' . $uid, 4, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        @set_time_limit(200);
+        $bp = bkapi_profile($uid);
+        $name = api_str('name', 150);
+        $named = false;
+        if ($name !== '' && trim((string) $bp['business_name']) === '') {
+            db_run('UPDATE brand_profiles SET business_name = ?, updated_at = NOW() WHERE id = ?', [$name, $bp['id']]);
+            $bp = brand_for_user($uid);
+            $named = true;
+        }
+        $src = bkapi_read_source($uid, $bp, api_str('url', 1000), $_FILES['file'] ?? null);
+        $filled = bkapi_fill_empty($uid);
+        if ($named) { brand_kit_notify($uid, ['business_name'], 'user', 'اسم النشاط'); array_unshift($filled, 'اسم النشاط'); }
+        // الألوان: من اللوجو والتصميمات (مجانًا) لو مفيش ألوان
+        if (bk_get($uid)['data']['colors']['primary'] === '') {
+            $pc = bkapi_colors_from_images($uid, $src['images']);
+            if ($pc['palette']) {
+                $p = $pc['palette'];
+                bk_save_section($uid, 'colors', array_merge(bk_get($uid)['data']['colors'], array_filter(['primary' => $p['primary'], 'secondary' => $p['secondary'], 'accent' => $p['accent'], 'neutral' => $p['neutral']])), 'ai', 'ألوان من صورك وتصميماتك');
+                $filled[] = 'الألوان (من صورك)';
+            }
+        }
+        // كمّل الباقي بالـ AI (الأقسام الفاضية بس)
+        $built = [];
+        $warn = $src['warn'];
+        if (api_str('build', 2) !== '0') {
+            BrandContext::flush($uid);
+            $d = bkapi_build_draft($uid, [], true);
+            if (isset($d['__error'])) $warn = $warn ?: $d['__error'];
+            else $built = bkapi_apply_draft_empty($uid, $d['draft'], $d['confidence']);
+        }
+        api_ok(['state' => bkapi_state($uid), 'read' => $src['read'], 'filled' => $filled, 'built' => $built, 'warn' => $warn, 'balance' => credits_balance($uid)]);
+
+    /* ══════════ الألوان: من تصميماتك + اقتراحات AI ══════════ */
+    case 'palette_suggest':
+        if (!rate_limit('bk_palette', 'u' . $uid, 8, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        $fd = bkapi_colors_from_images($uid);
+        $list = [];
+        if (api_str('ai', 2) !== '0') {
+            $cost = cost_for_bk('brand_kit_ai_cost', 1);
+            bkapi_charge($uid, $cost, 'ألوان مقترحة للهوية');
+            $list = bkapi_ai_palettes($uid, $fd['palette']);
+            if (!$list) bkapi_refund($uid, $cost, 'ألوان مقترحة');
+        }
+        if ($fd['palette']) array_unshift($list, $fd['palette']);
+        if (!$list) api_fail('معرفناش نطلّع ألوان — جرّب تاني', 'ai_failed', 502);
+        api_ok(['palettes' => $list, 'images' => $fd['images'], 'balance' => credits_balance($uid)]);
+
+    case 'palette_apply':
+        $in = api_input();
+        $cur = bk_get($uid)['data']['colors'];
+        $new = [];
+        foreach (['primary', 'secondary', 'accent', 'neutral'] as $k) {
+            $v = (string) ($in[$k] ?? '');
+            if (preg_match('/^#[0-9A-Fa-f]{6}$/', $v)) $new[$k] = strtoupper($v);
+        }
+        if (empty($new['primary'])) api_fail('اختار باليتة', 'invalid', 422);
+        $r = bk_save_section($uid, 'colors', array_merge($cur, $new, ['preset_id' => null]), 'user', 'ألوان جديدة للهوية');
+        if (!$r['ok']) api_fail($r['error'], 'invalid', 422);
+        api_ok(['state' => bkapi_state($uid)]);
+
+    /* ══════════ اللوجو: تصميم بالـ AI من الهوية ← العميل يختار ══════════ */
+    case 'logo_generate':
+        if (count(bkapi_logo_candidates($uid)) >= 6) api_fail('عندك 6 اقتراحات — اختار واحد أو امسحهم الأول', 'limit', 422);
+        if (!rate_limit('logo_gen', 'u' . $uid, 5, 900)) api_fail('ولّدت لوجوهات كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        $kit = bk_get($uid);
+        $d = $kit['data'];
+        if ($d['business']['name'] === '') api_fail('اكتب اسم النشاط الأول (أو ابدأ بلينك صفحتك)', 'invalid', 422);
+        $styles = ['minimal' => 'minimal flat vector logo, clean geometric icon next to the name', 'emblem' => 'emblem / badge logo, the name inside a simple shape',
+                   'wordmark' => 'wordmark logo — the brand name only in distinctive custom lettering', 'arabic' => 'modern Arabic calligraphy logo of the brand name, elegant and readable',
+                   'icon' => 'simple memorable symbol/icon logo with the name small underneath', 'playful' => 'friendly playful rounded logo with a cute simple icon'];
+        $styleKey = api_str('style', 20);
+        $style = $styles[$styleKey] ?? $styles['minimal'];
+        $notes = api_str('notes', 400);
+        $colors = array_filter([$d['colors']['primary'], $d['colors']['secondary'], $d['colors']['accent']]);
+        $prompt = "Design a professional LOGO on a plain solid white background.\n"
+            . 'Brand name (write it exactly, correct spelling): ' . $d['business']['name'] . "\n"
+            . ($d['business']['sector'] !== '' ? 'Industry: ' . $d['business']['sector'] . "\n" : '')
+            . ($d['business']['usp'] !== '' ? 'What makes it special: ' . $d['business']['usp'] . "\n" : '')
+            . ($d['personality'] ? 'Brand personality: ' . implode(', ', $d['personality']) . "\n" : '')
+            . ($colors ? 'Use these brand colors: ' . implode(', ', $colors) . "\n" : "Pick 2 harmonious colors that suit the industry.\n")
+            . 'Style: ' . $style . ".\n"
+            . ($notes !== '' ? 'Customer notes: ' . $notes . "\n" : '')
+            . "Centered, simple, memorable, scalable. Vector-like clean edges, no photo textures, no drop shadows, no mockups, no extra text besides the brand name, no watermark. Plain white background only.";
+        require_once __DIR__ . '/../../includes/prompt-builder.php';
+        if (($__lp = type_prompt('design', 'logo')) !== '') $prompt .= "\n" . $__lp;
+        $cost = bkapi_logo_cost();
+        bkapi_charge($uid, $cost, 'تصميم لوجو من الهوية');
+        require_once __DIR__ . '/../../includes/ai.php';
+        if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
+            $res = smart_ai_image($prompt, ['user_id' => $uid, 'reference_type' => 'logo', 'reference_id' => (int) $kit['id']]);
+        } else {
+            ai_log_set_context(['kind' => 'logo', 'user_id' => $uid, 'reference_type' => 'brand_kits', 'reference_id' => (int) $kit['id']]);
+            $res = ai_generate_image($prompt, []);
+        }
+        if (empty($res['ok']) || empty($res['path'])) {
+            bkapi_refund($uid, $cost, 'تصميم اللوجو');
+            api_fail(($res['error'] ?? '') ?: 'تعذّر تصميم اللوجو — الكريدت رجعلك', 'ai_failed', 502);
+        }
+        $row = db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']]);
+        $stored = bk_arr($row['data'] ?? '{}');
+        $stored['_logo_candidates'] = array_values(array_slice(array_merge((array) ($stored['_logo_candidates'] ?? []), [$res['path']]), -6));
+        db_run('UPDATE brand_kits SET data = ? WHERE id = ?', [bk_json($stored), $kit['id']]);   // مش نسخة — لسه اقتراح
+        if (function_exists('ai_log_usage')) ai_log_usage($uid, 'logo_generate', $res['model'] ?? '', [], (int) $kit['id']);
+        api_ok(['state' => bkapi_state($uid), 'balance' => credits_balance($uid)]);
+
+    case 'logo_pick':
+    case 'logo_discard':
+        $path = api_str('path', 255);
+        $cands = bkapi_logo_candidates($uid);
+        if ($action === 'logo_pick' && !in_array($path, $cands, true)) api_fail('الاقتراح ده مش موجود', 'not_found', 404);
+        $bp = bkapi_profile($uid);
+        $kit = bk_get($uid);
+        $row = db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']]);
+        $stored = bk_arr($row['data'] ?? '{}');
+        if ($action === 'logo_pick') {
+            db_run('UPDATE brand_profiles SET logo_path = ?, updated_at = NOW() WHERE id = ?', [$path, $bp['id']]);
+            $rest = array_diff($cands, [$path]);
+            if (!empty($bp['logo_path'])) $rest[] = $bp['logo_path'];   // اللوجو القديم يفضل اقتراح ممكن ترجعله
+            $stored['_logo_candidates'] = array_values(array_slice(array_unique($rest), -6));
+        } else {
+            foreach ($cands as $c) if ($c !== ($bp['logo_path'] ?? '') && ($path === '' || $c === $path)) delete_upload($c);
+            $stored['_logo_candidates'] = $path === '' ? [] : array_values(array_diff($cands, [$path]));
+        }
+        db_run('UPDATE brand_kits SET data = ? WHERE id = ?', [bk_json($stored), $kit['id']]);
+        if ($action === 'logo_pick') {
+            brand_kit_notify($uid, ['logo_path'], 'user', 'لوجو جديد (تصميم الـ AI)');
+            $abs = realpath(STORAGE_PATH . '/' . $path);
+            if ($abs && bk_get($uid)['data']['colors']['primary'] === '' && ($cols = brand_logo_colors($abs))) {
+                bk_save_section($uid, 'colors', array_merge(bk_get($uid)['data']['colors'], array_filter(['primary' => $cols[0] ?? '', 'secondary' => $cols[1] ?? '', 'accent' => $cols[2] ?? ''])), 'ai', 'ألوان من اللوجو الجديد');
+            }
+        }
+        api_ok(['state' => bkapi_state($uid)]);
 
     default:
         api_fail('عملية غير معروفة', 'bad_action', 400);
