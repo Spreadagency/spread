@@ -268,3 +268,19 @@ label.bk-btn { cursor: pointer; }
 .bk-persona .t small { color: var(--bk-mute); font-size: 12.5px; }
 .bk-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
 .bk-pills i { font-style: normal; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: #EAF4FF; color: #0A5FCF; }
+
+/* تحليل اللوجو والصور + تحليل المحتوى */
+.bk-vis { margin-bottom: 10px; }
+.bk-vis-res { margin-top: 8px; display: grid; gap: 6px; font-size: 13.5px; }
+.bk-vis-res p { margin: 0; line-height: 1.8; }
+.bk-ins { display: grid; gap: 8px; margin-top: 8px; }
+.bk-ins h4 { margin: 10px 0 0; font-size: 14.5px; }
+.bk-ins-sum { margin: 0; padding: 10px 12px; border-radius: 12px; background: #F1FBF8; border: 1px solid #BFEDE2; font-size: 13.5px; line-height: 1.8; }
+.bk-ins-post { padding: 10px 12px; border: 1px solid var(--bk-line); border-radius: 12px; }
+.bk-ins-post b { display: block; } .bk-ins-post small { color: var(--bk-mute); font-size: 12.5px; }
+.bk-ins-post ul, .bk-ins-list { margin: 6px 0 0; padding-inline-start: 18px; font-size: 13px; line-height: 1.8; }
+.bk-ins-list li.warn { color: #9A5B00; }
+.bk-mix { display: grid; gap: 6px; }
+.bk-mix div { display: grid; grid-template-columns: 70px 1fr 40px; gap: 8px; align-items: center; font-size: 13px; }
+.bk-mix i { height: 8px; border-radius: 99px; background: #EEF3F8; overflow: hidden; display: block; }
+.bk-mix s { display: block; height: 100%; background: linear-gradient(90deg, #13A89E, #0C87EF); text-decoration: none; }

@@ -28,6 +28,17 @@ if (!empty($_GET['campaign'])) {
         [(int) $_GET['campaign'], (int) $user['id']]) ?: null;
 }
 $page_title = 'إنشاء منشور';
+// المنشور السريع الجديد (خدمة ← شكل ← عميل مثالي) — الشكل القديم بـ ?classic=1 · ومن الحملة بيفضل القديم
+require_once __DIR__ . '/../includes/brand-kit.php';
+if (empty($_GET['classic']) && !$fromCampaign && bk_enabled() && function_exists('ui_v2_enabled') && ui_v2_enabled()) {
+    $active = 'create';
+    $page_title = 'منشور سريع';
+    $use_app = true;   // SpreadAPI
+    include __DIR__ . '/../templates/header.php';
+    include __DIR__ . '/../templates/v2/quick-post.php';
+    include __DIR__ . '/../templates/footer.php';
+    return;
+}
 include __DIR__ . '/../templates/header.php';
 ?>
 

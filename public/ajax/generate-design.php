@@ -339,7 +339,7 @@ if ($includeLogo && !$modelReceivedImages) {
 }
 
 // العلامة المائية للمنصة (لو مفعّلة)
-if (watermark_ready()) {
+if (watermark_for_user((int) $user['id'])) {
     watermark_apply($result['path']);
 }
 

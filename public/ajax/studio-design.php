@@ -329,7 +329,7 @@ if (!$result['ok']) {
 if ($includeLogo && !$modelReceivedImages) {
     brand_logo_apply($result['path'], $brand['logo_path']);
 }
-if (watermark_ready()) {
+if (watermark_for_user((int) $user['id'])) {
     watermark_apply($result['path']);
 }
 

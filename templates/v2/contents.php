@@ -75,18 +75,18 @@
     <!-- الكروت -->
     <div class="lib-grid" v-else>
         <article v-for="c in items" :key="c.id" class="card lib-card" :class="{ fail: c.fail }">
-            <button type="button" class="lib-cover" @click="open(c.id)" :aria-label="'فتح ' + c.hook">
+            <a class="lib-cover" :href="base + '/content-view.php?id=' + c.id" :aria-label="'فتح ' + c.hook">
                 <?= ui_icon('image', 26) ?>
                 <img v-if="c.cover" :src="c.cover" alt="" loading="lazy" decoding="async" @error="$event.target.remove()">
                 <em class="lib-type">{{ c.type_label }}</em>
                 <em class="lib-fmt" v-if="c.format && c.format !== 'post'">{{ c.format_emoji }} {{ c.format_label }}<span v-if="c.slides_count"> · {{ c.slides_count }}</span></em>
-            </button>
+            </a>
             <div class="lib-body">
                 <div class="lib-row">
                     <span class="cm-st" :style="{ '--st': c.status.color }">{{ c.status.label }}</span>
                     <small class="sub">{{ c.ago }}</small>
                 </div>
-                <b class="lib-hook" @click="open(c.id)">{{ c.hook || 'بدون نص' }}</b>
+                <a class="lib-hook" :href="base + '/content-view.php?id=' + c.id" style="display:block;color:inherit;text-decoration:none;font-weight:700">{{ c.hook || 'بدون نص' }}</a>
                 <div class="lib-meta">
                     <span>{{ c.platform }}</span>
                     <a v-if="c.campaign" :href="base + '/campaign.php?id=' + c.campaign.id" class="lib-camp">{{ c.campaign.title }}</a>
@@ -99,7 +99,8 @@
                 <small class="lib-sched" v-if="c.scheduled">🗓 مجدول: <span dir="ltr">{{ c.scheduled }}</span></small>
                 <small class="lib-fail" v-if="c.fail">✕ {{ c.fail }}</small>
                 <div class="lib-act">
-                    <button type="button" class="btn ghost sm" @click="open(c.id)">فتح المنشور</button>
+                    <a class="btn ghost sm" :href="base + '/content-view.php?id=' + c.id">فتح المنشور</a>
+                    <button type="button" class="btn ghost sm" @click="open(c.id)" title="معاينة سريعة من غير ما تسيب الصفحة">👁</button>
                     <span class="pv-c" v-if="c.next.kind === 'link'"><a :href="c.next.url" class="btn sm">{{ c.next.label }}</a></span>
                     <span class="pv-c" v-if="c.next.kind === 'external'"><a :href="c.next.url" class="btn soft sm" target="_blank" rel="noopener">{{ c.next.label }}</a></span>
                     <span class="pv-c" v-if="c.next.kind === 'panel'"><button type="button" class="btn sm" @click="open(c.id)">{{ c.next.label }}</button></span>

@@ -20,6 +20,7 @@
       onb: { step: 1, url: '', linkDone: false, answers: {}, more: {}, draft: null, conf: {}, pick: {}, facts: [], skip: false, open: false },
       mg: { url: '', file: null, name: '', res: null, running: '' },
       lg: { style: 'minimal', notes: '' }, pals: [], photoOk: false, pe: null, ctaList: [],
+      mixLabel: { post: 'بوست', carousel: 'كاروسيل', story: 'ستوري', video: 'فيديو' }, capLabel: { short: 'قصير', medium: 'متوسط', long: 'طويل' },
       logoStyles: { minimal: 'بسيط وحديث', icon: 'رمز مميز', wordmark: 'الاسم بخط مميز', arabic: 'خط عربي', emblem: 'شعار في إطار', playful: 'مرح وودود' },
 
       contentSections: [
@@ -27,6 +28,7 @@
         { key: 'business', label: 'النشاط والجمهور', icon: '🏷' },
         { key: 'personas', label: 'العملاء المثاليين', icon: '👥' },
         { key: 'cta', label: 'الـ CTA الأساسي', icon: '📣' },
+        { key: 'insights', label: 'تحليل المحتوى', icon: '📊' },
         { key: 'services', label: 'الخدمات والمواضيع', icon: '🧩' },
         { key: 'voice', label: 'طريقة الكلام', icon: '🗣' },
         { key: 'pillars', label: 'اتجاه المحتوى', icon: '🧭' },
@@ -164,6 +166,7 @@
           case 'inspiration': return this.s.insp.length ? this.s.insp.length + ' تصميم' : 'صور أو لينكات لتصميمات عاجباك';
           case 'personas': return this.s.personas.length ? this.s.personas.map(function (p) { return p.name; }).join('، ') : 'مين بيشتري منك؟ الـ AI يعملهم';
           case 'cta': return (d.cta && d.cta.text) || 'الجملة اللي بتختم بيها كل بوست';
+          case 'insights': return this.s.insights ? (this.s.insights.best_posts || []).slice(0, 2).map(function (b) { return b.type; }).join('، ') : 'أفضل المنشورات ليك وشكلها وتعليمات التصميم';
           case 'basics': return [this.s.basics.phones || this.s.basics.whatsapp, this.s.basics.address].filter(Boolean).join(' · ') || 'الاسم والتواصل والسوشيال';
         }
         return '';
@@ -438,6 +441,12 @@
       delPersona: async function () { if (confirm('تحذف الشخص ده؟') && await this.post('persona_delete', { id: this.pe.id }, 'اتحذف')) this.modal = null; },
       genPersonas: async function () { var r = await this.post('personas_generate', {}); if (r) this.say('الـ AI عمل ' + r.saved + ' أشخاص ✓ — راجعهم وعدّل لو حابب'); },
       ctaSuggest: async function () { var r = await this.post('cta_suggest', { type: this.ed.cta.type || '' }); if (r) this.ctaList = r.ctas || []; },
+
+      /* التحليل البصري + تحليل المحتوى */
+      visualAnalyze: async function () { var r = await this.post('visual_analyze', {}); if (r) this.say('حللنا ' + r.visual.images + ' صورة ✓'); },
+      visualApply: async function (parts) { await this.post('visual_apply', { parts: parts }, 'اتحفظ في هويتك ✓'); },
+      insightsGen: async function () { var r = await this.post('insights_generate', {}); if (r) this.say('التحليل جاهز ✓'); },
+      insightsApply: async function (part) { var r = await this.post('insights_apply', { part: part }); if (r) this.say(r.done || 'تمام ✓'); },
 
       /* «ابدأ هنا»: لينك أو ملف ← الـ AI يملا الفاضي ويكمّل الناقص */
       magic: async function () {

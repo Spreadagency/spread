@@ -349,6 +349,30 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             </div>
                         </div>
 
+                        <!-- تحليل المحتوى -->
+                        <div class="bk-tpl" v-if="sec.key === 'insights'">
+                            <p class="bk-mute" style="margin:0 0 8px">الـ AI يحلّل براندك وعملاءك وتقييماتك وصورك ويقولك: أفضل المنشورات ليك، شكلها، وتعليمات التصميم.</p>
+                            <div class="bk-row"><button class="bk-btn sm ai" :disabled="busy" @click="insightsGen()">{{ s.insights ? 'حلّل تاني' : 'حلّل محتوايا' }} <span class="cr" v-if="s.costs.insights">· {{ s.costs.insights }}</span></button></div>
+                            <div v-if="s.insights" class="bk-ins">
+                                <p class="bk-ins-sum" v-if="s.insights.summary">{{ s.insights.summary }}</p>
+                                <h4>⭐ أفضل المنشورات ليك</h4>
+                                <div v-for="(b, k) in s.insights.best_posts" :key="k" class="bk-ins-post"><b>{{ b.type }}</b><small>{{ b.why }}</small>
+                                    <ul v-if="b.examples.length"><li v-for="x in b.examples" :key="x">{{ x }}</li></ul></div>
+                                <button class="bk-btn sm" :disabled="busy" @click="insightsApply('topics')">+ ضيف الأمثلة لمواضيعي</button>
+                                <h4>📐 شكل المنشورات</h4>
+                                <div class="bk-mix"><div v-for="(v, k) in s.insights.mix" :key="k" v-show="v > 0"><span>{{ mixLabel[k] }}</span><i><s :style="{width: v + '%'}"></s></i><b>{{ v }}%</b></div></div>
+                                <p class="bk-mute">الكابشن: <b>{{ capLabel[s.insights.caption_length] }}</b><span v-if="s.insights.hooks.length"> · الـ Hooks: <b>{{ s.insights.hooks.map(h => (s.labels.hooks[h] || h)).join('، ') }}</b></span></p>
+                                <button class="bk-btn sm pri" :disabled="busy" @click="insightsApply('shape')">طبّق الشكل على هويتي</button>
+                                <h4>🎨 تعليمات التصميم</h4>
+                                <ul class="bk-ins-list"><li v-for="r in s.insights.design_rules" :key="r">{{ r }}</li></ul>
+                                <button class="bk-btn sm" :disabled="busy || !s.insights.design_rules.length" @click="insightsApply('design')">ضيفهم لتعليمات التصميم</button>
+                                <div class="pv-c" v-if="s.insights.images_review.good.length || s.insights.images_review.improve.length">
+                                    <h4>🖼 تحليل صورك</h4>
+                                    <ul class="bk-ins-list"><li v-for="g in s.insights.images_review.good" :key="g">✓ {{ g }}</li><li v-for="g in s.insights.images_review.improve" :key="g" class="warn">↑ {{ g }}</li></ul>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- الـ CTA الأساسي -->
                         <div class="bk-tpl" v-if="sec.key === 'cta'">
                             <p class="bk-mute" style="margin:0 0 8px">الجملة اللي بتختم بيها كل بوست. الحملة أو البوست يقدروا يغيّروها.</p>
@@ -426,6 +450,22 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <div class="bk-chips">
                                 <button v-for="p in presets('palette')" class="bk-chip pal" :class="{on: +ed.colors.preset_id === +p.id}" @click="applyPalette(p)">
                                     <i v-for="c in (p.data.colors || [])" :style="{background: c}"></i>{{ p.name }}</button>
+                            </div>
+                            <div class="bk-gen bk-vis">
+                                <div class="bk-lbl">🔍 حلّل اللوجو والصور المرفوعة</div>
+                                <small class="bk-mute">الـ AI يتفرّج على اللوجو وصورك وتصميماتك ويطلّع الألوان ودور كل لون والاستايل والخطوط.</small>
+                                <div class="bk-row"><button class="bk-btn sm ai" :disabled="busy" @click="visualAnalyze()">{{ s.visual ? 'حلّل تاني' : 'حلّل' }} <span class="cr" v-if="s.costs.visual">· {{ s.costs.visual }}</span></button></div>
+                                <div v-if="s.visual" class="bk-vis-res">
+                                    <div class="bk-pal"><span class="sw"><i v-for="c in [s.visual.colors.primary, s.visual.colors.secondary, s.visual.colors.accent, s.visual.colors.neutral].filter(Boolean)" :style="{background: c}"></i></span>
+                                        <span class="t"><b>الألوان</b><small>{{ s.visual.roles }}</small></span></div>
+                                    <p v-if="s.visual.style"><b>الاستايل:</b> {{ s.visual.style }}</p>
+                                    <p v-if="s.visual.fonts.ar || s.visual.fonts.en"><b>الخطوط:</b> {{ [s.visual.fonts.ar, s.visual.fonts.en].filter(Boolean).join(' · ') }}</p>
+                                    <p v-if="s.visual.notes"><b>ملاحظات:</b> {{ s.visual.notes }}</p>
+                                    <p v-if="s.visual.avoid.length"><b>⛔ ممنوع:</b> {{ s.visual.avoid.join('، ') }}</p>
+                                    <div class="bk-row"><button class="bk-btn sm pri" :disabled="busy" @click="visualApply(['colors', 'style', 'fonts'])">استخدم الكل</button>
+                                        <button class="bk-btn sm" :disabled="busy" @click="visualApply(['colors'])">الألوان بس</button>
+                                        <button class="bk-btn sm" :disabled="busy" @click="visualApply(['style', 'fonts'])">الاستايل والخطوط</button></div>
+                                </div>
                             </div>
                             <div class="bk-row"><button class="bk-btn sm ai" :disabled="busy" @click="palSuggest(true)">✨ اقترح ألوان لهويتي <span class="cr" v-if="s.costs.ai">· {{ s.costs.ai }}</span></button>
                                 <button class="bk-btn sm ghost" :disabled="busy" @click="palSuggest(false)">🎨 من تصميماتي واللوجو</button></div>

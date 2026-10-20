@@ -206,6 +206,14 @@ function wm_save_image($img, string $path, int $type): bool
     };
 }
 
+/** العلامة المائية للعميل ده: مفعّلة في المنصة + باقته فيها علامة (من غير باقة = زي الأول) */
+function watermark_for_user(int $uid): bool
+{
+    if (!watermark_ready()) return false;
+    if (!function_exists('plan_flags')) require_once __DIR__ . '/plans.php';
+    return function_exists('plan_flags') ? plan_flags($uid)['watermark'] : true;
+}
+
 /**
  * الصورة بمقاس محدد بالظبط (عرض × ارتفاع): تكبير/تصغير لحد ما تغطي الإطار ← قص من النص
  * من غير مط — بيلتزم بشكل المقاس اللي العميل طلبه

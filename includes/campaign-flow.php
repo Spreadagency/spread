@@ -224,6 +224,13 @@ function campaign_content_prompt(array $brand, array $c, array $idea, string $ex
     $head = prompt_fill('campaign_content', ['campaign' => (string) ($c['title'] ?? ''), 'basis' => $basis, 'format' => $fmtLabel, 'dialect' => campaign_dialect($brand), 'data' => $data])
         . ($format !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
         . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n";
+    return $head . campaign_content_format($format, $slides, $duration);
+}
+
+/** شكل الرد المطلوب لكل نوع (الكود بيقراه) — مشترك بين الحملة والمنشور السريع */
+function campaign_content_format(string $format, int $slides = 0, string $duration = '30 ثانية'): string
+{
+    $head = '';
     $tags = "[CTA]\nجملة Call-to-Action قصيرة ومحددة\n[/CTA]\n\n[HASHTAGS]\n#هاشتاج1 #هاشتاج2 (5-8)\n[/HASHTAGS]\n\n";
     $img = "[IMAGE_PROMPT]\nEnglish image prompt: scene, composition, brand colors, modern social media design. No text instructions unless essential.\n[/IMAGE_PROMPT]";
     if ($format === 'video') {
@@ -701,7 +708,10 @@ function campaign_board_payload(array $c, int $uid): array
             'plan_eval' => max(0, (int) get_setting('campaign_plan_eval_cost', '1')),
             'ai_edit' => cost_for('ai_edit_cost'),
         ],
-        'publish'  => ['allowed' => feature_allows($uid), 'pages' => $pages, 'hour' => default_publish_hour()],
+        'publish'  => ['allowed' => feature_allows($uid), 'pages' => $pages, 'hour' => default_publish_hour(),
+                       'plan' => function_exists('plan_flags') ? (plan_flags($uid)['name'] ?: '') : '',
+                       'wa' => function_exists('publish_whatsapp_number') ? publish_whatsapp_number() : '',
+                       'packages' => url('packages.php'), 'who' => (string) ($brand['business_name'] ?? '')],
         'limits'   => array_combine(['min', 'max', 'def'], carousel_limits()),
         'design_styles' => array_map(fn($r) => ['id' => (int) $r['id'], 'name' => $r['name']],
             db_all('SELECT id, name FROM style_presets WHERE kind = "design_style" AND is_active = 1 ORDER BY sort_order, id LIMIT 12')),

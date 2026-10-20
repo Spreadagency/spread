@@ -252,6 +252,16 @@ function plan_upgrade_link(): string
     return function_exists('url') ? url('credits.php') : 'credits.php';
 }
 
+/** رقم واتساب النشر اليدوي (للي باقته مافيهاش نشر مباشر): publish_whatsapp ← الدعم ← الزرار العائم ← الدفع */
+function publish_whatsapp_number(): string
+{
+    foreach (['publish_whatsapp', 'support_whatsapp', 'whatsapp_float', 'pay_whatsapp'] as $k) {
+        $n = preg_replace('/\D+/', '', (string) plans_setting($k, ''));
+        if ($n !== '') return $n;
+    }
+    return '';
+}
+
 /** العنصر ده اتحسب قبل كده؟ (النشر: المنشور الواحد مرة واحدة) */
 function plan_counted(int $uid, string $unit, int $refId): bool
 {
@@ -392,3 +402,49 @@ function design_subscription_gate(int $uid): ?array
         ],
     ];
 }
+
+/* ═══════════ مميزات الباقة: النشر المباشر · العلامة المائية (بيختارها الأدمن في كل باقة) ═══════════ */
+
+/** أعمدة الباقة (مرة واحدة · من غير تعديل بيانات): allow_publish افتراضي لأ · watermark افتراضي آه (زي الأول) */
+function package_flags_ensure(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        $have = array_column(db_all('SHOW COLUMNS FROM credit_packages'), 'Field');
+        if (!in_array('allow_publish', $have, true)) db_run('ALTER TABLE credit_packages ADD COLUMN allow_publish TINYINT(1) NOT NULL DEFAULT 0');
+        if (!in_array('watermark', $have, true)) db_run('ALTER TABLE credit_packages ADD COLUMN watermark TINYINT(1) NOT NULL DEFAULT 1');
+        return $ok = true;
+    } catch (\Throwable $e) {
+        error_log('[plans] package flags ' . $e->getMessage());
+        return $ok = false;
+    }
+}
+
+/**
+ * مميزات العميل من باقته الحالية — بتتفتح تلقائيًا مع الاشتراك وتتقفل لما الباقة تخلص
+ * @return array{has_plan:bool, name:string, publish:bool, watermark:bool}
+ */
+function plan_flags(int $uid): array
+{
+    static $cache = [];
+    if (isset($cache[$uid])) return $cache[$uid];
+    $out = ['has_plan' => false, 'name' => '', 'publish' => false, 'watermark' => true];
+    try {
+        $p = plan_active($uid);
+        if (!empty($p['id']) && empty($p['synthetic'])) {
+            $out['has_plan'] = true;
+            $out['name'] = (string) $p['name'];
+            if (!empty($p['package_id']) && package_flags_ensure()) {
+                $pkg = db_one('SELECT allow_publish, watermark FROM credit_packages WHERE id = ?', [$p['package_id']]);
+                if ($pkg) {
+                    $out['publish'] = (int) $pkg['allow_publish'] === 1;
+                    $out['watermark'] = (int) $pkg['watermark'] === 1;
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+    }
+    return $cache[$uid] = $out;
+}
+

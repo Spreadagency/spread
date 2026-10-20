@@ -75,9 +75,11 @@ function bkapi_state(int $uid): array
         'presets' => $presets,
         'seasons' => bk_current_seasons(),
         'logo_url' => !empty($kit['data']['logo']['path']) ? upload_url($kit['data']['logo']['path']) : '',
-        'costs' => ['ai' => cost_for_bk('brand_kit_ai_cost', 1), 'draft' => cost_for_bk('brand_kit_draft_cost', 2), 'character' => bkapi_char_cost(), 'logo' => bkapi_logo_cost(), 'persona' => max(0, (int) get_setting('brand_kit_persona_cost', '1'))],
+        'costs' => ['ai' => cost_for_bk('brand_kit_ai_cost', 1), 'draft' => cost_for_bk('brand_kit_draft_cost', 2), 'character' => bkapi_char_cost(), 'logo' => bkapi_logo_cost(), 'persona' => max(0, (int) get_setting('brand_kit_persona_cost', '1')),
+                    'visual' => max(0, (int) get_setting('brand_visual_cost', '1')), 'insights' => max(0, (int) get_setting('brand_insights_cost', '1'))],
         'personas' => bk_personas($uid, false), 'personas_max' => bk_personas_max(), 'personas_default' => bk_personas_default(),
         'cta_types' => bk_cta_types(),
+        'visual' => bkapi_kit_meta($uid, '_visual'), 'insights' => bkapi_kit_meta($uid, '_insights'),
         'logo_candidates' => array_map(fn($p) => ['path' => $p, 'url' => upload_url($p)], bkapi_logo_candidates($uid)),
         'research' => function_exists('ui_research_on') ? ui_research_on() : get_setting('research_enabled', '1') === '1',
         'analyze_cost' => max(0, (int) get_setting('brand_analyze_cost', 1)),
@@ -524,6 +526,36 @@ function bkapi_personas_generate(int $uid, int $n, bool $soft = false): array
     }
     bk_update_completeness($uid);
     return ['saved' => $saved];
+}
+
+/** صور العميل للتحليل البصري: اللوجو + صور البراند + تصميمات عاجباه + تصميماته السابقة (data URIs) */
+function bkapi_visual_images(int $uid, int $max = 6): array
+{
+    $bp = brand_for_user($uid);
+    $out = [];
+    $add = function (?string $rel, string $role) use (&$out, $max) {
+        if (!$rel || count($out) >= $max) return;
+        $u = image_data_uri($rel);
+        if ($u) $out[] = ['uri' => $u, 'role' => $role];
+    };
+    if ($bp) {
+        $add($bp['logo_path'] ?? null, "the brand's LOGO");
+        try { foreach (db_all('SELECT image_path FROM brand_images WHERE brand_profile_id = ? AND image_path IS NOT NULL ORDER BY id DESC LIMIT 2', [$bp['id']]) as $r) $add($r['image_path'], 'a brand photo'); } catch (\Throwable $e) {}
+        try { foreach (db_all('SELECT image_path FROM brand_inspirations WHERE brand_profile_id = ? AND image_path IS NOT NULL ORDER BY id DESC LIMIT 2', [$bp['id']]) as $r) $add($r['image_path'], 'a design the client LIKES (their taste)'); } catch (\Throwable $e) {}
+    }
+    try { foreach (db_all('SELECT image_path FROM content_designs WHERE user_id = ? ORDER BY id DESC LIMIT 2', [$uid]) as $r) $add($r['image_path'], 'a previous design made for this brand'); } catch (\Throwable $e) {}
+    return $out;
+}
+
+/** بيانات خام صغيرة في الـ Kit (مش نسخة): التحليل البصري وتحليل المحتوى */
+function bkapi_kit_meta(int $uid, string $key, $value = null)
+{
+    $kit = bk_get($uid);
+    $stored = bk_arr(db_one('SELECT data FROM brand_kits WHERE id = ?', [$kit['id']])['data'] ?? '{}');
+    if (func_num_args() < 3) return $stored[$key] ?? null;
+    $stored[$key] = $value;
+    db_run('UPDATE brand_kits SET data = ? WHERE id = ?', [bk_json($stored), $kit['id']]);
+    return $value;
 }
 
 switch ($action) {
@@ -1112,6 +1144,152 @@ switch ($action) {
         $list = array_values(array_slice(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 200), (array) ($j['ctas'] ?? []))), 0, 3));
         if (!$list) { bkapi_refund($uid, $cost, 'اقتراح CTA'); api_fail($j['__error'] ?? 'مطلعش اقتراحات — جرّب تاني', 'ai_failed', 502); }
         api_ok(['ctas' => $list, 'balance' => credits_balance($uid)]);
+
+    /* ══════════ تحليل اللوجو والصور ← الألوان والاستايل والخطوط ══════════ */
+    case 'visual_analyze':
+        if (!rate_limit('bk_visual', 'u' . $uid, 6, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        require_once __DIR__ . '/../../includes/prompt-library.php';
+        $imgs = bkapi_visual_images($uid);
+        if (!$imgs) api_fail('ارفع اللوجو أو صور/تصميمات الأول علشان نحللها', 'no_images', 422);
+        $fd = bkapi_colors_from_images($uid);
+        $cost = max(0, (int) get_setting('brand_visual_cost', '1'));
+        bkapi_charge($uid, $cost, 'تحليل اللوجو والصور');
+        $d = bk_get($uid)['data'];
+        $roles = [];
+        foreach ($imgs as $k => $im) $roles[] = 'Image ' . ($k + 1) . ' is ' . $im['role'];
+        $colors = $fd['palette'] ? implode(', ', array_filter([$fd['palette']['primary'], $fd['palette']['secondary'], $fd['palette']['accent'], $fd['palette']['neutral']])) : 'مفيش';
+        $prompt = prompt_fill('visual_analysis', ['colors' => $colors, 'data' => "البراند: {$d['business']['name']} — المجال: {$d['business']['sector']}\nالصور المرفقة بالترتيب:\n" . implode("\n", $roles)])
+            . "\n\nرجّع JSON بس (القيم بالعربي ما عدا الـ hex والخطوط):\n"
+            . '{"colors":{"primary":"#","secondary":"#","accent":"#","neutral":"#"},"roles":"دور كل لون في جملة","style":"الاستايل العام في جملتين","fonts":{"ar":"Cairo","en":"Inter"},"notes":"ملاحظات تصميم عملية","avoid":["",""]}';
+        $ai = ai_generate($prompt, array_column($imgs, 'uri'));
+        $j = !empty($ai['ok']) ? bk_json_from_ai((string) $ai['response']) : null;
+        $hex = fn($c) => is_string($c) && preg_match('/^#[0-9A-Fa-f]{6}$/', $c) ? strtoupper($c) : '';
+        if (!$j || !$hex($j['colors']['primary'] ?? null)) {
+            bkapi_refund($uid, $cost, 'تحليل اللوجو والصور');
+            api_fail(!empty($ai['ok']) ? 'التحليل مرجعش مظبوط — الكريدت رجعلك، جرّب تاني' : ($ai['error'] ?? 'تعذّر التحليل'), 'ai_failed', 502);
+        }
+        $res = [
+            'colors' => ['primary' => $hex($j['colors']['primary'] ?? ''), 'secondary' => $hex($j['colors']['secondary'] ?? ''), 'accent' => $hex($j['colors']['accent'] ?? ''), 'neutral' => $hex($j['colors']['neutral'] ?? '')],
+            'roles' => mb_substr(trim((string) ($j['roles'] ?? '')), 0, 300), 'style' => mb_substr(trim((string) ($j['style'] ?? '')), 0, 400),
+            'fonts' => ['ar' => mb_substr(trim((string) ($j['fonts']['ar'] ?? '')), 0, 40), 'en' => mb_substr(trim((string) ($j['fonts']['en'] ?? '')), 0, 40)],
+            'notes' => mb_substr(trim((string) ($j['notes'] ?? '')), 0, 600),
+            'avoid' => array_values(array_slice(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 120), (array) ($j['avoid'] ?? []))), 0, 8)),
+            'images' => count($imgs), 'at' => date('c'),
+        ];
+        bkapi_kit_meta($uid, '_visual', $res);
+        if (function_exists('ai_log_usage')) ai_log_usage($uid, 'visual_identity', $ai['model'] ?? '', $ai['usage'] ?? []);
+        api_ok(['visual' => $res, 'state' => bkapi_state($uid), 'balance' => credits_balance($uid)]);
+
+    case 'visual_apply':
+        $v = bkapi_kit_meta($uid, '_visual');
+        if (!$v) api_fail('حلّل الأول', 'invalid', 422);
+        $kit = bk_get($uid)['data'];
+        $parts = (array) (api_input()['parts'] ?? ['colors', 'style', 'fonts']);
+        if (in_array('colors', $parts, true) && $v['colors']['primary'] !== '') {
+            bk_save_section($uid, 'colors', array_merge($kit['colors'], array_filter($v['colors']), ['preset_id' => null]), 'ai', 'ألوان من تحليل اللوجو والصور');
+        }
+        if (in_array('style', $parts, true) && ($v['style'] !== '' || $v['notes'] !== '' || $v['avoid'])) {
+            $ds = bk_get($uid)['data']['design_style'];
+            $ds['notes'] = mb_substr(trim($v['style'] . ($v['notes'] !== '' ? "\n" . $v['notes'] : '')), 0, 1000);
+            $ds['avoid'] = array_values(array_unique(array_merge($ds['avoid'] ?? [], $v['avoid'])));
+            bk_save_section($uid, 'design_style', $ds, 'ai', 'استايل من تحليل اللوجو والصور');
+        }
+        if (in_array('fonts', $parts, true) && ($v['fonts']['ar'] !== '' || $v['fonts']['en'] !== '')) {
+            bk_save_section($uid, 'typography', array_merge(bk_get($uid)['data']['typography'], array_filter($v['fonts'])), 'ai', 'خطوط من تحليل اللوجو والصور');
+        }
+        api_ok(['state' => bkapi_state($uid)]);
+
+    /* ══════════ تحليل المحتوى: أفضل المنشورات · شكلها · تعليمات التصميم · تحليل الصور ══════════ */
+    case 'insights_generate':
+        if (!rate_limit('bk_insights', 'u' . $uid, 6, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        require_once __DIR__ . '/../../includes/prompt-library.php';
+        $kit = bk_get($uid);
+        $d = $kit['data'];
+        if ($d['business']['name'] === '') api_fail('اكتب اسم النشاط الأول', 'invalid', 422);
+        $cost = max(0, (int) get_setting('brand_insights_cost', '1'));
+        bkapi_charge($uid, $cost, 'تحليل المحتوى');
+        $per = array_map(fn($p) => bk_persona_text($p, $uid), array_slice(bk_personas($uid), 0, 4));
+        $fb = [];
+        try {
+            foreach (db_all('SELECT COALESCE(format, "post") f, SUM(feedback = 1) up, SUM(feedback = -1) down FROM contents WHERE user_id = ? AND feedback IS NOT NULL AND created_at >= (NOW() - INTERVAL 90 DAY) GROUP BY f', [$uid]) as $r) {
+                $fb[] = content_format_label(content_format_key((string) $r['f'])) . ': 👍' . (int) $r['up'] . ' 👎' . (int) $r['down'];
+            }
+        } catch (\Throwable $e) {}
+        $vis = bkapi_kit_meta($uid, '_visual');
+        $data = BrandContext::promptFor($uid, 'ideas') . "\n"
+            . ($per ? "\nالعملاء المثاليين:\n" . implode("\n", $per) . "\n" : '')
+            . ($fb ? "\nتقييمات العميل لمنشوراته (آخر 3 شهور): " . implode(' · ', $fb) . "\n" : '')
+            . ($vis ? "\nتحليل صوره وتصميماته: " . $vis['style'] . ' — ' . $vis['notes'] . "\n" : '');
+        $j = bkapi_ai($uid, prompt_fill('agent_content_insights', ['data' => $data])
+            . "\n\nرجّع JSON بس:\n"
+            . '{"best_posts":[{"type":"","why":"","examples":["",""]}],"mix":{"post":40,"carousel":30,"story":20,"video":10},"caption_length":"short|medium|long","hooks":["question","story"],'
+            . '"design_rules":["",""],"images_review":{"good":[""],"improve":[""]},"summary":""}'
+            . "\nhooks من: question|story|number|problem|myth|offer|tip", 2200);
+        $best = [];
+        foreach (array_slice((array) ($j['best_posts'] ?? []), 0, 6) as $b) {
+            if (!is_array($b) || trim((string) ($b['type'] ?? '')) === '') continue;
+            $best[] = ['type' => mb_substr(trim((string) $b['type']), 0, 80), 'why' => mb_substr(trim((string) ($b['why'] ?? '')), 0, 240),
+                       'examples' => array_values(array_slice(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 160), (array) ($b['examples'] ?? []))), 0, 3))];
+        }
+        if (!$best) {
+            bkapi_refund($uid, $cost, 'تحليل المحتوى');
+            api_fail($j['__error'] ?? 'التحليل مرجعش مظبوط — الكريدت رجعلك، جرّب تاني', 'ai_failed', 502);
+        }
+        $mix = [];
+        foreach (['post', 'carousel', 'story', 'video'] as $k) $mix[$k] = max(0, min(100, (int) ($j['mix'][$k] ?? 0)));
+        $hooks = array_values(array_intersect((array) ($j['hooks'] ?? []), array_keys(bk_hook_types())));
+        $ins = [
+            'best_posts' => $best, 'mix' => $mix,
+            'caption_length' => in_array($j['caption_length'] ?? '', ['short', 'medium', 'long'], true) ? $j['caption_length'] : 'medium',
+            'hooks' => array_slice($hooks, 0, 4),
+            'design_rules' => array_values(array_slice(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 200), (array) ($j['design_rules'] ?? []))), 0, 8)),
+            'images_review' => ['good' => array_values(array_slice(array_filter(array_map('strval', (array) ($j['images_review']['good'] ?? []))), 0, 4)),
+                                'improve' => array_values(array_slice(array_filter(array_map('strval', (array) ($j['images_review']['improve'] ?? []))), 0, 4))],
+            'summary' => mb_substr(trim((string) ($j['summary'] ?? '')), 0, 400), 'at' => date('c'),
+        ];
+        bkapi_kit_meta($uid, '_insights', $ins);
+        api_ok(['insights' => $ins, 'state' => bkapi_state($uid), 'balance' => credits_balance($uid)]);
+
+    case 'insights_apply':
+        $ins = bkapi_kit_meta($uid, '_insights');
+        if (!$ins) api_fail('حلّل الأول', 'invalid', 422);
+        $part = api_str('part', 20);
+        $done = '';
+        if ($part === 'shape') {
+            // شكل المنشورات: الطول والـ Hooks + أشكال المحتوى ونسبها في الأسبوع
+            $c = bk_get($uid)['data']['content'];
+            $c['caption_length'] = $ins['caption_length'];
+            if ($ins['hooks']) $c['hooks'] = $ins['hooks'];
+            bk_save_section($uid, 'content', $c, 'ai', 'شكل المنشورات من تحليل المحتوى');
+            $perWeek = max(1, (int) round(((int) ($c['posts_per_month'] ?? 12)) / 4));
+            $map = ['post' => 'single_image', 'carousel' => 'carousel', 'story' => 'story', 'video' => 'reel'];
+            $rank = 0;
+            arsort($ins['mix']);
+            foreach ($ins['mix'] as $k => $pc) {
+                db_run('INSERT INTO brand_formats (user_id, format, `rank`, per_week, settings, is_enabled) VALUES (?,?,?,?,?,?)
+                        ON DUPLICATE KEY UPDATE `rank` = VALUES(`rank`), per_week = VALUES(per_week), is_enabled = VALUES(is_enabled)',
+                    [$uid, $map[$k], ++$rank, (int) round($perWeek * $pc / 100), bk_json(new \stdClass()), $pc > 0 ? 1 : 0]);
+            }
+            $done = 'شكل المنشورات اتحدّث ✓';
+        } elseif ($part === 'design') {
+            $ds = bk_get($uid)['data']['design_style'];
+            $ds['notes'] = mb_substr(trim(($ds['notes'] !== '' ? $ds['notes'] . "\n" : '') . implode("\n", array_map(fn($r) => '- ' . $r, $ins['design_rules']))), 0, 1000);
+            bk_save_section($uid, 'design_style', $ds, 'ai', 'تعليمات التصميم من تحليل المحتوى');
+            $done = 'تعليمات التصميم اتضافت ✓';
+        } elseif ($part === 'topics') {
+            $have = array_map('mb_strtolower', array_column(db_all('SELECT title FROM brand_topics WHERE user_id = ?', [$uid]), 'title'));
+            $n = 0;
+            foreach ($ins['best_posts'] as $b) foreach ($b['examples'] as $t) {
+                if ($t === '' || in_array(mb_strtolower($t), $have, true)) continue;
+                db_insert('INSERT INTO brand_topics (user_id, title, source) VALUES (?,?,"ai")', [$uid, mb_substr($t, 0, 255)]);
+                $have[] = mb_strtolower($t); $n++;
+            }
+            bk_update_completeness($uid);
+            $done = 'اتضاف ' . $n . ' موضوع ✓';
+        } else {
+            api_fail('اختار تطبّق إيه', 'invalid', 422);
+        }
+        api_ok(['state' => bkapi_state($uid), 'done' => $done]);
 
     default:
         api_fail('عملية غير معروفة', 'bad_action', 400);

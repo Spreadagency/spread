@@ -637,11 +637,12 @@
 
                 <!-- النشر مش متاح للباقة -->
                 <section class="cf-card cf-upgrade" v-if="!pub.allowed">
-                    <span class="cf-chip dark">باقتك: الأساسية</span>
-                    <h3>النشر المباشر متاح في الباقات الأعلى</h3>
-                    <p>يمكنك تجهيز وجدولة حملتك بالكامل، ثم الترقية للنشر مباشرة من Spread AI.</p>
+                    <span class="cf-chip dark">{{ pub.plan ? 'باقتك: ' + pub.plan : 'مفيش باقة شغالة' }}</span>
+                    <h3>باقتك مافيهاش نشر مباشر</h3>
+                    <p>ابعتلنا الحملة على واتساب وفريق Spread AI ينشرها لك في مواعيدها — أو اشترك في باقة أعلى ويتفعّل لك النشر المباشر تلقائيًا.</p>
                     <div class="cf-row">
-                        <a class="cf-btn primary grow" :href="base + '/profile.php?open=plans'">ترقية الباقة</a>
+                        <a class="cf-btn primary grow cf-wa" v-if="pub.wa" :href="pubWaLink()" target="_blank" rel="noopener">📲 ابعتلنا على واتساب وإحنا ننشرلك</a>
+                        <a class="cf-btn primary grow" :class="{ soft: pub.wa }" :href="pub.packages || (base + '/packages.php')">⬆ اشترك في باقة أعلى لتفعيل النشر المباشر</a>
                         <a class="cf-btn ghost" :href="base + '/campaign-export.php?id=' + c.id">⬇ تصدير المحتوى</a>
                     </div>
                 </section>
@@ -1140,6 +1141,14 @@ document.addEventListener('DOMContentLoaded', function () {
       this.c.eval_skipped = true; this.ideas.forEach(function (i) { if (i.content && i.selected) i.approved = true; });
       this.notify('تم تخطي التقييم');
       await this.go(4);
+    },
+
+    pubWaLink: function () {
+      var list = this.plannable(), planned = list.filter(function (i) { return i.plan; });
+      var msg = 'السلام عليكم، عايز تنشرولي حملة «' + this.c.title + '» على صفحتي.\n'
+        + 'عدد المنشورات: ' + list.length + (planned.length ? ' (' + planned.length + ' متجدولين)' : '') + '\n'
+        + 'رقم الحملة: ' + this.c.id + (this.pub.who ? ' — ' + this.pub.who : '');
+      return 'https://wa.me/' + this.pub.wa + '?text=' + encodeURIComponent(msg);
     },
 
     /* ── المعاينة الجانبية ── */
