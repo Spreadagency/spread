@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-20',
-  'generated' => '2026-10-20 14:25',
+  'generated' => '2026-10-20 18:59',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -434,8 +434,8 @@ return array (
     ),
     'assets/css/campaign-v2.css' => 
     array (
-      'h' => '975506710b41692c34cdf1975e5077ae',
-      's' => 47621,
+      'h' => 'ee644ee731a95c022a64c6bdf98c8f52',
+      's' => 49685,
     ),
     'assets/css/main.css' => 
     array (
@@ -579,8 +579,8 @@ return array (
     ),
     'includes/api.php' => 
     array (
-      'h' => 'dccaaa59ac88b1933dfdbcd58b8b0b3c',
-      's' => 6840,
+      'h' => '5df6cb78722d0a71bdc95053bc47301a',
+      's' => 6871,
     ),
     'includes/auth.php' => 
     array (
@@ -604,8 +604,8 @@ return array (
     ),
     'includes/campaign-flow.php' => 
     array (
-      'h' => '34bb22a2b16c49dcd95dd79c54b2ff14',
-      's' => 43803,
+      'h' => '81b1f4b3b03b6d7e7e7610d8b7761cd1',
+      's' => 48052,
     ),
     'includes/config.sample.php' => 
     array (
@@ -949,8 +949,8 @@ return array (
     ),
     'public/api/campaign-flow.php' => 
     array (
-      'h' => '2e12648d6f72e815c331d12f1a41a207',
-      's' => 40644,
+      'h' => '6c0bed81d735388b81243e9591ccac25',
+      's' => 41851,
     ),
     'public/api/campaigns.php' => 
     array (
@@ -1579,8 +1579,8 @@ return array (
     ),
     'templates/v2/campaign.php' => 
     array (
-      'h' => 'b130701584efc5e967cefa48b4bc19a6',
-      's' => 117104,
+      'h' => '16f6bed275673182814de19bbc94b3b0',
+      's' => 118775,
     ),
     'templates/v2/contents.php' => 
     array (

@@ -542,3 +542,19 @@ body.ui-v2 a.cf-pill { color: #27324A; }
   .cf-pv-img { max-height: 46vh; }
   .cf-pv-img.story { height: 46vh; }
 }
+
+/* إعداد الحملة: العميل (Buyer Persona) كروت + صورة الدكتور/الشخصية */
+.cf-personas { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.cf-persona { position: relative; display: flex; align-items: center; gap: 10px; text-align: start; border: 1.5px solid #DCE6F0; background: #fff; border-radius: 14px; padding: 10px 12px; font: inherit; cursor: pointer; color: inherit; }
+.cf-persona .e { font-size: 24px; line-height: 1; flex: none; }
+.cf-persona .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cf-persona .t b { font-size: 13.5px; }
+.cf-persona .t small { font-size: 11.5px; color: var(--mute, #6B7A90); line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cf-persona em { position: absolute; top: -8px; inset-inline-end: 10px; font-style: normal; font-size: 10.5px; background: #E8FAF5; color: #0B7A5E; border-radius: 999px; padding: 1px 8px; }
+.cf-persona.on { border-color: #0C87EF; background: #E6F3FF; box-shadow: 0 0 0 3px rgba(12, 135, 239, .1); }
+.cf-faces { display: flex; flex-wrap: wrap; gap: 10px; }
+.cf-face { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 92px; border: 1.5px solid #DCE6F0; background: #fff; border-radius: 14px; padding: 8px 6px; font: inherit; font-size: 12px; cursor: pointer; color: inherit; text-align: center; }
+.cf-face img, .cf-face span { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; font-size: 24px; background: #F2F6FA; }
+.cf-face.on { border-color: #0C87EF; background: #E6F3FF; font-weight: 700; box-shadow: 0 0 0 3px rgba(12, 135, 239, .1); }
+.cf-mini-faces img { width: 18px; height: 18px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-inline-end: 3px; }
+@media (max-width: 560px) { .cf-personas { grid-template-columns: 1fr; } .cf-face { width: 80px; } .cf-face img, .cf-face span { width: 54px; height: 54px; } }

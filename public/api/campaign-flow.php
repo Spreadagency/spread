@@ -179,9 +179,21 @@ switch ($action) {
         $avoid = array_column(db_all('SELECT title FROM campaign_ideas WHERE campaign_id = ? ORDER BY id DESC LIMIT 40', [$c['id']]), 'title');
         $fmtSlice = $seq ? array_slice($seq, $batch * CAMP_IDEAS_BATCH, $n) : [];
         $plan = $seq ? campaign_setup_plan($uid, $setup, $n, $fmtSlice) : '';
-        $ai = campaign_ai(campaign_ideas_prompt($brand, $c, $n, $avoid, $plan), 1400, 'campaign_ideas',
+        @set_time_limit(180); ignore_user_abort(true);   // ممكن طلبين AI ورا بعض — والأفكار تتحفظ حتى لو المتصفح قفل
+        // التوكنز على قد الأفكار (العربي + بيانات الإعداد بتطوّل الرد — والموديلات اللي بتفكّر بتصرف من نفس الحد)
+        $tok = campaign_ideas_tokens($n);
+        $ai = campaign_ai(campaign_ideas_prompt($brand, $c, $n, $avoid, $plan), $tok, 'campaign_ideas',
             ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
         $ideas = $ai['ok'] ? campaign_parse_ideas((string) $ai['response']) : [];
+        // الرد اتقطع أو جاب أقل من المطلوب ← نكمّل الناقص بطلب واحد (من غير ما نكرر اللي طلع)
+        if ($ideas && count($ideas) < $n) {
+            $miss = $n - count($ideas);
+            $avoid2 = array_merge(array_column($ideas, 'title'), $avoid);
+            $plan2 = $seq ? campaign_setup_plan($uid, $setup, $miss, array_slice($fmtSlice, count($ideas))) : '';
+            $ai2 = campaign_ai(campaign_ideas_prompt($brand, $c, $miss, $avoid2, $plan2), campaign_ideas_tokens($miss), 'campaign_ideas',
+                ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
+            if ($ai2['ok']) $ideas = array_merge($ideas, campaign_parse_ideas((string) $ai2['response']));
+        }
         if (!$ideas) {
             // الدفعة الأولى فشلت = مفيش ولا فكرة ← نرجّع الكريدت كله · بعدها العميل يقدر يكمّل الباقي مجانًا
             if ($batch === 0) {

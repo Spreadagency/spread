@@ -164,14 +164,52 @@ function campaign_json(string $response): ?array
         if ($a !== false && $b !== false && $b > $a) $s = substr($s, $a, $b - $a + 1);
     }
     $j = json_decode($s, true);
+    if (!is_array($j)) $j = json_decode(preg_replace('/,\s*([\]}])/', '$1', $s), true);   // فاصلة زيادة قبل القفلة
     return is_array($j) ? $j : null;
+}
+
+/**
+ * الكائنات الكاملة جوه أول قايمة في الرد — حتى لو الرد اتقطع في النص (حد التوكنز)
+ * أو فيه غلطة في فكرة واحدة: بناخد كل فكرة اتقفلت صح ونسيب الباقي
+ */
+function campaign_json_items(string $response): array
+{
+    $s = (string) $response;
+    $p = preg_match('/"ideas"\s*:\s*\[/u', $s, $m, PREG_OFFSET_CAPTURE) ? $m[0][1] + strlen($m[0][0]) : strpos($s, '[');
+    if ($p === false) return [];
+    $out = [];
+    $depth = 0; $in = false; $esc = false; $start = -1;
+    for ($k = (int) $p, $len = strlen($s); $k < $len; $k++) {
+        $ch = $s[$k];
+        if ($in) {
+            if ($esc) $esc = false;
+            elseif ($ch === '\\') $esc = true;
+            elseif ($ch === '"') $in = false;
+            continue;
+        }
+        if ($ch === '"') { $in = true; continue; }
+        if ($ch === '{') { if ($depth === 0) $start = $k; $depth++; continue; }
+        if ($ch === '}' && $depth > 0) {
+            $depth--;
+            if ($depth === 0 && $start >= 0) {
+                $o = json_decode(substr($s, $start, $k - $start + 1), true);
+                if (is_array($o)) $out[] = $o;
+                $start = -1;
+            }
+            continue;
+        }
+        if ($ch === ']' && $depth === 0) break;
+    }
+    return $out;
 }
 
 function campaign_parse_ideas(string $response): array
 {
     $j = campaign_json($response);
+    $list = $j['ideas'] ?? (array_is_list((array) $j) ? $j : null);
+    if (!is_array($list) || !$list) $list = campaign_json_items($response);
     $out = [];
-    foreach ((array) ($j['ideas'] ?? []) as $i) {
+    foreach ((array) $list as $i) {
         if (!is_array($i)) continue;
         $title = trim((string) ($i['title'] ?? ''));
         if ($title === '') continue;
@@ -192,6 +230,13 @@ function campaign_parse_ideas(string $response): array
         ];
     }
     return $out;
+}
+
+/** حد التوكنز لدفعة أفكار — قابل للتعديل من الأدمن (campaign_ideas_tokens_per_idea) */
+function campaign_ideas_tokens(int $n): int
+{
+    $per = max(300, min(2000, (int) get_setting('campaign_ideas_tokens_per_idea', '700')));
+    return max(1800, min(8000, $per * max(1, $n) + 800));
 }
 
 /** الشكل الفعلي للفكرة: اختيار العميل ← وإلا أول شكل مقترح */
@@ -381,6 +426,7 @@ function campaign_setup(array $c): array
     $s = is_array($s) ? $s : [];
     $cnt = (array) ($s['counts'] ?? []);
     return [
+        'services' => array_values(array_map('intval', (array) ($s['services'] ?? []))),
         'topics' => array_values(array_filter(array_map('strval', (array) ($s['topics'] ?? [])))),
         'personas' => array_values(array_map('intval', (array) ($s['personas'] ?? []))),
         'characters' => array_values(array_map('intval', (array) ($s['characters'] ?? []))),
@@ -397,11 +443,13 @@ function campaign_setup_clean(int $uid, $in): array
     $own = fn(string $sql) => array_map('intval', array_column(db_all($sql, [$uid]), 'id'));
     $per = function_exists('bk_personas') ? array_map('intval', array_column(bk_personas($uid), 'id')) : [];
     $chars = $own('SELECT id FROM brand_characters WHERE user_id = ? AND is_active = 1');
+    $svcs = $own('SELECT id FROM brand_services WHERE user_id = ? AND is_active = 1');
     $counts = [];
     foreach (['post', 'carousel', 'story', 'video'] as $k) $counts[$k] = max(0, min(15, (int) ($in['counts'][$k] ?? 0)));
     $sum = array_sum($counts);
     if ($sum > CAMP_MAX_IDEAS) foreach ($counts as $k => $v) $counts[$k] = (int) floor($v * CAMP_MAX_IDEAS / $sum);
     return [
+        'services' => array_values(array_slice(array_intersect(array_map('intval', (array) ($in['services'] ?? [])), $svcs), 0, 3)),
         'topics' => array_values(array_slice(array_filter(array_map(fn($t) => mb_substr(trim((string) $t), 0, 255), (array) ($in['topics'] ?? []))), 0, 12)),
         'personas' => array_values(array_slice(array_intersect(array_map('intval', (array) ($in['personas'] ?? [])), $per), 0, 6)),
         'characters' => array_values(array_slice(array_intersect(array_map('intval', (array) ($in['characters'] ?? [])), $chars), 0, 4)),
@@ -436,6 +484,10 @@ function campaign_setup_plan(int $uid, array $setup, int $n, array $formats): st
     $lbl = ['post' => 'منشور', 'carousel' => 'كاروسيل', 'story' => 'ستوري', 'video' => 'فيديو'];
     $L = ['خطة الحملة اللي العميل اختارها (التزم بيها):'];
     $L[] = '- أشكال الأفكار دي بالترتيب (formats لكل فكرة = الشكل ده بس): ' . implode('، ', array_map(fn($f) => $lbl[$f] ?? $f, $formats));
+    if ($sv = campaign_setup_services($uid, $setup)) {
+        $L[] = '- الحملة عن ' . (count($sv) > 1 ? 'الخدمات دي' : 'الخدمة دي') . ' (معلومة عامة لكل الأفكار — service = ' . (count($sv) > 1 ? 'واحدة منهم' : 'الاسم ده') . ' بالظبط، والمواضيع والزوايا من جواها — حتى لو فيه خدمة شهر تانية في الهوية):';
+        foreach ($sv as $x) $L[] = '  • ' . $x['name'] . (trim((string) $x['description']) !== '' ? ' — ' . mb_substr(trim((string) $x['description']), 0, 300) : '');
+    }
     if ($setup['topics']) $L[] = '- وزّع الأفكار على المواضيع دي (topic = واحد منهم بالظبط): ' . implode('، ', $setup['topics']);
     if ($setup['personas'] && function_exists('bk_persona')) {
         $names = [];
@@ -450,10 +502,26 @@ function campaign_setup_plan(int $uid, array $setup, int $n, array $formats): st
     return implode("\n", $L);
 }
 
-/** مين هيظهر في الفكرة رقم $k: العميل المثالي (بالاسم من الـ AI أو بالدور) · الموضوع · الشخصيات */
+/** الخدمات الرئيسية اللي العميل اختارها للحملة (بالترتيب) */
+function campaign_setup_services(int $uid, array $setup): array
+{
+    if (empty($setup['services']) || !function_exists('bk_services')) return [];
+    $by = [];
+    foreach (bk_services($uid, true) as $x) $by[(int) $x['id']] = $x;
+    return array_values(array_filter(array_map(fn($id) => $by[$id] ?? null, $setup['services'])));
+}
+
+/** مين هيظهر في الفكرة رقم $k: الخدمة · العميل المثالي (بالاسم من الـ AI أو بالدور) · الموضوع · الشخصيات */
 function campaign_setup_assign(int $uid, array $setup, array $idea, int $k): array
 {
     $b = (array) ($idea['brief'] ?? []);
+    if ($sv = campaign_setup_services($uid, $setup)) {
+        $names = array_column($sv, 'name');
+        $want = mb_strtolower(trim((string) ($b['service'] ?? '')));
+        $hit = null;
+        foreach ($names as $nm) if ($want !== '' && mb_strtolower(trim($nm)) === $want) { $hit = $nm; break; }
+        $b['service'] = $hit ?? $names[$k % count($names)];
+    }
     if ($setup['personas'] && function_exists('bk_persona')) {
         $pid = 0;
         $want = mb_strtolower(trim((string) ($idea['persona'] ?? '')));
@@ -489,9 +557,15 @@ function campaign_setup_options(int $uid): array
         $chars[] = ['id' => (int) $ch['id'], 'name' => $ch['name'], 'type' => $ch['type'], 'img' => upload_url($ch['images'][0]['image_path'])];
     }
     $kit = function_exists('bk_get') ? bk_get($uid)['data'] : [];
+    // الخدمات الرئيسية بس (أسماء) — المواضيع جواها الـ AI بيختارها
+    $services = array_map(fn($x) => ['id' => (int) $x['id'], 'name' => (string) $x['name'], 'focus' => (bool) $x['is_focus']],
+        function_exists('bk_services') ? bk_services($uid, true) : []);
     return [
+        'services' => $services,
         'topics' => $topics,
-        'personas' => array_map(fn($p) => ['id' => (int) $p['id'], 'name' => $p['name'], 'emoji' => $p['emoji'] ?: '🙂'], function_exists('bk_personas') ? bk_personas($uid) : []),
+        'personas' => array_map(fn($p) => ['id' => (int) $p['id'], 'name' => $p['name'], 'emoji' => $p['emoji'] ?: '🙂',
+            'hint' => mb_substr(implode(' · ', array_filter([trim(implode('، ', array_filter([$p['age'] ?? '', $p['job'] ?? '']))), $p['pains'][0] ?? ''])), 0, 90),
+            'services' => $p['service_ids']], function_exists('bk_personas') ? bk_personas($uid) : []),
         'characters' => $chars,
         'cta' => (string) ($kit['cta']['text'] ?? ''),
     ];

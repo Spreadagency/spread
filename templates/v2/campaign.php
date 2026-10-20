@@ -124,28 +124,32 @@
                         <button type="button" v-for="(label, k) in bases" :key="k" :class="{ on: c.basis === k }" @click="c.basis = k; touch()">{{ label }}</button>
                     </div>
 
-                    <!-- المواضيع اللي في الهوية -->
-                    <label class="cf-lbl">📌 المواضيع من هويتك <small>(اختار اللي عايزه في الحملة — أو سيبها للـ AI)</small></label>
-                    <div class="cf-chips" v-if="opts.topics.length">
-                        <button type="button" v-for="t in opts.topics" :key="t" :class="{ on: setup.topics.indexOf(t) > -1 }" @click="pickArr(setup.topics, t, 12)">{{ t }}</button>
+                    <!-- الخدمة: الخدمات الرئيسية بس (معلومة عامة للحملة كلها) -->
+                    <label class="cf-lbl">🩺 الحملة عن أنهي خدمة؟ <small>(اختار خدمة أو اتنين — أو سيبها لكل الخدمات)</small></label>
+                    <div class="cf-chips" v-if="opts.services.length">
+                        <button type="button" :class="{ on: !setup.services.length }" @click="setup.services.splice(0); touch()">كل الخدمات</button>
+                        <button type="button" v-for="sv in opts.services" :key="sv.id" :class="{ on: setup.services.indexOf(sv.id) > -1 }" @click="pickService(sv.id)">{{ sv.focus ? '⭐ ' : '' }}{{ sv.name }}</button>
                     </div>
-                    <p class="cf-muted sm" v-else>مفيش مواضيع في هويتك لسه — <a :href="base + '/brand-kit.php#bk-services'">ضيف مواضيع</a> أو الـ AI يختار.</p>
-                    <div class="cf-row"><input class="cf-input" v-model="newTopic" maxlength="200" placeholder="+ موضوع جديد للحملة دي" @keyup.enter="addTopic()"><button type="button" class="cf-btn soft sm" @click="addTopic()" :disabled="!newTopic.trim()">ضيف</button></div>
+                    <p class="cf-muted sm" v-else>مفيش خدمات في هويتك لسه — <a :href="base + '/brand-kit.php#bk-services'">ضيف خدماتك</a>.</p>
 
-                    <!-- العملاء المثاليين -->
-                    <label class="cf-lbl">👥 لمين الحملة؟ <small>(العملاء المثاليين)</small></label>
-                    <div class="cf-chips" v-if="opts.personas.length">
-                        <button type="button" v-for="p in opts.personas" :key="p.id" :class="{ on: setup.personas.indexOf(p.id) > -1 }" @click="pickArr(setup.personas, p.id, 6)">{{ p.emoji }} {{ p.name }}</button>
+                    <!-- العميل = Buyer Persona -->
+                    <label class="cf-lbl">👥 العميل <small>(Buyer Persona — الحملة هتتكلم معاه)</small></label>
+                    <div class="cf-personas" v-if="opts.personas.length">
+                        <button type="button" v-for="p in personaList()" :key="p.id" class="cf-persona" :class="{ on: setup.personas.indexOf(p.id) > -1, fit: p.fit }" @click="pickArr(setup.personas, p.id, 6)">
+                            <span class="e">{{ p.emoji }}</span>
+                            <span class="t"><b>{{ p.name }}</b><small v-if="p.hint">{{ p.hint }}</small></span>
+                            <em v-if="p.fit">مناسب للخدمة</em>
+                        </button>
                     </div>
                     <p class="cf-muted sm" v-else>مفيش عملاء مثاليين لسه — <a :href="base + '/brand-kit.php#bk-personas'">الـ AI يعملهم في ثانية</a>.</p>
 
-                    <!-- الشخصيات -->
-                    <label class="cf-lbl">🧑 هتستخدم شخصيات في الحملة؟</label>
-                    <div class="cf-chips">
-                        <button type="button" :class="{ on: !setup.characters.length }" @click="setup.characters.splice(0); touch()">من غير شخصيات</button>
-                        <button type="button" v-for="ch in opts.characters" :key="ch.id" class="cf-chip-img" :class="{ on: setup.characters.indexOf(ch.id) > -1 }" @click="pickArr(setup.characters, ch.id, 4)"><img :src="ch.img" alt="">{{ ch.name }}</button>
+                    <!-- صورة الدكتور / الشخصية -->
+                    <label class="cf-lbl">🧑‍⚕️ صورة الدكتور / الشخصية <small>(هتظهر في التصميمات)</small></label>
+                    <div class="cf-faces">
+                        <button type="button" class="cf-face none" :class="{ on: !setup.characters.length }" @click="setup.characters.splice(0); touch()"><span>🚫</span>من غير صورة</button>
+                        <button type="button" v-for="ch in opts.characters" :key="ch.id" class="cf-face" :class="{ on: setup.characters.indexOf(ch.id) > -1 }" @click="pickArr(setup.characters, ch.id, 4)"><img :src="ch.img" alt="">{{ ch.name }}</button>
                     </div>
-                    <p class="cf-muted sm" v-if="!opts.characters.length"><a :href="base + '/brand-kit.php#bk-characters'">ضيف شخصية أو ماسكوت في الهوية</a> علشان تظهر هنا.</p>
+                    <p class="cf-muted sm" v-if="!opts.characters.length"><a :href="base + '/brand-kit.php#bk-characters'">ارفع صورة الدكتور أو ضيف شخصية في الهوية</a> علشان تظهر هنا.</p>
 
                     <!-- المطلوب -->
                     <label class="cf-lbl">📦 محتاج كام؟</label>
@@ -211,8 +215,8 @@
                             <div class="pv-c" v-if="editing !== i.id">
                                 <h4>{{ i.title }}</h4>
                                 <p>{{ i.desc }}</p>
-                                <small class="cf-pbrief" v-if="i.brief && (i.brief.persona || i.brief.topic || (i.brief.character_names && i.brief.character_names.length))">
-                                    <span v-if="i.brief.persona">👥 {{ i.brief.persona }}</span><span v-if="i.brief.topic"> · 📌 {{ i.brief.topic }}</span><span v-if="i.brief.character_names && i.brief.character_names.length"> · 🧑 {{ i.brief.character_names.join('، ') }}</span></small>
+                                <small class="cf-pbrief" v-if="i.brief && (i.brief.service || i.brief.persona || i.brief.topic || (i.brief.character_names && i.brief.character_names.length))">
+                                    <span v-if="i.brief.service">🩺 {{ i.brief.service }}</span><span v-if="i.brief.persona">{{ i.brief.service ? ' · ' : '' }}👥 {{ i.brief.persona }}</span><span v-if="i.brief.topic"> · 📌 {{ i.brief.topic }}</span><span v-if="i.brief.character_ids && i.brief.character_ids.length" class="cf-mini-faces"> · <img v-for="cid in i.brief.character_ids.filter(x => charImg(x))" :key="cid" :src="charImg(cid)" alt="">{{ (i.brief.character_names || []).join('، ') }}</span></small>
                                 <dl class="cf-idea-meta" v-if="i.audience || i.hook">
                                     <div v-if="i.audience"><dt>الجمهور</dt><dd>{{ i.audience }}</dd></div>
                                     <div v-if="i.hook"><dt>الـ Hook</dt><dd><b>«{{ i.hook }}»</b></dd></div>
@@ -710,7 +714,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  var init = <?= json_encode($cfInit, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?>;
+  var init = <?= json_encode($cfInit, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
   var base = document.querySelector('meta[name="app-base"]').content;
   var csrf = function () { return document.querySelector('meta[name="csrf-token"]').content; };
   var svg = function (d) { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; };
@@ -740,9 +744,8 @@ document.addEventListener('DOMContentLoaded', function () {
     evalCats: ['قوة الفكرة', 'قوة الـ Hook', 'مناسبة الجمهور', 'وضوح الرسالة', 'قوة CTA', 'التوافق مع البراند'],
     evalLabels: init.eval_labels || [], evalReady: init.eval_ready || 80,
     // إعداد الحملة
-    setup: init.setup || { topics: [], personas: [], characters: [], counts: { post: 4, carousel: 2, story: 0, video: 1 }, cta: '' },
-    opts: init.setup_options || { topics: [], personas: [], characters: [], cta: '' },
-    newTopic: '',
+    setup: Object.assign({ services: [], topics: [], personas: [], characters: [], counts: { post: 4, carousel: 2, story: 0, video: 1 }, cta: '' }, init.setup || {}),
+    opts: Object.assign({ services: [], topics: [], personas: [], characters: [], cta: '' }, init.setup_options || {}),
     setupFmts: [{ k: 'post', e: '🖼', t: 'بوست' }, { k: 'story', e: '📱', t: 'ستوري' }, { k: 'carousel', e: '🎠', t: 'كاروسيل' }, { k: 'video', e: '🎬', t: 'سكريبت فيديو' }],
     // التعديل بتعليق + تقييم الخطة
     pv: 0, pvN: 1, pvEdit: '', dopt: { ratio: '1:1', custom: '', style: 0, logo: true, chars: null }, designStyles: init.design_styles || [],
@@ -972,7 +975,20 @@ document.addEventListener('DOMContentLoaded', function () {
     setupTotal: function () { var c = this.setup.counts; return (+c.post || 0) + (+c.story || 0) + (+c.carousel || 0) + (+c.video || 0); },
     bump: function (k, d) { var v = (+this.setup.counts[k] || 0) + d; if (v < 0 || v > 15 || (d > 0 && this.setupTotal() >= 30)) return; this.setup.counts[k] = v; this.touch(); },
     pickArr: function (arr, v, max) { var i = arr.indexOf(v); if (i > -1) arr.splice(i, 1); else { if (max && arr.length >= max) return this.notify('أقصى حاجة ' + max, 'warning'); arr.push(v); } this.touch(); },
-    addTopic: function () { var t = this.newTopic.trim(); if (!t) return; if (this.opts.topics.indexOf(t) < 0) this.opts.topics.unshift(t); if (this.setup.topics.indexOf(t) < 0) this.pickArr(this.setup.topics, t, 12); this.newTopic = ''; },
+    // الخدمة: لو لسه مااخترش عملاء ← نختار العملاء المربوطين بالخدمة تلقائيًا
+    pickService: function (id) {
+      this.pickArr(this.setup.services, id, 3);
+      if (!this.setup.personas.length && this.setup.services.indexOf(id) > -1) {
+        var self = this;
+        this.opts.personas.forEach(function (p) { if ((p.services || []).indexOf(id) > -1 && self.setup.personas.length < 6) self.setup.personas.push(p.id); });
+      }
+    },
+    personaList: function () {
+      var sv = this.setup.services;
+      var list = this.opts.personas.map(function (p) { return Object.assign({}, p, { fit: !!sv.length && (p.services || []).some(function (x) { return sv.indexOf(x) > -1; }) }); });
+      return list.sort(function (a, b) { return (b.fit ? 1 : 0) - (a.fit ? 1 : 0); });
+    },
+    charImg: function (id) { var c = this.opts.characters.find(function (x) { return x.id === id; }); return c ? c.img : ''; },
     async genIdeas() {
       var total = this.setupTotal(), batches = Math.ceil(total / 5), self = this, list = [];
       if (!total) return this.notify('حدد محتاج كام بوست أو ستوري أو كاروسيل', 'warning');
@@ -985,6 +1001,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (r.ok) { self.setIdeas(r.ideas); self.costs.balance = r.balance; }
         return r;
       });
+      // لو طلب وقع في النص (مهلة السيرفر/النت) الأفكار ممكن تكون اتحفظت — نقرا اللي في الحملة فعلًا
+      if (res.fail || !this.ideas.length) await this.reload();
       if (res.ok) this.notify('جهزنا أفكار حملتك ✨');
     },
     async toggleIdea(i) {
@@ -1407,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // حفظ البريف تلقائي (بيبعت رقم النسخة لمنع مسح تعديل من مكان تاني)
   var saver = SpreadAutosave({
     state: app.save, delay: 900,
-    collect: function () { var c = app.c; return { id: c.id, rev: c.revision, title: c.title, basis: c.basis, notes: c.notes, ideas_count: Math.max(3, app.setupTotal()), setup: app.setup }; },
+    collect: function () { var c = app.c; return { id: c.id, rev: c.revision, title: c.title, basis: c.basis, notes: c.notes, ideas_count: Math.max(3, app.setupTotal()), setup: Object.assign({}, app.setup, { topics: [] }) }; },
     save: async function (data, opts) {
       var r = await SpreadAPI.post('campaigns', 'save', data, opts);
       if (r.ok) { app.c.revision = r.campaign.revision; }
