@@ -470,3 +470,45 @@ body.ui-v2 a.cf-pill { color: #27324A; }
 .cf-vprev small { opacity: .75; font-size: 12px; }
 .cf-wa, body.ui-v2 .cf-btn.primary.cf-wa { background: linear-gradient(90deg, #128C7E, #25D366); box-shadow: 0 10px 22px rgba(37, 211, 102, .28); }
 .cf-vlist { margin: 6px 0 10px; }
+
+/* ── إعداد الحملة ── */
+.cf-brief .cf-lbl small { font-weight: 400; color: var(--mute); }
+.cf-muted.sm { margin: 4px 0 0; }
+.cf-chips.sm button { height: 32px; padding: 0 12px; font-size: 12.5px; }
+.cf-chips button.cf-chip-img { display: inline-flex; align-items: center; gap: 6px; padding-inline-start: 6px; }
+.cf-chip-img img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+.cf-brief .cf-row .cf-input { flex: 1; min-width: 0; }
+.cf-steps-n { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 4px 0 6px; }
+.cf-stepper { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1.5px solid #DCE6F0; border-radius: 16px; background: #fff; }
+.cf-stepper span { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; }
+.cf-stepper span small { font-weight: 400; color: var(--mute); }
+.cf-stepper button { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #DCE6F0; background: #fff; font-size: 18px; line-height: 1; cursor: pointer; }
+.cf-stepper button:disabled { opacity: .4; cursor: not-allowed; }
+.cf-stepper b { min-width: 20px; text-align: center; font-size: 16px; }
+@media (max-width: 420px) { .cf-steps-n { grid-template-columns: 1fr; } }
+
+/* ── التعديل بتعليق ── */
+.cf-ask-box { margin-top: 14px; padding-top: 12px; border-top: 1px dashed #DCE6F0; }
+.cf-ask-box .cf-row .cf-input { flex: 1; min-width: 0; }
+.cf-propose { margin-top: 10px; padding: 12px; border-radius: 16px; background: #F4FAFF; border: 1px solid #CFE6FB; }
+.cf-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cf-two > div { min-width: 0; }
+.cf-two small { display: block; font-weight: 700; color: var(--mute); margin-bottom: 4px; }
+.cf-two p { margin: 0; white-space: pre-line; font-size: 13px; line-height: 1.8; max-height: 260px; overflow: auto; }
+.cf-two .new p { color: #0B3A6B; }
+.cf-two .cta { margin-top: 6px; font-weight: 600; }
+@media (max-width: 640px) { .cf-two { grid-template-columns: 1fr; } }
+
+/* ── تقييم الخطة + البوست كامل ── */
+.cf-plan-eval { margin-bottom: 14px; border: 1.5px solid #CFE6FB; }
+.cf-plan-body { margin-top: 12px; }
+.cf-plan-top { display: flex; gap: 14px; align-items: center; margin-bottom: 10px; }
+.cf-plan-top p { margin: 0; font-size: 14px; line-height: 1.8; }
+.cf-plan-notes { margin: 12px 0 0; padding-inline-start: 18px; display: grid; gap: 8px; }
+.cf-plan-notes li { font-size: 13.5px; line-height: 1.7; }
+.cf-plan-notes li span { display: inline; }
+.cf-plan-notes li small { color: var(--mute); }
+.cf-plan-notes li .cf-btn { margin-inline-start: 8px; vertical-align: middle; }
+.cf-post-full p { margin: 8px 0 4px; white-space: pre-line; font-size: 13.5px; line-height: 1.8; }
+.cf-post-full p.clip { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.cf-prev { background: #FFF8EC; border-radius: 12px; padding: 8px 10px; color: #7A5200; }

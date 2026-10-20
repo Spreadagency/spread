@@ -95,6 +95,14 @@ switch ($action) {
                 $vals[] = $fn();
             }
         }
+        // إعداد الحملة (المواضيع · العملاء المثاليين · الشخصيات · عدد كل شكل · CTA)
+        if (array_key_exists('setup', $in)) {
+            require_once __DIR__ . '/../../includes/campaign-flow.php';
+            $pr = campaign_prefs($c);
+            $pr['setup'] = campaign_setup_clean($uid, $in['setup']);
+            $set[] = '`prefs_json` = ?';
+            $vals[] = json_encode($pr, JSON_UNESCAPED_UNICODE);
+        }
         if (!$set) {
             api_ok(['campaign' => campaign_to_api($c, false), 'unchanged' => true]);
         }
