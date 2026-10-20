@@ -703,6 +703,8 @@ function campaign_board_payload(array $c, int $uid): array
         ],
         'publish'  => ['allowed' => feature_allows($uid), 'pages' => $pages, 'hour' => default_publish_hour()],
         'limits'   => array_combine(['min', 'max', 'def'], carousel_limits()),
+        'design_styles' => array_map(fn($r) => ['id' => (int) $r['id'], 'name' => $r['name']],
+            db_all('SELECT id, name FROM style_presets WHERE kind = "design_style" AND is_active = 1 ORDER BY sort_order, id LIMIT 12')),
         'brand'    => ['colors' => array_slice(array_values(array_filter(preg_split('/[\s,،]+/u', (string) ($brand['colors'] ?? '')), fn($x) => preg_match('/^#[0-9a-f]{3,8}$/i', $x))), 0, 4),
                        'logo' => !empty($brand['logo_path'])],
     ];

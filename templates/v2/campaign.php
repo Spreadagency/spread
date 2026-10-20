@@ -469,9 +469,9 @@
                         </div>
                     </div>
                     <div class="pv-c" v-if="i.format !== 'video'">
-                    <div class="cf-dprev" :class="{ story: i.format === 'story' }">
+                    <div class="cf-dprev" :class="{ story: i.format === 'story' }" @click="openPv(i)" role="button" tabindex="0" :aria-label="'معاينة ' + i.title">
                         <button type="button" class="cf-check" :class="{ on: dsel[i.id] }" role="checkbox" :aria-checked="dsel[i.id] ? 'true' : 'false'"
-                                :aria-label="'تحديد ' + i.title" @click="dsel[i.id] = !dsel[i.id]"><?= ui_icon('check', 14) ?></button>
+                                :aria-label="'تحديد ' + i.title" @click.stop="dsel[i.id] = !dsel[i.id]"><?= ui_icon('check', 14) ?></button>
                         <img v-if="coverOf(i)" :src="coverOf(i)" alt="" loading="lazy">
                         <div class="cf-dtext" v-if="!coverOf(i)"><small>معاينة المحتوى</small><p>{{ i.content.hook || i.content.body.slice(0, 110) }}</p></div>
                         <div class="cf-dbusy" v-if="running[i.id]"><span class="cf-orb"><i></i></span><small>{{ i.format === 'carousel' ? 'بيصمم الشريحة ' + running[i.id] + '…' : 'بيصمم…' }}</small></div>
@@ -492,7 +492,7 @@
                     <div class="cf-row">
                         <button type="button" class="cf-btn soft sm grow" @click="designOne(i)" :disabled="bulk.on || running[i.id] || locked(i)">
                             {{ designBtn(i) }}</button>
-                        <a v-if="i.designs.length" class="cf-pill" :href="base + '/content-history.php?open=' + i.content.id" target="_blank" rel="noopener">تعديل</a>
+                        <button type="button" class="cf-pill" @click="openPv(i)">👁 معاينة وتعديل</button>
                     </div>
                     </div>
                 </article>
@@ -500,6 +500,61 @@
             <p class="cf-muted" v-if="!designable().length">مفيش منشورات معتمدة لسه — ارجع للتقييم واعتمد المحتوى.</p>
             <p class="cf-note" v-if="designable().length && pendingReview()">⚑ {{ pendingReview() }} منشورات لسه محتاجة تحسين ومش هنا — <button type="button" class="cf-link" @click="go(3)">ارجع للتقييم</button> وحسّنها أو اعتمدها كده.</p>
         </div>
+
+
+        <!-- ══════════════ معاينة جانبية: المحتوى + فكرة التصميم قبل التنفيذ ══════════════ -->
+        <div class="cf-pv-back" v-if="pv" @click="pv = 0"></div>
+        <aside class="cf-pv sx-in" v-if="pv && pvIdea()" role="dialog" aria-label="معاينة المنشور" @click.stop>
+            <div class="cf-split cf-pv-head">
+                <div><small class="cf-muted">#{{ pvIdea().n }} · {{ fmtOf(pvIdea()).e }} {{ pvIdea().format_label }}</small><b>{{ pvIdea().title }}</b></div>
+                <button type="button" class="cf-x" @click="pv = 0" aria-label="قفل">×</button>
+            </div>
+            <div class="cf-pv-img" :class="{ story: pvIdea().format === 'story' }" :style="pvAspect()">
+                <img v-if="pvImg()" :src="pvImg()" alt="">
+                <div class="cf-pv-ph" v-if="!pvImg()"><small>{{ pvIdea().format === 'carousel' ? 'شريحة ' + pvN : 'فكرة التصميم' }}</small><b v-if="pvSlide()">{{ pvSlide().title }}</b><p>{{ pvDesignText() }}</p></div>
+                <div class="pv-c" v-if="pvIdea().format === 'carousel'">
+                    <button type="button" class="cf-pv-nav next" @click="pvGo(1)" :disabled="pvN >= pvIdea().slides_count" aria-label="الشريحة اللي بعدها">‹</button>
+                    <button type="button" class="cf-pv-nav prev" @click="pvGo(-1)" :disabled="pvN <= 1" aria-label="الشريحة اللي قبلها">›</button>
+                    <span class="cf-pv-dots"><i v-for="sl in pvIdea().slides" :key="sl.n" :class="{ on: sl.n === pvN, ok: sl.designs.length }" @click="pvN = sl.n"></i></span>
+                </div>
+                <div class="cf-dbusy" v-if="running[pvIdea().id]"><span class="cf-orb"><i></i></span><small>بيصمم…</small></div>
+            </div>
+            <div class="cf-pv-body">
+                <div class="pv-c" v-if="pvSlide()"><b>شريحة {{ pvN }}: {{ pvSlide().title }}</b><p class="cf-pv-text">{{ pvSlide().text }}</p></div>
+                <p class="cf-pv-text">{{ fullText(pvIdea()) }}</p>
+                <small class="cf-muted" v-if="pvIdea().content.tags">{{ pvIdea().content.tags }}</small>
+                <div class="pv-c" v-if="c.stage === 4 && pvIdea().format !== 'video'">
+                    <label class="cf-field"><span class="dot dark">{{ pvSlide() ? 'فكرة تصميم الشريحة ' + pvN : 'فكرة التصميم' }}</span>
+                        <textarea class="cf-input" rows="3" :value="pvDesignText()" @input="pvSetDesign($event.target.value)" :readonly="locked(pvIdea()) || null"></textarea></label>
+                    <div class="cf-lbl">المقاس</div>
+                    <div class="cf-chips sm" v-if="pvIdea().format !== 'story'">
+                        <button type="button" v-for="r in ['1:1','4:5','9:16']" :key="r" :class="{ on: !dopt.custom && dopt.ratio === r }" @click="dopt.ratio = r; dopt.custom = ''" dir="ltr">{{ r }}</button>
+                        <input class="cf-input xs" dir="ltr" v-model="dopt.custom" placeholder="مخصص: 1080x1350" style="max-width:150px">
+                    </div>
+                    <small class="cf-muted" v-if="pvIdea().format === 'story'">الستوري دايمًا 9:16</small>
+                    <div class="pv-c" v-if="designStyles.length"><div class="cf-lbl">استايل الصورة</div>
+                        <div class="cf-chips sm"><button type="button" :class="{ on: !dopt.style }" @click="dopt.style = 0">زي الهوية</button><button type="button" v-for="st in designStyles" :key="st.id" :class="{ on: dopt.style === st.id }" @click="dopt.style = st.id">{{ st.name }}</button></div></div>
+                    <div class="cf-lbl">في التصميم</div>
+                    <div class="cf-chips sm">
+                        <button type="button" :class="{ on: dopt.logo }" @click="dopt.logo = !dopt.logo">🏷 اللوجو</button>
+                        <button type="button" :class="{ on: dopt.chars === null }" @click="dopt.chars = null">🧑 زي البوست</button>
+                        <button type="button" :class="{ on: dopt.chars && !dopt.chars.length }" @click="dopt.chars = []">من غير شخصيات</button>
+                        <button type="button" v-for="ch in opts.characters" :key="ch.id" class="cf-chip-img" :class="{ on: dopt.chars && dopt.chars.indexOf(ch.id) > -1 }" @click="pvChar(ch.id)"><img :src="ch.img" alt="">{{ ch.name }}</button>
+                    </div>
+                    <button type="button" class="cf-btn primary sm cf-pv-go" @click="pvDesign()" :disabled="bulk.on || running[pvIdea().id] || locked(pvIdea())">{{ pvImg() ? 'صمّم تاني' : 'صمّم' }}{{ pvSlide() ? ' الشريحة ' + pvN : '' }} ✨ <small class="cr">· {{ costs.design }}</small></button>
+                    <div class="cf-ask-box" v-if="pvDesignId()">
+                        <label class="cf-lbl">💬 عدّل الصورة <small>(اكتب التعديل والـ AI يعدّل نفس التصميم)</small></label>
+                        <div class="cf-row"><input class="cf-input" v-model="pvEdit" maxlength="400" placeholder="مثلًا: كبّر اللوجو وخلّي الخلفية أفتح" @keyup.enter="pvEditDesign()">
+                            <button type="button" class="cf-btn primary sm" :disabled="!pvEdit.trim() || bulk.on || running[pvIdea().id]" @click="pvEditDesign()">عدّل ✨</button></div>
+                    </div>
+                </div>
+                <div class="pv-c" v-if="c.stage === 5">
+                    <p class="cf-muted" v-if="pvIdea().plan">📅 {{ dayName(pvIdea().plan.at) }} · {{ (platformOpts().find(p => p.k === pvIdea().plan.platform) || {}).label }}</p>
+                    <p class="cf-muted" v-if="!pvIdea().plan">لسه مالوش ميعاد.</p>
+                    <button type="button" class="cf-btn primary sm" @click="pick = pvIdea().id; pv = 0; notify('اضغط على اليوم الجديد في التقويم', 'info')">📅 انقله ليوم تاني</button>
+                </div>
+            </div>
+        </aside>
 
         <!-- ══════════════ ⑤ الجدولة ══════════════ -->
         <div class="pv-c" v-if="c.stage === 5 && health.unlocked">
@@ -528,7 +583,7 @@
                             <span class="cf-day-n" v-if="cell.day">{{ cell.day }}</span>
                             <span class="cf-day-items">
                                 <button type="button" v-for="i in cell.items" :key="i.id" class="cf-chipitem" draggable="true"
-                                        @dragstart="dragId = i.id" @click.stop="pick && pick !== i.id ? pickTo(cell) : (pick = pick === i.id ? null : i.id)" :class="[i.plan.platform, { picked: pick === i.id }]" :title="i.title + ' — ' + i.plan.at.slice(11)">#{{ i.n }}</button>
+                                        @dragstart="dragId = i.id" @click.stop="pick && pick !== i.id ? pickTo(cell) : (pick === i.id ? pick = null : openPv(i))" :class="[i.plan.platform, { picked: pick === i.id }]" :title="i.title + ' — ' + i.plan.at.slice(11)"><img v-if="coverOf(i)" :src="coverOf(i)" alt="">#{{ i.n }}</button>
                             </span>
                         </div>
                     </div>
@@ -549,6 +604,7 @@
                     <section class="cf-card cf-week">
                         <p class="cf-muted" v-if="!weekItems(week).length">مفيش محتوى مجدول في {{ weekName(week) }} لسه.</p>
                         <div class="cf-witem" v-for="i in weekItems(week)" :key="i.id">
+                            <button type="button" class="cf-wthumb" @click="openPv(i)" :aria-label="'معاينة ' + i.title"><img v-if="coverOf(i)" :src="coverOf(i)" alt=""><span v-else>👁</span></button>
                             <div class="cf-grow"><b>#{{ i.n }} {{ i.title }}</b><small>{{ dayName(i.plan.at) }}</small></div>
                             <input type="time" class="cf-input xs" :value="i.plan.at.slice(11, 16)" @change="setTime(i, $event.target.value)" aria-label="الساعة">
                             <select class="cf-input xs" :value="i.plan.platform" @change="setPlat(i, $event.target.value)" aria-label="المنصة">
@@ -688,6 +744,7 @@ document.addEventListener('DOMContentLoaded', function () {
     newTopic: '',
     setupFmts: [{ k: 'post', e: '🖼', t: 'بوست' }, { k: 'story', e: '📱', t: 'ستوري' }, { k: 'carousel', e: '🎠', t: 'كاروسيل' }, { k: 'video', e: '🎬', t: 'سكريبت فيديو' }],
     // التعديل بتعليق + تقييم الخطة
+    pv: 0, pvN: 1, pvEdit: '', dopt: { ratio: '1:1', custom: '', style: 0, logo: true, chars: null }, designStyles: init.design_styles || [],
     ask: {}, asking: 0, proposal: null, planE: init.plan_eval || null, open3: {}, showPrev: {},
     quickAsks: ['أقصر', 'أوضح وأبسط', 'غيّر الـ Hook', 'غيّر الـ CTA', 'أقرب للعميل المثالي', 'إيموجي أقل'],
     save: { state: 'saved', at: Date.now() }, menu: false, toast: null,
@@ -1085,14 +1142,73 @@ document.addEventListener('DOMContentLoaded', function () {
       await this.go(4);
     },
 
+    /* ── المعاينة الجانبية ── */
+    openPv: function (i) {
+      this.pv = i.id; this.pvEdit = '';
+      if (i.format === 'carousel') { var miss = (i.slides || []).find(function (s) { return !s.designs.length; }); this.pvN = miss ? miss.n : 1; } else this.pvN = 1;
+      this.dopt.ratio = i.format === 'story' ? '9:16' : this.ratio;
+    },
+    pvIdea: function () { return this.ideaById(this.pv); },
+    pvSlide: function () { var i = this.pvIdea(); return i.format === 'carousel' ? (i.slides || []).find((s) => s.n === this.pvN) : null; },
+    pvGo: function (d) { var n = this.pvN + d, i = this.pvIdea(); if (n >= 1 && n <= i.slides_count) { this.pvN = n; this.pvEdit = ''; } },
+    pvImg: function () {
+      var i = this.pvIdea(), sl = this.pvSlide();
+      if (sl) return sl.designs.length ? sl.designs[0].url : '';
+      return i.id ? this.coverOf(i) : '';
+    },
+    pvDesignId: function () {
+      var i = this.pvIdea(), sl = this.pvSlide();
+      if (sl) return sl.designs.length ? sl.designs[0].id : 0;
+      if (!i.designs || !i.designs.length) return 0;
+      return i.content.selected_design || i.designs[0].id;
+    },
+    pvAspect: function () {
+      var i = this.pvIdea(), r = i.format === 'story' ? '9:16' : (this.dopt.custom.match(/^(\d{3,4})\s*[x×*]\s*(\d{3,4})$/) ? this.dopt.custom.replace(/\s/g, '').replace(/[×*]/, 'x').replace('x', ':') : this.dopt.ratio);
+      var p = r.split(':'); return { aspectRatio: (+p[0] || 1) + ' / ' + (+p[1] || 1) };
+    },
+    pvDesignText: function () { var sl = this.pvSlide(), i = this.pvIdea(); return sl ? (sl.design || '') : ((i.content && i.content.design_idea) || ''); },
+    pvSetDesign: function (v) { var sl = this.pvSlide(), i = this.pvIdea(); if (sl) { sl.design = v; this.edited(i, 'slides'); } else { i.content.design_idea = v; this.edited(i); } },
+    pvChar: function (id) { if (!this.dopt.chars) this.dopt.chars = []; var k = this.dopt.chars.indexOf(id); if (k > -1) this.dopt.chars.splice(k, 1); else { if (this.dopt.chars.length >= 2) this.dopt.chars.shift(); this.dopt.chars.push(id); } },
+    pvOpts: function () {
+      var o = { include_logo: this.dopt.logo ? '1' : '0' };
+      if (this.dopt.custom.trim()) o.size_wh = this.dopt.custom.trim(); else o.ratio = this.dopt.ratio;
+      if (this.dopt.style) o.style_preset_id = this.dopt.style;
+      if (this.dopt.chars !== null) o.character_ids = this.dopt.chars.join(',') || '0';
+      return o;
+    },
+    async pvDesign() {
+      var i = this.pvIdea(), self = this, slide = i.format === 'carousel' ? this.pvN : 0, o = this.pvOpts();
+      await this.runBulk([i], 'بيصمم', MSG.design, async function (x) {
+        self.running[x.id] = slide || true; var r = await self.designReq(x, slide, o); self.running[x.id] = false;
+        if (r.ok) self.designAdd(x, r, slide);
+        return r;
+      });
+    },
+    async pvEditDesign() {
+      var i = this.pvIdea(), self = this, slide = i.format === 'carousel' ? this.pvN : 0, did = this.pvDesignId(), text = this.pvEdit.trim();
+      if (!did || !text) return;
+      await this.runBulk([i], 'بيعدّل التصميم', MSG.design, async function (x) {
+        self.running[x.id] = slide || true;
+        var p = { csrf: csrf(), _quiet: '1', content_id: x.content.id, bulk: '1', design_edit: '1', style_ref: 'design:' + did, custom_prompt: self.b64(text), _b64: 'custom_prompt', include_logo: '0' };
+        var cur = (x.designs || []).find(function (d) { return d.id === did; });
+        if (cur && /^\d{3,4}x\d{3,4}$/.test(cur.ratio || '')) p.size_wh = cur.ratio; else p.ratio = (cur && cur.ratio) || self.ratio;
+        if (slide) p.slide_no = slide;
+        var r = await ajaxPost(self.base + '/ajax/generate-design.php', p);
+        self.running[x.id] = false;
+        if (r && r.ok) { self.designAdd(x, r, slide); self.pvEdit = ''; }
+        return r || { ok: false, error: 'تعذّر التعديل' };
+      });
+    },
+
     /* ── ④ التصميم ── */
     designSelCount: function () { var s = this.dsel; return this.designable().filter(function (i) { return s[i.id]; }).length; },
     designSelAll: function () {
       var all = this.designSelCount() < this.designable().length, s = this.dsel;
       this.designable().forEach(function (i) { s[i.id] = all; });
     },
-    async designReq(i, slide) {
+    async designReq(i, slide, opt) {
       var p = { csrf: csrf(), _quiet: '1', content_id: i.content.id, bulk: '1', ratio: i.format === 'story' ? '9:16' : this.ratio, include_logo: '1' };
+      if (opt) { Object.assign(p, opt); if (i.format === 'story') { p.ratio = '9:16'; delete p.size_wh; } }
       if (slide) p.slide_no = slide;   // الكاروسيل: الشريحة بنصها وفكرة تصميمها (من السيرفر) + الشريحة الأولى مرجع
       else { p.custom_prompt = this.b64(i.content.design_idea || ''); p._b64 = 'custom_prompt'; }
       var r = await ajaxPost(this.base + '/ajax/generate-design.php', p);

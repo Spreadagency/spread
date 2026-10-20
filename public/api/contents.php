@@ -415,6 +415,32 @@ switch ($action) {
         db_run('UPDATE contents SET selected_image_id = ? WHERE id = ? AND user_id = ?', [$did, $c['id'], $uid]);
         api_ok(['design_id' => $did, 'url' => upload_url($up['path'])]);
 
+    /* ── تقييم المنشور (نفس برومبت ومعايير تقييم الحملات من الأدمن) ── */
+    case 'evaluate':
+        require_once __DIR__ . '/../../includes/campaign-flow.php';
+        $c = api_own('contents', api_int('id'), $uid);
+        if (trim((string) $c['generated_text']) === '') api_fail('المنشور ده لسه مفيهوش نص', 'no_text', 422);
+        if (!rate_limit('content_eval', 'u' . $uid, 20, 600)) api_fail('قيّمت كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        $brand = db_one('SELECT * FROM brand_profiles WHERE user_id = ? ORDER BY id LIMIT 1', [$uid]) ?: [];
+        $cost = (int) get_setting('campaign_eval_cost', 0);
+        if ($cost > 0 && !credits_consume($uid, $cost, 'تقييم منشور #' . $c['id'], 'content_eval', (int) $c['id'])) api_fail(credits_short_msg($cost), 'credits', 402);
+        $cats = eval_criteria();
+        $data = campaign_brand_block($brand + ['user_id' => $uid]) . "\n\n" . campaign_eval_body($c) . "\nCTA: " . (string) ($c['cta'] ?? '');
+        $ai = campaign_ai(prompt_fill('campaign_eval', ['cats' => implode('، ', $cats), 'ready' => eval_ready_score(), 'data' => $data])
+            . "\n\ncats = " . count($cats) . " أرقام بنفس ترتيب المعايير. أعد JSON فقط:\n" . '{"cats":[' . implode(',', array_fill(0, count($cats), 85)) . '],"comment":"...","issues":""}',
+            700, 'campaign_eval', ['user_id' => $uid, 'reference_type' => 'contents', 'reference_id' => (int) $c['id'], 'temperature' => 0.3, 'json_mode' => true]);
+        $e = $ai['ok'] ? campaign_parse_eval((string) $ai['response']) : null;
+        if (!$e) {
+            if ($cost > 0) credits_add($uid, $cost, 'استرداد: تقييم منشور #' . $c['id'], null, 'refund', (int) $c['id']);
+            api_fail($ai['ok'] ? 'التقييم مرجعش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التقييم'), 'ai_failed', 502);
+        }
+        $e['ready'] = eval_ready_score();
+        $e['at'] = date('c');
+        $bj = json_decode((string) ($c['brief_json'] ?? ''), true) ?: [];
+        $bj['eval'] = $e;
+        db_run('UPDATE contents SET brief_json = ? WHERE id = ?', [json_encode($bj, JSON_UNESCAPED_UNICODE), $c['id']]);
+        api_ok(['eval' => $e, 'balance' => credits_balance($uid)]);
+
     /* ── تعديل بالكلام: اقتراح بس — الحفظ لما العميل يعتمد ── */
     case 'ai_edit':
         require_once __DIR__ . '/../../includes/ai.php';

@@ -512,3 +512,33 @@ body.ui-v2 a.cf-pill { color: #27324A; }
 .cf-post-full p { margin: 8px 0 4px; white-space: pre-line; font-size: 13.5px; line-height: 1.8; }
 .cf-post-full p.clip { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .cf-prev { background: #FFF8EC; border-radius: 12px; padding: 8px 10px; color: #7A5200; }
+
+/* ── المعاينة الجانبية (التصميم والجدولة) ── */
+.cf-pv-back { position: fixed; inset: 0; background: rgba(11, 21, 38, .32); z-index: 60; }
+.cf-pv { position: fixed; top: 0; bottom: 0; right: 0; width: min(440px, 100vw); background: #fff; z-index: 61; box-shadow: -18px 0 40px rgba(11, 21, 38, .18);
+  display: flex; flex-direction: column; overflow-y: auto; padding: 16px; gap: 12px; }
+.cf-pv-head b { display: block; font-size: 15px; line-height: 1.5; }
+.cf-pv-img { position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 56vh; border-radius: 18px; overflow: hidden; background: #F4F8FC; border: 1px solid #E3EAF3; display: grid; place-items: center; flex: none; }
+.cf-pv-img.story { max-height: 60vh; margin: 0 auto; width: auto; height: 60vh; }
+.cf-pv-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cf-pv-ph { padding: 18px; text-align: center; color: var(--mute); }
+.cf-pv-ph b { display: block; color: var(--ink); margin: 4px 0; }
+.cf-pv-ph p { margin: 0; font-size: 13px; line-height: 1.8; }
+.cf-pv-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .92); box-shadow: 0 4px 12px rgba(0, 0, 0, .15); font-size: 22px; cursor: pointer; z-index: 2; }
+.cf-pv-nav:disabled { opacity: .35; cursor: default; }
+.cf-pv-nav.next { left: 8px; } .cf-pv-nav.prev { right: 8px; }
+.cf-pv-dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; z-index: 2; }
+.cf-pv-dots i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, .7); box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); cursor: pointer; }
+.cf-pv-dots i.ok { background: #9BD8CF; } .cf-pv-dots i.on { background: #0C87EF; transform: scale(1.25); }
+.cf-pv-body { display: grid; gap: 8px; }
+.cf-pv-text { margin: 0; white-space: pre-line; font-size: 13.5px; line-height: 1.85; }
+.cf-pv-go { width: 100%; margin-top: 6px; }
+.cf-dprev { cursor: zoom-in; }
+.cf-chipitem img { width: 18px; height: 18px; border-radius: 4px; object-fit: cover; vertical-align: middle; margin-inline-end: 3px; }
+.cf-wthumb { width: 40px; height: 40px; flex: none; border-radius: 10px; border: 1px solid #E3EAF3; background: #F4F8FC; overflow: hidden; padding: 0; cursor: pointer; }
+.cf-wthumb img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 720px) {
+  .cf-pv { top: auto; left: 0; width: 100vw; max-height: 92vh; border-radius: 22px 22px 0 0; box-shadow: 0 -12px 40px rgba(11, 21, 38, .22); }
+  .cf-pv-img { max-height: 46vh; }
+  .cf-pv-img.story { height: 46vh; }
+}

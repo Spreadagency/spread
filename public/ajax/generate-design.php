@@ -156,16 +156,23 @@ if ($includeImages) {
 // Brand Kit: بريف البوست + الشخصية الثابتة (صورتها المرجعية) — نفس الملامح في كل بوست
 require_once __DIR__ . '/../../includes/brand-kit.php';
 $bkDesignBrief = bk_enabled() ? bk_arr($content['brief_json'] ?? '') : [];
-if (bk_enabled() && !empty($content['bk_character_id']) && ($_POST['design_edit'] ?? '') !== '1') {
-    $__ch = db_one('SELECT * FROM brand_characters WHERE id = ? AND user_id = ? AND is_active = 1', [(int) $content['bk_character_id'], (int) $user['id']]);
+// الشخصيات: اختيار العميل في التصميم (واحدة أو اتنين · «0» = من غير) — وإلا شخصية البوست من الهوية
+$__charIds = [];
+if (isset($_POST['character_ids'])) {
+    $__charIds = array_slice(array_values(array_filter(array_map('intval', explode(',', (string) $_POST['character_ids'])))), 0, 2);
+} elseif (!empty($content['bk_character_id'])) {
+    $__charIds = [(int) $content['bk_character_id']];
+}
+foreach (bk_enabled() && ($_POST['design_edit'] ?? '') !== '1' ? $__charIds : [] as $__cid) {
+    $__ch = db_one('SELECT * FROM brand_characters WHERE id = ? AND user_id = ? AND is_active = 1', [$__cid, (int) $user['id']]);
     $__useIn = $__ch ? array_filter(explode(',', (string) $__ch['use_in'])) : [];
-    if ($__ch && ($__ch['type'] !== 'real_person' || (int) $__ch['consent_confirmed'] === 1) && (!$__useIn || in_array('image', $__useIn, true))) {
+    if ($__ch && ($__ch['type'] !== 'real_person' || (int) $__ch['consent_confirmed'] === 1) && (isset($_POST['character_ids']) || !$__useIn || in_array('image', $__useIn, true))) {
         $__img = db_one('SELECT image_path FROM brand_character_images WHERE character_id = ? ORDER BY is_primary DESC, id ASC LIMIT 1', [$__ch['id']]);
         $__uri = $__img ? image_data_uri($__img['image_path']) : null;
         if ($__uri) {
             $refLog[] = ['role' => 'character', 'path' => $__img['image_path']];
             $inputImages[] = ['uri' => $__uri, 'role' => "the brand's recurring CHARACTER «" . $__ch['name'] . "» — show this exact person/character with the SAME face, features, hairstyle and outfit (do not change identity)."];
-            $bkDesignBrief['character_desc'] = trim($__ch['name'] . ($__ch['role'] ? ' (' . $__ch['role'] . ')' : '') . '. ' . (string) $__ch['description']);
+            $bkDesignBrief['character_desc'] = trim((isset($bkDesignBrief['character_desc']) && count($__charIds) > 1 ? $bkDesignBrief['character_desc'] . ' + ' : '') . $__ch['name'] . ($__ch['role'] ? ' (' . $__ch['role'] . ')' : '') . '. ' . (string) $__ch['description']);
             // شخص واحد بس في التصميم: الشخصية الثابتة بدل الصورة الشخصية القديمة
             foreach ($refLog as $__i => $__r) {
                 if (($__r['role'] ?? '') === 'personal') { unset($refLog[$__i], $inputImages[$__i]); }
@@ -242,16 +249,33 @@ if ($format === 'carousel' && $slide) {
         . "\nCreate a design that visually represents this post.";
 }
 
+// استايل الصورة (من استايلات الأدمن) — للتصميم ده بس
+$__styleLine = '';
+if (!empty($_POST['style_preset_id'])) {
+    $__sp = db_one('SELECT name, data FROM style_presets WHERE id = ? AND is_active = 1', [(int) $_POST['style_preset_id']]);
+    if ($__sp) {
+        $__spd = json_decode((string) $__sp['data'], true) ?: [];
+        $__styleLine = 'VISUAL STYLE for this design (follow it): ' . trim(($__spd['en'] ?? '') ?: (($__spd['desc'] ?? '') ?: $__sp['name']));
+    }
+}
+
 // المقاس: المكتوب في طلب العميل هو الأساسي (⑤-ب)
 require_once __DIR__ . '/../../includes/studio-config.php';
+// مقاس مخصص (عرض × ارتفاع): الصورة بتطلع بالمقاس ده بالظبط (أقرب مقاس للموديل ← قص وتظبيط)
+$__exact = null;
+if ($format !== 'story' && !empty($_POST['size_wh']) && preg_match('/^(\d{3,4})\s*[x×*]\s*(\d{3,4})$/u', trim((string) $_POST['size_wh']), $__m)) {
+    $__w = (int) $__m[1]; $__h = (int) $__m[2];
+    if ($__w >= 200 && $__h >= 200 && $__w <= 4096 && $__h <= 4096 && max($__w, $__h) / min($__w, $__h) <= 4) $__exact = [$__w, $__h];
+}
 // الستوري دايمًا 9:16 · شرايح الكاروسيل بنفس مقاس الشريحة المرجع
 $__ratioIn = $format === 'story' ? '9:16' : ($carouselRatio ?: (string) ($_POST['ratio'] ?? ''));
-$ratioRes = studio_ratio_resolve($__ratioIn, $format === 'post' ? $customPrompt : '');
+$ratioRes = $__exact ? studio_ratio_resolve('', $__exact[0] . 'x' . $__exact[1]) : studio_ratio_resolve($__ratioIn, $format === 'post' ? $customPrompt : '');
 $ratioKey = $ratioRes['key'];
 $ratioMeta = $ratioRes['meta'];
 
 $designPrompt = 'Design a professional social media ' . ['post' => 'post image', 'story' => 'vertical STORY image (full-screen 9:16, keep text away from the top/bottom 14%)', 'carousel' => 'CAROUSEL SLIDE image'][$format] . ".\n" . studio_ratio_hint($ratioRes) . "\n"
     . $identityBlock
+    . ($__styleLine !== '' ? $__styleLine . "\n" : '')
     . $concept . "\n";
 
 // وصف دور كل صورة مرفقة بالترتيب
@@ -304,6 +328,11 @@ if (!$result['ok']) {
     json_response(['ok' => false, 'error' => $result['error']]);
 }
 
+// المقاس المخصص: الصورة بالمقاس المطلوب بالظبط (قص من النص من غير مط)
+if ($__exact) {
+    design_fit_exact($result['path'], $__exact[0], $__exact[1]);
+}
+
 // ═══ Fallback: لو الموديل ما استلمش الصور (مسار قديم) → اللوجو بـ GD ═══
 if ($includeLogo && !$modelReceivedImages) {
     brand_logo_apply($result['path'], $brand['logo_path']);
@@ -321,7 +350,7 @@ $designId = db_insert_row('content_designs', [
     'prompt' => $designPrompt,
     'model' => $result['model'],
     'credits_used' => $cost,
-    'ratio' => $ratioKey,
+    'ratio' => $__exact ? mb_substr($__exact[0] . 'x' . $__exact[1], 0, 10) : $ratioKey,
 ] + (formats_ready() ? ['slide_no' => $slideNo, 'refs_json' => $refLog ? json_encode($refLog, JSON_UNESCAPED_UNICODE) : null] : []));
 
 // تعديل تصميم موجود بالكلام: طلب التعديل مش «اتجاه التصميم» — ومايتكتبش مكانه
@@ -345,5 +374,5 @@ json_response([
     'design_id' => $designId,
     'image_url' => url('storage/' . $result['path']),
     'slide_no' => $slideNo,
-    'ratio' => $ratioKey,
+    'ratio' => $__exact ? $__exact[0] . 'x' . $__exact[1] : $ratioKey,
 ]);
