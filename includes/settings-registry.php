@@ -344,6 +344,9 @@ function settings_portable_extra(): array
         'ai_breaker_threshold' => $n(1, 50), 'ai_breaker_window_min' => $n(1, 120), 'ai_breaker_cooldown_min' => $n(1, 1440), 'ai_failover_alert_per_hour' => $n(1, 1000),
         'margin_alert_pct' => $n(0, 100), 'video_whatsapp' => ['type' => 'digits'],
         'brand_kit_ai_cost' => $n(0, 999), 'brand_kit_draft_cost' => $n(0, 999),
+        'brand_kit_character_cost' => $n(0, 999), 'brand_kit_persona_cost' => $n(0, 999), 'brand_visual_cost' => $n(0, 999),
+        'brand_insights_cost' => $n(0, 999), 'campaign_plan_eval_cost' => $n(0, 999), 'brand_personas_default' => $n(1, 6),
+        'campaign_eval_ready' => $n(50, 95), 'campaign_eval_cats' => ['type' => 'text', 'len' => 800],
     ];
 }
 

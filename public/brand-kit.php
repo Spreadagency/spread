@@ -331,6 +331,36 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <div class="bk-row"><button class="bk-btn sm" @click="ed.offers.push({title: '', details: '', until: ''})">+ عرض</button><button class="bk-btn pri" @click="saveSec('offers', ed.offers)">حفظ</button></div>
                         </div>
 
+                        <!-- العملاء المثاليين (Buyer Personas) -->
+                        <div class="bk-tpl" v-if="sec.key === 'personas'">
+                            <p class="bk-mute" style="margin:0 0 8px">الأشخاص اللي بيستخدموا خدماتك ومهتمين بيك — بيظهروا كاختيارات في الحملات والمنشور السريع، وكل بوست بيتكتب للشخص اللي تختاره.</p>
+                            <div class="bk-personas">
+                                <div v-for="p in s.personas" :key="p.id" class="bk-persona" :class="{off: !+p.is_active}">
+                                    <span class="em">{{ p.emoji || '🙂' }}</span>
+                                    <span class="t"><b>{{ p.name }}</b><small>{{ [p.age, p.job, p.location].filter(Boolean).join(' · ') }}</small>
+                                        <small v-if="p.pains.length">وجعه: {{ p.pains.slice(0, 2).join('، ') }}</small>
+                                        <span class="bk-pills"><i v-for="sid in p.service_ids" :key="sid">{{ svcName(sid) }}</i></span></span>
+                                    <button class="bk-btn sm ghost" @click="editPersona(p)">تعديل</button>
+                                </div>
+                            </div>
+                            <div class="bk-row">
+                                <button v-if="s.personas.length < s.personas_max" class="bk-btn sm ai" :disabled="busy" @click="genPersonas()">✨ {{ s.personas.length ? 'ضيف بالـ AI' : 'اعملّي ' + s.personas_default + ' أشخاص بالـ AI' }} <span class="cr" v-if="s.costs.persona">· {{ s.costs.persona }}</span></button>
+                                <button v-if="s.personas.length < s.personas_max" class="bk-btn sm" @click="editPersona(null)">+ شخص يدوي</button>
+                            </div>
+                        </div>
+
+                        <!-- الـ CTA الأساسي -->
+                        <div class="bk-tpl" v-if="sec.key === 'cta'">
+                            <p class="bk-mute" style="margin:0 0 8px">الجملة اللي بتختم بيها كل بوست. الحملة أو البوست يقدروا يغيّروها.</p>
+                            <div class="bk-lbl">نوع الـ CTA</div>
+                            <div class="bk-chips"><button v-for="(l, k) in s.cta_types" class="bk-chip" :class="{on: ed.cta.type === k}" @click="ed.cta.type = k">{{ l }}</button></div>
+                            <label class="bk-f">جملة الـ CTA<input class="bk-in" v-model="ed.cta.text" placeholder="مثلًا: احجز كشفك دلوقتي على واتساب"></label>
+                            <div class="bk-row"><button class="bk-btn sm ai" :disabled="busy" @click="ctaSuggest()">✨ اقترح 3 <span class="cr" v-if="s.costs.ai">· {{ s.costs.ai }}</span></button></div>
+                            <div v-if="ctaList.length" class="bk-chips"><button v-for="t in ctaList" class="bk-chip ghost" @click="ed.cta.text = t">{{ t }}</button></div>
+                            <label class="bk-f">اللينك أو الرقم (اختياري — بيتاخد من بيانات التواصل لو فاضي)<input class="bk-in" dir="ltr" v-model="ed.cta.link" placeholder="wa.me/2010… أو yoursite.com/book"></label>
+                            <div class="bk-row end"><button class="bk-btn pri" @click="saveSec('cta', ed.cta)">حفظ</button></div>
+                        </div>
+
                         <!-- النشاط والجمهور -->
                         <div class="bk-tpl" v-if="sec.key === 'business'">
                             <div class="bk-two">
@@ -519,6 +549,27 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <div class="bk-chips"><button v-for="x in seasonList" class="bk-chip" :class="{on: svc.seasons.includes(x)}" @click="toggleArr(svc.seasons, x)">{{ x }}</button></div>
                         <label class="bk-check"><input type="checkbox" v-model="svc.is_active"> الخدمة شغالة</label>
                         <div class="bk-row end"><button v-if="svc.id" class="bk-btn danger" @click="delService()">حذف</button><button class="bk-btn pri" :disabled="busy" @click="saveService()">حفظ</button></div>
+                    </div>
+
+                    <div class="bk-tpl" v-if="modal === 'persona' && pe">
+                        <h3>{{ pe.id ? 'تعديل العميل المثالي' : 'عميل مثالي جديد' }}</h3>
+                        <div class="bk-two">
+                            <label class="bk-f">اسم وصفي<input class="bk-in" v-model="pe.name" placeholder="مثلًا: أم مشغولة"></label>
+                            <label class="bk-f">إيموجي<input class="bk-in" v-model="pe.emoji" maxlength="4" placeholder="👩"></label>
+                            <label class="bk-f">السن<input class="bk-in" v-model="pe.age" placeholder="30-40"></label>
+                            <label class="bk-f">النوع<input class="bk-in" v-model="pe.gender"></label>
+                            <label class="bk-f">الوظيفة أو الحالة<input class="bk-in" v-model="pe.job"></label>
+                            <label class="bk-f">المكان<input class="bk-in" v-model="pe.location"></label>
+                        </div>
+                        <div class="bk-lbl">الخدمات اللي تهمه</div>
+                        <div class="bk-chips"><button v-for="sv in s.services" :key="sv.id" class="bk-chip" :class="{on: pe.service_ids.indexOf(+sv.id) > -1}" @click="toggleArr(pe.service_ids, +sv.id)">{{ sv.name }}</button></div>
+                        <label class="bk-f">إيه اللي بيوجعه (سطر لكل حاجة)<textarea class="bk-in" rows="2" v-model="pe.pains_t"></textarea></label>
+                        <label class="bk-f">نفسه في إيه<textarea class="bk-in" rows="2" v-model="pe.desires_t"></textarea></label>
+                        <label class="bk-f">اعتراضاته قبل الشراء<textarea class="bk-in" rows="2" v-model="pe.objections_t"></textarea></label>
+                        <label class="bk-f">إيه اللي يخليه يشتري<textarea class="bk-in" rows="2" v-model="pe.triggers_t"></textarea></label>
+                        <label class="bk-f">الكلام اللي يناسبه<input class="bk-in" v-model="pe.voice"></label>
+                        <label class="bk-check"><input type="checkbox" v-model="pe.is_active"> مفعّل</label>
+                        <div class="bk-row end"><button v-if="pe.id" class="bk-btn danger" @click="delPersona()">حذف</button><button class="bk-btn pri" :disabled="busy" @click="savePersona()">حفظ</button></div>
                     </div>
 
                     <div class="bk-tpl" v-if="modal === 'character' && ch">

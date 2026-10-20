@@ -258,3 +258,13 @@ label.bk-btn { cursor: pointer; }
 .bk-imgs.logo .bk-img img { object-fit: contain; }
 .bk-imgs.logo .bk-img button.pick { background: var(--bk-mint); }
 .bk-photo { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #BFE3FF; display: grid; gap: 6px; justify-items: start; }
+
+/* العملاء المثاليين */
+.bk-personas { display: grid; gap: 8px; margin-bottom: 6px; }
+.bk-persona { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--bk-line); border-radius: 14px; background: #fff; }
+.bk-persona.off { opacity: .55; }
+.bk-persona .em { font-size: 26px; line-height: 1; flex: none; }
+.bk-persona .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bk-persona .t small { color: var(--bk-mute); font-size: 12.5px; }
+.bk-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.bk-pills i { font-style: normal; font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: #EAF4FF; color: #0A5FCF; }

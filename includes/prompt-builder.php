@@ -9,6 +9,7 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/source-extract.php';
 require_once __DIR__ . '/brand-kit.php';
+require_once __DIR__ . '/prompt-library.php';
 
 /**
  * Get the active prompt for a given type (or fallback to default)
@@ -57,7 +58,7 @@ function prompt_types(): array
         'agent_design'    => ['🖼 Agent التصميم', 'تعليمات إضافية لكل تصميم (إنجليزي)'],
         'agent_video'     => ['🎬 Agent الفيديو', 'تعليمات إضافية لسكريبتات الريلز'],
         'agent_schedule'  => ['🗓 Agent الجدولة', 'تعليمات توزيع المحتوى على الأسبوع'],
-    ];
+    ] + array_map(fn($p) => [$p[0], $p[1]], prompt_library());
 }
 
 function default_base_prompt(): string

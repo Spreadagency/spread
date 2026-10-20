@@ -75,7 +75,9 @@ function bkapi_state(int $uid): array
         'presets' => $presets,
         'seasons' => bk_current_seasons(),
         'logo_url' => !empty($kit['data']['logo']['path']) ? upload_url($kit['data']['logo']['path']) : '',
-        'costs' => ['ai' => cost_for_bk('brand_kit_ai_cost', 1), 'draft' => cost_for_bk('brand_kit_draft_cost', 2), 'character' => bkapi_char_cost(), 'logo' => bkapi_logo_cost()],
+        'costs' => ['ai' => cost_for_bk('brand_kit_ai_cost', 1), 'draft' => cost_for_bk('brand_kit_draft_cost', 2), 'character' => bkapi_char_cost(), 'logo' => bkapi_logo_cost(), 'persona' => max(0, (int) get_setting('brand_kit_persona_cost', '1'))],
+        'personas' => bk_personas($uid, false), 'personas_max' => bk_personas_max(), 'personas_default' => bk_personas_default(),
+        'cta_types' => bk_cta_types(),
         'logo_candidates' => array_map(fn($p) => ['path' => $p, 'url' => upload_url($p)], bkapi_logo_candidates($uid)),
         'research' => function_exists('ui_research_on') ? ui_research_on() : get_setting('research_enabled', '1') === '1',
         'analyze_cost' => max(0, (int) get_setting('brand_analyze_cost', 1)),
@@ -470,6 +472,58 @@ function bkapi_logo_candidates(int $uid): array
 function bkapi_logo_cost(): int
 {
     return max(0, (int) get_setting('logo_generate_cost', 3));
+}
+
+/** العملاء المثاليين بالـ AI — مربوطين بخدمات العميل · $soft = مايوقفش الطلب لو فشل */
+function bkapi_personas_generate(int $uid, int $n, bool $soft = false): array
+{
+    require_once __DIR__ . '/../../includes/prompt-library.php';
+    $n = max(1, min(bk_personas_max(), $n));
+    $kit = bk_get($uid);
+    $d = $kit['data'];
+    $svc = bk_services($uid, true);
+    if ($d['business']['name'] === '' && !$svc) {
+        if ($soft) return ['__error' => 'محتاجين اسم النشاط أو الخدمات الأول'];
+        api_fail('اكتب اسم النشاط وخدماتك الأول', 'invalid', 422);
+    }
+    $cost = max(0, (int) get_setting('brand_kit_persona_cost', '1'));
+    if ($soft && $cost > 0 && credits_balance($uid) < $cost) return ['__error' => credits_short_msg($cost)];
+    bkapi_charge($uid, $cost, 'العملاء المثاليين (Buyer Personas)');
+    $data = "النشاط: {$d['business']['name']}" . ($d['business']['sector'] !== '' ? " — المجال: {$d['business']['sector']}" : '') . "\n"
+        . ($d['business']['location'] !== '' ? "المكان: {$d['business']['location']}\n" : '')
+        . ($d['business']['usp'] !== '' ? "اللي بيميزه: {$d['business']['usp']}\n" : '')
+        . ($d['audience']['description'] !== '' ? "الجمهور: {$d['audience']['description']}\n" : '')
+        . ($d['audience']['pains'] ? 'مشاكل الجمهور: ' . implode('، ', $d['audience']['pains']) . "\n" : '')
+        . ($svc ? "الخدمات (اختار منها بالاسم بالظبط):\n- " . implode("\n- ", array_map(fn($s) => $s['name'] . ($s['description'] ? ' — ' . mb_substr((string) $s['description'], 0, 120) : ''), array_slice($svc, 0, 15))) . "\n" : '')
+        . ($d['offers'] ? 'عروض: ' . implode('، ', array_column($d['offers'], 'title')) . "\n" : '');
+    $j = bkapi_ai($uid, prompt_fill('agent_personas', ['n' => $n, 'data' => $data])
+        . "\n\nرجّع JSON بس بالشكل ده (بالظبط {$n} أشخاص):\n"
+        . '{"personas":[{"name":"اسم وصفي قصير مثلا «أم مشغولة»","emoji":"👩","age":"30-40","gender":"","job":"","location":"","pains":["",""],"desires":["",""],"objections":["",""],"triggers":["",""],"channels":["facebook","instagram"],"services":["اسم الخدمة"],"voice":"إزاي نكلمه"}]}', 2200);
+    $list = array_slice(array_filter((array) ($j['personas'] ?? []), 'is_array'), 0, $n);
+    if (!$list) {
+        bkapi_refund($uid, $cost, 'العملاء المثاليين');
+        $err = $j['__error'] ?? 'الرد مكانش مظبوط — الكريدت رجعلك، جرّب تاني';
+        if ($soft) return ['__error' => $err];
+        api_fail($err, 'ai_failed', 502);
+    }
+    $byName = [];
+    foreach ($svc as $s) $byName[mb_strtolower(trim($s['name']))] = (int) $s['id'];
+    $saved = 0;
+    foreach (array_values($list) as $i => $p) {
+        $ids = [];
+        foreach ((array) ($p['services'] ?? []) as $nm) {
+            $k = mb_strtolower(trim((string) $nm));
+            if (isset($byName[$k])) { $ids[] = $byName[$k]; continue; }
+            foreach ($byName as $sn => $sid) if ($k !== '' && (str_contains($sn, $k) || str_contains($k, $sn))) { $ids[] = $sid; break; }
+        }
+        // كل شخص مربوط بخدمة على الأقل (لو العميل عنده خدمات)
+        if (!$ids && $svc) $ids[] = (int) $svc[$i % count($svc)]['id'];
+        $p['service_ids'] = array_values(array_unique($ids));
+        bk_persona_save($uid, $p, 0, 'ai');
+        $saved++;
+    }
+    bk_update_completeness($uid);
+    return ['saved' => $saved];
 }
 
 switch ($action) {
@@ -913,6 +967,11 @@ switch ($action) {
             $d = bkapi_build_draft($uid, [], true);
             if (isset($d['__error'])) $warn = $warn ?: $d['__error'];
             else $built = bkapi_apply_draft_empty($uid, $d['draft'], $d['confidence']);
+            // العملاء المثاليين لو مفيش
+            if (!isset($d['__error']) && !bk_personas($uid, false)) {
+                $pr = bkapi_personas_generate($uid, bk_personas_default(), true);
+                if (!empty($pr['saved'])) $built[] = 'العملاء المثاليين (' . $pr['saved'] . ')';
+            }
         }
         api_ok(['state' => bkapi_state($uid), 'read' => $src['read'], 'filled' => $filled, 'built' => $built, 'warn' => $warn, 'balance' => credits_balance($uid)]);
 
@@ -1016,6 +1075,43 @@ switch ($action) {
             }
         }
         api_ok(['state' => bkapi_state($uid)]);
+
+    /* ══════════ العملاء المثاليين (Buyer Personas) ══════════ */
+    case 'persona_save':
+        $in = api_input();
+        $id = (int) ($in['id'] ?? 0);
+        if ($id && !bk_persona($uid, $id)) api_fail('الشخص ده مش موجود', 'not_found', 404);
+        if (!$id && count(bk_personas($uid, false)) >= bk_personas_max()) api_fail('أقصى حاجة ' . bk_personas_max() . ' أشخاص — امسح واحد الأول', 'limit', 422);
+        if (trim((string) ($in['name'] ?? '')) === '') api_fail('اكتب اسم وصفي للشخص', 'invalid', 422);
+        $id = bk_persona_save($uid, $in, $id);
+        bk_update_completeness($uid);
+        api_ok(['id' => $id, 'state' => bkapi_state($uid)]);
+
+    case 'persona_delete':
+        db_run('DELETE FROM brand_personas WHERE id = ? AND user_id = ?', [api_int('id'), $uid]);
+        bk_update_completeness($uid);
+        api_ok(['state' => bkapi_state($uid)]);
+
+    case 'personas_generate':
+        if (!rate_limit('bk_personas', 'u' . $uid, 6, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        $room = bk_personas_max() - count(bk_personas($uid, false));
+        if ($room <= 0) api_fail('عندك ' . bk_personas_max() . ' أشخاص — امسح واحد الأول', 'limit', 422);
+        $r = bkapi_personas_generate($uid, min($room, api_int('n') ?: bk_personas_default()));
+        api_ok(['state' => bkapi_state($uid), 'saved' => $r['saved'] ?? 0, 'balance' => credits_balance($uid)]);
+
+    /* ══════════ الـ CTA الأساسي: 3 اقتراحات ══════════ */
+    case 'cta_suggest':
+        if (!rate_limit('bk_cta', 'u' . $uid, 10, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        $type = api_str('type', 20);
+        $types = bk_cta_types();
+        $d = bk_get($uid)['data'];
+        $cost = cost_for_bk('brand_kit_ai_cost', 1);
+        bkapi_charge($uid, $cost, 'اقتراح CTA');
+        $j = bkapi_ai($uid, "اقترح 3 جمل Call-to-Action قصيرة وقوية بالعامية المصرية لبراند «{$d['business']['name']}» (" . ($d['business']['sector'] ?: 'نشاط تجاري') . ').'
+            . (isset($types[$type]) ? " نوع الـ CTA: {$types[$type]}." : '') . ' كل جملة أقل من 10 كلمات ومن غير أرقام مخترعة. رجّع JSON بس: {"ctas":["","",""]}', 400);
+        $list = array_values(array_slice(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 200), (array) ($j['ctas'] ?? []))), 0, 3));
+        if (!$list) { bkapi_refund($uid, $cost, 'اقتراح CTA'); api_fail($j['__error'] ?? 'مطلعش اقتراحات — جرّب تاني', 'ai_failed', 502); }
+        api_ok(['ctas' => $list, 'balance' => credits_balance($uid)]);
 
     default:
         api_fail('عملية غير معروفة', 'bad_action', 400);

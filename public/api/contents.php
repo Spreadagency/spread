@@ -450,18 +450,14 @@ switch ($action) {
         }
         $prev = db_one('SELECT content_text FROM content_versions WHERE content_id = ? ORDER BY version_number DESC LIMIT 1 OFFSET 1', [$c['id']]);
 
-        $prompt = "انت كاتب محتوى سوشيال ميديا محترف.\n"
-            . ($ctx ? "سياق:\n- " . implode("\n- ", $ctx) . "\n\n" : '')
+        require_once __DIR__ . '/../../includes/prompt-library.php';
+        $data = ($ctx ? "سياق:\n- " . implode("\n- ", $ctx) . "\n\n" : '')
             . "ده منشور موجود:\n[CONTENT]\n" . $c['generated_text'] . "\n[/CONTENT]\n"
             . "[HASHTAGS]\n" . ($c['hashtags'] ?? '') . "\n[/HASHTAGS]\n"
-            . "[CTA]\n" . ($c['cta'] ?? '') . "\n[/CTA]\n\n"
-            . ($prev && trim((string) $prev['content_text']) !== '' ? "النسخة اللي قبله (للمرجع بس — ماترجعلهاش إلا لو اتطلب):\n" . mb_substr($prev['content_text'], 0, 1200) . "\n\n" : '')
-            . "طلب العميل: «" . $instruction . "»\n\n"
-            . "القواعد:\n"
-            . "- عدّل اللي اتطلب **بس**. أي جزء مش مطلوب تغييره يفضل زي ما هو بالحرف.\n"
-            . "- حافظ على نفس اللهجة ونبرة البراند.\n"
-            . "- ممنوع تخترع أرقام أو أسعار أو مواعيد مش موجودة.\n"
-            . "- رجّع المنشور كامل بنفس الصيغة بالظبط: [CONTENT]...[/CONTENT] [HASHTAGS]...[/HASHTAGS] [CTA]...[/CTA] — من غير أي شرح.";
+            . "[CTA]\n" . ($c['cta'] ?? '') . "\n[/CTA]"
+            . ($prev && trim((string) $prev['content_text']) !== '' ? "\n\nالنسخة اللي قبله (للمرجع بس — ماترجعلهاش إلا لو اتطلب):\n" . mb_substr($prev['content_text'], 0, 1200) : '');
+        $prompt = prompt_fill('ai_edit', ['instruction' => $instruction, 'data' => $data])
+            . "\n- رجّع المنشور كامل بنفس الصيغة بالظبط: [CONTENT]...[/CONTENT] [HASHTAGS]...[/HASHTAGS] [CTA]...[/CTA] — من غير أي شرح.";
 
         $cost = cost_for('ai_edit_cost');
         if ($cost > 0 && !credits_consume($uid, $cost, 'تعديل بالكلام #' . $c['id'], 'ai_edit', (int) $c['id'])) {

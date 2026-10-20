@@ -19,12 +19,14 @@
       genLooks: ['راجل', 'ست', 'شاب', 'في الأربعينات', 'نضارة', 'بالطو أبيض', 'لبس كاجوال', 'محجبة', 'ابتسامة واثقة', 'ستايل كرتوني 3D'],
       onb: { step: 1, url: '', linkDone: false, answers: {}, more: {}, draft: null, conf: {}, pick: {}, facts: [], skip: false, open: false },
       mg: { url: '', file: null, name: '', res: null, running: '' },
-      lg: { style: 'minimal', notes: '' }, pals: [], photoOk: false,
+      lg: { style: 'minimal', notes: '' }, pals: [], photoOk: false, pe: null, ctaList: [],
       logoStyles: { minimal: 'بسيط وحديث', icon: 'رمز مميز', wordmark: 'الاسم بخط مميز', arabic: 'خط عربي', emblem: 'شعار في إطار', playful: 'مرح وودود' },
 
       contentSections: [
         { key: 'basics', label: 'الأساسيات والتواصل', icon: '🪪' },
         { key: 'business', label: 'النشاط والجمهور', icon: '🏷' },
+        { key: 'personas', label: 'العملاء المثاليين', icon: '👥' },
+        { key: 'cta', label: 'الـ CTA الأساسي', icon: '📣' },
         { key: 'services', label: 'الخدمات والمواضيع', icon: '🧩' },
         { key: 'voice', label: 'طريقة الكلام', icon: '🗣' },
         { key: 'pillars', label: 'اتجاه المحتوى', icon: '🧭' },
@@ -160,6 +162,8 @@
           case 'visuals': return d.visuals.kind ? this.vKinds[d.visuals.kind] : 'إزاي صورك تبان';
           case 'characters': return this.s.characters.length ? this.s.characters.length + ' شخصية' : 'صورتك أو شخصية/ماسكوت بالـ AI';
           case 'inspiration': return this.s.insp.length ? this.s.insp.length + ' تصميم' : 'صور أو لينكات لتصميمات عاجباك';
+          case 'personas': return this.s.personas.length ? this.s.personas.map(function (p) { return p.name; }).join('، ') : 'مين بيشتري منك؟ الـ AI يعملهم';
+          case 'cta': return (d.cta && d.cta.text) || 'الجملة اللي بتختم بيها كل بوست';
           case 'basics': return [this.s.basics.phones || this.s.basics.whatsapp, this.s.basics.address].filter(Boolean).join(' · ') || 'الاسم والتواصل والسوشيال';
         }
         return '';
@@ -417,6 +421,24 @@
         if (!r.ok) return this.fail(r);
         this.s.sources = r.sources;
       },
+      /* العملاء المثاليين */
+      svcName: function (id) { var x = (this.s.services || []).filter(function (v) { return +v.id === +id; })[0]; return x ? x.name : ''; },
+      editPersona: function (p) {
+        var j = function (a) { return (a || []).join('\n'); };
+        this.pe = p ? { id: p.id, name: p.name, emoji: p.emoji || '', age: p.age || '', gender: p.gender || '', job: p.job || '', location: p.location || '', voice: p.voice || '',
+                        service_ids: (p.service_ids || []).slice(), pains_t: j(p.pains), desires_t: j(p.desires), objections_t: j(p.objections), triggers_t: j(p.triggers), is_active: +p.is_active === 1 }
+                    : { id: 0, name: '', emoji: '', age: '', gender: '', job: '', location: '', voice: '', service_ids: [], pains_t: '', desires_t: '', objections_t: '', triggers_t: '', is_active: true };
+        this.modal = 'persona';
+      },
+      savePersona: async function () {
+        var e = this.pe, d = { id: e.id, name: e.name, emoji: e.emoji, age: e.age, gender: e.gender, job: e.job, location: e.location, voice: e.voice, service_ids: e.service_ids,
+          pains: lines(e.pains_t), desires: lines(e.desires_t), objections: lines(e.objections_t), triggers: lines(e.triggers_t), is_active: e.is_active ? 1 : 0 };
+        if (await this.post('persona_save', d, 'اتحفظ ✓')) this.modal = null;
+      },
+      delPersona: async function () { if (confirm('تحذف الشخص ده؟') && await this.post('persona_delete', { id: this.pe.id }, 'اتحذف')) this.modal = null; },
+      genPersonas: async function () { var r = await this.post('personas_generate', {}); if (r) this.say('الـ AI عمل ' + r.saved + ' أشخاص ✓ — راجعهم وعدّل لو حابب'); },
+      ctaSuggest: async function () { var r = await this.post('cta_suggest', { type: this.ed.cta.type || '' }); if (r) this.ctaList = r.ctas || []; },
+
       /* «ابدأ هنا»: لينك أو ملف ← الـ AI يملا الفاضي ويكمّل الناقص */
       magic: async function () {
         var m = this.mg;

@@ -160,8 +160,9 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
         . "- الأسلوب: {$angleLabel}\n"
         . ($idea['description'] ? "- التفاصيل: {$idea['description']}\n" : '')
         . "\nتوجيه الأسلوب: {$angleGuide}\n"
-        . "لهجة الكتابة: {$dialect}\n"
-        . "\nأعد الناتج بالتنسيق التالي بالظبط بدون أي تعليق إضافي:\n\n"
+        . "لهجة الكتابة: {$dialect}\n\n"
+        . prompt_fill('design_idea', ['format' => 'منشور'])
+        . "\n\nأعد الناتج بالتنسيق التالي بالظبط بدون أي تعليق إضافي:\n\n"
         . "[CONTENT]\nنص المنشور كامل (100-200 كلمة، Hook قوي في البداية، إيموجي معتدل)\n[/CONTENT]\n\n"
         . "[HASHTAGS]\n#هاشتاج1 #هاشتاج2 (5-8 هاشتاجات مناسبة)\n[/HASHTAGS]\n\n"
         . "[CTA]\nجملة الـ Call-to-Action\n[/CTA]\n\n"

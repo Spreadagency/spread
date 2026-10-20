@@ -375,9 +375,9 @@ switch ($action) {
         }
         $e['at'] = date('c');
         db_run('UPDATE campaign_ideas SET eval_score = ?, eval_json = ?, approved = ? WHERE id = ?',
-            [$e['score'], json_encode($e, JSON_UNESCAPED_UNICODE), $e['score'] >= CAMP_EVAL_READY ? 1 : 0, $i['id']]);
-        content_set_flag((int) $content['id'], $uid, $e['score'] >= CAMP_EVAL_READY ? 'needs_design' : 'needs_review',
-            $e['score'] >= CAMP_EVAL_READY ? null : mb_substr($e['issues'], 0, 250));
+            [$e['score'], json_encode($e, JSON_UNESCAPED_UNICODE), $e['score'] >= eval_ready_score() ? 1 : 0, $i['id']]);
+        content_set_flag((int) $content['id'], $uid, $e['score'] >= eval_ready_score() ? 'needs_design' : 'needs_review',
+            $e['score'] >= eval_ready_score() ? null : mb_substr($e['issues'], 0, 250));
         api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'balance' => credits_balance($uid)]);
 
     case 'improve':
@@ -392,10 +392,9 @@ switch ($action) {
         if (!rate_limit('camp_content', 'u' . $uid, 45, 600)) api_fail('وقفة قصيرة — كمّل بعد دقايق', 'rate_limit', 429);
         $cost = cost_for('content_regeneration_cost');
         cf_charge($uid, $cost, 'تحسين منشور #' . $content['id'], 'campaign_idea', (int) $i['id']);
-        $extra = "ده تحسين لمنشور موجود. النسخة الحالية:\n" . mb_substr((string) $content['generated_text'], 0, 2500)
-            . "\nCTA الحالي: " . (string) ($content['cta'] ?? '')
-            . "\n\nملاحظات المراجع (لازم تتعالج كلها): " . (($ev['issues'] ?? '') ?: 'قوّي الـ Hook والـ CTA ووضّح الرسالة')
-            . "\nحافظ على الفكرة والمعلومات — حسّن الصياغة والـ Hook والـ CTA بس.";
+        $extra = prompt_fill('campaign_improve', ['issues' => (($ev['issues'] ?? '') ?: 'قوّي الـ Hook والـ CTA ووضّح الرسالة')])
+            . "\nالنسخة الحالية:\n" . mb_substr((string) $content['generated_text'], 0, 2500)
+            . "\nCTA الحالي: " . (string) ($content['cta'] ?? '');
         if (cf_video_locked($content)) api_fail('الفيديو اتبعت للتنفيذ', 'locked', 409);
         $ifmt = content_format_key($content['format'] ?? 'post');
         $islides = (int) ($content['slides_count'] ?? 0);
@@ -438,7 +437,7 @@ switch ($action) {
         // الجاهز (80+) + اللي العميل اختار يعتمده بنفسه (ids)
         $ids = array_filter(array_map('intval', (array) (api_input()['idea_ids'] ?? [])));
         db_run('UPDATE campaign_ideas SET approved = 1 WHERE campaign_id = ? AND user_id = ? AND selected = 1 AND content_id IS NOT NULL
-                AND (eval_score >= ?' . ($ids ? ' OR id IN (' . implode(',', $ids) . ')' : '') . ')', [$c['id'], $uid, CAMP_EVAL_READY]);
+                AND (eval_score >= ?' . ($ids ? ' OR id IN (' . implode(',', $ids) . ')' : '') . ')', [$c['id'], $uid, eval_ready_score()]);
         foreach (db_all('SELECT content_id FROM campaign_ideas WHERE campaign_id = ? AND approved = 1 AND content_id IS NOT NULL', [$c['id']]) as $r) {
             content_set_flag((int) $r['content_id'], $uid, 'needs_design');
         }

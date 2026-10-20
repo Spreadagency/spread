@@ -7,6 +7,7 @@ require_admin();
 require_admin_can('ai_settings');
 
 $admin = current_admin();
+prompt_seed_library();   // البرومبتات اللي كانت في الكود بتظهر هنا وتتعدّل
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
@@ -38,6 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         admin_log('save_prompt', 'prompt', $id, "type=$type version=$newVersion");
         flash_set('success', 'تم حفظ إصدار جديد وتفعيله ✓');
         redirect('admin/prompts.php?type=' . $type);
+    }
+
+    if ($action === 'eval_criteria') {
+        $cats = array_slice(array_values(array_filter(array_map('trim', preg_split('/\R/u', (string) ($_POST['cats'] ?? ''))))), 0, 10);
+        if (count($cats) < 3) { flash_set('danger', 'اكتب 3 معايير على الأقل (سطر لكل معيار)'); redirect('admin/prompts.php?type=campaign_eval'); }
+        set_setting('campaign_eval_cats', implode("\n", array_map(fn($c) => mb_substr($c, 0, 60), $cats)));
+        set_setting('campaign_eval_ready', (string) max(50, min(95, (int) ($_POST['ready'] ?? 80))));
+        admin_log('eval_criteria', 'settings', null, implode('، ', $cats));
+        flash_set('success', 'اتحفظت معايير التقييم ✓');
+        redirect('admin/prompts.php?type=campaign_eval');
     }
 
     if ($action === 'add_design_template') {
@@ -153,12 +164,29 @@ include __DIR__ . '/../templates/admin-header.php';
                         <label>نص القالب</label>
                         <textarea name="prompt_text" class="textarea auto code-area" rows="20" required dir="ltr" style="font-family:'JetBrains Mono', monospace;font-size:12.5px;line-height:1.7;direction:rtl"><?= e($current['prompt_text'] ?? '') ?></textarea>
                         <div class="field-help">
+                            <?php $__lib = prompt_library()[$activeType] ?? null; if ($__lib): ?>
+                                المتغيرات المتاحة: <b dir="ltr"><?= e($__lib[2]) ?></b> — {data} مكان البيانات (الهوية · الفكرة · المحتوى) ولو شلته بتتحط بعد التعليمات.
+                                شكل الرد اللي الكود بيقراه بيتضاف تلقائيًا في الآخر، فمش محتاج تكتبه.
+                                <?php if (trim((string) ($current['prompt_text'] ?? '')) !== trim($__lib[3])): ?><br>النص الأصلي محفوظ — لو مسحت البرومبت بيرجع له تلقائيًا.<?php endif; ?>
+                            <?php else: ?>
                             استخدم {brand_name}، {industry}، {audience}، {tone}، {content_type}، {platform}، {length}، {extra_notes} كمتغيرات. خروج النص لازم يحتوي على [CONTENT][/CONTENT] [HASHTAGS][/HASHTAGS] [CTA][/CTA].
+                            <?php endif; ?>
                         </div>
                     </div>
 
                     <button class="btn">حفظ كإصدار جديد + تفعيل</button>
                 </form>
+                <?php if ($activeType === 'campaign_eval'): ?>
+                <form method="POST" data-safe-post style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+                    <?= csrf_field() ?><input type="hidden" name="action" value="eval_criteria">
+                    <h4 style="margin:0 0 6px">معايير التقييم ودرجة النجاح</h4>
+                    <div class="field"><label>المعايير (سطر لكل معيار — بالترتيب)</label>
+                        <textarea name="cats" class="textarea" rows="7"><?= e(implode("\n", eval_criteria())) ?></textarea></div>
+                    <div class="field"><label>درجة النجاح (البوست بيبقى «جاهز» من الدرجة دي)</label>
+                        <input type="number" name="ready" class="input" min="50" max="95" value="<?= eval_ready_score() ?>" style="max-width:120px"></div>
+                    <button class="btn ghost">حفظ المعايير</button>
+                </form>
+                <?php endif; ?>
             </div>
 
             <!-- Versions history -->

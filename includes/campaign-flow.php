@@ -19,11 +19,12 @@ require_once __DIR__ . '/prompt-builder.php';
 require_once __DIR__ . '/source-extract.php';   // get_brand_knowledge()
 require_once __DIR__ . '/lifecycle.php';
 require_once __DIR__ . '/content-formats.php';   // ⑦-ج Post · Carousel · Video · Story
+require_once __DIR__ . '/prompt-library.php';    // البرومبتات من الأدمن (جدول prompts)
 
 const CAMP_IDEAS_BATCH = 5;          // أفكار في كل طلب AI
 const CAMP_MAX_IDEAS = 30;
-const CAMP_EVAL_READY = 80;          // من 80 = «محتوى جاهز»
-const CAMP_EVAL_CATS = ['قوة الفكرة', 'قوة الـ Hook', 'مناسبة الجمهور', 'وضوح الرسالة', 'قوة CTA', 'التوافق مع البراند'];
+const CAMP_EVAL_READY = 80;          // الافتراضي — القيمة الفعلية eval_ready_score() من الأدمن
+const CAMP_EVAL_CATS = ['قوة الفكرة', 'قوة الـ Hook', 'مناسبة الجمهور', 'وضوح الرسالة', 'قوة CTA', 'التوافق مع البراند'];   // القديمة — الفعلية eval_criteria()
 const CAMP_FORMATS = ['منشور', 'ريلز', 'ستوري', 'كاروسيل', 'ستوري تفاعلية', 'فيديو'];
 
 /* ═══════════════ الأساس (البريف) ═══════════════ */
@@ -121,26 +122,34 @@ function campaign_dialect(array $brand): string
     };
 }
 
-/** برومبت دفعة أفكار (JSON) — بيتجنب الأفكار اللي طلعت قبل كده */
-function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitles): string
+/** برومبت دفعة أفكار (JSON) — بيتجنب الأفكار اللي طلعت قبل كده · التعليمات من الأدمن (campaign_ideas) */
+function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitles, string $plan = ''): string
 {
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? (campaign_bases()[$c['basis'] ?? ''] ?? 'تسويق عام');
     $details = trim((string) ($c['topic'] ?? '') . "\n" . (string) ($c['notes'] ?? ''));
-    $fm = implode('، ', CAMP_FORMATS);
-    return "أنت استراتيجي حملات سوشيال ميديا محترف. مطلوب {$n} أفكار لحملة شهرية واحدة متماسكة.\n\n"
-        . campaign_brand_block($brand, 'ideas') . "\n\n"
+    $data = campaign_brand_block($brand, 'ideas') . "\n\n"
         . "أساس الحملة: {$basis}\n"
         . "اسم الحملة: " . ($c['title'] ?? '') . "\n"
         . ($details !== '' ? "تفاصيل من العميل: {$details}\n" : '')
-        . ($avoidTitles ? "\nأفكار اتعملت قبل كده في نفس الحملة — ماتكررهاش ولا تقرب منها:\n- " . implode("\n- ", array_slice($avoidTitles, 0, 40)) . "\n" : '')
-        . "\nقواعد:\n"
-        . "- كل فكرة زاوية مختلفة (خلف الكواليس، عرض وقيمة، تفاعل، موسم ومناسبة، آراء العملاء، تعليمي، قصة، سؤال شائع…)\n"
-        . "- محددة وقابلة للتنفيذ فورًا ومربوطة بالبيزنس الحقيقي — مش عناوين عامة\n"
-        . "- الـ Hook جملة افتتاحية قوية بـ " . campaign_dialect($brand) . "\n"
-        . "- formats من القايمة دي بس: {$fm}\n"
-        . "- لكل فكرة: service = الخدمة اللي بتخدمها (من خدمات العميل بالظبط أو فاضي)، topic = الموضوع، pillar = الاتجاه\n\n"
-        . "أعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:\n"
-        . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":""}]}';
+        . ($plan !== '' ? "\n{$plan}\n" : '')
+        . ($avoidTitles ? "\nأفكار اتعملت قبل كده في نفس الحملة — ماتكررهاش ولا تقرب منها:\n- " . implode("\n- ", array_slice($avoidTitles, 0, 40)) . "\n" : '');
+    return prompt_fill('campaign_ideas', ['n' => $n, 'dialect' => campaign_dialect($brand), 'formats' => implode('، ', CAMP_FORMATS), 'data' => $data])
+        . "\n\nأعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:\n"
+        . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}';
+}
+
+/** العميل المثالي والشخصيات والـ CTA اللي الفكرة مربوطة بيهم (من إعداد الحملة) — سطور للبرومبت */
+function campaign_idea_targets(array $brand, array $idea): string
+{
+    $b = json_decode((string) ($idea['brief_json'] ?? ''), true) ?: [];
+    $uid = (int) ($brand['user_id'] ?? 0);
+    $L = [];
+    if (!empty($b['persona_id']) && $uid && function_exists('bk_persona') && ($p = bk_persona($uid, (int) $b['persona_id']))) {
+        $L[] = "- اكتب للشخص ده بالذات:\n" . bk_persona_text($p, $uid);
+    }
+    if (!empty($b['character_names'])) $L[] = '- الشخصيات اللي هتظهر في البوست: ' . implode('، ', (array) $b['character_names']);
+    if (!empty($b['cta'])) $L[] = '- الـ CTA بتاع الحملة (استخدمه بدل الأساسي): ' . $b['cta'];
+    return $L ? implode("\n", $L) . "\n" : '';
 }
 
 /** قراءة JSON من رد الـ AI (بيتحمل ```json ونصوص زيادة) */
@@ -202,17 +211,18 @@ function campaign_content_prompt(array $brand, array $c, array $idea, string $ex
 {
     $format = $format ?: campaign_idea_format($idea);
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام';
-    $head = "أنت كاتب محتوى تسويقي محترف. اكتب محتوى كامل لفكرة من حملة «" . ($c['title'] ?? '') . "» (أساسها: {$basis}).\n"
-        . 'شكل المحتوى: ' . content_format_label($format) . ($format === 'carousel' ? " من {$slides} شرائح" : '') . "\n\n"
-        . campaign_brand_block($brand, 'copy', $brief)
+    $fmtLabel = content_format_label($format) . ($format === 'carousel' ? " من {$slides} شرائح" : '');
+    $data = campaign_brand_block($brand, 'copy', $brief)
         . ($format === 'video' && !empty($brand['user_id']) ? bk_prompt_block((int) $brand['user_id'], 'video') : '') . "\n\n"
         . "الفكرة:\n- الزاوية: {$idea['angle']}\n- العنوان: {$idea['title']}\n"
         . (!empty($idea['description']) ? "- التفاصيل: {$idea['description']}\n" : '')
         . (!empty($idea['audience']) ? "- الجمهور: {$idea['audience']}\n" : '')
         . (!empty($idea['hook']) ? "- Hook مقترح: {$idea['hook']}\n" : '')
-        . ($extra !== '' ? "\n{$extra}\n" : '')
-        . "\nاللهجة: " . campaign_dialect($brand) . "\n"
-        . "أعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n";
+        . campaign_idea_targets($brand, $idea)
+        . ($extra !== '' ? "\n{$extra}\n" : '');
+    $head = prompt_fill('campaign_content', ['campaign' => (string) ($c['title'] ?? ''), 'basis' => $basis, 'format' => $fmtLabel, 'dialect' => campaign_dialect($brand), 'data' => $data])
+        . ($format !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
+        . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n";
     $tags = "[CTA]\nجملة Call-to-Action قصيرة ومحددة\n[/CTA]\n\n[HASHTAGS]\n#هاشتاج1 #هاشتاج2 (5-8)\n[/HASHTAGS]\n\n";
     $img = "[IMAGE_PROMPT]\nEnglish image prompt: scene, composition, brand colors, modern social media design. No text instructions unless essential.\n[/IMAGE_PROMPT]";
     if ($format === 'video') {
@@ -299,21 +309,20 @@ function campaign_split_text(string $text): array
     return ['hook' => $hook, 'body' => trim(substr($text, $p + 2))];
 }
 
-/** برومبت التقييم (JSON) */
+/** برومبت التقييم (JSON) — التعليمات والمعايير ودرجة النجاح من الأدمن (campaign_eval) */
 function campaign_eval_prompt(array $brand, array $c, array $idea, array $content): string
 {
-    $cats = implode('، ', CAMP_EVAL_CATS);
-    return "أنت مراجع محتوى تسويقي صارم ومنصف. قيّم المنشور ده قبل ما يتصمم.\n\n"
-        . campaign_brand_block($brand) . "\n\n"
+    $cats = eval_criteria();
+    $data = campaign_brand_block($brand) . "\n\n"
         . "هدف الحملة: " . (campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام') . "\n"
-        . "الفكرة: {$idea['title']}" . (!empty($idea['audience']) ? " — الجمهور: {$idea['audience']}" : '') . "\n\n"
+        . "الفكرة: {$idea['title']}" . (!empty($idea['audience']) ? " — الجمهور: {$idea['audience']}" : '') . "\n"
+        . campaign_idea_targets($brand, $idea) . "\n"
         . campaign_eval_body($content) . "\n"
-        . "CTA: " . (string) ($content['cta'] ?? '') . "\n\n"
-        . "قيّم كل معيار من 100 بالترتيب ده: {$cats}.\n"
-        . "لو المتوسط أقل من " . CAMP_EVAL_READY . " اكتب issues: إيه بالظبط اللي محتاج يتحسن (جملتين، عملي ومحدد).\n"
-        . "comment: تعليق قصير (جملة واحدة) بالعامية على نقطة القوة.\n"
-        . "أعد JSON فقط:\n"
-        . '{"cats":[90,88,85,84,82,92],"comment":"...","issues":""}';
+        . "CTA: " . (string) ($content['cta'] ?? '');
+    $example = implode(',', array_map(fn($k) => 80 + ($k * 3) % 15, array_keys($cats)));
+    return prompt_fill('campaign_eval', ['cats' => implode('، ', $cats), 'ready' => eval_ready_score(), 'data' => $data])
+        . "\n\ncats = " . count($cats) . " أرقام بنفس ترتيب المعايير. أعد JSON فقط:\n"
+        . '{"cats":[' . $example . '],"comment":"...","issues":""}';
 }
 
 /** نص التقييم حسب الشكل: الكاروسيل بشرائحه · الفيديو بسكريبته */
@@ -335,13 +344,15 @@ function campaign_parse_eval(string $response): ?array
 {
     $j = campaign_json($response);
     if (!$j || empty($j['cats']) || !is_array($j['cats'])) return null;
-    $cats = array_map(fn($v) => max(0, min(100, (int) $v)), array_slice(array_values($j['cats']), 0, 6));
-    if (count($cats) < 6) $cats = array_pad($cats, 6, (int) round(array_sum($cats) / max(1, count($cats))));
-    $score = isset($j['score']) ? max(0, min(100, (int) $j['score'])) : (int) round(array_sum($cats) / 6);
+    $labels = eval_criteria();
+    $nc = count($labels);
+    $cats = array_map(fn($v) => max(0, min(100, (int) $v)), array_slice(array_values($j['cats']), 0, $nc));
+    if (count($cats) < $nc) $cats = array_pad($cats, $nc, (int) round(array_sum($cats) / max(1, count($cats))));
+    $score = isset($j['score']) ? max(0, min(100, (int) $j['score'])) : (int) round(array_sum($cats) / $nc);
     return [
-        'score' => $score, 'cats' => $cats,
+        'score' => $score, 'cats' => $cats, 'labels' => $labels,
         'comment' => mb_substr(trim((string) ($j['comment'] ?? '')), 0, 300),
-        'issues' => $score < CAMP_EVAL_READY ? mb_substr(trim((string) ($j['issues'] ?? '')), 0, 500) : '',
+        'issues' => $score < eval_ready_score() ? mb_substr(trim((string) ($j['issues'] ?? '')), 0, 500) : '',
     ];
 }
 
@@ -437,7 +448,7 @@ function campaign_idea_api(array $i, ?array $content, array $designs): array
             array_intersect_key((array) (json_decode((string) ($content['brief_json'] ?? ''), true) ?: []), array_flip(['service', 'topic', 'pillar', 'method', 'character', 'hook'])))) ?: null,
         'reasons' => $content ? (json_decode((string) ($content['ai_reasoning'] ?? ''), true) ?: []) : [],
         'script' => $script,
-        'eval' => $eval ? $eval + ['ready' => (int) ($eval['score'] ?? 0) >= CAMP_EVAL_READY] : null,
+        'eval' => $eval ? $eval + ['ready' => (int) ($eval['score'] ?? 0) >= eval_ready_score()] : null,
         'designs' => $designs,
         'plan' => $i['plan_at'] ? ['at' => substr((string) $i['plan_at'], 0, 16), 'platform' => (string) ($i['plan_platform'] ?: 'facebook')] : null,
     ];

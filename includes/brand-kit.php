@@ -12,8 +12,8 @@
 
 require_once __DIR__ . '/db.php';
 
-const BK_SCHEMA_V = '1';
-const BK_SECTIONS = ['business', 'audience', 'personality', 'logo', 'colors', 'typography', 'design_style', 'visuals', 'voice', 'pillars', 'content', 'offers', 'forbidden_topics', 'focus'];
+const BK_SCHEMA_V = '1-p1';
+const BK_SECTIONS = ['business', 'audience', 'personality', 'logo', 'colors', 'typography', 'design_style', 'visuals', 'voice', 'pillars', 'content', 'offers', 'forbidden_topics', 'focus', 'cta'];
 const BK_AGENTS = ['brand', 'ideas', 'copy', 'design', 'video', 'schedule'];
 const BK_FORMATS = ['carousel', 'reel', 'single_image', 'story', 'text'];
 
@@ -167,6 +167,29 @@ function bk_schema_sql(): array
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             KEY idx_bl_kind (kind, is_active)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS brand_personas (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            emoji VARCHAR(8) NULL,
+            age VARCHAR(40) NULL,
+            gender VARCHAR(30) NULL,
+            job VARCHAR(150) NULL,
+            location VARCHAR(150) NULL,
+            pains TEXT NULL,
+            desires TEXT NULL,
+            objections TEXT NULL,
+            triggers TEXT NULL,
+            channels VARCHAR(255) NULL,
+            service_ids VARCHAR(255) NULL,
+            voice VARCHAR(255) NULL,
+            source ENUM('ai','user') NOT NULL DEFAULT 'user',
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            sort_order INT NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            KEY idx_bp_user (user_id, is_active)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         "CREATE TABLE IF NOT EXISTS learning_topics (
             id INT AUTO_INCREMENT PRIMARY KEY,
             learning_id INT NULL,
@@ -318,6 +341,7 @@ function bk_defaults(): array
         'offers'       => [],
         'forbidden_topics' => [],
         'focus'        => ['mode' => 'balanced', 'service_id' => null, 'month' => ''],
+        'cta'          => ['type' => '', 'text' => '', 'link' => ''],
         'confidence'   => [],
     ];
 }
@@ -493,6 +517,8 @@ function bk_clean_section(string $section, $value)
         case 'focus':
             return ['mode' => ($v['mode'] ?? '') === 'service' ? 'service' : 'balanced',
                     'service_id' => !empty($v['service_id']) ? (int) $v['service_id'] : null, 'month' => date('Y-m')];
+        case 'cta':
+            return ['type' => isset(bk_cta_types()[$v['type'] ?? '']) ? $v['type'] : '', 'text' => $str($v['text'] ?? '', 200), 'link' => $str($v['link'] ?? '', 300)];
     }
     return null;
 }
@@ -714,6 +740,7 @@ function bk_section_label(string $s): string
         'typography' => 'الخطوط', 'design_style' => 'استايل التصميم', 'visuals' => 'طبيعة الصور', 'voice' => 'طريقة الكلام',
         'pillars' => 'اتجاه المحتوى', 'content' => 'أشكال المحتوى', 'offers' => 'العروض', 'forbidden_topics' => 'مواضيع ممنوعة', 'focus' => 'تركيز الشهر',
         'services' => 'الخدمات', 'topics' => 'المواضيع', 'characters' => 'الشخصيات', 'formats' => 'أشكال المحتوى',
+        'cta' => 'الـ CTA الأساسي', 'personas' => 'العملاء المثاليين',
     ][$s] ?? $s;
 }
 
@@ -759,18 +786,20 @@ function bk_completeness(int $uid, ?array $kit = null): array
     $checks = [
         ['business', 'اسم النشاط والمجال', 10, $f('business_name') && $f('industry'), 'basics'],
         ['description', 'وصف النشاط أو اللي بيميزك', 6, $f('description') || $d['business']['usp'] !== '', 'basics'],
-        ['audience', 'مين جمهورك', 8, $f('audience') || $d['audience']['pains'], 'business'],
+        ['audience', 'مين جمهورك', 6, $f('audience') || $d['audience']['pains'], 'business'],
+        ['personas', 'العملاء المثاليين', 4, $count('SELECT COUNT(*) n FROM brand_personas WHERE user_id = ? AND is_active = 1') > 0, 'personas'],
+        ['cta', 'الـ CTA الأساسي', 4, ($d['cta']['text'] ?? '') !== '', 'cta'],
         ['services', 'الخدمات', 12, $count('SELECT COUNT(*) n FROM brand_services WHERE user_id = ? AND is_active = 1') > 0, 'services'],
         ['topics', 'المواضيع (3 على الأقل)', 6, $count('SELECT COUNT(*) n FROM brand_topics WHERE user_id = ? AND is_active = 1') >= 3, 'services'],
         ['voice', 'طريقة الكلام', 10, isset($stored['voice']) || $f('tone'), 'voice'],
         ['colors', 'الألوان', 8, $d['colors']['primary'] !== '' || $f('colors'), 'colors'],
         ['logo', 'اللوجو', 8, $f('logo_path'), 'logo'],
-        ['contact', 'بيانات التواصل', 8, $f('phones') || $f('whatsapp') || $f('address'), 'basics'],
-        ['links', 'الموقع أو السوشيال', 4, $f('website') || $f('social_facebook') || $f('social_instagram') || $f('social_tiktok') || $f('social_linkedin'), 'basics'],
+        ['contact', 'بيانات التواصل', 6, $f('phones') || $f('whatsapp') || $f('address'), 'basics'],
+        ['links', 'الموقع أو السوشيال', 2, $f('website') || $f('social_facebook') || $f('social_instagram') || $f('social_tiktok') || $f('social_linkedin'), 'basics'],
         ['pillars', 'اتجاه المحتوى', 6, count($d['pillars']) >= 2 || count($sector['default_pillars'] ?? []) >= 2, 'pillars'],
         ['formats', 'أشكال المحتوى', 2, $count('SELECT COUNT(*) n FROM brand_formats WHERE user_id = ? AND is_enabled = 1') > 0 || !$count('SELECT COUNT(*) n FROM brand_formats WHERE user_id = ?'), 'formats'],
         ['visuals', 'طبيعة الصور', 6, $d['visuals']['kind'] !== '', 'visuals'],
-        ['design_style', 'استايل التصميم', 4, !empty($d['design_style']['preset_id']) || $d['design_style']['notes'] !== '' || $f('design_rules') || $f('visual_identity'), 'colors'],
+        ['design_style', 'استايل التصميم', 2, !empty($d['design_style']['preset_id']) || $d['design_style']['notes'] !== '' || $f('design_rules') || $f('visual_identity'), 'colors'],
         ['personality', 'شخصية البراند', 2, count($d['personality']) > 0, 'business'],
     ];
     $pct = 0;
@@ -1767,6 +1796,7 @@ final class BrandContext
                 $L[] = '- بيانات التواصل (للـ CTA لما تكون مناسبة): ' . implode(' | ', $c);
                 $L[] = 'ماتخترعش أرقام أو عناوين أو أسعار غير الموجودة هنا.';
             }
+            if ($cta = bk_cta_text($uid, $d)) $L[] = '- الـ CTA الأساسي (استخدمه في آخر البوست إلا لو الحملة أو العميل طلب غيره): ' . $cta;
         }
         if ($v('notes') !== '') $L[] = '- ملاحظات العميل: ' . mb_substr($v('notes'), 0, 500);
         // ملخص الهوية القديم: بس لو الـ Kit لسه فاضي (وإلا بيبقى قديم ومتعارض)
@@ -2013,3 +2043,101 @@ function bk_agent_apply(int $uid, array $j): array
     }
     return $done;
 }
+
+/* ═══════════════ الـ CTA الأساسي ═══════════════ */
+
+function bk_cta_types(): array
+{
+    return ['whatsapp' => 'ابعت واتساب', 'call' => 'اتصل بينا', 'booking' => 'احجز', 'visit' => 'زورنا', 'order' => 'اطلب أونلاين', 'website' => 'شوف الموقع', 'message' => 'ابعتلنا رسالة'];
+}
+
+/** «الجملة — النوع (اللينك/الرقم)» · اللينك بيتاخد من بيانات التواصل لو فاضي */
+function bk_cta_text(int $uid, ?array $d = null): string
+{
+    $d = $d ?? bk_get($uid)['data'];
+    $c = $d['cta'] ?? [];
+    if (trim((string) ($c['text'] ?? '')) === '') return '';
+    $link = trim((string) ($c['link'] ?? ''));
+    if ($link === '') {
+        $bp = bk_brand_profile($uid) ?: [];
+        $link = match ($c['type'] ?? '') {
+            'whatsapp' => (string) ($bp['whatsapp'] ?? ''), 'call' => (string) ($bp['phones'] ?? ''),
+            'website', 'order', 'booking' => (string) ($bp['website'] ?? ''), 'visit' => (string) ($bp['address'] ?? ''),
+            default => '',
+        };
+    }
+    return $c['text'] . (!empty($c['type']) ? ' — ' . (bk_cta_types()[$c['type']] ?? '') : '') . ($link !== '' ? ' (' . mb_substr($link, 0, 160) . ')' : '');
+}
+
+/* ═══════════════ العملاء المثاليين (Buyer Personas) ═══════════════ */
+
+function bk_personas(int $uid, bool $activeOnly = true): array
+{
+    try {
+        $rows = db_all('SELECT * FROM brand_personas WHERE user_id = ?' . ($activeOnly ? ' AND is_active = 1' : '') . ' ORDER BY sort_order, id', [$uid]);
+    } catch (\Throwable $e) {
+        return [];
+    }
+    foreach ($rows as &$r) {
+        foreach (['pains', 'desires', 'objections', 'triggers'] as $k) $r[$k] = bk_arr($r[$k]);
+        $r['service_ids'] = array_values(array_filter(array_map('intval', explode(',', (string) $r['service_ids']))));
+        $r['channels'] = array_values(array_filter(array_map('trim', explode(',', (string) $r['channels']))));
+    }
+    unset($r);
+    return $rows;
+}
+
+function bk_persona(int $uid, int $id): ?array
+{
+    foreach (bk_personas($uid, false) as $p) if ((int) $p['id'] === $id) return $p;
+    return null;
+}
+
+/** وصف الشخص للبرومبت */
+function bk_persona_text(array $p, int $uid = 0): string
+{
+    $svc = [];
+    if ($p['service_ids'] && $uid) {
+        foreach (bk_services($uid) as $s) if (in_array((int) $s['id'], $p['service_ids'], true)) $svc[] = $s['name'];
+    }
+    $L = ['العميل المثالي: ' . $p['name'] . (trim(implode('، ', array_filter([$p['age'], $p['gender'], $p['job'], $p['location']]))) !== '' ? ' (' . implode('، ', array_filter([$p['age'], $p['gender'], $p['job'], $p['location']])) . ')' : '')];
+    if ($svc) $L[] = '  مهتم بـ: ' . implode('، ', $svc);
+    if ($p['pains']) $L[] = '  وجعه: ' . implode('، ', array_slice($p['pains'], 0, 4));
+    if ($p['desires']) $L[] = '  نفسه في: ' . implode('، ', array_slice($p['desires'], 0, 4));
+    if ($p['objections']) $L[] = '  اعتراضاته: ' . implode('، ', array_slice($p['objections'], 0, 4));
+    if ($p['triggers']) $L[] = '  اللي يخليه يشتري: ' . implode('، ', array_slice($p['triggers'], 0, 4));
+    if (!empty($p['voice'])) $L[] = '  الكلام اللي يناسبه: ' . $p['voice'];
+    return implode("\n", $L);
+}
+
+/** حفظ شخص (من الواجهة أو من الـ AI) — الخدمات لازم تكون من خدمات العميل */
+function bk_persona_save(int $uid, array $in, int $id = 0, string $source = 'user'): int
+{
+    $str = fn($v, $n) => mb_substr(trim((string) $v), 0, $n);
+    $list = fn($v) => json_encode(array_values(array_slice(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 160), is_array($v) ? $v : bk_lines((string) $v))), 0, 8)), JSON_UNESCAPED_UNICODE);
+    $own = array_map('intval', array_column(bk_services($uid, false), 'id'));
+    $svc = array_values(array_intersect(array_map('intval', (array) ($in['service_ids'] ?? [])), $own));
+    $row = [$str($in['name'] ?? '', 100) ?: 'عميل', $str($in['emoji'] ?? '', 8) ?: null, $str($in['age'] ?? '', 40) ?: null, $str($in['gender'] ?? '', 30) ?: null,
+            $str($in['job'] ?? '', 150) ?: null, $str($in['location'] ?? '', 150) ?: null, $list($in['pains'] ?? []), $list($in['desires'] ?? []), $list($in['objections'] ?? []),
+            $list($in['triggers'] ?? []), $str(implode(',', array_map('trim', is_array($in['channels'] ?? null) ? $in['channels'] : explode(',', (string) ($in['channels'] ?? '')))), 255) ?: null,
+            $svc ? implode(',', $svc) : null, $str($in['voice'] ?? '', 255) ?: null, array_key_exists('is_active', $in) ? (int) (bool) $in['is_active'] : 1];
+    if ($id) {
+        db_run('UPDATE brand_personas SET name=?, emoji=?, age=?, gender=?, job=?, location=?, pains=?, desires=?, objections=?, triggers=?, channels=?, service_ids=?, voice=?, is_active=? WHERE id=? AND user_id=?',
+            array_merge($row, [$id, $uid]));
+        return $id;
+    }
+    return (int) db_insert('INSERT INTO brand_personas (name, emoji, age, gender, job, location, pains, desires, objections, triggers, channels, service_ids, voice, is_active, user_id, source, sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        array_merge($row, [$uid, $source === 'ai' ? 'ai' : 'user', (int) (db_one('SELECT COUNT(*) n FROM brand_personas WHERE user_id = ?', [$uid])['n'] ?? 0) + 1]));
+}
+
+/** عدد البيرسونات الافتراضي والأقصى (من الإعدادات) */
+function bk_personas_default(): int
+{
+    return max(1, min(6, (int) get_setting('brand_personas_default', '3')));
+}
+
+function bk_personas_max(): int
+{
+    return 6;
+}
+

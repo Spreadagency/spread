@@ -64,9 +64,10 @@ function content_format_from_labels(array $labels): string
 function carousel_limits(): array
 {
     $g = fn($k, $d) => function_exists('get_setting') ? (int) get_setting($k, $d) : $d;
-    $max = max(2, min(10, $g('carousel_max_slides', 10)));
+    // الكاروسيل 4 صور، وأقصى حاجة 5 (الأدمن يقدر يقلّل بس)
+    $max = max(2, min(5, $g('carousel_max_slides', 5)));
     $min = max(2, min($max, $g('carousel_min_slides', 2)));
-    $def = max($min, min($max, $g('carousel_default_slides', 5)));
+    $def = max($min, min($max, $g('carousel_default_slides', 4)));
     return [$min, $max, $def];
 }
 
