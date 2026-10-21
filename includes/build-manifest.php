@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-21',
-  'generated' => '2026-10-21 19:34',
+  'generated' => '2026-10-21 20:05',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -573,8 +573,8 @@ return array (
     ),
     'docs/MCP_PHASES.md' => 
     array (
-      'h' => '30541939a2d4451e4a0e647b3d6c83d1',
-      's' => 11499,
+      'h' => 'e5235525c3c48bed679258675a932e00',
+      's' => 16380,
     ),
     'docs/prompts-v1.md' => 
     array (
