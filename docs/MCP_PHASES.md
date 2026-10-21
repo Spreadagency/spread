@@ -120,7 +120,66 @@
 
 ---
 
-## الجاي: المرحلة 3، الـ Internal API
-- قاعدة الـ AI ومستخدمين MySQL التلاتة (`mcp_read` · `mcp_ai` · `mcp_draft`) + دليل إنشائهم من cPanel.
-- `public/internal-api/v1/*`: Bearer + `X-Scope` + IP allowlist + rate limit + إخفاء البيانات الشخصية + `mcp_audit_log`.
-- ملف اختبار HTTP + تيست يثبت إن الـ MCP مايقدرش يحذف أو يلمس الكريدت والدفع والحسابات.
+## المرحلة 3: الـ Internal API ✅
+
+### اللي اتعمل
+- **قاعدة الـ AI المنفصلة:** `sql/2026_mcp_ai_db.sql` (+ rollback) فيها 12 جدول:
+  - التقييمات وتحليل البلاغات.
+  - مسودات الردود والبرومبتات والاستايلات.
+  - الاقتراحات والتقارير.
+  - الأمان والترابط والـ E2E.
+  - التوليد التجريبي وسجل الـ MCP.
+- **3 مستخدمين MySQL محدودين** (read / ai_write / draft)، والدليل لـ cPanel في `docs/INTERNAL_API.md`، وملف root للـ VPS في `sql/2026_mcp_db_users.example.sql`.
+- **`/internal-api/v1/`:** 29 مسار:
+  - 19 للقراءة (منهم مسار التحقق من الترابط، لسه للمرحلة 8).
+  - 5 للتقييم والتسجيل.
+  - 5 للمسودات (منهم التوليد التجريبي، لسه للمرحلة 6).
+
+  والحماية:
+  - IP + توكن + صلاحية = نوع المسار + POST للكتابة.
+  - اتصال MySQL منفصل لكل صلاحية.
+  - حد للطلبات.
+  - إخفاء الإيميلات والأرقام.
+  - سجل لكل طلب.
+- **الاقتراح المرفوض** مايتعادش بنفس الأدلة (fingerprint + evidence hash).
+- **صور التصميمات والبلاغات** بتتجاب بالتوكن من مسار `media`، مش لينك عام.
+- **الأدمن ← AI CENTER ← «إعداد الـ MCP»:** الحالة، وإنشاء جداول قاعدة الـ AI، واختبار حدود الصلاحيات، وآخر 25 طلب.
+
+### الملفات
+- **جديد:**
+  - `includes/internal-api.php`
+  - `includes/internal-api-routes.php`
+  - `includes/mcp-config.php`
+  - `public/internal-api/v1/index.php`
+  - `public/internal-api/.htaccess`
+  - `sql/2026_mcp_ai_db.sql`
+  - `sql/2026_mcp_ai_db_rollback.sql`
+  - `sql/2026_mcp_db_users.example.sql`
+  - `admin/mcp-setup.php`
+  - `tests/internal-api-smoke.php`
+  - `tests/internal-api.http`
+  - `tests/.htaccess`
+  - `docs/INTERNAL_API.md`
+- **معدّل:**
+  - `includes/config.sample.php` (الثوابت الجديدة)
+  - `includes/admin-ui.php` (رابط الصفحة)
+  - `includes/build-manifest.php`
+
+### التجربة
+اتبع `docs/INTERNAL_API.md` من الخطوة 1 للخطوة 5. صفحة «إعداد الـ MCP» لازم تبقى كلها ✅، واختبار الصلاحيات **14 / 14 مرفوض**.
+
+### نتيجة الاختبار المحلي
+اتعملت قاعدة AI منفصلة و3 مستخدمين بنفس صلاحيات الإنتاج، و`php tests/internal-api-smoke.php` جاب **40 / 40**:
+- **البوابة:** توكن غلط ← 401، وصلاحية مش مطابقة ← 403، ومسار مش موجود ← 404.
+- **القراءة:** كل مسارات القراءة شغالة، والهوية من غير أرقام أو إيميلات كاملة، وطلب ملف برّه `uploads` اترفض.
+- **الكتابة:** حفظ التقييم والتقارير والملاحظات شغال، وتقييم ناقص أو برّه من 1 لـ 10 بيترفض.
+- **المسودات:** الاقتراح المكرر مابيتسجلش تاني.
+- **الصلاحيات:** 14 محاولة ممنوعة (حذف، كريدت، دفع، حسابات، أفلييت، اشتراكات، نشر برومبت مباشرة، مسح السجل) **رفضها MySQL**.
+- **السجل:** كل طلب اتسجّل.
+
+---
+
+## الجاي: المرحلة 4، خادم الـ MCP (Node + TypeScript على الـ VPS)
+- أدوات القراءة والتقييم + `rubric://content-quality` + برومبت `daily_review`.
+- Streamable HTTP + OAuth 2.1 (لموصّل Claude) + Bearer ثابت.
+- دليل التركيب على الـ VPS (Node + reverse proxy + HTTPS) والربط بموصّل Claude.

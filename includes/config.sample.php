@@ -108,3 +108,16 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // ─── Encryption (API keys في قاعدة البيانات — المرحلة 1) ───
 define('ENCRYPTION_KEY', 'c6ca6640185aa169ab69c798e451f137b2100a180765bc950f35e76155432afb');
+
+// ─── نظام الجودة (MCP) — Internal API (المرحلة 3) ──────────
+// قاعدة الـ AI المنفصلة + 3 مستخدمين MySQL بصلاحيات محدودة — الدليل: docs/INTERNAL_API.md
+// فاضي = الـ Internal API مقفول (503) · MCP_AI_DB_NAME فاضي = نفس قاعدة المنصة (للتطوير المحلي بس)
+define('MCP_AI_DB_NAME', '');        // مثلًا: cpuser_spread_ai
+define('MCP_DB_READ_USER', '');      // SELECT بس على قاعدة المنصة + قاعدة الـ AI
+define('MCP_DB_READ_PASS', '');
+define('MCP_DB_AI_USER', '');        // SELECT/INSERT/UPDATE على قاعدة الـ AI بس (من غير DELETE)
+define('MCP_DB_AI_PASS', '');
+define('MCP_DB_DRAFT_USER', '');     // SELECT/INSERT على قاعدة الـ AI بس
+define('MCP_DB_DRAFT_PASS', '');
+define('INTERNAL_API_TOKEN', '');    // 64 حرف عشوائي — نفس القيمة في .env بتاع خادم الـ MCP
+define('INTERNAL_API_IPS', '');      // IP خادم الـ MCP (الـ VPS) — أكتر من واحد بفاصلة · فاضي = 127.0.0.1 بس

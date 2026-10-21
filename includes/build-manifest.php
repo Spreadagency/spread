@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-21',
-  'generated' => '2026-10-21 18:50',
+  'generated' => '2026-10-21 19:34',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -141,6 +141,13 @@ return array (
     132 => 'sql/2026_mcp_foundation_rollback.sql',
     133 => 'docs/MCP_PHASES.md',
     134 => 'docs/AUDIT.md',
+    135 => 'includes/internal-api.php',
+    136 => 'includes/internal-api-routes.php',
+    137 => 'includes/mcp-config.php',
+    138 => 'public/internal-api/v1/index.php',
+    139 => 'admin/mcp-setup.php',
+    140 => 'sql/2026_mcp_ai_db.sql',
+    141 => 'sql/2026_mcp_ai_db_rollback.sql',
   ),
   'files' => 
   array (
@@ -273,6 +280,11 @@ return array (
     array (
       'h' => 'a918237af03c3afe309ee3e619452bed',
       's' => 3469,
+    ),
+    'admin/mcp-setup.php' => 
+    array (
+      'h' => 'b52e773d310805792b025cd60897cc3f',
+      's' => 8268,
     ),
     'admin/media-library.php' => 
     array (
@@ -561,8 +573,8 @@ return array (
     ),
     'docs/MCP_PHASES.md' => 
     array (
-      'h' => '0365f86fd9437615982ad082b71caba7',
-      's' => 8136,
+      'h' => '30541939a2d4451e4a0e647b3d6c83d1',
+      's' => 11499,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -596,8 +608,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '04f5f7f8a57df0b4a73df44acbd95697',
-      's' => 13028,
+      'h' => '9418fe8052bb3f54c12c46cb93c8aeb1',
+      's' => 13156,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -651,8 +663,8 @@ return array (
     ),
     'includes/config.sample.php' => 
     array (
-      'h' => '5c031a96fcc208dc6b331244ef255dcd',
-      's' => 5521,
+      'h' => 'd7d82c0a945d94f4e688ad0b45234dd7',
+      's' => 6656,
     ),
     'includes/content-formats.php' => 
     array (
@@ -699,6 +711,16 @@ return array (
       'h' => 'd3a0c29441ac491fe1329bad78020419',
       's' => 11918,
     ),
+    'includes/internal-api-routes.php' => 
+    array (
+      'h' => '181f5c2610c2c21da294da1f07fed9d7',
+      's' => 45618,
+    ),
+    'includes/internal-api.php' => 
+    array (
+      'h' => 'a4e7ec98356cfa7ed1ed4c6d252c28e2',
+      's' => 12190,
+    ),
     'includes/journey.php' => 
     array (
       'h' => 'e58e006451620912b5b971dc49fb8964',
@@ -713,6 +735,11 @@ return array (
     array (
       'h' => 'db4d5433bb480e9bfb72571d91d473b8',
       's' => 4895,
+    ),
+    'includes/mcp-config.php' => 
+    array (
+      'h' => '0f163e617bfed0f9b3121b36377b7a43',
+      's' => 6503,
     ),
     'includes/migrations.php' => 
     array (
@@ -1219,6 +1246,11 @@ return array (
       'h' => 'dfecd65b3d0006755c2140b213110597',
       's' => 133,
     ),
+    'public/internal-api/v1/index.php' => 
+    array (
+      'h' => '94c82b321e58b81a62349797361b5bfe',
+      's' => 589,
+    ),
     'public/journey.php' => 
     array (
       'h' => '835088003cccf95c4da1466e87775fb6',
@@ -1408,6 +1440,16 @@ return array (
     array (
       'h' => '12d9e030176db3ef77a4734bd8f6a96a',
       's' => 1591,
+    ),
+    'sql/2026_mcp_ai_db.sql' => 
+    array (
+      'h' => '85e9f81faa10e0953a65b0575d6e573f',
+      's' => 8928,
+    ),
+    'sql/2026_mcp_ai_db_rollback.sql' => 
+    array (
+      'h' => '1098b53b52ee486b81afd7b8d49d3286',
+      's' => 1202,
     ),
     'sql/2026_mcp_foundation.sql' => 
     array (

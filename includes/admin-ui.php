@@ -99,6 +99,7 @@ function admin_nav(): array
             ['style-presets', 'مكتبة الـ Presets', 'Style Presets', 'sliders', 'admin/style-presets.php', 'ai_settings', ['style-presets']],
             ['ai-logs', 'سجل طلبات الـ AI', 'AI Request Logs', 'list', 'admin/ai-runs.php', 'view_costs', ['ai-logs', 'ai-runs']],
             ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
+            ['mcp-setup', 'إعداد الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
         ],
         'PUBLISHING' => [
             ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
