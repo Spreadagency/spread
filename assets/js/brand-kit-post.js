@@ -80,7 +80,11 @@
       var bt = e.target.closest('button[data-v]');
       if (!bt) return;
       var v = st.feedback === +bt.dataset.v ? 0 : +bt.dataset.v;
-      api('POST', 'post_feedback', { value: v }).then(function (r) { if (r.ok) { st.feedback = v || null; render(); note(v ? 'شكرًا — بنتعلم من رأيك' : ''); } });
+      api('POST', 'post_feedback', { value: v }).then(function (r) {
+        if (!r.ok) return;
+        st.feedback = v || null; render(); note(v ? 'شكرًا — قولّنا السبب علشان نتعلم أسرع' : '');
+        if (window.SpreadQuality) window.SpreadQuality.postReasons(document.getElementById('bkp-reasons'), id, v);   // سبب التقييم (نظام الجودة)
+      });
     });
     document.getElementById('bkp-regen').addEventListener('click', function () {
       if (!confirm('نسخة تانية هتكلفك كريدت إضافية. متأكد؟')) return;

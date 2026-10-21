@@ -39,6 +39,9 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
     </form>
 
     <div class="v2-top-act">
+        <?php if (!function_exists('get_setting') || get_setting('issues_enabled', '1') === '1'): ?>
+        <button type="button" class="v2-iconbtn" data-report title="بلّغ عن مشكلة" aria-label="بلّغ عن مشكلة" style="font-size:17px">⚑</button>
+        <?php endif; ?>
         <div class="v2-bell-wrap" data-inbox data-dot="v2-dot" data-badge="<?= (int) $__notif['badge'] ?>" data-unread="<?= $__unread0 ?>">
             <button type="button" class="v2-iconbtn v2-bell" data-inbox-btn aria-label="الإشعارات" aria-expanded="false" aria-haspopup="true"
                     onclick="v2Bell(event)">

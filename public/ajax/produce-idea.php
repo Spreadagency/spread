@@ -120,6 +120,7 @@ if ($remaining === 0) {
 }
 
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? 'router', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'plan_produce', $ai);
 
 json_response([
     'ok' => true,

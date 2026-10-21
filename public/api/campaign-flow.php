@@ -230,10 +230,12 @@ switch ($action) {
     case 'idea_toggle':
         $i = cf_idea($c, $uid);
         db_run('UPDATE campaign_ideas SET selected = ? WHERE id = ?', [api_int('selected') ? 1 : 0, $i['id']]);
+        if (api_int('selected')) EventTracker::track('idea_selected', 'campaign_idea', (int) $i['id'], ['campaign_id' => (int) $c['id']], $uid);
         api_ok(['selected' => (bool) api_int('selected')]);
 
     case 'idea_select_all':
         db_run('UPDATE campaign_ideas SET selected = ? WHERE campaign_id = ? AND user_id = ?', [api_int('selected') ? 1 : 0, $c['id'], $uid]);
+        if (api_int('selected')) EventTracker::track('idea_selected', 'campaign', (int) $c['id'], ['all' => true], $uid);
         api_ok();
 
     case 'idea_save':
@@ -332,6 +334,7 @@ switch ($action) {
         db_run('UPDATE campaign_ideas SET content_id = ?, script_json = ?, format = ?, slides_count = ?, selected = 1, eval_score = NULL, eval_json = NULL, approved = 0 WHERE id = ?',
             [$cid, $fmt === 'video' ? json_encode($script, JSON_UNESCAPED_UNICODE) : null, $fmt, $slides ?: null, $i['id']]);
         if (function_exists('ai_log_usage')) ai_log_usage($uid, 'generate', $ai['model'] ?? 'router', $ai['usage'] ?? [], $cid);
+        ai_stamp('contents', $cid, 'campaign_content', $ai);
         api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'balance' => credits_balance($uid)]);
 
     case 'content_save':
@@ -459,6 +462,7 @@ switch ($action) {
             api_fail($ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التحسين'), 'ai_failed', 502);
         }
         $text = campaign_compose_text($p['hook'], $p['body']);
+        ai_stamp('contents', (int) $content['id'], $impTask ? 'campaign_improve' : 'campaign_content', $ai);
         db_run('UPDATE contents SET generated_text = ?, hashtags = ?, cta = ?, status = "edited" WHERE id = ?',
             [$text, ($p['tags'] ?: $content['hashtags']) ?: null, ($p['cta'] ?: $content['cta']) ?: null, $content['id']]);
         if ($ifmt === 'carousel' && $p['slides_raw'] !== '') {
@@ -556,6 +560,7 @@ switch ($action) {
         $ts = strtotime(str_replace('T', ' ', $at));
         if (!$ts || $ts < strtotime('today') || $ts > strtotime('+400 days')) api_fail('اختار ميعاد صالح (من النهارده لقدّام)', 'invalid', 422);
         db_run('UPDATE campaign_ideas SET plan_at = ?, plan_platform = ? WHERE id = ?', [date('Y-m-d H:i:00', $ts), $platform, $i['id']]);
+        EventTracker::track('post_scheduled', $i['content_id'] ? 'content' : 'campaign_idea', (int) ($i['content_id'] ?: $i['id']), ['at' => date('Y-m-d H:i', $ts), 'platform' => $platform, 'source' => 'campaign'], $uid);
         api_ok(['plan' => ['at' => date('Y-m-d H:i', $ts), 'platform' => $platform]]);
 
     case 'auto_plan':

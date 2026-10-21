@@ -13,6 +13,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/prompt-engine.php';
+require_once __DIR__ . '/EventTracker.php';   // ai_stamp + تتبّع الأحداث (نظام الجودة)
 
 /** type => [العنوان, الوصف, المتغيرات المتاحة, النص الافتراضي] */
 function prompt_library(): array
@@ -96,14 +97,46 @@ function prompt_library(): array
     ];
 }
 
+/**
+ * الإصدار اللي هيتستخدم للنوع ده: المفعّل (live) — أو نسخة «تجربة A/B» لنسبة من العملاء
+ * العميل بيفضل في نفس المجموعة (hash ثابت لرقمه + النوع) · رقم الإصدار بيتسجّل علشان يتحفظ على المنشور
+ */
+function prompt_pick(string $type): ?array
+{
+    static $cache = [];
+    if (array_key_exists($type, $cache)) return $cache[$type];
+    $row = null;
+    try {
+        $row = db_one('SELECT id, prompt_text FROM prompts WHERE prompt_type = ? AND is_active = 1 ORDER BY version DESC LIMIT 1', [$type]) ?: null;
+        $test = null;
+        try {
+            $test = db_one('SELECT id, prompt_text, traffic_percent FROM prompts WHERE prompt_type = ? AND status = "testing" AND traffic_percent > 0 ORDER BY version DESC LIMIT 1', [$type]);
+        } catch (\Throwable $e) {   // قبل ترحيل 2026_mcp_foundation (مفيش عمود status)
+        }
+        if ($test && trim((string) $test['prompt_text']) !== '') {
+            $uid = (int) ($_SESSION['user_id'] ?? 0);
+            $bucket = $uid > 0 ? (crc32($uid . '|' . $type) % 100) : mt_rand(0, 99);
+            if ($bucket < min(100, (int) $test['traffic_percent'])) $row = $test;
+        }
+    } catch (\Throwable $e) {
+    }
+    if ($row && trim((string) $row['prompt_text']) === '') $row = null;
+    $GLOBALS['__prompt_used'][$type] = $row ? (int) $row['id'] : null;
+    return $cache[$type] = $row;
+}
+
+/** رقم الإصدار اللي اتستخدم فعلًا للنوع ده في الطلب الحالي (null = النص الافتراضي من الكود) */
+function prompt_used_id(string $type): ?int
+{
+    if (!array_key_exists($type, $GLOBALS['__prompt_used'] ?? [])) prompt_pick($type);
+    return $GLOBALS['__prompt_used'][$type] ?? null;
+}
+
 /** النص المفعّل من الأدمن — وإلا الافتراضي */
 function prompt_get(string $type): string
 {
-    try {
-        $row = db_one('SELECT prompt_text FROM prompts WHERE prompt_type = ? AND is_active = 1 ORDER BY version DESC LIMIT 1', [$type]);
-        if ($row && trim((string) $row['prompt_text']) !== '') return (string) $row['prompt_text'];
-    } catch (\Throwable $e) {
-    }
+    $row = prompt_pick($type);
+    if ($row) return (string) $row['prompt_text'];
     return prompt_library()[$type][3] ?? '';
 }
 

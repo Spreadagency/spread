@@ -881,6 +881,10 @@ switch ($action) {
         $v = api_int('value', 0, -1, 1);
         db_run('UPDATE contents SET feedback = ? WHERE id = ?', [$v === 0 ? null : $v, $c['id']]);
         if ($v !== 0) bk_feedback($uid, (int) $c['id'], $v > 0 ? 'like' : 'dislike', 'post', null, mb_substr((string) $c['generated_text'], 0, 1200));
+        if ($v !== 0 && is_file(__DIR__ . '/../../includes/EventTracker.php')) {
+            require_once __DIR__ . '/../../includes/EventTracker.php';
+            EventTracker::track('post_rated', 'content', (int) $c['id'], ['rating' => $v], $uid);
+        }
         api_ok(['feedback' => $v]);
 
     /* المستند يدخل في المحتوى ولا لأ */

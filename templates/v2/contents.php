@@ -101,6 +101,7 @@
                 <div class="lib-act">
                     <a class="btn ghost sm" :href="base + '/content-view.php?id=' + c.id">فتح المنشور</a>
                     <button type="button" class="btn ghost sm" @click="open(c.id)" title="معاينة سريعة من غير ما تسيب الصفحة">👁</button>
+                    <button type="button" class="btn ghost sm" data-report :data-content-id="c.id" title="بلّغ عن مشكلة في المنشور ده" aria-label="بلّغ عن مشكلة">⚑</button>
                     <span class="pv-c" v-if="c.next.kind === 'link'"><a :href="c.next.url" class="btn sm">{{ c.next.label }}</a></span>
                     <span class="pv-c" v-if="c.next.kind === 'external'"><a :href="c.next.url" class="btn soft sm" target="_blank" rel="noopener">{{ c.next.label }}</a></span>
                     <span class="pv-c" v-if="c.next.kind === 'panel'"><button type="button" class="btn sm" @click="open(c.id)">{{ c.next.label }}</button></span>

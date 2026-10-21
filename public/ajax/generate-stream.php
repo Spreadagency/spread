@@ -134,6 +134,7 @@ if ($__campaignId > 0 && $contentId > 0) {
 if ($bkBrief && $contentId) BrandContext::attach((int) $contentId, (int) $user['id'], $bkBrief, $bkWhy, $bkOverrides);
 save_content_version($contentId, $parsed['content'], $parsed['hashtags'], $parsed['cta'], 'ai', 'الإصدار الأول');
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? '', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'content', $ai);
 
 sse([
     'done' => true,

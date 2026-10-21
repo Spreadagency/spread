@@ -112,6 +112,7 @@ switch ($action) {
             'status' => 'generated', 'credits_used' => $cost,
         ] + $ff);
         save_content_version($cid, $text, $p['tags'] ?: null, $p['cta'] ?: null, 'ai', 'منشور سريع');
+        ai_stamp('contents', (int) $cid, 'quick_post', $ai);
         if ($brief) BrandContext::attach($cid, $uid, $brief, BrandContext::parseWhy((string) $ai['response']), $o);
         if ($persona) {
             $bj = json_decode((string) (db_one('SELECT brief_json FROM contents WHERE id = ?', [$cid])['brief_json'] ?? ''), true) ?: [];

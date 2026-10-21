@@ -16,16 +16,9 @@ require_once __DIR__ . '/prompt-library.php';
  */
 function get_active_prompt(string $type = 'content'): string
 {
-    try {
-        $row = db_one(
-            'SELECT prompt_text FROM prompts WHERE prompt_type = ? AND is_active = 1 ORDER BY version DESC LIMIT 1',
-            [$type]
-        );
-        if ($row && trim((string) $row['prompt_text']) !== '') {
-            return $row['prompt_text'];
-        }
-    } catch (\Throwable $e) {
-    }
+    // المفعّل — أو نسخة «تجربة A/B» لنسبة من العملاء (prompt_pick في prompt-library.php)
+    $row = prompt_pick($type);
+    if ($row) return (string) $row['prompt_text'];
     return $type === 'content' ? default_base_prompt() : '';
 }
 

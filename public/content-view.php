@@ -17,6 +17,9 @@ $versions = get_content_versions($id);
 $brand = user_brand();
 $notes = db_all('SELECT * FROM content_notes WHERE content_id = ? ORDER BY created_at DESC', [$id]);
 $designs = db_all('SELECT * FROM content_designs WHERE content_id = ? ORDER BY id DESC', [$id]);
+// تقييم العميل لكل تصميم (نظام الجودة) — قبل الترحيل الجدول مش موجود
+$__dRates = [];
+try { foreach (db_all('SELECT design_id, rating FROM design_ratings WHERE content_id = ? AND user_id = ?', [$id, (int) $_SESSION['user_id']]) as $__r) $__dRates[(int) $__r['design_id']] = (int) $__r['rating']; } catch (\Throwable $e) {}
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/social.php';
 
@@ -57,6 +60,7 @@ include __DIR__ . '/../templates/header.php';
                 </div>
             </div>
             <div style="display:flex;gap:8px">
+                <button type="button" class="btn ghost" data-report data-content-id="<?= (int) $id ?>">⚑ بلّغ عن مشكلة</button>
                 <a href="<?= url('content-edit.php?id=' . $id) ?>" class="btn">✎ تعديل</a>
             </div>
         </div>
@@ -288,6 +292,9 @@ include __DIR__ . '/../templates/header.php';
                                 </a>
                                 <figcaption>
                                     <b>V<?= count($designs) - $i ?></b><?php if (!empty($d['slide_no'])): ?> · شريحة <?= (int) $d['slide_no'] ?><?php endif; ?>
+                                    <span data-design-rate="<?= (int) $d['id'] ?>" data-v="<?= (int) ($__dRates[(int) $d['id']] ?? 0) ?>"></span>
+                                    <a href="<?= url('storage/' . $d['image_path']) ?>" download class="sq-flag" data-design-download="<?= (int) $d['id'] ?>" title="تحميل التصميم" aria-label="تحميل التصميم">⬇</a>
+                                    <button type="button" class="sq-flag" data-report data-design-id="<?= (int) $d['id'] ?>" data-content-id="<?= (int) $id ?>" data-category="design" title="بلّغ عن مشكلة في التصميم" aria-label="بلّغ عن مشكلة في التصميم">⚑</button>
                                     <?php if ($__cur): ?><span class="cv-cur">الغلاف ✓</span>
                                     <?php elseif (!$__locked): ?><button type="button" class="btn ghost sm" onclick="cvUseDesign(<?= (int) $d['id'] ?>, this)">استخدام</button><?php endif; ?>
                                 </figcaption>

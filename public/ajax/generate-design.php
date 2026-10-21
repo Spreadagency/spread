@@ -383,6 +383,8 @@ $designId = db_insert_row('content_designs', [
     'ratio' => $__exact ? mb_substr($__exact[0] . 'x' . $__exact[1], 0, 10) : $ratioKey,
 ] + (formats_ready() ? ['slide_no' => $slideNo, 'refs_json' => $refLog ? json_encode($refLog, JSON_UNESCAPED_UNICODE) : null] : []));
 
+ai_stamp('content_designs', (int) $designId, 'design_base', $result);   // الإصدار والمزود (نظام الجودة)
+
 // تعديل تصميم موجود بالكلام: طلب التعديل مش «اتجاه التصميم» — ومايتكتبش مكانه
 $isDesignEdit = ($_POST['design_edit'] ?? '') === '1';
 if ($customPrompt !== '' && !$isDesignEdit) {

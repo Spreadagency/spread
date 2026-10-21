@@ -19,6 +19,7 @@ $__bkpV = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) 
         <a class="btn sm primary" id="bkp-approve" href="#schedule">✓ اعتمد وجدول</a>
         <span class="bkp-fb" role="group" aria-label="رأيك في البوست"><button type="button" data-v="1" aria-label="عجبني">👍</button> <button type="button" data-v="-1" aria-label="ماعجبنيش">👎</button></span>
         <span class="note" id="bkp-note"></span>
+        <span class="sq-reasons" id="bkp-reasons" hidden></span>
     </div>
 </div>
 <script src="<?= $__bkpV('assets/js/brand-kit-post.js') ?>" defer></script>

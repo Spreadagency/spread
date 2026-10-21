@@ -90,6 +90,7 @@ bk_feedback((int) $user['id'], $contentId, 'regenerate', 'post', null, $bkNew ? 
 
 // Actual usage tracking (feature 25)
 ai_log_usage((int) $user['id'], 'regenerate', $ai['model'] ?? '', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'content', $ai);
 try {
     db_run('UPDATE contents SET model = ?, tokens_in = tokens_in + ?, tokens_out = tokens_out + ? WHERE id = ?',
         [$ai['model'] ?? null, $ai['usage']['in'] ?? 0, $ai['usage']['out'] ?? 0, $contentId]);

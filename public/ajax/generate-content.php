@@ -125,6 +125,7 @@ save_content_version($contentId, $parsed['content'], $parsed['hashtags'], $parse
 
 // Actual usage tracking (feature 25)
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? '', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'content', $ai);
 
 json_response([
     'ok' => true,
