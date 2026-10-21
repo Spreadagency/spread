@@ -51,6 +51,16 @@ function campaign_flow_bases(): array
  */
 function campaign_ai(string $prompt, int $maxTokens, string $task, array $ctx = []): array
 {
+    $r = campaign_ai_call($prompt, $maxTokens, $task, $ctx);
+    // ذاكرة البراند: [LEARNINGS] في الرد بتتحفظ وتتشال قبل القراءة
+    if (!empty($r['ok']) && is_string($r['response'] ?? null) && str_contains($r['response'], '[LEARNINGS]')) {
+        $r['response'] = prompt_capture_learnings((int) ($ctx['user_id'] ?? 0), $r['response'], $task);
+    }
+    return $r;
+}
+
+function campaign_ai_call(string $prompt, int $maxTokens, string $task, array $ctx = []): array
+{
     require_once __DIR__ . '/ai.php';
     if (is_file(__DIR__ . '/smart-ai.php')) require_once __DIR__ . '/smart-ai.php';
 
@@ -133,6 +143,18 @@ function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitle
         . ($details !== '' ? "تفاصيل من العميل: {$details}\n" : '')
         . ($plan !== '' ? "\n{$plan}\n" : '')
         . ($avoidTitles ? "\nأفكار اتعملت قبل كده في نفس الحملة — ماتكررهاش ولا تقرب منها:\n- " . implode("\n- ", array_slice($avoidTitles, 0, 40)) . "\n" : '');
+    $fmt = 'أعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:' . "\n";
+    if (prompt_full('campaign_ideas')) {
+        // برومبت كامل (v1): كل البيانات في المتغيرات — والشكل اللي الكود بيقراه تحت
+        $vars = ['n' => $n, 'count' => $n, 'dialect' => campaign_dialect($brand), 'formats' => implode('، ', CAMP_FORMATS),
+            'brand_identity' => campaign_brand_block($brand, 'ideas'), 'campaign_goal' => $basis, 'campaign_duration' => 'شهر',
+            'offer' => $details, 'topic' => (string) ($c['topic'] ?? ''),
+            'extra_notes' => trim('اسم الحملة: ' . ($c['title'] ?? '') . ($details !== '' ? "\n" . $details : '') . ($plan !== '' ? "\n\n" . $plan : '')),
+            'previous_ideas' => $avoidTitles ? '- ' . implode("\n- ", array_slice($avoidTitles, 0, 40)) : 'مفيش'];
+        return prompt_fill('campaign_ideas', $vars, ['uid' => (int) ($brand['user_id'] ?? 0), 'brand' => $brand, 'agent' => 'ideas'])
+            . prompt_format_head() . "مطلوب {$n} أفكار بالظبط. formats من القايمة دي بس: " . implode('، ', CAMP_FORMATS) . ".\n" . $fmt
+            . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}';
+    }
     return prompt_fill('campaign_ideas', ['n' => $n, 'dialect' => campaign_dialect($brand), 'formats' => implode('، ', CAMP_FORMATS), 'data' => $data])
         . "\n\nأعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:\n"
         . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}';
@@ -253,7 +275,7 @@ function campaign_idea_format(array $idea): string
  *   carousel → كابشن + N شرائح (عنوان · نص · فكرة تصميم لكل شريحة) — الأولى غلاف والأخيرة CTA
  *   video    → كابشن + سكريبت مشاهد حسب المدة + فكرة التصوير
  */
-function campaign_content_prompt(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null): string
+function campaign_content_prompt(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null, array $task = []): string
 {
     $format = $format ?: campaign_idea_format($idea);
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام';
@@ -266,10 +288,46 @@ function campaign_content_prompt(array $brand, array $c, array $idea, string $ex
         . (!empty($idea['hook']) ? "- Hook مقترح: {$idea['hook']}\n" : '')
         . campaign_idea_targets($brand, $idea)
         . ($extra !== '' ? "\n{$extra}\n" : '');
+    $type = $task['type'] ?? 'campaign_content';
+    if (prompt_full($type)) {
+        // برومبت كامل (v1): الفكرة والهوية في المتغيرات · قواعد التصميم من «فكرة التصميم» · الشكل اللي بيتقري تحت
+        $uid = (int) ($brand['user_id'] ?? 0);
+        $ideaText = "- الزاوية: {$idea['angle']}\n- العنوان: {$idea['title']}\n- الشكل: {$fmtLabel}\n"
+            . (!empty($idea['description']) ? "- التفاصيل: {$idea['description']}\n" : '')
+            . (!empty($idea['audience']) ? "- الجمهور: {$idea['audience']}\n" : '')
+            . (!empty($idea['hook']) ? "- Hook مقترح: {$idea['hook']}\n" : '')
+            . campaign_idea_targets($brand, $idea);
+        $vars = ($task['vars'] ?? []) + [
+            'campaign' => (string) ($c['title'] ?? ''), 'basis' => $basis, 'format' => $fmtLabel, 'dialect' => campaign_dialect($brand),
+            'brand_identity' => campaign_brand_block($brand, 'copy', $brief) . ($format === 'video' && $uid ? bk_prompt_block($uid, 'video') : ''),
+            'campaign_concept' => 'حملة «' . ($c['title'] ?? '') . '» — هدفها: ' . $basis . (trim((string) ($c['notes'] ?? '')) !== '' ? "\n" . trim((string) $c['notes']) : ''),
+            'campaign_goal' => $basis, 'idea' => $ideaText, 'ideas' => $ideaText, 'topic' => (string) $idea['title'],
+            'content_type' => (string) $idea['angle'] . ' — ' . $fmtLabel, 'length' => campaign_format_length($format),
+            'extra_notes' => $extra, 'duration' => $duration,
+        ];
+        return prompt_fill($type, $vars, ['uid' => $uid, 'brand' => $brand, 'agent' => 'copy', 'dna' => true])
+            . ($format !== 'video' ? campaign_design_rules($fmtLabel, $uid) : '')
+            . prompt_format_head() . "المطلوب محتوى للفكرة دي بس بشكل «{$fmtLabel}». أعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n"
+            . campaign_content_format($format, $slides, $duration) . "\n" . prompt_learnings_ask();
+    }
     $head = prompt_fill('campaign_content', ['campaign' => (string) ($c['title'] ?? ''), 'basis' => $basis, 'format' => $fmtLabel, 'dialect' => campaign_dialect($brand), 'data' => $data])
         . ($format !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
         . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n";
     return $head . campaign_content_format($format, $slides, $duration);
+}
+
+/** الطول المناسب لكل شكل (متغير {length} في البرومبت الكامل) */
+function campaign_format_length(string $format): string
+{
+    return ['video' => 'كابشن قصير 30-80 كلمة + سكريبت', 'carousel' => 'كابشن 40-100 كلمة + نص قصير لكل شريحة', 'story' => 'قصير جدًا 15-40 كلمة'][$format] ?? 'متوسط 80-160 كلمة';
+}
+
+/** قواعد فكرة التصميم: من البرومبت الكامل (قسم «قواعد التصميم») — أو التعليمات القديمة */
+function campaign_design_rules(string $fmtLabel, int $uid = 0): string
+{
+    if (!prompt_full('design_idea')) return "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]);
+    $t = prompt_pick_sections(prompt_render('design_idea', ['format' => $fmtLabel], ['uid' => $uid, 'identity' => false]), ['قواعد التصميم']);
+    return $t !== '' ? "\n\n" . $t : '';
 }
 
 /** شكل الرد المطلوب لكل نوع (الكود بيقراه) — مشترك بين الحملة والمنشور السريع */
@@ -373,8 +431,31 @@ function campaign_eval_prompt(array $brand, array $c, array $idea, array $conten
         . campaign_eval_body($content) . "\n"
         . "CTA: " . (string) ($content['cta'] ?? '');
     $example = implode(',', array_map(fn($k) => 80 + ($k * 3) % 15, array_keys($cats)));
+    if (prompt_full('campaign_eval')) {
+        return campaign_eval_full($brand, $content, "هدف الحملة: " . (campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام') . "\n"
+            . "الفكرة: {$idea['title']}" . (!empty($idea['audience']) ? " — الجمهور: {$idea['audience']}" : '') . "\n" . campaign_idea_targets($brand, $idea));
+    }
     return prompt_fill('campaign_eval', ['cats' => implode('، ', $cats), 'ready' => eval_ready_score(), 'data' => $data])
         . "\n\ncats = " . count($cats) . " أرقام بنفس ترتيب المعايير. أعد JSON فقط:\n"
+        . '{"cats":[' . $example . '],"comment":"...","issues":""}';
+}
+
+/** تقييم بالبرومبت الكامل (v1): المنشور في المتغيرات + المعايير ودرجة النجاح من الأدمن في شكل الرد */
+function campaign_eval_full(array $brand, array $content, string $notes = ''): string
+{
+    $cats = eval_criteria();
+    $uid = (int) ($brand['user_id'] ?? $content['user_id'] ?? 0);
+    $vars = ['cats' => implode('، ', $cats), 'ready' => eval_ready_score(),
+        'brand_identity' => campaign_brand_block($brand + ['user_id' => $uid]),
+        'post_text' => campaign_eval_body($content), 'post_cta' => (string) ($content['cta'] ?? ''), 'post_hashtags' => (string) ($content['hashtags'] ?? ''),
+        'design_description' => (string) ($content['design_direction'] ?? ''), 'content_type' => content_format_label(content_format_key($content['format'] ?? 'post')),
+        'extra_notes' => $notes];
+    $example = implode(',', array_map(fn($k) => 80 + ($k * 3) % 15, array_keys($cats)));
+    return prompt_fill('campaign_eval', $vars, ['uid' => $uid, 'brand' => $brand, 'dna' => false])
+        . prompt_format_head()
+        . 'قيّم كل معيار من 100 بالترتيب ده: ' . implode('، ', $cats) . ".\n"
+        . 'لو المتوسط أقل من ' . eval_ready_score() . " اكتب issues: أهم التحسينات بالظبط (عملية ومحددة، بجمل جاهزة). comment: جملة واحدة بالعامية على نقطة القوة.\n"
+        . 'cats = ' . count($cats) . " أرقام بنفس ترتيب المعايير. أعد JSON فقط:\n"
         . '{"cats":[' . $example . '],"comment":"...","issues":""}';
 }
 

@@ -41,6 +41,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('admin/prompts.php?type=' . $type);
     }
 
+    // مكتبة v1: استيراد كنسخ جديدة مفعّلة (القديمة بتفضل في الإصدارات وتترجع بزرار)
+    if ($action === 'pack_import') {
+        $types = ($_POST['scope'] ?? 'all') === 'all' ? array_keys(prompt_pack_status()) : [(string) ($_POST['prompt_type'] ?? '')];
+        $done = prompt_pack_import($types);
+        if (!empty($_POST['eval_v1'])) set_setting('campaign_eval_cats', implode("\n", prompt_pack_eval_criteria()));
+        admin_log('prompt_pack_import', 'prompt', null, 'v1: ' . implode(',', $done));
+        flash_set('success', $done ? 'اتستورد ' . count($done) . ' برومبت من مكتبة v1 وبقوا مفعّلين ✓ — النسخ القديمة موجودة في «الإصدارات السابقة»' : 'كل البرومبتات دي مستوردة خلاص');
+        redirect('admin/prompts.php?type=' . urlencode((string) ($_POST['back'] ?? 'content')));
+    }
+
+    if ($action === 'engine_settings') {
+        set_setting('prompt_dna_mode', in_array($_POST['dna_mode'] ?? '', ['off', 'lexicon', 'full'], true) ? $_POST['dna_mode'] : 'lexicon');
+        set_setting('design_prompt_writer', !empty($_POST['design_writer']) ? '1' : '0');
+        admin_log('prompt_engine_settings', 'settings', null, 'dna=' . get_setting('prompt_dna_mode') . ' writer=' . get_setting('design_prompt_writer'));
+        flash_set('success', 'اتحفظت الإعدادات ✓');
+        redirect('admin/prompts.php?type=' . urlencode((string) ($_POST['back'] ?? 'content')));
+    }
+
     if ($action === 'eval_criteria') {
         $cats = array_slice(array_values(array_filter(array_map('trim', preg_split('/\R/u', (string) ($_POST['cats'] ?? ''))))), 0, 10);
         if (count($cats) < 3) { flash_set('danger', 'اكتب 3 معايير على الأقل (سطر لكل معيار)'); redirect('admin/prompts.php?type=campaign_eval'); }
@@ -93,7 +111,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $activeType = $_GET['type'] ?? 'content';
+if (!isset(prompt_types()[$activeType])) $activeType = 'content';
 $current = db_one('SELECT * FROM prompts WHERE prompt_type = ? AND is_active = 1', [$activeType]);
+$packStatus = prompt_pack_status();
+$packCount = array_count_values($packStatus);
+$curText = (string) ($current['prompt_text'] ?? '');
+$isFull = prompt_is_full($curText);
+
+// معاينة بالبيانات الحقيقية لعميل (المتغيرات الخاصة بالمهمة بتتملى وقت التشغيل)
+$pvUser = null; $pvText = '';
+if (!empty($_GET['pv'])) {
+    $q = trim((string) $_GET['pv']);
+    $pvUser = ctype_digit($q) ? db_one('SELECT id, name, email FROM users WHERE id = ?', [(int) $q]) : db_one('SELECT id, name, email FROM users WHERE email = ?', [$q]);
+    if ($pvUser && $curText !== '') {
+        $agents = ['plan_ideas' => 'ideas', 'campaign_ideas' => 'ideas', 'campaign_plan_eval' => 'ideas', 'agent_content_insights' => 'ideas', 'design_base' => 'design',
+                   'visual_identity' => 'design', 'visual_analysis' => 'design', 'design_idea' => 'design', 'brand_summary' => 'brand', 'brand_agent' => 'brand',
+                   'source_summary' => 'brand', 'agent_brand' => 'brand', 'agent_personas' => 'brand'];
+        $agent = $agents[$activeType] ?? (str_starts_with($activeType, 'agent_') ? substr($activeType, 6) : 'copy');
+        $agent = ['copy' => 'copy', 'ideas' => 'ideas', 'design' => 'design', 'video' => 'video', 'schedule' => 'schedule', 'brand' => 'brand'][$agent] ?? 'copy';
+        $base = prompt_brand_vars((int) $pvUser['id'], null, $agent);
+        $ph = [];
+        foreach (prompt_vars_help() as $k => $d) if (!isset($base[$k]) || trim((string) $base[$k]) === '') $ph[$k] = '⟨' . $d . ' — بيتملى وقت التشغيل⟩';
+        $isAddon = str_starts_with($activeType, 'agent_') && $activeType !== 'agent_brand' && $activeType !== 'agent_personas' && $activeType !== 'agent_content_insights';
+        $pvText = prompt_apply($curText, array_filter($base, fn($v) => trim((string) $v) !== '') + $ph,
+            $isAddon ? ['addon' => true] : ['strip_output' => $activeType !== 'content', 'dna' => in_array($activeType, ['content', 'plan_produce', 'campaign_content', 'quick_post', 'ai_edit', 'campaign_improve'], true)]);
+    }
+}
 $designTemplates = db_all('SELECT * FROM design_templates ORDER BY sort_order, id');
 $history = db_all('SELECT * FROM prompts WHERE prompt_type = ? ORDER BY version DESC LIMIT 20', [$activeType]);
 
@@ -118,11 +161,44 @@ include __DIR__ . '/../templates/admin-header.php';
             <div class="sub">التحكم في القوالب اللي بيستخدمها الذكاء الاصطناعي</div>
         </div>
 
+        <!-- مكتبة v1 (Egyptian Content DNA) -->
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-head"><h3>📦 مكتبة البرومبتات v1 — Egyptian Content DNA</h3>
+                <span class="chip chip-mint">مستورد <?= (int) ($packCount['v1'] ?? 0) ?></span>
+                <span class="chip chip-primary">اتعدّل <?= (int) ($packCount['edited'] ?? 0) ?></span>
+                <span class="chip chip-amber">قديم <?= (int) ($packCount['old'] ?? 0) ?></span></div>
+            <p class="sub" style="margin:0 0 10px;line-height:1.9">
+                26 برومبت كامل (كتابة · أفكار · حملات · تقييم · تحسين · هوية · تصميم · Agents) بالـ <b>متغيرات</b> — الموقع بيملا كل متغير بالبيانات الحقيقية للعميل
+                (الهوية كاملة · الخدمات والأسعار · العملاء المثاليين · الألوان · ذاكرة البراند · تعليقات العميل · الفكرة · المنشور…).
+                قسم «شكل المخرجات» بيتشال تلقائيًا في المهام اللي الكود بيقرا فيها شكل معيّن وبيتحط مكانه الشكل الصح — فالتعديل هنا مايكسرش أي حاجة.
+                الاستيراد بيعمل <b>إصدار جديد</b> لكل نوع — القديم بيفضل في «الإصدارات السابقة» وترجعه بزرار.
+            </p>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+                <form method="POST" data-safe-post style="display:flex;gap:10px;align-items:center;flex-wrap:wrap" onsubmit="return confirm('استيراد كل برومبتات v1 كإصدارات جديدة مفعّلة؟')">
+                    <?= csrf_field() ?><input type="hidden" name="action" value="pack_import"><input type="hidden" name="scope" value="all"><input type="hidden" name="back" value="<?= e($activeType) ?>">
+                    <label style="font-size:12.5px;display:flex;gap:6px;align-items:center"><input type="checkbox" name="eval_v1" value="1" checked> ومعايير التقييم بتاعة v1 (Spread Content Score)</label>
+                    <button class="btn" <?= ($packCount['old'] ?? 0) || ($packCount['edited'] ?? 0) ? '' : 'disabled' ?>>⬇ استيراد الكل</button>
+                </form>
+                <form method="POST" data-safe-post style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-inline-start:auto">
+                    <?= csrf_field() ?><input type="hidden" name="action" value="engine_settings"><input type="hidden" name="back" value="<?= e($activeType) ?>">
+                    <label style="font-size:12.5px">🇪🇬 مرجع اللغة المصرية في برومبتات الكتابة:</label>
+                    <select name="dna_mode" class="input" style="max-width:220px">
+                        <?php foreach (['lexicon' => 'القاموس والأمثلة بس (موصى بيه)', 'full' => 'الطبقة كاملة + القاموس', 'off' => 'من غير مرجع'] as $k => $v): ?>
+                            <option value="<?= $k ?>" <?= prompt_dna_mode() === $k ? 'selected' : '' ?>><?= e($v) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <label style="font-size:12.5px;display:flex;gap:6px;align-items:center" title="لما «أساس برومبت التصميم» يبقى برومبت كامل: الـ AI يكتب برومبت الصورة من كل التفاصيل قبل التصميم (طلب نصي زيادة صغير)">
+                        <input type="checkbox" name="design_writer" value="1" <?= get_setting('design_prompt_writer', '1') === '1' ? 'checked' : '' ?>> كاتب برومبت التصميم</label>
+                    <button class="btn ghost sm">حفظ</button>
+                </form>
+            </div>
+        </div>
+
         <!-- Type tabs -->
         <div class="seg" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
             <?php foreach (prompt_types() as $ptKey => [$ptLabel, $ptDesc]): ?>
                 <a href="?type=<?= e($ptKey) ?>" style="text-decoration:none">
-                    <button type="button" class="<?= $activeType === $ptKey ? 'on' : '' ?>" title="<?= e($ptDesc) ?>"><?= e($ptLabel) ?></button>
+                    <button type="button" class="<?= $activeType === $ptKey ? 'on' : '' ?>" title="<?= e($ptDesc) ?>"><?= e($ptLabel) ?><?= ($packStatus[$ptKey] ?? '') === 'v1' ? ' ✓' : (($packStatus[$ptKey] ?? '') === 'edited' ? ' ✎' : '') ?></button>
                 </a>
             <?php endforeach; ?>
         </div>
@@ -164,7 +240,24 @@ include __DIR__ . '/../templates/admin-header.php';
                         <label>نص القالب</label>
                         <textarea name="prompt_text" class="textarea auto code-area" rows="20" required dir="ltr" style="font-family:'JetBrains Mono', monospace;font-size:12.5px;line-height:1.7;direction:rtl"><?= e($current['prompt_text'] ?? '') ?></textarea>
                         <div class="field-help">
-                            <?php $__lib = prompt_library()[$activeType] ?? null; if ($__lib): ?>
+                            <?php if ($isFull): ?>
+                                <b>برومبت كامل (بالمتغيرات)</b> — كل متغير بيتملى بالبيانات الحقيقية وقت التشغيل.
+                                <?= $activeType === 'content' ? 'شكل الرد بتاعه (التاجات) هو اللي الكود بيقراه — خليه زي ما هو.' : 'قسم «## شكل المخرجات» بيتشال تلقائيًا والكود بيحط الشكل اللي بيقراه — تقدر تسيبه أو تشيله.' ?>
+                                <?php if (str_starts_with($activeType, 'agent_') && !in_array($activeType, ['agent_brand', 'agent_personas', 'agent_content_insights'], true)): ?>
+                                    <br>ده Agent بيتحط فوق برومبت المهمة: بياخد منه أقسام «إنت Agent…» و«مهمتك» و«القواعد» و«ذاكرة البراند» بس (الباقي موجود في برومبت المهمة).
+                                <?php endif; ?>
+                                <?php preg_match_all('/\{([a-z_]+)\}/', $curText, $__vm); $__used = array_values(array_unique(array_intersect($__vm[1], array_keys(prompt_vars_help())))); ?>
+                                <?php if ($__used): ?><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">
+                                    <?php foreach ($__used as $__v): ?><span class="chip" title="<?= e(prompt_vars_help()[$__v]) ?>" dir="ltr">{<?= e($__v) ?>}</span><?php endforeach; ?></div><?php endif; ?>
+                                <details style="margin-top:6px"><summary style="cursor:pointer">كل المتغيرات المتاحة</summary>
+                                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:4px 12px;margin-top:6px">
+                                    <?php foreach (prompt_vars_help() as $__k => $__d): ?><div><code dir="ltr">{<?= e($__k) ?>}</code> <?= e($__d) ?></div><?php endforeach; ?></div></details>
+                            <?php elseif (isset(prompt_pack()[$activeType])): ?>
+                                <div style="margin-bottom:6px">فيه نسخة كاملة من مكتبة v1 للنوع ده.
+                                    <button type="submit" form="pack-one" class="btn ghost sm">⬇ استيراد نسخة v1 للنوع ده</button></div>
+                            <?php endif; ?>
+                            <?php $__lib = prompt_library()[$activeType] ?? null; if ($isFull): ?>
+                            <?php elseif ($__lib): ?>
                                 المتغيرات المتاحة: <b dir="ltr"><?= e($__lib[2]) ?></b> — {data} مكان البيانات (الهوية · الفكرة · المحتوى) ولو شلته بتتحط بعد التعليمات.
                                 شكل الرد اللي الكود بيقراه بيتضاف تلقائيًا في الآخر، فمش محتاج تكتبه.
                                 <?php if (trim((string) ($current['prompt_text'] ?? '')) !== trim($__lib[3])): ?><br>النص الأصلي محفوظ — لو مسحت البرومبت بيرجع له تلقائيًا.<?php endif; ?>
@@ -176,6 +269,30 @@ include __DIR__ . '/../templates/admin-header.php';
 
                     <button class="btn">حفظ كإصدار جديد + تفعيل</button>
                 </form>
+                <form method="POST" id="pack-one" data-safe-post style="display:none"><?= csrf_field() ?><input type="hidden" name="action" value="pack_import">
+                    <input type="hidden" name="scope" value="one"><input type="hidden" name="prompt_type" value="<?= e($activeType) ?>"><input type="hidden" name="back" value="<?= e($activeType) ?>"></form>
+
+                <!-- معاينة بالبيانات الحقيقية -->
+                <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+                    <h4 style="margin:0 0 6px">👁 معاينة البرومبت بالبيانات الحقيقية لعميل</h4>
+                    <form method="GET" style="display:flex;gap:8px;flex-wrap:wrap">
+                        <input type="hidden" name="type" value="<?= e($activeType) ?>">
+                        <input type="text" name="pv" class="input" placeholder="إيميل العميل أو رقمه" value="<?= e((string) ($_GET['pv'] ?? '')) ?>" style="max-width:260px">
+                        <button class="btn ghost sm">معاينة</button>
+                    </form>
+                    <?php if (!empty($_GET['pv']) && !$pvUser): ?><p class="sub" style="color:#c0392b">العميل ده مش موجود</p><?php endif; ?>
+                    <?php if ($pvUser): ?>
+                        <p class="sub" style="margin:8px 0">العميل: <b><?= e($pvUser['name'] ?: $pvUser['email']) ?></b> — <?= number_format(mb_strlen($pvText)) ?> حرف (~<?= number_format((int) ceil(mb_strlen($pvText) / 2.6)) ?> توكن).
+                            <?= $isFull ? '' : 'البرومبت ده تعليمات قديمة: الكود بيحط البيانات وشكل الرد بعده.' ?></p>
+                        <pre style="white-space:pre-wrap;direction:rtl;max-height:520px;overflow:auto;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:12px;line-height:1.8"><?= e($pvText) ?></pre>
+                        <?php $__ml = prompt_learnings((int) $pvUser['id']); $__fb = prompt_feedback_text((int) $pvUser['id']); ?>
+                        <details><summary style="cursor:pointer;font-size:12.5px">🧠 ذاكرة البراند للعميل ده (<?= count($__ml) ?> درس)</summary>
+                            <pre style="white-space:pre-wrap;direction:rtl;font-size:12px"><?= e(prompt_learnings_text((int) $pvUser['id']) ?: 'لسه مفيش دروس') ?>
+
+تعليقات العميل الأخيرة:
+<?= e($__fb ?: 'مفيش') ?></pre></details>
+                    <?php endif; ?>
+                </div>
                 <?php if ($activeType === 'campaign_eval'): ?>
                 <form method="POST" data-safe-post style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
                     <?= csrf_field() ?><input type="hidden" name="action" value="eval_criteria">

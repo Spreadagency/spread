@@ -135,7 +135,14 @@ $prompt .= "\nاكتب النقط دي بالظبط (كل واحدة سطر أو
 $uris = array_column($images, 'uri');
 // برومبت الأدمن (لو متظبط من صفحة البرومبت) بيتقدّم على المدمج في الكود
 $__adminPrompt = get_active_prompt('visual_identity');
-if (trim($__adminPrompt) !== '') {
+if (prompt_is_full($__adminPrompt)) {
+    // برومبت «الهوية البصرية» الكامل (v1): الألوان والصور في متغيراته — والدليل جوه [CONTENT]
+    $__roles = [];
+    foreach ($images as $i => $img) $__roles[] = 'Image ' . ($i + 1) . ' is ' . $img['role'];
+    $prompt = prompt_apply($__adminPrompt, ['logo_analysis' => "الصور المرفقة بالترتيب:\n" . implode("\n", $__roles) . (!empty($brand['design_rules']) ? "\nقواعد التصميم الحالية: " . $brand['design_rules'] : ''),
+            'brand_colors' => (string) ($brand['colors'] ?? '')]
+        + prompt_brand_vars((int) $user['id'], $brand, 'design', ['identity' => true]), []);
+} elseif (trim($__adminPrompt) !== '') {
     $prompt = $__adminPrompt . "\n\n" . $prompt;
 }
 
@@ -146,7 +153,9 @@ if (!$ai['ok']) {
     json_response(['ok' => false, 'error' => $ai['error'] ?? 'فشل التحليل']);
 }
 
-$text = trim(preg_replace('/\[\/?[A-Z_]+\]/', '', $ai['response'] ?? ''));
+$text = (string) ($ai['response'] ?? '');
+if (preg_match('/\[CONTENT\](.*?)(\[\/CONTENT\]|$)/su', $text, $__m)) $text = $__m[1];   // البرومبت الكامل: الدليل جوه [CONTENT]
+$text = trim(preg_replace('/\[\/?[A-Z_]+\]/', '', $text));
 $text = mb_substr($text, 0, 6000);
 
 db_run('UPDATE brand_profiles SET visual_identity = ?, visual_identity_at = NOW() WHERE id = ?', [$text, $brand['id']]);

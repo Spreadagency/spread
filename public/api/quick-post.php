@@ -72,10 +72,21 @@ switch ($action) {
             . ($svc ? 'الخدمة اللي البوست عنها: ' . $svc['name'] . ($svc['description'] ? ' — ' . mb_substr((string) $svc['description'], 0, 300) : '') . "\n" : '')
             . ($persona ? "اكتب للعميل المثالي ده بالذات:\n" . bk_persona_text($persona, $uid) . "\n" : '')
             . ($note !== '' ? 'طلب العميل: ' . $note . "\n" : '');
-        $prompt = prompt_fill('quick_post', ['service' => $svc['name'] ?? 'النشاط كله', 'format' => $fmtLabel, 'persona' => $persona['name'] ?? 'الجمهور المستهدف',
-                                             'dialect' => campaign_dialect($brand), 'data' => $data])
-            . ($fmt !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
-            . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides);
+        $qv = ['service' => $svc['name'] ?? 'النشاط كله', 'format' => $fmtLabel, 'persona' => $persona['name'] ?? 'الجمهور المستهدف', 'dialect' => campaign_dialect($brand)];
+        if (prompt_full('quick_post')) {
+            // برومبت كامل (v1): الخدمة والعميل والطلب في المتغيرات
+            $qv += ['brand_identity' => campaign_brand_block($brand, 'copy', $brief) . ($fmt === 'video' ? bk_prompt_block($uid, 'video') : ''),
+                'topic' => trim(($svc ? 'الخدمة: ' . $svc['name'] . ($svc['description'] ? ' — ' . mb_substr((string) $svc['description'], 0, 300) : '') : 'النشاط كله') . ($note !== '' ? "\nطلب العميل: " . $note : '')),
+                'content_type' => $fmtLabel, 'length' => campaign_format_length($fmt),
+                'extra_notes' => ($persona ? "اكتب للعميل المثالي ده بالذات:\n" . bk_persona_text($persona, $uid) : '') . ($note !== '' ? "\n" . $note : '')];
+            $prompt = prompt_fill('quick_post', $qv, ['uid' => $uid, 'brand' => $brand, 'dna' => true])
+                . ($fmt !== 'video' ? campaign_design_rules($fmtLabel, $uid) : '')
+                . prompt_format_head() . "أعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides) . "\n" . prompt_learnings_ask();
+        } else {
+            $prompt = prompt_fill('quick_post', $qv + ['data' => $data])
+                . ($fmt !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
+                . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides);
+        }
         $ai = campaign_ai($prompt, $fmt === 'carousel' ? 2600 : 1800, 'campaign_content', ['user_id' => $uid, 'reference_type' => 'quick_post']);
         $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
         if ($p) foreach (['hook', 'body', 'cta', 'script', 'tags'] as $k) $p[$k] = BrandContext::enforce((string) $p[$k], $uid);

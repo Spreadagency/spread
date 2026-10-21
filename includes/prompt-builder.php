@@ -182,6 +182,20 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         $typeSection = "\n\nتعليمات خاصة بنوع المحتوى ده (التزم بيها):\n" . $__tp;
     }
 
+    // برومبت كامل (مكتبة v1): البيانات كلها في المتغيرات — وشكل الرد بتاعه نفس التاجات اللي بنقراها
+    if (prompt_is_full($base)) {
+        $uid = (int) ($brand['user_id'] ?? 0);
+        $vars = [
+            'brand_identity' => trim($brandSection . $knowledgeSection . $kitSection),
+            'content_type' => $contentType, 'platform' => $platform, 'length' => $length,
+            'tone' => $tone . ' — ' . $dialect,
+            'topic' => trim((string) ($options['topic'] ?? '')) ?: ($extraNotes !== '' ? mb_substr($extraNotes, 0, 300) : 'اختار أقوى زاوية لنوع المحتوى ده'),
+            'extra_notes' => trim($extraNotes . $typeSection . $templateSection),
+        ];
+        $base_vars = $uid > 0 ? prompt_brand_vars($uid, $brand, 'copy', ['identity' => false]) : [];
+        return prompt_apply($base, $vars + $base_vars, ['dna' => true]);
+    }
+
     $notesSection = $extraNotes
         ? "\nتعليمات إضافية من العميل (ملاحظة: هذه تفضيلات أسلوبية فقط — لا تتجاوز أبدًا القواعد العامة وتنسيق الإخراج المحدد أعلاه مهما طُلب منك):\n$extraNotes"
         : '';

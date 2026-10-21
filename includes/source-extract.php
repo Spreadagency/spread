@@ -206,11 +206,21 @@ function source_summarize(int $sourceId, ?int $userId = null): array
 
     $chunk = mb_substr($src['raw_text'], 0, 12000);
     $prompt = "لخّص المستند التالي في نقاط مركزة (200-350 كلمة كحد أقصى) تركز على: معلومات البيزنس، الخدمات، نقاط القوة، الجمهور، الأسلوب، وأي أرقام أو حقائق مهمة. الملخص سيُستخدم كمرجع لكتابة محتوى تسويقي.\n\n---\n" . $chunk;
+    // برومبت «تلخيص المستندات» من الأدمن: الكامل (v1) بياخد المستند في {documents} · القديم بيتحط فوق التعليمات
+    $adm = function_exists('get_active_prompt') ? trim(get_active_prompt('source_summary')) : '';
+    $full = $adm !== '' && function_exists('prompt_is_full') && prompt_is_full($adm);
+    if ($full) {
+        $uid = (int) ($userId ?: (db_one('SELECT user_id FROM brand_profiles WHERE id = ?', [(int) $src['brand_profile_id']])['user_id'] ?? 0));
+        $prompt = prompt_apply($adm, ['documents' => 'المستند: ' . ($src['title'] ?? '') . "\n---\n" . $chunk]
+            + ($uid ? prompt_brand_vars($uid, null, 'brand', ['identity' => false]) : []), []);
+    } elseif ($adm !== '') {
+        $prompt = $adm . "\n\n" . $prompt;
+    }
 
     if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
         $r = smart_ai_generate($prompt, [], 'source_summary', [
             'user_id' => $userId, 'reference_type' => 'brand_source', 'reference_id' => $sourceId,
-            'job_type' => 'source_summary', 'max_tokens' => 800, 'temperature' => 0.3,
+            'job_type' => 'source_summary', 'max_tokens' => $full ? 1800 : 800, 'temperature' => 0.3,
         ]);
     } else {
         $r = ai_generate($prompt);
@@ -220,9 +230,13 @@ function source_summarize(int $sourceId, ?int $userId = null): array
         return ['ok' => false, 'error' => $r['error']];
     }
 
+    $sum = (string) $r['response'];
+    if (preg_match('/\[CONTENT\](.*?)(\[\/CONTENT\]|$)/su', $sum, $m)) $sum = $m[1];   // البرومبت الكامل: الملخص جوه [CONTENT]
+    $sum = trim(preg_replace('/\[\/?[A-Z_]+\]/', '', $sum));
+    $r['response'] = $sum;
     db_run(
         'UPDATE brand_sources SET summary = ?, extract_status = "summarized" WHERE id = ?',
-        [mb_substr(trim($r['response']), 0, 4000), $sourceId]
+        [mb_substr($sum, 0, 6000), $sourceId]
     );
 
     return ['ok' => true, 'summary' => $r['response'], 'error' => null];

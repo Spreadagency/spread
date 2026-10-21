@@ -12,6 +12,7 @@
  */
 
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/prompt-engine.php';
 
 /** type => [العنوان, الوصف, المتغيرات المتاحة, النص الافتراضي] */
 function prompt_library(): array
@@ -86,6 +87,12 @@ function prompt_library(): array
             "أنت مصمم هوية بصرية محترف. اتفرّج على الصور المرفقة (لوجو البراند وتصميماته وصوره) وحلّلها.\n\n{data}\n\n"
             . "الألوان اللي طلعت بالبرمجة من الصور (استخدمها كمرجع): {colors}\n"
             . "المطلوب: الألوان الأساسية ودور كل لون، الاستايل العام، الخطوط المناسبة، ملاحظات تصميم، وممنوعات."],
+
+        // Egyptian Content DNA — مرجع بيتضاف لبرومبتات الكتابة (حسب «طريقة إضافة المرجع» في الأدمن)
+        'egyptian_dna' => ['🇪🇬 Egyptian Content DNA', 'طبقة «المصرية الحقيقية»: السجل · المواقف · تفكير الشراء · الحساسيات · المنصات · الفحص النهائي', '—',
+            prompt_dna_default('egyptian_dna')],
+        'egyptian_lexicon' => ['🇪🇬 القاموس المصري', 'عبارات جاهزة حسب الغرض + أمثلة قبل/بعد (بتتضاف لبرومبتات الكتابة)', '—',
+            prompt_dna_default('egyptian_lexicon')],
     ];
 }
 
@@ -101,11 +108,18 @@ function prompt_get(string $type): string
 }
 
 /** البرومبت بعد تبديل المتغيرات — {data} مكانه، أو بعد التعليمات لو الأدمن شاله */
-function prompt_fill(string $type, array $vars = []): string
+function prompt_fill(string $type, array $vars = [], array $opt = []): string
 {
     $tpl = prompt_get($type);
     $data = (string) ($vars['data'] ?? '');
     unset($vars['data']);
+    // برومبت كامل (v1): المتغيرات بتتملى بالبيانات الحقيقية · شكل الرد بيحطه الكود · البيانات الزيادة بس تحت
+    if (prompt_is_full($tpl)) {
+        $base = !empty($opt['uid']) ? prompt_brand_vars((int) $opt['uid'], $opt['brand'] ?? null, $opt['agent'] ?? 'copy', $opt + ['identity' => !isset($vars['brand_identity'])]) : [];
+        $out = prompt_apply($tpl, $vars + $base, $opt + ['strip_output' => true]);
+        $data = trim((string) ($opt['extra'] ?? ''));
+        return $data === '' ? $out : rtrim($out) . "\n\n## بيانات إضافية من السيستم\n" . $data;
+    }
     $map = [];
     foreach ($vars as $k => $v) $map['{' . $k . '}'] = (string) $v;
     $out = strtr($tpl, $map);
@@ -139,4 +153,90 @@ function eval_criteria(): array
 function eval_ready_score(): int
 {
     return max(50, min(95, (int) get_setting('campaign_eval_ready', '80')));
+}
+
+/* ═══════════ مكتبة v1 (Egyptian Content DNA) — استيراد كنسخ جديدة ═══════════ */
+
+/** نوع الموقع => [المفتاح الأصلي, العنوان, المتغيرات, LEARNINGS, النص] */
+function prompt_pack(): array
+{
+    static $p = null;
+    return $p ??= (array) (include __DIR__ . '/prompt-pack-v1.php');
+}
+
+/** النص المفعّل في الجدول (من غير الافتراضي) */
+function prompt_db_active(string $type): string
+{
+    try {
+        $r = db_one('SELECT prompt_text FROM prompts WHERE prompt_type = ? AND is_active = 1 ORDER BY version DESC LIMIT 1', [$type]);
+        return (string) ($r['prompt_text'] ?? '');
+    } catch (\Throwable $e) {
+        return '';
+    }
+}
+
+/** حالة كل نوع: v1 (مستورد زي ما هو) · edited (v1 واتعدّل) · old (البرومبت القديم) */
+function prompt_pack_status(): array
+{
+    $out = [];
+    foreach (prompt_pack() as $type => $p) {
+        if ($type === 'content_alt') continue;
+        $cur = trim(prompt_db_active($type));
+        $out[$type] = $cur === trim($p[4]) ? 'v1' : (prompt_is_full($cur) ? 'edited' : 'old');
+    }
+    return $out;
+}
+
+/**
+ * استيراد: كل نوع بياخد نسخة جديدة مفعّلة بنص v1 — النسخ القديمة بتفضل في السجل وتترجع بزرار
+ * «البرومبت الأساسي» البديل بيتحفظ نسخة غير مفعّلة جنب «كتابة المنشور»
+ */
+function prompt_pack_import(array $types): array
+{
+    $pack = prompt_pack();
+    $done = [];
+    foreach ($types as $type) {
+        if ($type === 'content_alt' || !isset($pack[$type])) continue;
+        if (trim(prompt_db_active($type)) === trim($pack[$type][4])) continue;   // مستورد خلاص
+        $v = (int) (db_one('SELECT MAX(version) v FROM prompts WHERE prompt_type = ?', [$type])['v'] ?? 0);
+        if ($type === 'content' && isset($pack['content_alt'])) {
+            db_insert('INSERT INTO prompts (prompt_type, title, prompt_text, version, is_active) VALUES (?,?,?,?,0)',
+                [$type, 'v1 — ' . $pack['content_alt'][1] . ' (بديل)', $pack['content_alt'][4], ++$v]);
+        }
+        db_run('UPDATE prompts SET is_active = 0 WHERE prompt_type = ?', [$type]);
+        db_insert('INSERT INTO prompts (prompt_type, title, prompt_text, version, is_active) VALUES (?,?,?,?,1)',
+            [$type, 'مكتبة v1 — ' . $pack[$type][1], $pack[$type][4], ++$v]);
+        $done[] = $type;
+    }
+    return $done;
+}
+
+/** معايير التقييم بتاعة v1 (Spread Content Score) — بالعربي */
+function prompt_pack_eval_criteria(): array
+{
+    return ['قوة الـ Hook', 'مناسبة الجمهور', 'الاحتفاظ بالانتباه', 'القيمة', 'الارتباط العاطفي', 'قابلية المشاركة',
+            'الثقة والمصداقية', 'إمكانية التصميم والإنتاج', 'الـ CTA وملاءمة البيزنس', 'مناسبة للعميل المثالي'];
+}
+
+/** النص الحالي لأي نوع (مكتبة الكود أو الأنواع القديمة) */
+function prompt_text_for(string $type): string
+{
+    if (isset(prompt_library()[$type])) return prompt_get($type);
+    return function_exists('get_active_prompt') ? get_active_prompt($type) : prompt_db_active($type);
+}
+
+/** النوع ده برومبت كامل (v1)؟ — الكود بيحط البيانات في المتغيرات بدل ما يكررها تحت */
+function prompt_full(string $type): bool
+{
+    return prompt_is_full(prompt_text_for($type));
+}
+
+/**
+ * البرومبت بعد ملء المتغيرات (الكود + «معاينة» الأدمن)
+ * opt: uid · brand · agent · strip_output · addon · dna · brief · overrides
+ */
+function prompt_render(string $type, array $vars = [], array $opt = []): string
+{
+    $base = !empty($opt['uid']) ? prompt_brand_vars((int) $opt['uid'], $opt['brand'] ?? null, $opt['agent'] ?? 'copy', $opt + ['identity' => !isset($vars['brand_identity'])]) : [];
+    return prompt_apply(prompt_text_for($type), $vars + $base, $opt);
 }

@@ -423,9 +423,21 @@ switch ($action) {
         if (!rate_limit('camp_content', 'u' . $uid, 45, 600)) api_fail('وقفة قصيرة — كمّل بعد دقايق', 'rate_limit', 429);
         $cost = cost_for('content_regeneration_cost');
         cf_charge($uid, $cost, 'تحسين منشور #' . $content['id'], 'campaign_idea', (int) $i['id']);
-        $extra = prompt_fill('campaign_improve', ['issues' => (($ev['issues'] ?? '') ?: 'قوّي الـ Hook والـ CTA ووضّح الرسالة')])
-            . "\nالنسخة الحالية:\n" . mb_substr((string) $content['generated_text'], 0, 2500)
-            . "\nCTA الحالي: " . (string) ($content['cta'] ?? '');
+        $issues = (($ev['issues'] ?? '') ?: 'قوّي الـ Hook والـ CTA ووضّح الرسالة');
+        // برومبت «تحسين بعد التقييم» الكامل (v1) بياخد المنشور والتقييم في متغيراته — غير كده بيتضاف لبرومبت الكتابة زي الأول
+        $impTask = [];
+        if (prompt_full('campaign_improve')) {
+            $evText = 'الدرجة: ' . (int) ($ev['score'] ?? 0) . '/100' . (!empty($ev['labels']) && !empty($ev['cats'])
+                ? "\n" . implode("\n", array_map(fn($l, $v) => "- {$l}: {$v}", (array) $ev['labels'], array_slice((array) $ev['cats'], 0, count((array) $ev['labels'])))) : '')
+                . "\nالملاحظات: " . $issues . (!empty($ev['comment']) ? "\nنقطة القوة: " . $ev['comment'] : '');
+            $impTask = ['type' => 'campaign_improve', 'vars' => ['issues' => $issues, 'evaluation' => $evText,
+                'post_text' => mb_substr((string) $content['generated_text'], 0, 2500), 'post_cta' => (string) ($content['cta'] ?? ''), 'post_hashtags' => (string) ($content['hashtags'] ?? '')]];
+            $extra = '';
+        } else {
+            $extra = prompt_fill('campaign_improve', ['issues' => $issues])
+                . "\nالنسخة الحالية:\n" . mb_substr((string) $content['generated_text'], 0, 2500)
+                . "\nCTA الحالي: " . (string) ($content['cta'] ?? '');
+        }
         if (cf_video_locked($content)) api_fail('الفيديو اتبعت للتنفيذ', 'locked', 409);
         $ifmt = content_format_key($content['format'] ?? 'post');
         $islides = (int) ($content['slides_count'] ?? 0);
@@ -435,7 +447,7 @@ switch ($action) {
         }
         if ($ifmt === 'video') $extra .= "\nالسكريبت الحالي:\n" . mb_substr(video_script_text(video_brief($content)), 0, 2000);
         $bkBrief = bk_enabled() ? bk_brief_for_content($content, $uid) : null;
-        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $ifmt, $islides, video_brief($content)['duration'], $bkBrief), $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
+        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $ifmt, $islides, video_brief($content)['duration'], $bkBrief, $impTask), $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id'], 'temperature' => 0.7]);
         $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
         if ($p) {
@@ -485,7 +497,14 @@ switch ($action) {
             . 'الحملة: ' . $c['title'] . ' — الهدف: ' . (campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام') . "\n"
             . ($setup['set'] ? campaign_setup_plan($uid, $setup, count($rows), []) . "\n" : '')
             . "\nالبوستات بالترتيب:\n" . implode("\n", $lines);
-        $ai = campaign_ai(prompt_fill('campaign_plan_eval', ['ready' => eval_ready_score(), 'data' => $data])
+        $planHead = prompt_full('campaign_plan_eval')
+            ? prompt_fill('campaign_plan_eval', ['ready' => eval_ready_score(), 'brand_identity' => campaign_brand_block($brand, 'ideas'),
+                'campaign_goal' => campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام',
+                'plan' => 'الحملة: ' . $c['title'] . "\n" . ($setup['set'] ? campaign_setup_plan($uid, $setup, count($rows), []) . "\n" : '') . "\nالبوستات بالترتيب:\n" . implode("\n", $lines)],
+                ['uid' => $uid, 'brand' => $brand, 'agent' => 'ideas'])
+              . prompt_format_head() . 'score من 100 للخطة كلها · cats درجات من 100 · من 3 لـ 5 ملاحظات (post = رقم البوست لو الملاحظة عن بوست محدد، fix = التعديل المقترح بالظبط) · summary جملة واحدة بالعامية.'
+            : prompt_fill('campaign_plan_eval', ['ready' => eval_ready_score(), 'data' => $data]);
+        $ai = campaign_ai($planHead
             . "\n\nأعد JSON فقط:\n"
             . '{"score":82,"cats":{"التوازن":80,"عدم التكرار":85,"تغطية العملاء والخدمات":78,"التسلسل":84,"الـ CTA":80,"مناسبة الهدف":86},"summary":"","notes":[{"post":3,"issue":"","fix":""}]}',
             1400, 'campaign_eval', ['user_id' => $uid, 'reference_type' => 'campaign', 'reference_id' => (int) $c['id'], 'temperature' => 0.3, 'json_mode' => true]);

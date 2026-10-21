@@ -23,6 +23,7 @@ require_once __DIR__ . '/../../includes/brand-kit.php';
 require_once __DIR__ . '/../../includes/source-extract.php';
 require_once __DIR__ . '/../../includes/uploader.php';
 require_once __DIR__ . '/../../includes/ai.php';
+require_once __DIR__ . '/../../includes/prompt-library.php';   // البرومبتات من الأدمن (مكتبة v1 بالمتغيرات)
 if (is_file(__DIR__ . '/../../includes/smart-ai.php')) require_once __DIR__ . '/../../includes/smart-ai.php';
 
 $user = api_boot();
@@ -206,13 +207,18 @@ function bkapi_build_draft(int $uid, array $answersIn = [], bool $soft = false):
     $cost = cost_for_bk('brand_kit_draft_cost', 2);
     if ($soft && $cost > 0 && credits_balance($uid) < $cost) return ['__error' => credits_short_msg($cost)];
     bkapi_charge($uid, $cost, 'مسودة الهوية (Brand Kit)');
-    $admin = BrandContext::agentPrompt('brand');
-    $j = bkapi_ai($uid, ($admin !== '' ? $admin . "\n\n" : '')
+    // برومبت «Agent الهوية» الكامل (v1): البيانات والإجابات والمستندات في متغيراته — والكود بيحط المهمة وشكل الـ JSON بس
+    $full = function_exists('prompt_full') && prompt_full('agent_brand');
+    $admin = $full
+        ? BrandContext::agentPrompt('brand', $uid, ['brand_identity' => implode("\n", $facts) ?: 'لسه مفيش', 'brief_answers' => implode("\n", $answers) ?: 'مفيش',
+            'documents' => $knowledge !== '' ? $knowledge : 'مفيش'], false)
+        : BrandContext::agentPrompt('brand');
+    $j = bkapi_ai($uid, ($admin !== '' ? $admin . ($full ? prompt_format_head() : "\n\n") : '')
         . "انت خبير هوية تجارية وتسويق محتوى. ابني مسودة Brand Kit من المعلومات دي.\n"
         . ($sector ? "قالب القطاع: {$sector['name']} — اتجاهات افتراضية: " . implode('، ', array_map(fn($p) => $p['name'] . ' ' . $p['percent'] . '%', $sector['default_pillars'])) . "\n" : '')
-        . ($facts ? "بيانات البراند:\n" . implode("\n", $facts) . "\n" : '')
-        . ($answers ? "إجابات العميل:\n" . implode("\n", $answers) . "\n" : '')
-        . ($knowledge !== '' ? "من مستندات العميل وصفحاته:\n" . $knowledge . "\n" : '')
+        . (!$full && $facts ? "بيانات البراند:\n" . implode("\n", $facts) . "\n" : '')
+        . (!$full && $answers ? "إجابات العميل:\n" . implode("\n", $answers) . "\n" : '')
+        . (!$full && $knowledge !== '' ? "من مستندات العميل وصفحاته:\n" . $knowledge . "\n" : '')
         . "\nالقواعد: ماتخترعش حقائق (أسعار، عناوين، أرقام). الحاجة اللي مش واضحة حط لها confidence أقل من 0.7.\n"
         . "الألوان: لو في ألوان في بيانات البراند استخدمها، غير كده اقترح 3 ألوان hex مناسبة للمجال والشخصية (متناسقة ومقروءة).\n"
         . "رجّع JSON بس بالشكل ده:\n"
@@ -498,7 +504,11 @@ function bkapi_personas_generate(int $uid, int $n, bool $soft = false): array
         . ($d['audience']['pains'] ? 'مشاكل الجمهور: ' . implode('، ', $d['audience']['pains']) . "\n" : '')
         . ($svc ? "الخدمات (اختار منها بالاسم بالظبط):\n- " . implode("\n- ", array_map(fn($s) => $s['name'] . ($s['description'] ? ' — ' . mb_substr((string) $s['description'], 0, 120) : ''), array_slice($svc, 0, 15))) . "\n" : '')
         . ($d['offers'] ? 'عروض: ' . implode('، ', array_column($d['offers'], 'title')) . "\n" : '');
-    $j = bkapi_ai($uid, prompt_fill('agent_personas', ['n' => $n, 'data' => $data])
+    $pHead = prompt_full('agent_personas')
+        ? prompt_fill('agent_personas', ['n' => $n, 'count' => $n, 'brand_identity' => $data], ['uid' => $uid, 'agent' => 'brand'])
+          . prompt_format_head() . "مطلوب {$n} أشخاص مختلفين فعلًا. services = أسماء خدمات من القايمة فوق بالظبط."
+        : prompt_fill('agent_personas', ['n' => $n, 'data' => $data]);
+    $j = bkapi_ai($uid, $pHead
         . "\n\nرجّع JSON بس بالشكل ده (بالظبط {$n} أشخاص):\n"
         . '{"personas":[{"name":"اسم وصفي قصير مثلا «أم مشغولة»","emoji":"👩","age":"30-40","gender":"","job":"","location":"","pains":["",""],"desires":["",""],"objections":["",""],"triggers":["",""],"channels":["facebook","instagram"],"services":["اسم الخدمة"],"voice":"إزاي نكلمه"}]}', 2200);
     $list = array_slice(array_filter((array) ($j['personas'] ?? []), 'is_array'), 0, $n);
@@ -1158,7 +1168,10 @@ switch ($action) {
         $roles = [];
         foreach ($imgs as $k => $im) $roles[] = 'Image ' . ($k + 1) . ' is ' . $im['role'];
         $colors = $fd['palette'] ? implode(', ', array_filter([$fd['palette']['primary'], $fd['palette']['secondary'], $fd['palette']['accent'], $fd['palette']['neutral']])) : 'مفيش';
-        $prompt = prompt_fill('visual_analysis', ['colors' => $colors, 'data' => "البراند: {$d['business']['name']} — المجال: {$d['business']['sector']}\nالصور المرفقة بالترتيب:\n" . implode("\n", $roles)])
+        $prompt = (prompt_full('visual_analysis')
+            ? prompt_fill('visual_analysis', ['colors' => $colors, 'images_note' => "الصور المرفقة بالترتيب:\n" . implode("\n", $roles) . "\nالألوان اللي طلعت بالبرمجة من الصور (مرجع): {$colors}"],
+                ['uid' => $uid, 'agent' => 'design', 'identity' => false]) . prompt_format_head()
+            : prompt_fill('visual_analysis', ['colors' => $colors, 'data' => "البراند: {$d['business']['name']} — المجال: {$d['business']['sector']}\nالصور المرفقة بالترتيب:\n" . implode("\n", $roles)]))
             . "\n\nرجّع JSON بس (القيم بالعربي ما عدا الـ hex والخطوط):\n"
             . '{"colors":{"primary":"#","secondary":"#","accent":"#","neutral":"#"},"roles":"دور كل لون في جملة","style":"الاستايل العام في جملتين","fonts":{"ar":"Cairo","en":"Inter"},"notes":"ملاحظات تصميم عملية","avoid":["",""]}';
         $ai = ai_generate($prompt, array_column($imgs, 'uri'));
@@ -1220,7 +1233,22 @@ switch ($action) {
             . ($per ? "\nالعملاء المثاليين:\n" . implode("\n", $per) . "\n" : '')
             . ($fb ? "\nتقييمات العميل لمنشوراته (آخر 3 شهور): " . implode(' · ', $fb) . "\n" : '')
             . ($vis ? "\nتحليل صوره وتصميماته: " . $vis['style'] . ' — ' . $vis['notes'] . "\n" : '');
-        $j = bkapi_ai($uid, prompt_fill('agent_content_insights', ['data' => $data])
+        if (prompt_full('agent_content_insights')) {
+            // برومبت «تحليل المحتوى» الكامل (v1): عينات المحتوى وبيانات الأداء في متغيراته
+            $samples = [];
+            try {
+                foreach (db_all('SELECT id, COALESCE(format, "post") f, generated_text, feedback FROM contents WHERE user_id = ? AND generated_text IS NOT NULL ORDER BY id DESC LIMIT 8', [$uid]) as $k => $r) {
+                    $samples[] = 'منشور ' . ($k + 1) . ' [' . content_format_label(content_format_key((string) $r['f'])) . ']' . ((int) $r['feedback'] === 1 ? ' 👍' : ((int) $r['feedback'] === -1 ? ' 👎' : '')) . ":\n"
+                        . mb_substr(preg_replace('/\s+/u', ' ', (string) $r['generated_text']), 0, 400);
+                }
+            } catch (\Throwable $e) {}
+            $insHead = prompt_fill('agent_content_insights', ['brand_identity' => $data, 'content_samples' => $samples ? implode("\n\n", $samples) : 'لسه مفيش منشورات',
+                    'performance_data' => $fb ? 'تقييمات العميل (آخر 3 شهور): ' . implode(' · ', $fb) : 'مفيش بيانات أداء لسه'], ['uid' => $uid, 'agent' => 'ideas'])
+                . prompt_format_head() . 'حوّل التحليل للشكل ده (best_posts = أكتر أنواع بوستات هتنجح مع أمثلة · mix = نسب الأشكال · design_rules = قواعد تصميم عملية).';
+        } else {
+            $insHead = prompt_fill('agent_content_insights', ['data' => $data]);
+        }
+        $j = bkapi_ai($uid, $insHead
             . "\n\nرجّع JSON بس:\n"
             . '{"best_posts":[{"type":"","why":"","examples":["",""]}],"mix":{"post":40,"carousel":30,"story":20,"video":10},"caption_length":"short|medium|long","hooks":["question","story"],'
             . '"design_rules":["",""],"images_review":{"good":[""],"improve":[""]},"summary":""}'

@@ -1235,7 +1235,7 @@ final class BrandContext
             'agent' => $agent, 'user_id' => $uid, 'sector' => $sector['name'] ?? '',
             'forbidden' => self::forbidden($uid),
             'brief' => $overrides['__brief'] ?? null,
-            'admin_prompt' => self::agentPrompt($agent),
+            'admin_prompt' => self::agentPrompt($agent, $uid),
         ];
         $ctx['rules'] = array_map(fn($r) => ['title' => $r['title'], 'body' => (string) $r['body']], bk_learning_for($b['kit']['sector_template_id'], 'rules', $agent));
 
@@ -1287,10 +1287,17 @@ final class BrandContext
     }
 
     /** برومبت الأدمن للـ Agent (من مكتبة البرومبتات — النسخة المفعّلة) */
-    public static function agentPrompt(string $agent): string
+    /**
+     * برومبت الأدمن للـ Agent (من مكتبة البرومبتات — النسخة المفعّلة)
+     * برومبت كامل (v1) بيتملى بالمتغيرات: $addon = فوق برومبت مهمة تانية (دوره ومهمته وقواعده بس) · غير كده البرومبت كله من غير شكل الرد
+     */
+    public static function agentPrompt(string $agent, int $uid = 0, array $vars = [], bool $addon = true): string
     {
         if (!function_exists('get_active_prompt')) return '';
-        try { return trim(get_active_prompt('agent_' . $agent)); } catch (\Throwable $e) { return ''; }
+        try { $t = trim(get_active_prompt('agent_' . $agent)); } catch (\Throwable $e) { return ''; }
+        if ($t === '' || !function_exists('prompt_is_full') || !prompt_is_full($t)) return $t;
+        $base = $uid > 0 ? prompt_brand_vars($uid, null, $agent, ['identity' => !isset($vars['brand_identity']) && !$addon]) : [];
+        return trim(prompt_apply($t, $vars + $base, $addon ? ['addon' => true] : ['strip_output' => true]));
     }
 
     private static function presetMerge(array $sec): array

@@ -56,6 +56,21 @@ function build_plan_ideas_prompt(array $brand, array $plan): string
     $count = max(5, min(30, (int) ($plan['ideas_count'] ?? 20)));
     $notes = trim((string) ($plan['notes'] ?? ''));
 
+    $fmt = <<<EOT
+أعد الناتج JSON فقط بدون أي تعليق، بالشكل التالي بالظبط:
+{"ideas":[{"title":"عنوان الفكرة","angle":"storytelling","description":"وصف الفكرة في سطرين: زاوية الطرح والرسالة الأساسية"}]}
+
+قيم angle المسموحة فقط: storytelling, promotional, awareness, educational, engaging, offer, trend
+EOT;
+    if (prompt_full('plan_ideas')) {
+        // برومبت كامل (v1): الهوية والهدف والعدد في المتغيرات — والشكل اللي الكود بيقراه تحت
+        $uid = (int) ($brand['user_id'] ?? 0);
+        $vars = ['count' => $count, 'period' => 'شهر', 'campaign_goal' => $goal, 'extra_notes' => $notes,
+            'brand_identity' => (function_exists('bk_brand_block') ? bk_brand_block($brand, 'ideas') : null) ?? ("بيانات البراند:\n" . implode("\n", $brandLines) . $knowledge)];
+        return prompt_apply(get_active_prompt('plan_ideas'), $vars + ($uid ? prompt_brand_vars($uid, $brand, 'ideas', ['identity' => false]) : []), ['strip_output' => true])
+            . prompt_format_head() . "مطلوب {$count} فكرة بالظبط. هدف الخطة: {$goal}. description = الفكرة في جملتين (الـ Hook + هتوصل لإيه).\n" . $fmt;
+    }
+
     return prompt_or_default('plan_ideas', "أنت استراتيجي محتوى سوشيال ميديا محترف. مطلوب منك توليد {$count} فكرة منشور متنوعة لخطة محتوى شهرية.") . "\n\n"
         . ((function_exists('bk_brand_block') ? bk_brand_block($brand, 'ideas') : null) ?? ("بيانات البراند:\n" . implode("\n", $brandLines) . $knowledge))
     . "\n\nهدف الخطة: {$goal}"
@@ -152,6 +167,25 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
     };
 
     $dialect = bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')));
+
+    $fmt = "[CONTENT]\nنص المنشور كامل (100-200 كلمة، Hook قوي في البداية، إيموجي معتدل)\n[/CONTENT]\n\n"
+        . "[HASHTAGS]\n#هاشتاج1 #هاشتاج2 (5-8 هاشتاجات مناسبة)\n[/HASHTAGS]\n\n"
+        . "[CTA]\nجملة الـ Call-to-Action\n[/CTA]\n\n"
+        . "[DESIGN_IDEA]\nوصف فكرة التصميم بالعربي في 2-3 جمل: التكوين، العناصر، الألوان، والنص الظاهر على التصميم (لو فيه)\n[/DESIGN_IDEA]\n\n"
+        . "[IMAGE_PROMPT]\nEnglish image generation prompt: detailed scene, composition, colors matching brand, modern social media design, square 1:1. No text overlay instructions unless essential.\n[/IMAGE_PROMPT]";
+    if (prompt_full('plan_produce')) {
+        // برومبت كامل (v1): الفكرة والهوية في المتغيرات · قواعد التصميم من «فكرة التصميم» · الشكل اللي الكود بيقراه تحت
+        $uid = (int) ($brand['user_id'] ?? 0);
+        $vars = ['idea' => "- العنوان: {$idea['title']}\n- الأسلوب: {$angleLabel}\n" . ($idea['description'] ? "- التفاصيل: {$idea['description']}\n" : '') . "- توجيه الأسلوب: {$angleGuide}",
+            'topic' => (string) $idea['title'], 'content_type' => $angleLabel, 'tone' => $dialect,
+            'brand_identity' => (function_exists('bk_brand_block') ? bk_brand_block($brand, 'copy', $options['bk_brief'] ?? null) : null) ?? ("بيانات البراند:\n" . implode("\n", $brandLines) . $knowledge)];
+        $designRules = prompt_full('design_idea')
+            ? prompt_pick_sections(prompt_render('design_idea', ['format' => 'منشور'], ['uid' => $uid, 'identity' => false]), ['قواعد التصميم'])
+            : prompt_fill('design_idea', ['format' => 'منشور']);
+        return prompt_apply(get_active_prompt('plan_produce'), $vars + ($uid ? prompt_brand_vars($uid, $brand, 'copy', ['identity' => false]) : []), ['strip_output' => true, 'dna' => true])
+            . ($designRules !== '' ? "\n\n" . $designRules : '')
+            . prompt_format_head() . "أعد الناتج بالتنسيق التالي بالظبط بدون أي تعليق إضافي:\n\n" . $fmt;
+    }
 
     return prompt_or_default('plan_produce', "أنت كاتب محتوى تسويقي محترف. اكتب منشور سوشيال ميديا كامل بناءً على الفكرة التالية.") . "\n\n"
         . ((function_exists('bk_brand_block') ? bk_brand_block($brand, 'copy', $options['bk_brief'] ?? null) : null) ?? ("بيانات البراند:\n" . implode("\n", $brandLines) . $knowledge))

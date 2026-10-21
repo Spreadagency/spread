@@ -52,9 +52,17 @@ if ($action === 'idea') {
     }
 
     require_once __DIR__ . '/../../includes/prompt-library.php';
-    $prompt = "أنت مدير فني محترف. اقرأ المحتوى التالي واكتب فكرة تصميم سوشيال ميديا له في 2-4 جمل بالعربي.\n\n"
-        . prompt_fill('design_idea', ['format' => 'منشور سوشيال ميديا', 'data' => ($brandCtx ? "الهوية:\n{$brandCtx}\n" : '') . "المحتوى:\n{$text}"])
-        . "\n\nاكتب الفكرة مباشرة بدون مقدمات.";
+    if (prompt_full('design_idea')) {
+        // برومبت «فكرة التصميم» الكامل (v1): المنشور والستايل في متغيراته — والرد نص قصير (الستوديو بيعرضه كده)
+        $prompt = prompt_fill('design_idea', ['format' => 'منشور سوشيال ميديا', 'post_text' => $text,
+                'design_style' => trim((string) ($brand['design_rules'] ?? '') . "\n" . mb_substr((string) ($brand['visual_identity'] ?? ''), 0, 800)),
+                'brand_colors' => (string) ($brand['colors'] ?? '')], ['uid' => (int) $user['id'], 'brand' => $brand ?: null, 'agent' => 'design', 'identity' => false])
+            . prompt_format_head() . 'اكتب الفكرة المرشحة بس في 2-4 جمل بالعربي (التكوين · البطل البصري · العنوان على التصميم · الألوان) — مباشرة من غير مقدمات ومن غير JSON.';
+    } else {
+        $prompt = "أنت مدير فني محترف. اقرأ المحتوى التالي واكتب فكرة تصميم سوشيال ميديا له في 2-4 جمل بالعربي.\n\n"
+            . prompt_fill('design_idea', ['format' => 'منشور سوشيال ميديا', 'data' => ($brandCtx ? "الهوية:\n{$brandCtx}\n" : '') . "المحتوى:\n{$text}"])
+            . "\n\nاكتب الفكرة مباشرة بدون مقدمات.";
+    }
 
     $ai = ai_generate($prompt);
     if (!$ai['ok']) {

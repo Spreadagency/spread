@@ -300,6 +300,36 @@ if ($styleHints !== '' && !$sourceImagePath) {
     $designPrompt .= "\nClient's preferred visual style (from selected references): " . $styleHints . ".";
 }
 
+// ═══ «أساس برومبت التصميم» الكامل (v1): الـ AI بيكتب برومبت الصورة الإنجليزي من كل التفاصيل الأول ═══
+// (تعديل تصميم موجود بيفضل بالبرومبت المباشر علشان مايتغيّرش غير المطلوب) · أي فشل ← البرومبت العادي
+$__dbase = get_active_prompt('design_base');
+if (prompt_is_full($__dbase) && get_setting('design_prompt_writer', '1') === '1' && ($_POST['design_edit'] ?? '') !== '1') {
+    $__roles = array_map(fn($im) => $im['role'], $inputImages);
+    $__writer = prompt_apply($__dbase, [
+        'post_text' => mb_substr((string) ($content['generated_text'] ?? ''), 0, 1500), 'design_idea' => $concept,
+        'design_style' => trim($__styleLine . ($styleHints !== '' ? "\nClient's preferred visual style: " . $styleHints : '') . ($__typeP !== '' ? "\n" . $__typeP : '')),
+        'size' => studio_ratio_hint($ratioRes), 'studio_template' => $__typeP,
+        'has_logo_or_product' => $__roles ? "أيوه — الصور المرفقة بالترتيب:\n- " . implode("\n- ", $__roles) : 'لأ',
+        'brand_identity' => trim($identityBlock), 'content_type' => ['post' => 'بوست', 'story' => 'ستوري 9:16', 'carousel' => 'شريحة كاروسيل'][$format],
+    ] + prompt_brand_vars((int) $user['id'], $brand, 'design', ['identity' => false]), []);
+    $__w = ai_generate($__writer);
+    $__out = !empty($__w['ok']) ? (string) $__w['response'] : '';
+    if (preg_match('/PROMPT\s*:\s*(.+?)(?=\n\s*(ARABIC_TEXT|PROMPT_B|\[\/CONTENT\]|NEGATIVE)|$)/su', $__out, $__pm) && mb_strlen(trim($__pm[1])) > 40) {
+        $__ar = preg_match('/ARABIC_TEXT\s*:\s*(.+)/u', $__out, $__am) ? trim($__am[1]) : '';
+        $__neg = preg_match('/NEGATIVE\s*:\s*(.+)/u', $__out, $__nm) ? trim($__nm[1]) : '';
+        $__cta = preg_match('/\[CTA\](.*?)\[\/CTA\]/su', $__out, $__cm) ? trim($__cm[1]) : '';
+        $designPrompt = studio_ratio_hint($ratioRes) . "\n" . trim($__pm[1]) . "\n"
+            . ($__ar !== '' && !preg_match('/^(بدون|none|no)$/iu', $__ar) ? 'Arabic text on the design (render exactly, correct Arabic letters, right-to-left): ' . $__ar . "\n" : '')
+            . ($__cta !== '' && !preg_match('/^(بدون|none|no)$/iu', $__cta) ? 'CTA button text (Arabic): ' . $__cta . "\n" : '')
+            . ($__neg !== '' ? 'Avoid: ' . $__neg . "\n" : '');
+        if ($inputImages) {
+            $designPrompt .= "\nATTACHED IMAGES (in order):\n";
+            foreach ($inputImages as $i => $img) $designPrompt .= 'Image ' . ($i + 1) . ' is ' . $img['role'] . "\n";
+        }
+        $designPrompt .= "No watermarks, no fake or invented logos.";
+    }
+}
+
 // ═══ التوليد ═══
 $modelReceivedImages = false;
 
