@@ -23,9 +23,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 // ─── أحداث POST ───
 $raw = file_get_contents('php://input') ?: '';
 
-// تحقق التوقيع لو السيكرت موجود
+// تحقق التوقيع — من غير App Secret مانقدرش نتأكد إن الطلب من ميتا، فبنرفضه
+// (وإلا أي حد يقدر يلغي ربط صفحات العملاء برقم الصفحة)
 $secret = meta_app_secret();
-if ($secret !== '') {
+if ($secret === '') {
+    http_response_code(503);
+    exit('Webhook disabled: Meta App Secret not set');
+}
+{
     $sig = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
     $expected = 'sha256=' . hash_hmac('sha256', $raw, $secret);
     if ($sig === '' || !hash_equals($expected, $sig)) {

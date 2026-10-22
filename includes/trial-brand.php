@@ -47,7 +47,7 @@ function trial_ensure_schema(): void
 
 function trial_client_ip(): string
 {
-    return mb_substr((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+    return mb_substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45); // هيدر CF-Connecting-IP بيتزوّر لو الطلب مش جاي من Cloudflare
 }
 
 /** بصمة المتصفح — بتفرّق بين أكتر من زائر على نفس الـ IP (شبكات الموبايل) */

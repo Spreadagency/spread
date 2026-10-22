@@ -113,7 +113,7 @@ include __DIR__ . '/../templates/admin-header.php';
                         <td>
                             <?php if ($r['status'] === 'granted'): ?>
                                 <button type="button" class="btn ghost sm" style="color:#c0392b"
-                                        onclick="rev(<?= (int) $r['id'] ?>, '<?= e($r['name'] ?? '') ?>', <?= (int) $r['credits_given'] ?>)">↩ استرجاع</button>
+                                        onclick="rev(<?= (int) $r['id'] ?>, <?= js_str($r['name'] ?? '') ?>, <?= (int) $r['credits_given'] ?>)">↩ استرجاع</button>
                             <?php endif; ?>
                         </td>
                     </tr>

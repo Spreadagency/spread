@@ -22,9 +22,11 @@ require_once __DIR__ . '/../../includes/campaign-flow.php';
 require_once __DIR__ . '/../../includes/brand-brain.php';
 require_once __DIR__ . '/../../includes/brand-kit.php';
 
-$user = api_boot(true, true);   // بيكتب في الجلسة
-$uid = (int) $user['id'];
+// الجلسة بتتقفل للتوليد بالدفعات بس (بيكتب حالة الدفعة فيها) — باقي العمليات بتفك القفل
+// علشان طلب AI طويل (كتابة · تقييم · تحسين) مايجمّدش باقي صفحات العميل وهو شغال
 $action = api_action() ?: 'board';
+$user = api_boot(true, $action === 'ideas_generate');
+$uid = (int) $user['id'];
 
 if (get_setting('campaigns_enabled', '1') !== '1') {
     api_fail('الحملات مش متاحة حاليًا', 'disabled', 403);
@@ -279,6 +281,8 @@ switch ($action) {
         if ($old && in_array((string) $old['publish_status'], ['published', 'scheduled', 'processing', 'pending'], true)) {
             api_fail('المنشور ده اتسلّم للنشر خلاص — مش هنعيد كتابته', 'locked', 409);
         }
+        // قبل أي خصم أو حصة — الفيديو المقفول مايتحسبش عليه
+        if ($old && cf_video_locked($old)) api_fail('الفيديو ده اتبعت للتنفيذ — مش هنعيد كتابته', 'locked', 409);
         [$fmt, $slides] = cf_format_req($i);
         // 8-ب: حصة الشهر — منشور جديد (أو سكريبت فيديو) بيتحسب؛ إعادة الكتابة لأ
         // تغيير الشكل بين فيديو ومنشور بينقل الحصة → بيتحسب على الوحدة الجديدة
@@ -289,7 +293,6 @@ switch ($action) {
         cf_charge($uid, $cost, ($old ? 'إعادة كتابة' : 'محتوى') . ' فكرة: ' . mb_substr($i['title'], 0, 60), 'campaign_idea', (int) $i['id']);
 
         $formatChanged = $old && ($old['format'] !== $fmt || ($fmt === 'carousel' && (int) $old['slides_count'] !== $slides));
-        if ($old && cf_video_locked($old)) api_fail('الفيديو ده اتبعت للتنفيذ — مش هنعيد كتابته', 'locked', 409);
         $extra = $old && !$formatChanged ? "اكتب نسخة جديدة مختلفة عن اللي فات (Hook مختلف وزاوية طرح مختلفة)." : '';
         $dur = $fmt === 'video' && $old ? video_brief($old)['duration'] : '30 ثانية';
         // Brand Kit: بريف البوست من الفكرة (خدمة · موضوع · اتجاه) + شكلها — والباقي من الهوية

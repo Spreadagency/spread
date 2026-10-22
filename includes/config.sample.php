@@ -107,7 +107,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // ─── Encryption (API keys في قاعدة البيانات — المرحلة 1) ───
-define('ENCRYPTION_KEY', 'c6ca6640185aa169ab69c798e451f137b2100a180765bc950f35e76155432afb');
+// مفتاح تشفير خاص بالموقع ده بس (64 حرف) — ولّده مرة واحدة وماتشاركوش ومايترفعش على GitHub:
+//   php -r "echo bin2hex(random_bytes(32));"
+// لو بتغيّر مفتاح قديم: حط القديم في ENCRYPTION_KEY_PREV لحد ما تعمل «إعادة تشفير» من الأدمن ← مفاتيح التشفير
+define('ENCRYPTION_KEY', 'PUT_YOUR_OWN_64_HEX_CHARS_HERE');
+// define('ENCRYPTION_KEY_PREV', '');
 
 // ─── نظام الجودة (MCP) — Internal API (المرحلة 3) ──────────
 // قاعدة الـ AI المنفصلة + 3 مستخدمين MySQL بصلاحيات محدودة — الدليل: docs/INTERNAL_API.md

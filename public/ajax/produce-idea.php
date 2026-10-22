@@ -69,7 +69,7 @@ if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
         'job_type' => 'plan_produce', 'max_tokens' => 2500, 'temperature' => 0.8,
     ]);
 } else {
-    $ai = ai_generate($prompt);
+    $ai = ai_generate($prompt, [], ['max_tokens' => 2500, 'temperature' => 0.8]);
 }
 
 if (!$ai['ok']) {

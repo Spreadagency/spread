@@ -269,11 +269,17 @@ function ai_log_context(): array
     return $GLOBALS['__ai_log_ctx'] ?? [];
 }
 
-function ai_generate(string $prompt, array $imageUrls = []): array
+/**
+ * $opts (اختياري): max_tokens · temperature · json (true = الرد لازم JSON) · task
+ * من غيرها: 1000 توكن و 0.8 زي الأول
+ */
+function ai_generate(string $prompt, array $imageUrls = [], array $opts = []): array
 {
+    $maxTokens = max(64, (int) ($opts['max_tokens'] ?? 1000));
+    $temp = (float) ($opts['temperature'] ?? 0.8);
     // 8-أ: البوابة الموحدة بالبدائل (أولوية على أي مسار تاني لما تتفعّل)
     if (function_exists('ai_gw_enabled') && ai_gw_enabled()) {
-        return ai_gw_generate_text($prompt, $imageUrls);
+        return ai_gw_generate_text($prompt, $imageUrls, $maxTokens, $temp, $opts['task'] ?? null, $opts);
     }
 
     // Phase 1: Smart Router (لو مفعّل من الأدمن)
@@ -301,7 +307,7 @@ function ai_generate(string $prompt, array $imageUrls = []): array
 
     // Primary model
     $primary = function_exists('get_setting') ? (get_setting('ai_model', AI_MODEL) ?: AI_MODEL) : AI_MODEL;
-    $r = ai_call($primary, $messages);
+    $r = ai_call($primary, $messages, $temp, $maxTokens);
     if ($r['ok']) {
         $r['model'] = $primary;
         return ai_log_text_result($prompt, $imageUrls, $r, $__logT0, $primary);
@@ -311,7 +317,7 @@ function ai_generate(string $prompt, array $imageUrls = []): array
     $fallback = function_exists('get_setting') ? get_setting('ai_model_fallback', '') : '';
     if ($fallback && $fallback !== $primary) {
         ai_log_error("primary [$primary] failed ({$r['error']}), trying fallback [$fallback]");
-        $r2 = ai_call($fallback, $messages);
+        $r2 = ai_call($fallback, $messages, $temp, $maxTokens);
         if ($r2['ok']) {
             $r2['model'] = $fallback;
             return ai_log_text_result($prompt, $imageUrls, $r2, $__logT0, $fallback);

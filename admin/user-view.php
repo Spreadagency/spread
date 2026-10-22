@@ -726,7 +726,7 @@ $tabUrl = fn($t) => url('admin/user-view.php?id=' . $id . '&tab=' . $t);
                             $__sess ? ['end_sessions', 'إنهاء كل الجلسات', 'العميل هيخرج من كل الأجهزة'] : null,
                             $__del ? ['cancel_delete', 'إلغاء طلب الحذف', 'إلغاء طلب حذف الحساب؟'] : null,
                         ]) as [$__op, $__lbl, $__cf]): ?>
-                            <form method="POST" style="margin:0" onsubmit="return confirm('<?= e($__cf) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="security"><input type="hidden" name="op" value="<?= $__op ?>"><button class="btn ghost sm"><?= e($__lbl) ?></button></form>
+                            <form method="POST" style="margin:0" onsubmit="return confirm(<?= js_str($__cf) ?>)"><?= csrf_field() ?><input type="hidden" name="action" value="security"><input type="hidden" name="op" value="<?= $__op ?>"><button class="btn ghost sm"><?= e($__lbl) ?></button></form>
                         <?php endforeach; ?>
                         <?php endif; ?>
                     </div>

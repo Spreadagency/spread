@@ -15,7 +15,7 @@ if (!google_enabled()) {
     redirect('login.php');
 }
 
-$ip = (string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '');
+$ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
 if (!rate_limit('google_start', 'ip' . $ip, 12, 300)) {
     flash_set('danger', 'محاولات كتير — استنى شوية');
     redirect('login.php');

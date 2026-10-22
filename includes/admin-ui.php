@@ -91,6 +91,7 @@ function admin_nav(): array
         ],
         'AI CENTER' => [
             ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
+            ['ai-models', 'الموديلات (السجل والمراحل)', 'Model Registry', 'cpu', 'admin/ai-models.php', 'ai_settings', ['ai-models']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
             ['prompts', 'مكتبة البرومبتات', 'Prompt Library', 'text', 'admin/prompts.php', 'ai_settings', ['prompts', 'type-prompts']],
             ['brand-learning', 'مكتبة التعلّم', 'Learning Library', 'flask', 'admin/brand-learning.php', 'ai_settings', ['brand-learning']],
@@ -128,6 +129,7 @@ function admin_nav(): array
             ['features', 'المزايا والنشر', 'Features', 'toggle', 'admin/features.php', 'features', ['features']],
             ['appearance', 'المظهر', 'Appearance', 'sliders', 'admin/appearance.php', 'site_settings', ['appearance']],
             ['settings', 'مركز الإعدادات', 'Settings Center', 'gear', 'admin/settings.php', 'site_settings', ['settings', 'integrations', 'google-auth']],
+            ['security-keys', 'مفاتيح التشفير', 'Encryption Keys', 'lock', 'admin/security-keys.php', 'ai_settings', ['security-keys']],
             ['migrations', 'الترحيلات', 'Migrations', 'db', 'admin/migrations.php', 'site_settings', ['migrations']],
             ['ui-diagnose', 'فحص التحديث', 'Update Check', 'tool', 'admin/ui-diagnose.php', 'site_settings', ['ui-diagnose']],
         ],

@@ -223,7 +223,7 @@ function source_summarize(int $sourceId, ?int $userId = null): array
             'job_type' => 'source_summary', 'max_tokens' => $full ? 1800 : 800, 'temperature' => 0.3,
         ]);
     } else {
-        $r = ai_generate($prompt);
+        $r = ai_generate($prompt, [], ['max_tokens' => $full ? 1800 : 800, 'temperature' => 0.3]);
     }
 
     if (!$r['ok']) {

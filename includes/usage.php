@@ -26,6 +26,14 @@ function usage_ready(): bool
     }
 }
 
+/** أعمدة محرك المحتوى v3 (2026_ce_models.sql) موجودة؟ — الكود شغال قبل الترحيل وبعده */
+function usage_ce_ready(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try { db_one('SELECT sandbox, tokens_cached FROM ai_runs LIMIT 1'); return $ok = true; } catch (\Throwable $e) { return $ok = false; }
+}
+
 function usage_setting(string $key, $default)
 {
     if (!function_exists('get_setting')) return $default;
@@ -165,7 +173,15 @@ function usage_cost(array $a): array
         $pin = usage_price($provider, $model, 'in_1m');
         $pout = usage_price($provider, $model, 'out_1m');
         if ($pin && $pout) {
-            $cost += $tin / 1e6 * $pin['price_usd'] + $tout / 1e6 * $pout['price_usd'];
+            // توكنز الكاش بسعرها لو متسجل (أرخص) — غير كده بسعر الدخل العادي
+            $cached = min($tin, max(0, (int) ($a['tokens_cached'] ?? 0)));
+            $pc = $cached > 0 ? usage_price($provider, $model, 'cached_1m') : null;
+            if ($pc) {
+                $cost += ($tin - $cached) / 1e6 * $pin['price_usd'] + $cached / 1e6 * $pc['price_usd'] + $tout / 1e6 * $pout['price_usd'];
+                $refs[] = $pc['id'];
+            } else {
+                $cost += $tin / 1e6 * $pin['price_usd'] + $tout / 1e6 * $pout['price_usd'];
+            }
             $refs[] = $pin['id'];
             $refs[] = $pout['id'];
         } else {
@@ -220,6 +236,16 @@ function usage_run_start(array $r): ?int
                 usage_fx_rate(),
             ]
         );
+        if ($id && usage_ce_ready()) {
+            $campaign = $r['campaign_id'] ?? (($r['ref_type'] ?? '') === 'campaign' ? ($r['ref_id'] ?? null) : null);
+            db_run('UPDATE ai_runs SET campaign_id = ?, prompt_version_id = ?, retry_of = ?, sandbox = ? WHERE id = ?', [
+                $campaign ? (int) $campaign : null,
+                !empty($r['prompt_version_id']) ? (int) $r['prompt_version_id'] : null,
+                !empty($r['retry_of']) ? (int) $r['retry_of'] : null,
+                !empty($r['sandbox']) ? 1 : 0,
+                (int) $id,
+            ]);
+        }
         if ($id) {
             $GLOBALS['__usage_runs'][] = (int) $id;
             usage_register_shutdown();
@@ -264,6 +290,9 @@ function usage_attempt(?int $runId, array $a): float
                 $cost, $src, $ref, $fx, round($cost * $fx, 4), (int) ($a['duration_ms'] ?? 0),
             ]
         );
+        if (!empty($a['tokens_cached']) && usage_ce_ready()) {
+            db_run('UPDATE ai_attempts SET tokens_cached = ? WHERE id = ?', [(int) $a['tokens_cached'], (int) db()->lastInsertId()]);
+        }
         return $cost;
     } catch (\Throwable $e) {
         error_log('[usage] attempt ' . $e->getMessage());
@@ -309,6 +338,14 @@ function usage_run_finish(?int $runId, array $f): void
                 $runId,
             ]
         );
+        if (usage_ce_ready()) {
+            $cached = (int) (db_one('SELECT tokens_cached FROM ai_attempts WHERE run_id = ? AND status = "ok" ORDER BY id DESC LIMIT 1', [$runId])['tokens_cached'] ?? 0);
+            $mid = null;
+            if (!empty($last['provider']) && !empty($last['model'])) {
+                try { $mid = db_one('SELECT id FROM ai_model_registry WHERE provider_name = ? AND model = ?', [$last['provider'], $last['model']])['id'] ?? null; } catch (\Throwable $e) {}
+            }
+            db_run('UPDATE ai_runs SET tokens_cached = ?, model_id = ? WHERE id = ?', [$cached, $mid !== null ? (int) $mid : null, $runId]);
+        }
     } catch (\Throwable $e) {
         error_log('[usage] run_finish ' . $e->getMessage());
     }

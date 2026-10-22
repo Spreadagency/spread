@@ -113,6 +113,12 @@ $health[] = ['Google Auth', $gOk ? 'Active' : ($gOn ? 'مش شغّال: ' . $gWh
 $cronAge = $cronLast ? (time() - strtotime($cronLast)) : null;
 $health[] = ['Scheduler (النشر المجدول)', $cronAge === null ? 'مالوش تشغيل مسجّل' : ($cronAge < 1200 ? 'Running' : 'متأخر ' . time_ago($cronLast)), $cronAge === null ? 'warn' : ($cronAge < 1200 ? 'ok' : 'bad'), 'admin/settings.php?tab=access#f-cron_secret'];
 $health[] = ['Database', 'Healthy', 'ok', 'admin/migrations.php'];
+// مفتاح التشفير: المنشور قديمًا في config.sample.php = لازم يتغيّر
+try {
+    if (!class_exists('Crypto')) require_once __DIR__ . '/../includes/crypto.php';
+    $kPub = Crypto::usingPublicKey();
+    $health[] = ['مفتاح التشفير', $kPub ? 'منشور — غيّره' : (Crypto::hasPrevKey() ? 'بيتغيّر' : 'خاص'), $kPub ? 'bad' : (Crypto::hasPrevKey() ? 'warn' : 'ok'), 'admin/security-keys.php'];
+} catch (\Throwable $e) {}
 
 // ─── تنبيهات محتاجة تدخل ───
 $todo = [];

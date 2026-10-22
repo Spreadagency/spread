@@ -84,7 +84,7 @@ function identity_hash_for(?string $phone, ?string $email = null): ?string
 
 function offer_client_ip(): string
 {
-    return mb_substr((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+    return mb_substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45); // هيدر CF-Connecting-IP بيتزوّر لو الطلب مش جاي من Cloudflare
 }
 
 /* ═══════════════════ قراءة العروض ═══════════════════ */
@@ -373,6 +373,12 @@ function reverse_redemption(int $redemptionId, string $reason, ?int $adminId = n
     if (!$red) return ['ok' => false, 'message' => 'الواقعة غير موجودة'];
     if ($red['status'] !== 'granted') return ['ok' => false, 'message' => 'الواقعة مسترجعة بالفعل'];
 
+    // قفل الواقعة الأول بشرط الحالة — طلبين في نفس اللحظة مايخصموش مرتين
+    $pdo = db();
+    $st = $pdo->prepare('UPDATE offer_redemptions SET status = "reversed", reversed_reason = ? WHERE id = ? AND status = "granted"');
+    $st->execute([mb_substr($reason, 0, 191), $redemptionId]);
+    if ($st->rowCount() !== 1) return ['ok' => false, 'message' => 'الواقعة مسترجعة بالفعل'];
+
     $credits = (int) $red['credits_given'];
     if ($credits > 0) {
         // خصم بقيد عكسي — مش مسح
@@ -380,8 +386,6 @@ function reverse_redemption(int $redemptionId, string $reason, ?int $adminId = n
             'استرجاع مكافأة عرض #' . $red['offer_id'] . ' — ' . mb_substr($reason, 0, 120), $adminId, ['promo', 'bonus']);
     }
 
-    db_run('UPDATE offer_redemptions SET status = "reversed", reversed_reason = ? WHERE id = ?',
-        [mb_substr($reason, 0, 191), $redemptionId]);
     db_run('UPDATE offers SET used_count = GREATEST(used_count - 1, 0), credits_spent = GREATEST(credits_spent - ?, 0) WHERE id = ?',
         [$credits, $red['offer_id']]);
     db_run('DELETE FROM user_offer_flags WHERE user_id = ? AND offer_id = ?', [$red['user_id'], $red['offer_id']]);

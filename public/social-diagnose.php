@@ -13,7 +13,7 @@ $user = current_user();
 
 // إصلاح تلقائي عند الطلب
 $fixed = [];
-if (($_GET['fix'] ?? '') === '1') {
+if (($_GET['fix'] ?? '') === '1' && !empty($_SESSION['admin_id'])) { // تعديل الجداول للأدمن بس
     $fixed = social_ensure_schema();
 }
 

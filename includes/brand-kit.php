@@ -979,7 +979,7 @@ function bk_learning_extract(int $learningId): array
         . "- ماتخترعش معلومات مش موجودة في المرجع.\n"
         . "رجّع JSON بس: {\"topics\":[{\"title\":\"\",\"angle\":\"\",\"pillar\":\"\"}]}\n\n---\n" . mb_substr($text, 0, 9000);
     if (function_exists('ai_log_set_context')) ai_log_set_context(['kind' => 'brand', 'user_id' => null, 'reference_type' => 'brand_learning', 'reference_id' => $learningId]);
-    $r = ai_generate($prompt);
+    $r = ai_generate($prompt, [], ['max_tokens' => 2500, 'temperature' => 0.5, 'json' => true]);
     if (empty($r['ok'])) return ['ok' => false, 'added' => 0, 'error' => $r['error'] ?? 'تعذّر الاستخراج'];
     $j = bk_json_from_ai((string) $r['response']);
     $added = 0;

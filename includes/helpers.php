@@ -34,6 +34,16 @@ function redirect(string $path): void
 /**
  * Flash messages
  */
+/**
+ * نص جوه JavaScript داخل attribute (onclick · onsubmit …) — بيرجّع literal كامل بعلاماته.
+ * e() لوحده مش كفاية هنا: المتصفح بيفك &#039; لـ ' قبل ما يشغّل الكود.
+ *   onclick="rev(1, <?= js_str($name) ?>)"   ·   onsubmit="return confirm(<?= js_str('حذف «' . $name . '»؟') ?>)"
+ */
+function js_str($v): string
+{
+    return htmlspecialchars((string) json_encode((string) $v, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+}
+
 function flash_set(string $type, string $message): void
 {
     $_SESSION['flash'][] = ['type' => $type, 'message' => $message];

@@ -68,7 +68,8 @@ function campaign_ai_call(string $prompt, int $maxTokens, string $task, array $c
     if (function_exists('ai_gw_enabled') && ai_gw_enabled()) {
         ai_log_set_context(['kind' => $task, 'user_id' => $ctx['user_id'] ?? null,
             'reference_type' => $ctx['reference_type'] ?? 'campaign', 'reference_id' => $ctx['reference_id'] ?? null]);
-        return ai_gw_generate_text($prompt, [], $maxTokens, (float) ($ctx['temperature'] ?? 0.85), usage_task_for_kind($task));
+        return ai_gw_generate_text($prompt, [], $maxTokens, (float) ($ctx['temperature'] ?? 0.85), usage_task_for_kind($task),
+            ['json' => !empty($ctx['json_mode']), 'campaign_id' => $ctx['campaign_id'] ?? null]);
     }
 
     if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
