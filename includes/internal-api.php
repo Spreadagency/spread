@@ -127,6 +127,15 @@ function iapi_date(string $k, string $default): string
 }
 
 /** limit (≤ 50) + cursor (offset) */
+/** المسارات اللي الأدمن قفلها (مركز الجودة ← الإعدادات) */
+function iapi_disabled_routes(): array
+{
+    static $off = null;
+    if ($off !== null) return $off;
+    $v = function_exists('get_setting') ? json_decode((string) get_setting('mcp_disabled_routes', '[]'), true) : [];
+    return $off = is_array($v) ? array_values(array_filter($v, 'is_string')) : [];
+}
+
 function iapi_page(int $default = 20): array
 {
     return [iapi_int('limit', $default, 1, IAPI_MAX_LIMIT), iapi_int('cursor', 0, 0, 100000)];
@@ -263,6 +272,10 @@ function iapi_boot(array $routes): array
     if ($routes[$route][0] !== $scope) iapi_fail('المسار «' . $route . '» محتاج صلاحية ' . $routes[$route][0] . ' — الطلب جه بـ ' . $scope, 'scope_mismatch', 403);
     $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($scope !== 'read' && $method !== 'POST') iapi_fail('العمليات اللي بتكتب لازم POST', 'method', 405);
+    // الأدمن قفل الأداة دي (مركز الجودة ← الإعدادات) — health دايمًا شغال
+    if ($route !== 'health' && in_array($route, iapi_disabled_routes(), true)) {
+        iapi_fail('الأداة دي مقفولة من الأدمن (مركز الجودة ← الإعدادات) — ماتستخدمهاش وكمّل بالباقي', 'tool_disabled', 403);
+    }
 
     $GLOBALS['__iapi']['route'] = $route;
     $GLOBALS['__iapi']['scope'] = $scope;

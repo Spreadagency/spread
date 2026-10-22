@@ -101,6 +101,13 @@ function admin_nav(): array
             ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
             ['mcp-setup', 'إعداد الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
         ],
+        'AI QUALITY' => [
+            ['ai-report', 'التقرير اليومي', 'Daily Report', 'chart', 'admin/ai-report.php', 'ai_settings', ['ai-report']],
+            ['ai-evaluations', 'تقييمات المحتوى', 'Content Evaluations', 'gauge', 'admin/ai-evaluations.php', 'ai_settings', ['ai-evaluations']],
+            ['ai-issues', 'البلاغات', 'User Issues', 'warn', 'admin/ai-issues.php', 'view_users', ['ai-issues'], 'issues'],
+            ['ai-mcp-log', 'سجل الـ MCP', 'MCP Audit Log', 'list', 'admin/ai-mcp-log.php', 'ai_settings', ['ai-mcp-log']],
+            ['ai-quality-settings', 'إعدادات الجودة', 'Quality Settings', 'sliders', 'admin/ai-quality-settings.php', 'ai_settings', ['ai-quality-settings']],
+        ],
         'PUBLISHING' => [
             ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
         ],
@@ -142,6 +149,9 @@ function admin_nav_count(string $kind): int
         }
         if ($kind === 'alerts') {
             return admin_alerts_open_count();
+        }
+        if ($kind === 'issues') {
+            return (int) (db_one('SELECT COUNT(*) n FROM user_issues WHERE status = "new"')['n'] ?? 0);
         }
     } catch (\Throwable $e) {
     }

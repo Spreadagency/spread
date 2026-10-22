@@ -4,6 +4,7 @@
 import { McpServer, type AuthInfo } from "@modelcontextprotocol/server";
 import { ALL_SCOPES, config, SCOPES } from "./config.js";
 import { registerPrompts } from "./prompts.js";
+import { toolHidden } from "./remote-config.js";
 import { rubricMarkdown } from "./rubric.js";
 import { registerDraftTools } from "./tools/drafts.js";
 import { registerEvaluateTools } from "./tools/evaluate.js";
@@ -16,10 +17,14 @@ const INSTRUCTIONS = `Spread AI quality, monitoring and security server (Egyptia
 - Before scoring a post read rubric://content-quality. For the daily report use the daily_review prompt.
 - Answer the user in Egyptian Arabic. Never print phone numbers or emails.`;
 
-export function createServer(authInfo?: AuthInfo): McpServer {
+export function createServer(authInfo?: AuthInfo, off: Set<string> = new Set()): McpServer {
   const scopes = new Set(authInfo ? authInfo.scopes : ALL_SCOPES);
   const env = { client: authInfo ? `mcp:${authInfo.clientId}` : "mcp:stdio" };
   const server = new McpServer(SERVER_INFO, { instructions: INSTRUCTIONS });
+  // الأدوات اللي الأدمن قفلها من مركز الجودة مابتتسجلش أصلًا (والموقع بيرفضها كمان)
+  const register = server.registerTool.bind(server);
+  server.registerTool = ((name: string, ...rest: unknown[]) =>
+    toolHidden(name, off) ? undefined : (register as (...a: unknown[]) => unknown)(name, ...rest)) as typeof server.registerTool;
 
   const canRead = scopes.has(SCOPES.read);
   const canWrite = scopes.has(SCOPES.evaluate);

@@ -16,10 +16,11 @@ import { config } from "./config.js";
 import { mountOAuth, verifier } from "./auth/oauth.js";
 import * as store from "./auth/store.js";
 import { hit } from "./ratelimit.js";
+import { disabledRoutes } from "./remote-config.js";
 import { createServer, SERVER_INFO } from "./server.js";
 
 if (config.transport === "stdio") {
-  serveStdio(() => createServer());
+  serveStdio(async () => createServer(undefined, await disabledRoutes()));
   console.error(`${SERVER_INFO.name} running on stdio`);
 } else {
   store.load();
@@ -41,7 +42,7 @@ if (config.transport === "stdio") {
 
   mountOAuth(app);
 
-  const handler = createMcpHandler(({ authInfo }) => createServer(authInfo), {
+  const handler = createMcpHandler(async ({ authInfo }) => createServer(authInfo, await disabledRoutes()), {
     onerror: e => console.error(`[mcp] ${e.message}`),
   });
   const nodeHandler = toNodeHandler(handler);

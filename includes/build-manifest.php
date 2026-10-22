@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-22',
-  'generated' => '2026-10-22 10:47',
+  'generated' => '2026-10-22 11:17',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -148,6 +148,13 @@ return array (
     139 => 'admin/mcp-setup.php',
     140 => 'sql/2026_mcp_ai_db.sql',
     141 => 'sql/2026_mcp_ai_db_rollback.sql',
+    142 => 'includes/ai-center.php',
+    143 => 'admin/ai-report.php',
+    144 => 'admin/ai-evaluations.php',
+    145 => 'admin/ai-issues.php',
+    146 => 'admin/ai-issue-shot.php',
+    147 => 'admin/ai-mcp-log.php',
+    148 => 'admin/ai-quality-settings.php',
   ),
   'files' => 
   array (
@@ -166,6 +173,21 @@ return array (
       'h' => '2e8f4c4e95528593bd37e072baef4505',
       's' => 32353,
     ),
+    'admin/ai-evaluations.php' => 
+    array (
+      'h' => 'e05fa615c9f4fd445f705741f03c59eb',
+      's' => 18136,
+    ),
+    'admin/ai-issue-shot.php' => 
+    array (
+      'h' => '86c21a5db73ab827ae4b2462bd2c88af',
+      's' => 1268,
+    ),
+    'admin/ai-issues.php' => 
+    array (
+      'h' => '4dc5a618d760a5729ed5a764b53c4c30',
+      's' => 21443,
+    ),
     'admin/ai-logs.php' => 
     array (
       'h' => '2ad1ffcde930c18e3c3e2ba1c2a63c98',
@@ -176,10 +198,25 @@ return array (
       'h' => 'ebd9d0180c7f74b813af6355c5e02f0b',
       's' => 20711,
     ),
+    'admin/ai-mcp-log.php' => 
+    array (
+      'h' => 'd76a528dd18610829451b0998d6bd35a',
+      's' => 11768,
+    ),
     'admin/ai-providers.php' => 
     array (
       'h' => 'a340577477d97670589b54966c594c93',
       's' => 24038,
+    ),
+    'admin/ai-quality-settings.php' => 
+    array (
+      'h' => 'a9d7c32eafbe450f935e7c5485c9c3ce',
+      's' => 11231,
+    ),
+    'admin/ai-report.php' => 
+    array (
+      'h' => '7ea5cd1a5bfedd684fe6ec2dcbe90d3a',
+      's' => 10737,
     ),
     'admin/ai-router.php' => 
     array (
@@ -573,8 +610,8 @@ return array (
     ),
     'docs/MCP_PHASES.md' => 
     array (
-      'h' => 'e5235525c3c48bed679258675a932e00',
-      's' => 16380,
+      'h' => '29393934e21f51761da88fe05ceb86a3',
+      's' => 21658,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -608,8 +645,13 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '9418fe8052bb3f54c12c46cb93c8aeb1',
-      's' => 13156,
+      'h' => '242cb07a0252ff5b6c2012cc5d434738',
+      's' => 14070,
+    ),
+    'includes/ai-center.php' => 
+    array (
+      'h' => '0d9c23fdb8c7797e604cad2d9a30baf4',
+      's' => 12201,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -713,13 +755,13 @@ return array (
     ),
     'includes/internal-api-routes.php' => 
     array (
-      'h' => '181f5c2610c2c21da294da1f07fed9d7',
-      's' => 45618,
+      'h' => '0a2fc19c48119dc4a2ce303323a8c34b',
+      's' => 45663,
     ),
     'includes/internal-api.php' => 
     array (
-      'h' => 'a4e7ec98356cfa7ed1ed4c6d252c28e2',
-      's' => 12190,
+      'h' => 'cd53e782158d1385b0d290e97989376f',
+      's' => 13003,
     ),
     'includes/journey.php' => 
     array (

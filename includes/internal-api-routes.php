@@ -111,7 +111,7 @@ function r_health(): void
     $ai = [];
     foreach (['ai_evaluations', 'change_requests', 'mcp_audit_log', 'ai_reports'] as $t) $ai[$t] = iapi_ai_has($t);
     iapi_ok(['service' => 'spread-internal-api', 'version' => 1, 'secure_mode' => iapi_secure_mode(), 'ai_db' => mcp_ai_db() !== DB_NAME ? 'separate' : 'same_as_platform',
-             'ai_tables' => $ai, 'time' => date('c')]);
+             'ai_tables' => $ai, 'disabled_routes' => iapi_disabled_routes(), 'time' => date('c')]);
 }
 
 /** قمع الاستخدام + الجودة + الـ AI للفترة دي مقارنة باللي قبلها */
