@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-21',
-  'generated' => '2026-10-21 20:05',
+  'date' => '2026-10-22',
+  'generated' => '2026-10-22 10:47',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -238,8 +238,8 @@ return array (
     ),
     'admin/dashboard.php' => 
     array (
-      'h' => '6f25f755f23233e17d1c472a35dd4adf',
-      's' => 17644,
+      'h' => '98765953a6dea574f3d1f706658d5f37',
+      's' => 17979,
     ),
     'admin/designs-gallery.php' => 
     array (
@@ -253,8 +253,8 @@ return array (
     ),
     'admin/google-auth.php' => 
     array (
-      'h' => 'fbcc200868e87c76937df3c862c0c89b',
-      's' => 14337,
+      'h' => '134c846a1466ecc69a585106577725a5',
+      's' => 15203,
     ),
     'admin/impersonate.php' => 
     array (
@@ -373,8 +373,8 @@ return array (
     ),
     'admin/settings.php' => 
     array (
-      'h' => '61d8784b842fcc92806ff67adb2f033c',
-      's' => 30224,
+      'h' => '42e02b985114a2057111e9abdd0b10cc',
+      's' => 30766,
     ),
     'admin/social-connections.php' => 
     array (
@@ -698,8 +698,8 @@ return array (
     ),
     'includes/google-auth.php' => 
     array (
-      'h' => '047806b5f6cce1987073cb4d9e066098',
-      's' => 12004,
+      'h' => '4a4b412a6bd00ac26a283cfe18de5b04',
+      's' => 13442,
     ),
     'includes/helpers.php' => 
     array (

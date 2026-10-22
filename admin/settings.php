@@ -71,6 +71,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($set as $k => $v) set_setting($k, $v);
         admin_log('settings_save', 'settings', null, json_encode(['tab' => $t, 'keys' => array_keys($set)], JSON_UNESCAPED_UNICODE));
         flash_set('success', $set ? 'اتحفظ ✓ — ' . count($set) . ' إعداد اتغير' : 'مفيش تغيير');
+        // الدخول بجوجل: لو المفتاح مفعّل والزرار لسه مش هيظهر، قول السبب فورًا
+        if ($t === 'access' && get_setting('google_login_enabled', '0') === '1') {
+            require_once __DIR__ . '/../includes/google-auth.php';
+            if (!google_enabled() && ($gi = google_issues())) {
+                flash_set('warning', 'زرار جوجل لسه مش هيظهر للعملاء — ' . implode(' · ', array_map(fn($x) => $x[0] . ': ' . $x[1], $gi)));
+            }
+        }
         redirect($back($t));
     }
 

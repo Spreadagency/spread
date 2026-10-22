@@ -47,7 +47,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $checks[] = ['Client ID مضبوط', $cid !== '', $cid !== '' ? mb_substr($cid, 0, 22) . '…' : 'فاضي'];
         $checks[] = ['صيغة Client ID صحيحة', str_ends_with($cid, '.apps.googleusercontent.com'),
                      str_ends_with($cid, '.apps.googleusercontent.com') ? 'تمام' : 'لازم ينتهي بـ .apps.googleusercontent.com'];
-        $checks[] = ['Client Secret محفوظ', $sec !== '', $sec !== '' ? 'موجود ومشفّر' : 'فاضي'];
+        $hasEnc = (string) get_setting('google_client_secret_enc', '') !== '';
+        $checks[] = ['Client Secret محفوظ', $sec !== '', $sec !== '' ? 'موجود ومشفّر' : ($hasEnc ? 'محفوظ بس مش بيتفك — اكتبه تاني واحفظ (ENCRYPTION_KEY اتغيّر)' : 'فاضي')];
+        $checks[] = ['مفتاح «زرار الدخول بجوجل ظاهر للعملاء»', get_setting('google_login_enabled', '0') === '1',
+                     get_setting('google_login_enabled', '0') === '1' ? 'مفعّل' : 'مقفول — علّم عليه واحفظ'];
         $checks[] = ['امتداد cURL', function_exists('curl_init'), function_exists('curl_init') ? 'موجود' : 'ناقص — كلّم الاستضافة'];
         $checks[] = ['الموقع يعمل بـ HTTPS', str_starts_with(APP_URL, 'https://'),
                      str_starts_with(APP_URL, 'https://') ? 'تمام' : '⚠️ جوجل بيرفض http إلا localhost'];
@@ -101,8 +104,15 @@ include __DIR__ . '/../templates/admin-header.php';
         <div class="card" style="border:2px solid <?= google_enabled() ? '#2a7d5f' : '#c0392b' ?>;
              background:<?= google_enabled() ? '#eefaf4' : '#fdecea' ?>">
             <b style="font-size:15.5px">
-                <?= google_enabled() ? '✅ الدخول بجوجل شغّال' : '🔴 مش مفعّل — اتبع الخطوات تحت' ?>
+                <?= google_enabled() ? '✅ الدخول بجوجل شغّال' : '🔴 مش مفعّل — الزرار مخفي عن العملاء' ?>
             </b>
+            <?php if (!google_enabled()): ?>
+                <ul style="margin:8px 0 0;padding-inline-start:20px;font-size:13.5px;line-height:1.8">
+                    <?php foreach (google_issues() as [$why, $fix]): ?>
+                        <li><b><?= e($why) ?>:</b> <?= e($fix) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
             <div class="sub" style="margin-top:6px;font-size:13px">
                 <?= (int) ($stats['linked'] ?? 0) ?> حساب مربوط بجوجل ·
                 <?= (int) ($stats['gonly'] ?? 0) ?> بجوجل بس ·

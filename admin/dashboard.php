@@ -101,8 +101,15 @@ $metaOk = false;
 try { if (!function_exists('meta_configured')) require_once __DIR__ . '/../includes/social.php'; $metaOk = function_exists('meta_configured') && meta_configured(); } catch (\Throwable $e) {}
 $health[] = ['Facebook / Instagram', $metaOk ? 'Connected' : 'مش مضبوط', $metaOk ? 'ok' : 'warn', 'admin/settings.php?tab=social'];
 $gOk = false;
-try { if (!function_exists('google_enabled')) require_once __DIR__ . '/../includes/google-auth.php'; $gOk = function_exists('google_enabled') && google_enabled(); } catch (\Throwable $e) {}
-$health[] = ['Google Auth', $gOk ? 'Active' : 'متقفل', $gOk ? 'ok' : 'off', 'admin/google-auth.php'];
+$gWhy = '';
+try {
+    if (!function_exists('google_enabled')) require_once __DIR__ . '/../includes/google-auth.php';
+    $gOk = function_exists('google_enabled') && google_enabled();
+    if (!$gOk && function_exists('google_issues')) $gWhy = (google_issues()[0][0] ?? '');
+} catch (\Throwable $e) {}
+// مقفول بقصد = off · متظبط بس فيه مشكلة (السر مش بيتفك مثلًا) = warn
+$gOn = get_setting('google_login_enabled', '0') === '1';
+$health[] = ['Google Auth', $gOk ? 'Active' : ($gOn ? 'مش شغّال: ' . $gWhy : 'متقفل'), $gOk ? 'ok' : ($gOn ? 'warn' : 'off'), 'admin/google-auth.php'];
 $cronAge = $cronLast ? (time() - strtotime($cronLast)) : null;
 $health[] = ['Scheduler (النشر المجدول)', $cronAge === null ? 'مالوش تشغيل مسجّل' : ($cronAge < 1200 ? 'Running' : 'متأخر ' . time_ago($cronLast)), $cronAge === null ? 'warn' : ($cronAge < 1200 ? 'ok' : 'bad'), 'admin/settings.php?tab=access#f-cron_secret'];
 $health[] = ['Database', 'Healthy', 'ok', 'admin/migrations.php'];
