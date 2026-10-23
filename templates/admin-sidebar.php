@@ -59,7 +59,7 @@ if (function_exists('admin_can') && admin_can('site_settings') && is_file(__DIR_
     } else {
         try {
             require_once __DIR__ . '/../includes/migrations.php';
-            foreach (migrations_status() as $__m) if ($__m['state'] === 'pending') $__updPending[] = $__m['file'];
+            foreach (migrations_status() as $__m) if ($__m['state'] === 'pending' || $__m['state'] === 'incomplete') $__updPending[] = $__m['file'];
             $_SESSION['a2_mig_pending'] = ['t' => time(), 'p' => $__updPending];
         } catch (\Throwable $e) {}
     }

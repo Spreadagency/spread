@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-22',
-  'generated' => '2026-10-22 21:40',
+  'date' => '2026-10-23',
+  'generated' => '2026-10-23 12:40',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -346,8 +346,8 @@ return array (
     ),
     'admin/migrations.php' => 
     array (
-      'h' => 'c113c32e9fcac5de5da5d4954fc01d36',
-      's' => 6999,
+      'h' => 'a5c4d06dbe4b2e60ddf5362fa91b661c',
+      's' => 7312,
     ),
     'admin/offer-edit.php' => 
     array (
@@ -461,8 +461,8 @@ return array (
     ),
     'admin/ui-diagnose.php' => 
     array (
-      'h' => '7a95a6634f4a2d0eb4265b34158209b2',
-      's' => 26127,
+      'h' => 'b37f06bfb63a406195260cc079b968ed',
+      's' => 26344,
     ),
     'admin/user-brand.php' => 
     array (
@@ -831,8 +831,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '4c3b8b85ee2ecb8b914c082859f15c84',
-      's' => 11304,
+      'h' => 'b2955f78ec0d58a34f3520ca96dc06ec',
+      's' => 13416,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1736,8 +1736,8 @@ return array (
     ),
     'templates/admin-sidebar.php' => 
     array (
-      'h' => 'd34b08bf9350ccd581c24f5a00dc4d41',
-      's' => 8436,
+      'h' => '9f8c6bcfc4f621035de80b61c829afd8',
+      's' => 8470,
     ),
     'templates/brand-kit-post.php' => 
     array (

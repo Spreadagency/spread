@@ -121,9 +121,36 @@ function migrations_ensure_table(): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
-/** حالة كل ملف: مطبّق · معلّق · اتغيّر بعد التطبيق · مفقود */
+/** الجداول اللي الملف بيعملها (CREATE TABLE IF NOT EXISTS) — علشان نتأكد إنها موجودة فعلًا بعد التشغيل */
+function migration_expected_tables(string $file): array
+{
+    $path = migrations_dir() . '/' . basename($file);
+    if (!is_file($path)) return [];
+    preg_match_all('/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`?([A-Za-z0-9_]+)`?/i', (string) file_get_contents($path), $m);
+    return array_values(array_unique(array_map('strtolower', $m[1])));
+}
+
+/** أسماء جداول قاعدة المنصة الموجودة فعلًا (null = مقدرناش نقرا) */
+function migrations_existing_tables(): ?array
+{
+    try {
+        $out = [];
+        foreach (db_all('SELECT table_name t FROM information_schema.tables WHERE table_schema = DATABASE()') as $r) {
+            $out[strtolower((string) ($r['t'] ?? $r['TABLE_NAME'] ?? ''))] = true;
+        }
+        return $out;
+    } catch (\Throwable $e) {
+        return null;
+    }
+}
+
+/**
+ * حالة كل ملف: مطبّق · معلّق · اتغيّر بعد التطبيق · مفقود
+ * · ناقص (incomplete) = متسجّل إنه اتشغّل بس جداوله مش موجودة في القاعدة — بيتعامل زي المعلّق ويتشغّل تاني
+ */
 function migrations_status(): array
 {
+    $have = migrations_existing_tables();
     $applied = [];
     if (migrations_table_ready()) {
         foreach (db_all('SELECT * FROM schema_migrations') as $r) {
@@ -137,6 +164,11 @@ function migrations_status(): array
         $sum = $exists ? sha1_file($path) : null;
         $row = $applied[$file] ?? null;
         $state = !$exists ? 'missing' : (!$row ? 'pending' : ($row['checksum'] && $row['checksum'] !== $sum ? 'changed' : 'applied'));
+        $gone = [];
+        if ($row && $exists && $have !== null) {
+            foreach (migration_expected_tables($file) as $t) if (!isset($have[$t])) $gone[] = $t;
+            if ($gone) $state = 'incomplete';
+        }
         $out[] = [
             'file'       => $file,
             'label'      => $label,
@@ -144,6 +176,7 @@ function migrations_status(): array
             'applied_at' => $row['applied_at'] ?? null,
             'applied_by' => $row['applied_by'] ?? null,
             'ms'         => (int) ($row['duration_ms'] ?? 0),
+            'missing_tables' => $gone,
         ];
     }
     return $out;
@@ -176,6 +209,15 @@ function migration_run_file(string $file, string $by = 'admin'): array
         }
     }
     $ms = (int) round((microtime(true) - $t0) * 1000);
+    // اتأكد إن الجداول اتعملت فعلًا قبل ما نسجّل إنه اتنفّذ
+    $have = migrations_existing_tables();
+    if ($have !== null) {
+        $gone = array_values(array_filter(migration_expected_tables($file), fn($t) => !isset($have[$t])));
+        if ($gone) {
+            return ['ok' => false, 'error' => 'الجمل اتنفّذت بس الجداول دي مش موجودة: ' . implode(' · ', $gone)
+                . ' — اتأكد إن DB_NAME في config.php هو نفس القاعدة اللي بتشوفها في phpMyAdmin'];
+        }
+    }
     migration_mark($file, $by, $ms);
     return ['ok' => true, 'ms' => $ms];
 }
@@ -199,7 +241,7 @@ function migrations_run_pending(string $by = 'admin'): array
     migrations_ensure_table();
     $ran = [];
     foreach (migrations_status() as $m) {
-        if ($m['state'] !== 'pending') continue;
+        if ($m['state'] !== 'pending' && $m['state'] !== 'incomplete') continue;
         $r = migration_run_file($m['file'], $by);
         if (!$r['ok']) {
             return ['ok' => false, 'ran' => $ran, 'error' => $m['file'] . ': ' . $r['error']];
