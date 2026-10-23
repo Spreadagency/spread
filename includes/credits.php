@@ -403,6 +403,11 @@ function credits_consume(int $userId, int $amount, string $notes = '', ?string $
             'alloc' => $alloc !== null ? ['a' => $alloc] : null, 'balance_after' => $balance - $amount,
         ]);
         if ($began) db()->commit();
+        // الرصيد قرب يخلص → إشعار (مرة واحدة لحد ما يشحن)
+        if (is_file(__DIR__ . '/Notifier.php')) {
+            require_once __DIR__ . '/Notifier.php';
+            wa_check_credits_low($userId, $balance - $amount);
+        }
         return true;
     } catch (\Throwable $e) {
         if ($began && db()->inTransaction()) db()->rollBack();

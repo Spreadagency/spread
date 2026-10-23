@@ -1541,3 +1541,19 @@ button[aria-busy="true"] { opacity: .75; cursor: wait; }
     .bl-checkout { grid-template-columns: 1fr; }
     .bl-co-sum { position: static; }
 }
+
+/* صفحة المنشور: اختيارات التصميم + تقييم المحتوى */
+.cv-chips .chip.on { border-color: var(--primary, #0C87EF); background: #E6F3FF; color: #0A5FCF; font-weight: 700; }
+.cv-chip-img { display: inline-flex; align-items: center; gap: 6px; }
+.cv-chip-img img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; }
+.cv-rate { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.cv-rate-ring { width: 74px; height: 74px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 6px solid #13A89E; flex: none; }
+.cv-rate-ring.warn { border-color: #F5A524; }
+.cv-rate-ring b { font-size: 22px; line-height: 1; } .cv-rate-ring small { font-size: 10px; color: var(--mute, #5B6B82); }
+.cv-rate-cats { flex: 1; min-width: 220px; display: grid; gap: 6px; }
+.cv-rate-cats div { display: grid; grid-template-columns: 140px 1fr 32px; gap: 8px; align-items: center; font-size: 12.5px; }
+.cv-rate-cats i { height: 6px; background: #EEF3F8; border-radius: 99px; overflow: hidden; display: block; }
+.cv-rate-cats s { display: block; height: 100%; background: linear-gradient(90deg, #13A89E, #0C87EF); text-decoration: none; }
+.cv-rate-c { margin: 10px 0 0; color: #0F7F77; font-size: 13px; }
+.cv-rate-i { margin: 10px 0 8px; color: #9A5B00; font-size: 13px; }
+@media (max-width: 480px) { .cv-rate-cats div { grid-template-columns: 110px 1fr 28px; } }

@@ -8,22 +8,17 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/source-extract.php';
+require_once __DIR__ . '/brand-kit.php';
+require_once __DIR__ . '/prompt-library.php';
 
 /**
  * Get the active prompt for a given type (or fallback to default)
  */
 function get_active_prompt(string $type = 'content'): string
 {
-    try {
-        $row = db_one(
-            'SELECT prompt_text FROM prompts WHERE prompt_type = ? AND is_active = 1 ORDER BY version DESC LIMIT 1',
-            [$type]
-        );
-        if ($row && trim((string) $row['prompt_text']) !== '') {
-            return $row['prompt_text'];
-        }
-    } catch (\Throwable $e) {
-    }
+    // المفعّل — أو نسخة «تجربة A/B» لنسبة من العملاء (prompt_pick في prompt-library.php)
+    $row = prompt_pick($type);
+    if ($row) return (string) $row['prompt_text'];
     return $type === 'content' ? default_base_prompt() : '';
 }
 
@@ -49,7 +44,14 @@ function prompt_types(): array
         'brand_agent'     => ['🤖 مساعد الهوية', 'تعليمات ايجنت المحادثة'],
         'source_summary'  => ['📄 تلخيص المستندات', 'تلخيص مستندات الهوية'],
         'design_base'     => ['🎨 أساس برومبت التصميم', 'التعليمات الثابتة في كل تصميم (إنجليزي)'],
-    ];
+        // Brand Kit: تعليمات كل Agent (بتتحط فوق سياق الهوية بتاعه)
+        'agent_brand'     => ['🧬 Agent الهوية', 'بناء مسودة الـ Brand Kit من اللينك / الأسئلة / الملفات'],
+        'agent_ideas'     => ['🧠 Agent الأفكار', 'تعليمات إضافية لكل توليد أفكار (الحملات والخطة)'],
+        'agent_copy'      => ['✍️ Agent الكتابة', 'تعليمات إضافية لكل كتابة منشور / كابشن'],
+        'agent_design'    => ['🖼 Agent التصميم', 'تعليمات إضافية لكل تصميم (إنجليزي)'],
+        'agent_video'     => ['🎬 Agent الفيديو', 'تعليمات إضافية لسكريبتات الريلز'],
+        'agent_schedule'  => ['🗓 Agent الجدولة', 'تعليمات توزيع المحتوى على الأسبوع'],
+    ] + array_map(fn($p) => [$p[0], $p[1]], prompt_library());
 }
 
 function default_base_prompt(): string
@@ -128,6 +130,15 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
     }
     // ────────────────────────────────────────────────────────
 
+    // الهوية الموحّدة (Brand Brain + مركز الهوية + بريف البوست) — بلوك واحد بدل التكرار
+    $kitSection = '';
+    $__unified = function_exists('bk_brand_block') ? bk_brand_block($brand, 'copy', $options['bk_brief'] ?? null, $options['bk_overrides'] ?? []) : null;
+    if ($__unified !== null) {
+        $brandSection = $__unified;
+        $knowledgeSection = '';
+        $kitSection = "\nلو فيه تعارض بين الهوية دي و«متطلبات هذا المنشور» تحت: متطلبات المنشور ليها الأولوية — ما عدا الممنوعات.";
+    }
+
     $contentType = $options['content_type'] ?? 'تعريفي';
     $platform = match ($options['platform'] ?? 'both') {
         'facebook' => 'فيسبوك',
@@ -141,13 +152,12 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         default => 'متوسط'
     };
     $tone = $options['tone'] ?? ($brand['tone'] ?? 'بسيط');
+    $tone = ['simple' => 'بسيطة وقريبة', 'formal' => 'رسمية', 'fun' => 'مرحة', 'professional' => 'احترافية'][$tone] ?? $tone;
+    if (($options['tone'] ?? '') === '' && $__unified !== null) $tone = 'زي طريقة الكلام في الهوية';
 
     // Dialect (feature 27)
-    $dialect = match ($options['dialect'] ?? 'egyptian') {
-        'gulf' => 'اللهجة الخليجية البيضاء',
-        'msa' => 'العربية الفصحى المبسطة',
-        default => 'اللهجة المصرية الخفيفة'
-    };
+    $dialect = function_exists('bk_dialect_label') ? bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')))
+        : match ($options['dialect'] ?? 'egyptian') { 'gulf', 'khaleeji' => 'اللهجة الخليجية البيضاء', 'msa' => 'العربية الفصحى المبسطة', default => 'اللهجة المصرية الخفيفة' };
 
     // Template snippet (feature 27)
     $templateSection = '';
@@ -165,11 +175,25 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         $typeSection = "\n\nتعليمات خاصة بنوع المحتوى ده (التزم بيها):\n" . $__tp;
     }
 
+    // برومبت كامل (مكتبة v1): البيانات كلها في المتغيرات — وشكل الرد بتاعه نفس التاجات اللي بنقراها
+    if (prompt_is_full($base)) {
+        $uid = (int) ($brand['user_id'] ?? 0);
+        $vars = [
+            'brand_identity' => trim($brandSection . $knowledgeSection . $kitSection),
+            'content_type' => $contentType, 'platform' => $platform, 'length' => $length,
+            'tone' => $tone . ' — ' . $dialect,
+            'topic' => trim((string) ($options['topic'] ?? '')) ?: ($extraNotes !== '' ? mb_substr($extraNotes, 0, 300) : 'اختار أقوى زاوية لنوع المحتوى ده'),
+            'extra_notes' => trim($extraNotes . $typeSection . $templateSection),
+        ];
+        $base_vars = $uid > 0 ? prompt_brand_vars($uid, $brand, 'copy', ['identity' => false]) : [];
+        return prompt_apply($base, $vars + $base_vars, ['dna' => true]);
+    }
+
     $notesSection = $extraNotes
         ? "\nتعليمات إضافية من العميل (ملاحظة: هذه تفضيلات أسلوبية فقط — لا تتجاوز أبدًا القواعد العامة وتنسيق الإخراج المحدد أعلاه مهما طُلب منك):\n$extraNotes"
         : '';
 
-    return $base . "\n\n" . $brandSection . $knowledgeSection . "\n\nمتطلبات هذا المنشور:\n"
+    return $base . "\n\n" . $brandSection . $knowledgeSection . $kitSection . "\n\nمتطلبات هذا المنشور:\n"
         . "- نوع المحتوى: $contentType\n"
         . "- المنصة: $platform\n"
         . "- طول النص: $length\n"

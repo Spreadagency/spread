@@ -73,6 +73,10 @@ db_run(
     [date('Y-m-d H:i:s', $ts), $platform, $conn ? $conn['id'] : null, $conn ? 'pending' : 'draft', $contentId]
 );
 if ($conn && function_exists('plan_event')) plan_event((int) $user['id'], 'publishes', $contentId);
+if (is_file(__DIR__ . '/../../includes/EventTracker.php')) {
+    require_once __DIR__ . '/../../includes/EventTracker.php';
+    EventTracker::track('post_scheduled', 'content', (int) $contentId, ['at' => date('Y-m-d H:i', $ts), 'platform' => $platform, 'connected' => (bool) $conn], (int) $user['id']);
+}
 
 json_response(['ok' => true, 'msg' => $conn
     ? 'تمت الجدولة ✓ — هينتشر تلقائيًا على «' . $conn['page_name'] . '» في معاده'

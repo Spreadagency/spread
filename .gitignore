@@ -5,6 +5,7 @@ storage/logs/*.log
 storage/uploads/**/*.png
 storage/uploads/**/*.jpg
 storage/uploads/**/*.webp
+storage/uploads/sources/
 site-assets/uploads/*
 !site-assets/uploads/.gitkeep
 !site-assets/uploads/.htaccess

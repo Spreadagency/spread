@@ -960,6 +960,16 @@ function research_brain_save(array $r, int $uid, array $cats, array $opps): int
             [$brand['id'], $uid, mb_substr('🔬 ' . $r['title'], 0, 180), $key, $text, mb_substr($text, 0, 4000)]);
     }
     db_run('UPDATE researches SET brain_json = ? WHERE id = ?', [json_encode($b, JSON_UNESCAPED_UNICODE), $r['id']]);
+    // الفرص اللي اتسجّلت ← اقتراح مواضيع في «هوية البراند» (العميل يوافق)
+    if ($b['opps'] && brand_kit_on()) {
+        $titles = [];
+        foreach ($b['opps'] as $k) {
+            $h = trim((string) ($res['opps'][$k]['headline'] ?? ''));
+            if ($h !== '') $titles[] = mb_substr($h, 0, 200);
+        }
+        if ($titles) bk_suggest($uid, 'research_topics', 'البحث «' . mb_substr((string) $r['title'], 0, 60) . '» طلّع ' . count($titles) . ' فرصة — نضيفها لمواضيعك؟ (' . implode(' · ', array_slice($titles, 0, 3)) . ')',
+            ['type' => 'topics', 'titles' => array_slice($titles, 0, 12)]);
+    }
     return count($lines);
 }
 

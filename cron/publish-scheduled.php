@@ -11,6 +11,8 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/integrations.php';
+if (is_file(__DIR__ . '/../includes/mobile-push.php')) require_once __DIR__ . '/../includes/mobile-push.php'; // إشعارات تطبيق الموبايل
+if (is_file(__DIR__ . '/../includes/Notifier.php')) require_once __DIR__ . '/../includes/Notifier.php'; // واتساب + جرس المنصة (الـ push جوّاه)
 
 // Auth: secret required (CLI arg or GET param)
 $provided = '';
@@ -136,6 +138,12 @@ foreach ($claimed as $content) {
             [implode(' | ', $postIds), $cid]
         );
         echo "#$cid published (" . implode(', ', $postIds) . ")\n";
+        if (class_exists('Notifier')) {
+            Notifier::notify((int) $content['user_id'], 'post_published', ['page_name' => (string) ($conn['page_name'] ?? implode(' و', $targets))],
+                ['url' => 'content-view.php?id=' . $cid, 'tone' => 'ok']);
+        } elseif (function_exists('mobile_push_user')) {
+            mobile_push_user((int) $content['user_id'], 'منشورك اتنشر ✓', 'المنشور اتنشر على ' . implode(' و', $targets) . ' بنجاح.', ['screen' => 'content', 'id' => $cid]);
+        }
     } else {
         // توكن ميت → علّم الاتصال منتهي، وفشل نهائي
         if (!empty($classified['token_dead'])) {
@@ -147,6 +155,13 @@ foreach ($claimed as $content) {
                 [mb_substr($lastErr, 0, 900), $cid]);
             if (function_exists('plan_event_release')) plan_event_release((int) $content['user_id'], 'publishes', (int) $cid); // 8-ب: ماتنشرش → الحصة ترجع
             echo "#$cid FAILED permanently: $lastErr\n";
+            if (class_exists('Notifier')) {
+                $when = !empty($content['scheduled_at']) ? date('j/n H:i', strtotime((string) $content['scheduled_at'])) : '';
+                Notifier::notify((int) $content['user_id'], 'post_failed', ['page_name' => (string) ($conn['page_name'] ?? implode(' و', $targets)), 'date' => $when],
+                    ['url' => 'content-view.php?id=' . $cid, 'tone' => 'danger']);
+            } elseif (function_exists('mobile_push_user')) {
+                mobile_push_user((int) $content['user_id'], 'تعذّر نشر منشورك', mb_substr((string) $lastErr, 0, 200), ['screen' => 'content', 'id' => $cid]);
+            }
         } else {
             $mins = $classified['retry_minutes'] ?? social_backoff_minutes((int) $content['attempts']);
             db_run('UPDATE contents SET publish_status = "pending", lock_token = NULL, next_attempt_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), publish_error = ? WHERE id = ?',

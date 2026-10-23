@@ -205,3 +205,38 @@ function wm_save_image($img, string $path, int $type): bool
         default        => imagepng($img, $path, 6),
     };
 }
+
+/** العلامة المائية للعميل ده: مفعّلة في المنصة + باقته فيها علامة (من غير باقة = زي الأول) */
+function watermark_for_user(int $uid): bool
+{
+    if (!watermark_ready()) return false;
+    if (!function_exists('plan_flags')) require_once __DIR__ . '/plans.php';
+    return function_exists('plan_flags') ? plan_flags($uid)['watermark'] : true;
+}
+
+/**
+ * الصورة بمقاس محدد بالظبط (عرض × ارتفاع): تكبير/تصغير لحد ما تغطي الإطار ← قص من النص
+ * من غير مط — بيلتزم بشكل المقاس اللي العميل طلبه
+ */
+function design_fit_exact(string $relativePath, int $w, int $h): bool
+{
+    $abs = STORAGE_PATH . '/' . ltrim($relativePath, '/');
+    if (!function_exists('imagecreatetruecolor') || !is_file($abs) || $w < 50 || $h < 50) return false;
+    $bin = @file_get_contents($abs);
+    $src = $bin ? @imagecreatefromstring($bin) : false;
+    if (!$src) return false;
+    $sw = imagesx($src); $sh = imagesy($src);
+    if ($sw === $w && $sh === $h) { imagedestroy($src); return true; }
+    $scale = max($w / $sw, $h / $sh);
+    $cw = (int) round($w / $scale); $ch = (int) round($h / $scale);
+    $sx = (int) max(0, floor(($sw - $cw) / 2)); $sy = (int) max(0, floor(($sh - $ch) / 2));
+    $dst = imagecreatetruecolor($w, $h);
+    imagealphablending($dst, false);
+    imagesavealpha($dst, true);
+    imagecopyresampled($dst, $src, 0, 0, $sx, $sy, $w, $h, min($cw, $sw), min($ch, $sh));
+    $ext = strtolower(pathinfo($abs, PATHINFO_EXTENSION));
+    $ok = $ext === 'png' ? imagepng($dst, $abs, 6) : ($ext === 'webp' && function_exists('imagewebp') ? imagewebp($dst, $abs, 90) : imagejpeg($dst, $abs, 92));
+    imagedestroy($src); imagedestroy($dst);
+    return (bool) $ok;
+}
+

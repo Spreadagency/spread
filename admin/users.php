@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     try {
         require_once __DIR__ . '/../includes/account.php';
         account_purge($uid);   // نفس المسح اللي بيحصل بعد مهلة «حذف الحساب» من الإعدادات
+        unset($_SESSION['a2_cache']);
         admin_log('delete_user', 'user', $uid, $target['email']);
         flash_set('success', 'تم حذف «' . $target['name'] . '» وكل بياناته نهائيًا');
     } catch (\Throwable $e) {
@@ -110,8 +111,17 @@ if (!isset($hWhere[$health])) $health = '';
 $outerAll = str_replace('{IDS}', '', $outer);
 $aggSel = 'COUNT(*) total';
 foreach ($hWhere as $hk => $hw) $aggSel .= ", SUM($hw) `$hk`";
-$agg = [];
-try { $agg = db_one("SELECT $aggSel FROM ($outerAll) f", $params) ?: []; } catch (\Throwable $e) { $agg = []; }
+// الاستعلام ده بيعدّي على كل العملاء — بيتحفظ 5 دقايق لكل فلتر (?fresh=1 = دلوقتي)
+$aggKey = 'users_agg_' . md5($where . '|' . json_encode($params) . "|$rInact|$rHigh|$rRenew");
+$aggC = $_SESSION['a2_cache'][$aggKey] ?? null;
+if (is_array($aggC) && time() - (int) $aggC['t'] < 300 && empty($_GET['fresh'])) {
+    $agg = $aggC['v'];
+} else {
+    $agg = [];
+    try { $agg = db_one("SELECT $aggSel FROM ($outerAll) f", $params) ?: []; } catch (\Throwable $e) { $agg = []; }
+    $_SESSION['a2_cache'] = array_slice(($_SESSION['a2_cache'] ?? []), -20, null, true);
+    $_SESSION['a2_cache'][$aggKey] = ['t' => time(), 'v' => $agg];
+}
 $hCounts = [];
 foreach ($hWhere as $hk => $hw) $hCounts[$hk] = (int) ($agg[$hk] ?? 0);
 $total = $health ? $hCounts[$health] : (int) ($agg['total'] ?? 0);
@@ -222,12 +232,12 @@ include __DIR__ . '/../templates/admin-header.php';
                         <td style="white-space:nowrap">
                             <?php if (empty($u['email_verified_at'])): ?>
                                 <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="quick_verify"><input type="hidden" name="uid" value="<?= $uid ?>">
-                                    <button class="btn sm soft" title="تفعيل البريد" onclick="return confirm('تفعيل بريد <?= e($u['email']) ?>؟')">✓ تفعيل</button></form>
+                                    <button class="btn sm soft" title="تفعيل البريد" onclick="return confirm(<?= js_str('تفعيل بريد ' . $u['email'] . '؟') ?>)">✓ تفعيل</button></form>
                             <?php endif; ?>
                             <a href="<?= url('admin/user-view.php?id=' . $uid) ?>" class="btn sm">الملف</a>
                             <?php if (admin_can('impersonate')): ?><a href="<?= url('admin/impersonate.php?user_id=' . $uid) ?>" class="btn sm ghost" title="ادخل بحسابه وساعده">👁</a><?php endif; ?>
                             <?php if (admin_can('delete_user')): ?>
-                                <form method="POST" style="display:inline" onsubmit="return confirm('حذف «<?= e($u['name']) ?>» نهائيًا؟\n\nهيتمسح معاه: المحتوى، التصميمات، الخطط، الهوية، الرصيد، والاتصالات.\nالإجراء ده مش ممكن التراجع عنه.')">
+                                <form method="POST" style="display:inline" onsubmit="return confirm(<?= js_str('حذف «' . $u['name'] . "» نهائيًا؟\n\nهيتمسح معاه: المحتوى، التصميمات، الخطط، الهوية، الرصيد، والاتصالات.\nالإجراء ده مش ممكن التراجع عنه.") ?>)">
                                     <?= csrf_field() ?><input type="hidden" name="action" value="delete_user"><input type="hidden" name="user_id" value="<?= $uid ?>">
                                     <button class="btn sm danger" title="حذف نهائي">🗑</button></form>
                             <?php endif; ?>

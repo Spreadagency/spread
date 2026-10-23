@@ -54,6 +54,10 @@ switch ($action) {
             json_response(['ok' => false, 'error' => 'الفكرة متنتجة بالفعل']);
         }
         db_run('UPDATE plan_ideas SET status = "selected" WHERE id = ?', [$ideaId]);
+        if (is_file(__DIR__ . '/../../includes/EventTracker.php')) {
+            require_once __DIR__ . '/../../includes/EventTracker.php';
+            EventTracker::track('idea_selected', 'plan_idea', (int) $ideaId, [], (int) $user['id']);
+        }
         json_response(['ok' => true, 'status' => 'selected']);
 
     case 'reject':

@@ -325,6 +325,10 @@ switch ($action) {
         db_run('UPDATE contents SET generated_text = ?, hashtags = ?, cta = ?, status = "edited" WHERE id = ? AND user_id = ?',
             [$text, $tags ?: null, $cta ?: null, $c['id'], $uid]);
         $isAi = api_str('source', 20) === 'ai_edit';
+        if (!$isAi) {   // التعلّم من تعديلات العميل (Brand Kit)
+            require_once __DIR__ . '/../../includes/brand-kit.php';
+            bk_feedback_text_edit($uid, (int) $c['id'], (string) $c['generated_text'], $text);
+        }
         $note = $isAi ? ('بالكلام: ' . mb_substr(api_str('note', 200), 0, 200)) : 'تعديل من مكتبة المحتوى';
         save_content_version((int) $c['id'], $text, $tags ?: null, $cta ?: null, $isAi ? 'ai_edit' : 'edited', $note);
         $fresh = db_one('SELECT updated_at FROM contents WHERE id = ?', [$c['id']]);
@@ -411,6 +415,35 @@ switch ($action) {
         db_run('UPDATE contents SET selected_image_id = ? WHERE id = ? AND user_id = ?', [$did, $c['id'], $uid]);
         api_ok(['design_id' => $did, 'url' => upload_url($up['path'])]);
 
+    /* ── تقييم المنشور (نفس برومبت ومعايير تقييم الحملات من الأدمن) ── */
+    case 'evaluate':
+        require_once __DIR__ . '/../../includes/campaign-flow.php';
+        $c = api_own('contents', api_int('id'), $uid);
+        if (trim((string) $c['generated_text']) === '') api_fail('المنشور ده لسه مفيهوش نص', 'no_text', 422);
+        if (!rate_limit('content_eval', 'u' . $uid, 20, 600)) api_fail('قيّمت كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        $brand = db_one('SELECT * FROM brand_profiles WHERE user_id = ? ORDER BY id LIMIT 1', [$uid]) ?: [];
+        $cost = (int) get_setting('campaign_eval_cost', 0);
+        if ($cost > 0 && !credits_consume($uid, $cost, 'تقييم منشور #' . $c['id'], 'content_eval', (int) $c['id'])) api_fail(credits_short_msg($cost), 'credits', 402);
+        $cats = eval_criteria();
+        $data = campaign_brand_block($brand + ['user_id' => $uid]) . "\n\n" . campaign_eval_body($c) . "\nCTA: " . (string) ($c['cta'] ?? '');
+        $evPrompt = prompt_full('campaign_eval')
+            ? campaign_eval_full($brand + ['user_id' => $uid], $c)
+            : prompt_fill('campaign_eval', ['cats' => implode('، ', $cats), 'ready' => eval_ready_score(), 'data' => $data])
+              . "\n\ncats = " . count($cats) . " أرقام بنفس ترتيب المعايير. أعد JSON فقط:\n" . '{"cats":[' . implode(',', array_fill(0, count($cats), 85)) . '],"comment":"...","issues":""}';
+        $ai = campaign_ai($evPrompt,
+            700, 'campaign_eval', ['user_id' => $uid, 'reference_type' => 'contents', 'reference_id' => (int) $c['id'], 'temperature' => 0.3, 'json_mode' => true]);
+        $e = $ai['ok'] ? campaign_parse_eval((string) $ai['response']) : null;
+        if (!$e) {
+            if ($cost > 0) credits_add($uid, $cost, 'استرداد: تقييم منشور #' . $c['id'], null, 'refund', (int) $c['id']);
+            api_fail($ai['ok'] ? 'التقييم مرجعش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التقييم'), 'ai_failed', 502);
+        }
+        $e['ready'] = eval_ready_score();
+        $e['at'] = date('c');
+        $bj = json_decode((string) ($c['brief_json'] ?? ''), true) ?: [];
+        $bj['eval'] = $e;
+        db_run('UPDATE contents SET brief_json = ? WHERE id = ?', [json_encode($bj, JSON_UNESCAPED_UNICODE), $c['id']]);
+        api_ok(['eval' => $e, 'balance' => credits_balance($uid)]);
+
     /* ── تعديل بالكلام: اقتراح بس — الحفظ لما العميل يعتمد ── */
     case 'ai_edit':
         require_once __DIR__ . '/../../includes/ai.php';
@@ -435,25 +468,36 @@ switch ($action) {
         if (!empty($brand['audience']))      $ctx[] = 'الجمهور: ' . mb_substr($brand['audience'], 0, 300);
         if (!empty($brand['tone']))          $ctx[] = 'النبرة: ' . ($tones[$brand['tone']] ?? $brand['tone']);
         if (!empty($brand['dialect']))       $ctx[] = 'اللهجة: ' . ($dialects[$brand['dialect']] ?? $brand['dialect']);
-        if (!empty($brand['keywords_avoid'])) $ctx[] = 'كلمات ممنوعة: ' . mb_substr($brand['keywords_avoid'], 0, 200);
+        require_once __DIR__ . '/../../includes/brand-kit.php';
+        $__forb = bk_enabled() ? BrandContext::forbidden($uid)['words'] : [];
+        if ($__forb) $ctx[] = 'كلمات ممنوعة نهائيًا: ' . mb_substr(implode('، ', $__forb), 0, 400);
+        elseif (!empty($brand['keywords_avoid'])) $ctx[] = 'كلمات ممنوعة: ' . mb_substr($brand['keywords_avoid'], 0, 200);
+        if (bk_enabled()) $ctx[] = 'طريقة الكلام: ' . BrandContext::voiceText(bk_get($uid)['data']['voice']);
         if (!empty($c['campaign_id'])) {
             $cp = db_one('SELECT title, goal, topic FROM campaigns WHERE id = ? AND user_id = ?', [$c['campaign_id'], $uid]);
             if ($cp) $ctx[] = 'الحملة: ' . $cp['title'] . ($cp['topic'] ? ' — ' . $cp['topic'] : '');
         }
         $prev = db_one('SELECT content_text FROM content_versions WHERE content_id = ? ORDER BY version_number DESC LIMIT 1 OFFSET 1', [$c['id']]);
 
-        $prompt = "انت كاتب محتوى سوشيال ميديا محترف.\n"
-            . ($ctx ? "سياق:\n- " . implode("\n- ", $ctx) . "\n\n" : '')
+        require_once __DIR__ . '/../../includes/prompt-library.php';
+        $data = ($ctx ? "سياق:\n- " . implode("\n- ", $ctx) . "\n\n" : '')
             . "ده منشور موجود:\n[CONTENT]\n" . $c['generated_text'] . "\n[/CONTENT]\n"
             . "[HASHTAGS]\n" . ($c['hashtags'] ?? '') . "\n[/HASHTAGS]\n"
-            . "[CTA]\n" . ($c['cta'] ?? '') . "\n[/CTA]\n\n"
-            . ($prev && trim((string) $prev['content_text']) !== '' ? "النسخة اللي قبله (للمرجع بس — ماترجعلهاش إلا لو اتطلب):\n" . mb_substr($prev['content_text'], 0, 1200) . "\n\n" : '')
-            . "طلب العميل: «" . $instruction . "»\n\n"
-            . "القواعد:\n"
-            . "- عدّل اللي اتطلب **بس**. أي جزء مش مطلوب تغييره يفضل زي ما هو بالحرف.\n"
-            . "- حافظ على نفس اللهجة ونبرة البراند.\n"
-            . "- ممنوع تخترع أرقام أو أسعار أو مواعيد مش موجودة.\n"
-            . "- رجّع المنشور كامل بنفس الصيغة بالظبط: [CONTENT]...[/CONTENT] [HASHTAGS]...[/HASHTAGS] [CTA]...[/CTA] — من غير أي شرح.";
+            . "[CTA]\n" . ($c['cta'] ?? '') . "\n[/CTA]"
+            . ($prev && trim((string) $prev['content_text']) !== '' ? "\n\nالنسخة اللي قبله (للمرجع بس — ماترجعلهاش إلا لو اتطلب):\n" . mb_substr($prev['content_text'], 0, 1200) : '');
+        if (prompt_full('ai_edit')) {
+            // برومبت «التعديل بتعليق» الكامل (v1): المنشور والتعليق في متغيراته
+            $prompt = prompt_fill('ai_edit', ['instruction' => $instruction, 'comment' => $instruction,
+                    'post_text' => (string) $c['generated_text'], 'post_cta' => (string) ($c['cta'] ?? ''), 'post_hashtags' => (string) ($c['hashtags'] ?? ''),
+                    'content_type' => content_format_label(content_format_key($c['format'] ?? 'post')),
+                    'extra_notes' => ($ctx ? implode("\n", $ctx) : '') . ($prev && trim((string) $prev['content_text']) !== '' ? "\nالنسخة اللي قبله (للمرجع بس — ماترجعلهاش إلا لو اتطلب):\n" . mb_substr($prev['content_text'], 0, 1200) : '')],
+                    ['uid' => $uid, 'dna' => true])
+                . prompt_format_head() . "رجّع المنشور كامل بالصيغة دي بالظبط — من غير أي شرح:\n[CONTENT]\n...\n[/CONTENT]\n[HASHTAGS]\n...\n[/HASHTAGS]\n[CTA]\n...\n[/CTA]";
+        } else {
+            $prompt = prompt_fill('ai_edit', ['instruction' => $instruction, 'data' => $data])
+                . "\n- رجّع المنشور كامل بنفس الصيغة بالظبط: [CONTENT]...[/CONTENT] [HASHTAGS]...[/HASHTAGS] [CTA]...[/CTA] — من غير أي شرح.";
+        }
+        prompt_feedback_add($uid, $instruction, 'تعديل منشور');   // ذاكرة البراند: تعليقات العميل
 
         $cost = cost_for('ai_edit_cost');
         if ($cost > 0 && !credits_consume($uid, $cost, 'تعديل بالكلام #' . $c['id'], 'ai_edit', (int) $c['id'])) {
@@ -473,7 +517,7 @@ switch ($action) {
         }
         // لو الـ AI ماغيّرش الهاشتاجات/الـ CTA وسابهم فاضيين، نحتفظ بالقديم
         $new = [
-            'text'     => trim($parsed['content']),
+            'text'     => bk_enabled() ? BrandContext::enforce(trim($parsed['content']), $uid) : trim($parsed['content']),
             'hashtags' => trim((string) ($parsed['hashtags'] ?? '')) ?: (string) ($c['hashtags'] ?? ''),
             'cta'      => trim((string) ($parsed['cta'] ?? '')) ?: (string) ($c['cta'] ?? ''),
         ];

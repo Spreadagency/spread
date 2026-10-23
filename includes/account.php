@@ -257,32 +257,93 @@ function account_deletion_date(array $user): ?string
     return date('Y-m-d H:i:s', strtotime($user['deletion_requested_at']) + ACCOUNT_DELETE_GRACE_DAYS * 86400);
 }
 
-/** مسح نهائي لكل بيانات العميل (نفس اللي الأدمن بيعمله) */
+/**
+ * مسح نهائي لكل بيانات العميل (نفس اللي الأدمن بيعمله) — في transaction واحدة
+ *
+ * بيتمسح: المحتوى والتصميمات والحملات والهوية بكل أجزائها والرسايل والإشعارات والأبحاث والجلسات والتوكنز.
+ * بيفضل (سجل مالي — من غير بيانات شخصية): credit_transactions · payment_orders (user_id بيبقى NULL بعد ترحيل 2026_ce_fixes)
+ *   + credit_lots · payment_requests · promo_usages · offer_redemptions (رقم العميل بس) · ai_runs (التكلفة — user_id NULL).
+ */
 function account_purge(int $uid): void
 {
-    foreach ([
+    $steps = [
+        // أجزاء مربوطة بجداول تانية (قبل ما الأب يتمسح)
+        'DELETE i FROM brand_character_images i JOIN brand_characters c ON c.id = i.character_id WHERE c.user_id = ?',
+        'DELETE v FROM brand_kit_versions v JOIN brand_kits k ON k.id = v.brand_kit_id WHERE k.user_id = ?',
+        'DELETE f FROM brand_facts f JOIN brand_profiles b ON b.id = f.brand_profile_id WHERE b.user_id = ?',
+        'DELETE i FROM brand_images i JOIN brand_profiles b ON b.id = i.brand_profile_id WHERE b.user_id = ?',
+        'DELETE v FROM content_versions v JOIN contents c ON c.id = v.content_id WHERE c.user_id = ?',
+        'DELETE FROM content_notes WHERE user_id = ?',
+        'DELETE FROM design_ratings WHERE user_id = ?',
+        'DELETE FROM brand_feedback WHERE user_id = ?',
+        'DELETE FROM user_issues WHERE user_id = ?',
+        'DELETE FROM ai_events WHERE user_id = ?',
+        // المحتوى والحملات
+        'DELETE FROM campaign_ideas WHERE user_id = ?',
         'DELETE FROM content_designs WHERE user_id = ?',
         'DELETE FROM studio_designs WHERE user_id = ?',
+        'DELETE FROM studio_drafts WHERE user_id = ?',
+        'DELETE FROM plan_ideas WHERE user_id = ?',
+        'DELETE FROM content_plans WHERE user_id = ?',
+        'DELETE FROM contents WHERE user_id = ?',
+        'DELETE FROM campaigns WHERE user_id = ?',
+        'DELETE FROM researches WHERE user_id = ?',
+        // الهوية
+        'DELETE FROM brand_characters WHERE user_id = ?',
+        'DELETE FROM brand_personas WHERE user_id = ?',
+        'DELETE FROM brand_services WHERE user_id = ?',
+        'DELETE FROM brand_topics WHERE user_id = ?',
+        'DELETE FROM brand_formats WHERE user_id = ?',
+        'DELETE FROM brand_inspirations WHERE user_id = ?',
+        'DELETE FROM brand_suggestions WHERE user_id = ?',
+        'DELETE FROM brand_facts WHERE user_id = ?',
+        'DELETE FROM brand_kits WHERE user_id = ?',
+        'DELETE FROM brand_sources WHERE user_id = ?',
+        'DELETE FROM brand_profiles WHERE user_id = ?',
+        // الحساب والتواصل
         'DELETE FROM social_connections WHERE user_id = ?',
         'DELETE FROM user_media_selections WHERE user_id = ?',
         'DELETE FROM user_feature_access WHERE user_id = ?',
         'DELETE FROM agent_sessions WHERE user_id = ?',
-        'DELETE FROM plan_ideas WHERE user_id = ?',
-        'DELETE FROM content_plans WHERE user_id = ?',
-        'DELETE FROM brand_sources WHERE user_id = ?',
-        'DELETE FROM contents WHERE user_id = ?',
-        'DELETE FROM credit_transactions WHERE user_id = ?',
-        'DELETE FROM credit_wallets WHERE user_id = ?',
-        'DELETE FROM brand_profiles WHERE user_id = ?',
+        'DELETE FROM messages WHERE user_id = ?',
+        'DELETE FROM user_notifications WHERE user_id = ?',
+        'DELETE FROM user_notification_prefs WHERE user_id = ?',
+        'DELETE FROM wa_otps WHERE user_id = ?',
+        'DELETE FROM user_offer_flags WHERE user_id = ?',
+        'DELETE FROM user_plans WHERE user_id = ?',
+        'DELETE FROM quota_overrides WHERE user_id = ?',
+        'DELETE FROM usage_events WHERE user_id = ?',
+        'DELETE FROM ai_request_logs WHERE user_id = ?',
+        'DELETE FROM ai_usage_log WHERE user_id = ?',
+        'DELETE FROM ai_job_logs WHERE user_id = ?',
+        'DELETE FROM mobile_tokens WHERE user_id = ?',
+        'DELETE FROM mobile_idempotency WHERE user_id = ?',
+        'DELETE FROM user_remember_tokens WHERE user_id = ?',
         'DELETE FROM user_sessions WHERE user_id = ?',
-    ] as $sql) {
-        try {
-            db_run($sql, [$uid]);
-        } catch (\Throwable $e) {
-            // جدول مش موجود أو مربوط CASCADE — نكمل
+        'DELETE FROM email_verifications WHERE user_id = ?',
+        'DELETE FROM password_resets WHERE user_id = ?',
+        'DELETE FROM credit_wallets WHERE user_id = ?',
+        // تكلفة الـ AI بتفضل للتقارير — من غير رقم العميل
+        'UPDATE ai_runs SET user_id = NULL WHERE user_id = ?',
+    ];
+    $pdo = db();
+    $own = !$pdo->inTransaction();
+    if ($own) $pdo->beginTransaction();
+    try {
+        foreach ($steps as $sql) {
+            try {
+                db_run($sql, [$uid]);
+            } catch (\PDOException $e) {
+                // جدول/عمود مش موجود في النسخة دي (1146 · 1054) — نكمل. أي خطأ تاني = نلغي كله
+                if (!in_array((int) ($e->errorInfo[1] ?? 0), [1146, 1054], true)) throw $e;
+            }
         }
+        db_run('DELETE FROM users WHERE id = ?', [$uid]);
+        if ($own) $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($own && $pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
     }
-    db_run('DELETE FROM users WHERE id = ?', [$uid]);
 }
 
 /** الكرون: الطلبات اللي عدّت مهلتها — بيرجّع عدد الحسابات اللي اتمسحت */

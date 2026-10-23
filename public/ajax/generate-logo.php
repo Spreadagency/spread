@@ -81,6 +81,8 @@ if (!$result['ok']) {
 // حفظه كلوجو البراند (مع إبقاء القديم في المعرض لو موجود)
 $old = $brand['logo_path'] ?? '';
 db_run('UPDATE brand_profiles SET logo_path = ? WHERE id = ?', [$result['path'], $brand['id']]);
+require_once __DIR__ . '/../../includes/brand-brain.php';
+brand_kit_notify((int) $brand['user_id'], ['logo_path'], 'ai', 'لوجو اتولّد بالـ AI');
 if ($old && $old !== $result['path']) {
     delete_upload($old);
 }

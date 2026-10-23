@@ -30,6 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'is_active'     => !empty($_POST['is_active']) ? 1 : 0,
             'order_num'     => (int) ($_POST['order_num'] ?? 0),
         ];
+        // مميزات الباقة: النشر المباشر (بيتفتح تلقائيًا مع الاشتراك) · العلامة المائية على التصميمات
+        if (function_exists('package_flags_ensure') && package_flags_ensure()) {
+            $data['allow_publish'] = !empty($_POST['allow_publish']) ? 1 : 0;
+            $data['watermark'] = !empty($_POST['watermark']) ? 1 : 0;
+        }
         // 10: هدية الباقة (Bonus) — بتتضاف مع الاعتماد
         if (function_exists('billing_ready') && billing_ready()) {
             $data['bonus_credits'] = max(0, min(100000, (int) ($_POST['bonus_credits'] ?? 0)));
@@ -77,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_setting('credits_display', ($_POST['credits_display'] ?? '') === 'visible' ? 'visible' : 'percent');
         set_setting('quotas_enforced', !empty($_POST['quotas_enforced']) ? '1' : '0');
         set_setting('upgrade_whatsapp_msg', mb_substr(trim((string) ($_POST['upgrade_whatsapp_msg'] ?? '')), 0, 300));
+        if (array_key_exists('publish_whatsapp', $_POST)) set_setting('publish_whatsapp', mb_substr(preg_replace('/\D+/', '', (string) $_POST['publish_whatsapp']), 0, 20));
         admin_log('plans_display_settings', 'settings', null, json_encode(['display' => $_POST['credits_display'] ?? '', 'enforced' => !empty($_POST['quotas_enforced'])]));
         flash_set('success', 'اتحفظ ✓');
         redirect('admin/packages.php');
@@ -132,6 +138,11 @@ include __DIR__ . '/../templates/admin-header.php';
                     <label>رسالة واتساب «رقّي باقتك»</label>
                     <input type="text" name="upgrade_whatsapp_msg" class="input" value="<?= e((string) get_setting('upgrade_whatsapp_msg', '')) ?>">
                     <div class="field-help">بتتبعت على رقم الواتساب العائم.</div>
+                </div>
+                <div class="field">
+                    <label>📲 رقم واتساب النشر اليدوي</label>
+                    <input type="text" name="publish_whatsapp" class="input" dir="ltr" value="<?= e((string) get_setting('publish_whatsapp', '')) ?>" placeholder="2010xxxxxxxx">
+                    <div class="field-help">العميل اللي باقته مافيهاش نشر مباشر بيبعت حملته على الرقم ده علشان فريقك ينشرها. فاضي = رقم الدعم أو الواتساب العائم.</div>
                 </div>
             </div>
             <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><input type="checkbox" name="quotas_enforced" value="1" <?= get_setting('quotas_enforced', '1') === '1' ? 'checked' : '' ?>> لما حصة تخلص، الخدمة دي تقف برسالة ترقية (غير كده الحصص للعرض بس والكريدت هو الحد)</label>
@@ -219,6 +230,16 @@ include __DIR__ . '/../templates/admin-header.php';
                         <input type="checkbox" name="is_featured" <?= ($editing['is_featured'] ?? 0) ? 'checked' : '' ?>> باقة مميزة (تظهر بإطار بارز)
                     </label>
                 </div>
+                <?php if (function_exists('package_flags_ensure') && package_flags_ensure()): ?>
+                <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;border-radius:12px;background:var(--surface-2)">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" name="allow_publish" <?= ($editing['allow_publish'] ?? 0) ? 'checked' : '' ?>> 📤 فيها نشر مباشر <small class="text-mute">(بيتفتح تلقائيًا مع الاشتراك ويتقفل لما الباقة تخلص)</small>
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                        <input type="checkbox" name="watermark" <?= ($editing['watermark'] ?? 1) ? 'checked' : '' ?>> 💧 العلامة المائية على التصميمات <small class="text-mute">(لو العلامة مفعّلة في إعدادات المنصة)</small>
+                    </label>
+                </div>
+                <?php endif; ?>
 
                 <button class="btn"><?= $editing ? '💾 حفظ التعديلات' : '＋ إضافة الباقة' ?></button>
                 <?php if ($editing): ?>
@@ -240,6 +261,12 @@ include __DIR__ . '/../templates/admin-header.php';
                         </div>
                         <span class="chip"><?= $p['is_active'] ? 'ظاهرة' : 'مخفية' ?></span>
                     </div>
+                    <?php if (array_key_exists('allow_publish', $p)): ?>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+                        <span class="chip <?= (int) $p['allow_publish'] ? 'chip-mint' : '' ?>"><?= (int) $p['allow_publish'] ? '📤 نشر مباشر' : 'من غير نشر مباشر' ?></span>
+                        <span class="chip"><?= (int) $p['watermark'] ? '💧 بعلامة مائية' : 'من غير علامة مائية' ?></span>
+                    </div>
+                    <?php endif; ?>
 
                     <div style="margin:12px 0;font-size:15px">
                         <b style="color:var(--primary-ink)"><?= (int) $p['credits'] ?> ◇</b>
