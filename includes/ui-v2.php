@@ -81,12 +81,19 @@ function ui_sections(): array
     // صفحة واحدة للهوية (مركز الهوية) لما يكون مفعّل
     $__bk = is_file(__DIR__ . '/brand-kit.php') && (require_once __DIR__ . '/brand-kit.php') && bk_enabled();
     $__brandUrl = $__bk ? 'brand-kit.php' : 'brand-brain.php';
+    // محرك المحتوى الجديد: بيظهر بس للعملاء اللي الأدمن فتحهولهم
+    $__ce = false;
+    if (is_file(__DIR__ . '/ce-jobs.php') && function_exists('current_user')) {
+        require_once __DIR__ . '/ce-jobs.php';
+        $__u = current_user();
+        $__ce = $__u && ce_enabled_for((int) $__u['id']);
+    }
+    $__campSubs = [['حملاتي', 'campaigns.php', 'campaigns', null]];
+    if ($__ce) $__campSubs[] = ['محرك المحتوى ✨', 'engine.php', 'engine', null];
+    $__campSubs[] = ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'];
     return [
         'dashboard' => ['الرئيسية', 'home', 'dashboard.php', ['dashboard'], []],
-        'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan'], [
-            ['حملاتي', 'campaigns.php', 'campaigns', null],
-            ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'],
-        ]],
+        'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan', 'engine'], $__campSubs],
         'contents' => ['المحتويات', 'folder', 'content-history.php', ['history', 'create'], [
             ['كل المحتويات', 'content-history.php', 'history', 'content-history'],
             ['منشور سريع', 'create-content.php', 'create', 'create-content'],

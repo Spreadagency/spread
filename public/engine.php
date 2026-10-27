@@ -1,0 +1,286 @@
+<?php
+/**
+ * Spread AI — محرك المحتوى v3 (المرحلة D)
+ * صفحة واحدة: ملف الهوية المختصر (Brand DNA) ← حملة جديدة بالاختيارات (9 خطوات) ← التقدير قبل التشغيل
+ * متاحة بس للعملاء اللي الأدمن فتحلهم الميزة (الميزات ← محرك المحتوى الجديد). الحملة القديمة شغالة زي ما هي.
+ */
+require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/credits.php';
+require_once __DIR__ . '/../includes/ce-jobs.php';
+if (is_file(__DIR__ . '/../includes/ui-v2.php')) require_once __DIR__ . '/../includes/ui-v2.php';
+
+require_login();
+$user = current_user();
+if (!ce_enabled_for((int) $user['id'])) redirect('campaigns.php');
+
+$__v2 = function_exists('ui_v2_enabled') && ui_v2_enabled();
+$active = 'engine';
+$page_title = 'محرك المحتوى';
+$use_app = true;
+$body_class = 'bk-page';
+include __DIR__ . '/../templates/header.php';
+$__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?: time());
+?>
+<link rel="stylesheet" href="<?= $__ver('assets/css/brand-kit.css') ?>">
+<link rel="stylesheet" href="<?= $__ver('assets/css/engine.css') ?>">
+<div class="app">
+    <?php include __DIR__ . '/../templates/sidebar.php'; ?>
+    <main class="main">
+        <?php if ($__v2) include __DIR__ . '/../templates/topbar.php'; ?>
+        <?= render_flash() ?>
+
+        <div id="ce-app" class="bk ce" v-cloak data-brandkit="<?= e(url('brand-kit.php')) ?>">
+            <div v-if="loading" class="bk-loading" role="status">بنجهّز المحرك…</div>
+
+            <div class="bk-tpl" v-if="!loading">
+            <!-- ═══ الرئيسية ═══ -->
+            <div v-if="view === 'home'">
+                <section class="bk-card ce-hero">
+                    <h1>محرك المحتوى ✨</h1>
+                    <p class="bk-mute">بنلخّص هويتك في ملف صغير (Brand DNA)، وبعدين تعمل حملة كاملة بالاختيارات — وتعرف تكلفتها قبل ما تبدأ.</p>
+                </section>
+
+                <section class="bk-card">
+                    <div class="ce-h"><h2>🧬 ملف هويتك المختصر</h2>
+                        <span v-if="st.exists && !st.stale" class="bk-pill ok">محدّث</span>
+                        <span v-else-if="st.exists" class="bk-pill warn">هويتك اتغيرت — حدّثه</span>
+                        <span v-else class="bk-pill">لسه ماتعملش</span></div>
+                    <p class="bk-mute" v-if="!st.exists">بنجمع خدماتك وعملائك وطريقة كلامك وألوانك في ملف واحد مختصر. هو ده اللي بيتبعت للـ AI في كل خطوة بدل الوثائق كلها — أسرع وأرخص وأدق.</p>
+                    <p class="bk-mute" v-else>نسخة {{ st.version }} · حوالي {{ st.tokens }} توكن من {{ opts.max_tokens }} · {{ st.built_by === 'ai' ? 'اتكتب بالـ AI' : (st.built_by === 'user' ? 'عدّلته بإيدك' : 'من بيانات هويتك') }}<span v-if="st.edited && st.edited.length"> · {{ st.edited.length }} حقل معدّل يدويًا</span></p>
+
+                    <div v-if="job && job.active" class="ce-job" role="status">
+                        <div class="ce-bar"><i :style="{ width: Math.max(6, job.progress) + '%' }"></i></div>
+                        <div class="ce-job-row"><span>{{ job.label }}</span><button class="bk-link" @click="cancelJob()">إلغاء</button></div>
+                        <small class="bk-mute" v-if="!worker">خلّي الصفحة مفتوحة لحد ما يخلص</small>
+                    </div>
+                    <div v-if="job && job.status === 'failed'" class="ce-err">{{ job.error }}</div>
+
+                    <div class="bk-row" v-if="!job || !job.active">
+                        <button class="bk-btn pri" :disabled="busy" @click="buildDna(st.exists && !st.stale)">{{ st.exists ? (st.stale ? 'حدّث الملف' : 'ابنيه من جديد') : 'ابني الملف' }}</button>
+                        <button v-if="st.exists" class="bk-btn" @click="openDna()">راجع وعدّل</button>
+                        <a class="bk-btn ghost" :href="brandKitUrl">هويتك الكاملة</a>
+                    </div>
+                </section>
+
+                <section class="bk-card">
+                    <div class="ce-h"><h2>📅 حملاتك</h2>
+                        <button class="bk-btn pri sm" :disabled="!st.exists" @click="newCampaign()">+ حملة جديدة</button></div>
+                    <p class="bk-mute" v-if="!st.exists">ابني ملف الهوية الأول — منه بنجيب الخدمات والعملاء.</p>
+                    <p class="bk-mute" v-else-if="!campaigns.length">مفيش حملات لسه.</p>
+                    <div v-for="c in campaigns" :key="c.id" class="ce-camp" @click="openCampaign(c)">
+                        <div><b>{{ c.title || 'حملة' }}</b><br><small class="bk-mute">{{ statusLabel[c.status] || c.status }} · {{ timeAgo(c.updated_at || c.created_at) }}</small></div>
+                        <span v-if="c.estimate" class="ce-cr">{{ c.estimate.pieces }} قطعة · ~{{ c.est_credits }} كريدت</span>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ═══ مراجعة الـ DNA ═══ -->
+            <div v-if="view === 'dna' && d">
+                <div class="ce-top"><button class="bk-link" @click="view = 'home'">→ رجوع</button>
+                    <span class="bk-mute">~{{ tokensNow }} توكن من {{ opts.max_tokens }}</span></div>
+
+                <section class="bk-card">
+                    <h2>🎯 التموضع</h2>
+                    <p class="bk-mute">جملة واحدة: أنت لمين وبتحل إيه وبتختلف في إيه.</p>
+                    <textarea class="bk-in" rows="2" maxlength="260" v-model="d.positioning"></textarea>
+                    <h3>نقط التميّز</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.usp" class="bk-chip on">{{ x }} <button class="ce-x" @click="d.usp.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ إضافة" @keyup.enter="addChip(d.usp, $event, 4)"></div>
+                    <h3>الإثباتات (أرقام · شهادات · آراء)</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.proof_assets" class="bk-chip on">{{ x }} <button class="ce-x" @click="d.proof_assets.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ إضافة" @keyup.enter="addChip(d.proof_assets, $event, 5)"></div>
+                </section>
+
+                <section class="bk-card">
+                    <h2>🧩 الخدمات</h2>
+                    <div v-for="s in d.services" :key="s.id" class="ce-item">
+                        <b>{{ s.name }}</b>
+                        <div class="ce-sel">
+                            <select class="bk-in" v-model="s.priority" aria-label="الأولوية"><option v-for="(l, k) in opts.priorities" :value="k">{{ l }}</option></select>
+                            <select class="bk-in" v-model="s.season" aria-label="الموسم"><option v-for="x in seasonsFor(s.season)" :value="x">{{ x }}</option></select>
+                        </div>
+                        <small class="bk-mute">اعتراضات العميل:</small>
+                        <div class="bk-chips"><span v-for="(x, i) in s.objections" class="bk-chip">{{ x }} <button class="ce-x" @click="s.objections.splice(i, 1)" aria-label="شيل">×</button></span>
+                            <input class="ce-add" placeholder="+ اعتراض" @keyup.enter="addChip(s.objections, $event, 3)"></div>
+                    </div>
+                    <p class="bk-mute" v-if="!d.services.length">مفيش خدمات — ضيفها من <a :href="brandKitUrl">هويتك</a>.</p>
+                </section>
+
+                <section class="bk-card">
+                    <h2>👥 العملاء</h2>
+                    <div v-for="p in d.personas" :key="p.id" class="ce-item">
+                        <div class="ce-sel"><b>{{ p.name }}</b>
+                            <select class="bk-in" v-model="p.platform" aria-label="المنصة"><option v-for="(l, k) in opts.platforms" :value="k">{{ l }}</option></select></div>
+                        <div class="bk-tpl" v-for="f in personaFields" :key="f.k">
+                            <small class="bk-mute">{{ f.l }}</small>
+                            <div class="bk-chips"><span v-for="(x, i) in p[f.k]" class="bk-chip">{{ x }} <button class="ce-x" @click="p[f.k].splice(i, 1)" aria-label="شيل">×</button></span>
+                                <input class="ce-add" placeholder="+ إضافة" @keyup.enter="addChip(p[f.k], $event, 3)"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bk-card">
+                    <h2>🗣 طريقة الكلام</h2>
+                    <div class="ce-sel">
+                        <select class="bk-in" v-model="d.tone.dialect" aria-label="اللهجة"><option v-for="(l, k) in opts.dialects" :value="k">{{ l }}</option></select>
+                        <select class="bk-in" v-model="d.tone.formality" aria-label="الرسمية"><option v-for="(l, k) in opts.formality" :value="k">{{ l }}</option></select>
+                    </div>
+                    <div class="bk-chips"><button class="bk-chip" :class="{ on: d.tone.emoji }" @click="d.tone.emoji = !d.tone.emoji">😊 إيموجي {{ d.tone.emoji ? 'أيوه' : 'لأ' }}</button></div>
+                    <h3>كلمات بنحبها</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.tone.do_words" class="bk-chip on">{{ x }} <button class="ce-x" @click="d.tone.do_words.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ كلمة" @keyup.enter="addChip(d.tone.do_words, $event, 8)"></div>
+                    <h3>كلمات ممنوعة</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.tone.dont_words" class="bk-chip no">{{ x }} <button class="ce-x" @click="d.tone.dont_words.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ كلمة" @keyup.enter="addChip(d.tone.dont_words, $event, 10)"></div>
+                </section>
+
+                <section class="bk-card">
+                    <h2>🎨 الشكل</h2>
+                    <div class="ce-colors"><label v-for="(c, i) in d.visual.colors_hex" class="ce-sw" :style="{ background: c }">
+                        <input type="color" :value="c" @input="d.visual.colors_hex[i] = $event.target.value.toUpperCase()" :aria-label="'لون ' + (i + 1)"></label></div>
+                    <h3>الخطوط</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.visual.fonts" class="bk-chip">{{ x }} <button class="ce-x" @click="d.visual.fonts.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ خط" @keyup.enter="addChip(d.visual.fonts, $event, 3)"></div>
+                    <h3>ستايل الصور</h3>
+                    <input class="bk-in" maxlength="160" v-model="d.visual.photo_style">
+                    <h3>الشخصيات</h3>
+                    <div class="ce-chars"><span v-for="c in d.visual.characters" class="bk-chip">{{ c.name }} · {{ c.ref_image_ids.length }} صورة</span>
+                        <span class="bk-mute" v-if="!d.visual.characters.length">مفيش — ضيفها من هويتك</span></div>
+                </section>
+
+                <section class="bk-card">
+                    <h2>🛡 القيود والأنماط</h2>
+                    <h3>لازم المحتوى يلتزم بـ</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.compliance" class="bk-chip no">{{ x }} <button class="ce-x" @click="d.compliance.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ قيد" @keyup.enter="addChip(d.compliance, $event, 6)"></div>
+                    <h3>أنماط بتنجح معاك</h3>
+                    <div class="bk-chips"><span v-for="(x, i) in d.winning_patterns" class="bk-chip on">{{ x }} <button class="ce-x" @click="d.winning_patterns.splice(i, 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ نمط" @keyup.enter="addChip(d.winning_patterns, $event, 5)"></div>
+                </section>
+
+                <div class="ce-actions">
+                    <button class="bk-btn pri" :disabled="busy" @click="saveDna()">احفظ التعديلات</button>
+                    <button v-if="st.can_undo" class="bk-btn ghost" :disabled="busy" @click="undoDna()">ارجع للنسخة اللي قبلها</button>
+                </div>
+            </div>
+
+            <!-- ═══ حملة جديدة (Wizard) ═══ -->
+            <div v-if="view === 'wizard' && w.opts">
+                <div class="ce-top"><button class="bk-link" @click="view = 'home'">→ رجوع</button>
+                    <span class="bk-mute">خطوة {{ stepNo() }} من {{ steps().length }}</span></div>
+                <div class="ce-steps"><i v-for="s in steps()" :class="{ on: s === w.step, done: steps().indexOf(s) < steps().indexOf(w.step) }"></i></div>
+
+                <section class="bk-card" v-if="w.step === 'goal'">
+                    <h2>هدف الحملة إيه؟</h2>
+                    <div class="ce-grid"><button v-for="g in w.opts.goals" class="ce-opt" :class="{ on: w.b.goal === g.key }" @click="w.b.goal = g.key"><span>{{ g.icon }}</span>{{ g.label }}</button></div>
+                    <input v-if="w.b.goal === 'other'" class="bk-in" maxlength="120" v-model="w.b.goal_other" placeholder="اكتب الهدف">
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'services'">
+                    <h2>الحملة عن أنهي خدمة؟</h2>
+                    <p class="bk-mute">خدمة أو اتنين — أو كل الخدمات.</p>
+                    <div class="bk-chips">
+                        <button class="bk-chip" :class="{ on: w.b.all_services }" @click="w.b.all_services = !w.b.all_services; w.b.service_ids = []">كل الخدمات</button>
+                        <button v-for="s in w.opts.services" class="bk-chip" :class="{ on: w.b.service_ids.includes(s.id) }" :disabled="w.b.all_services" @click="toggle(w.b.service_ids, s.id, 2)">{{ s.name }}<small v-if="s.priority === 'high'"> ⭐</small></button>
+                    </div>
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'personas'">
+                    <h2>بتكلّم مين؟</h2>
+                    <div class="ce-grid"><button v-for="p in w.opts.personas" class="ce-opt ce-per" :class="{ on: w.b.persona_ids.includes(p.id) }" @click="toggle(w.b.persona_ids, p.id, 10)">
+                        <b>{{ p.name }}</b><small v-if="p.pain.length">بيعاني من: {{ p.pain.join('، ') }}</small></button></div>
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'character'">
+                    <h2>مين يظهر في المحتوى؟</h2>
+                    <div class="ce-grid">
+                        <button v-for="c in w.opts.characters" class="ce-opt" :class="{ on: w.b.character_id === c.id }" @click="w.b.character_id = c.id">
+                            <img v-if="c.images.length" :src="c.images[0].url" alt="" class="ce-av">{{ c.name }}<small>{{ c.label }}</small></button>
+                        <button class="ce-opt" :class="{ on: !w.b.character_id }" @click="w.b.character_id = 0"><span>🚫</span>من غير شخصيات</button>
+                    </div>
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'formats'">
+                    <h2>الأشكال والعدد</h2>
+                    <div v-for="(l, k) in w.opts.formats" class="ce-slide">
+                        <label :for="'f-' + k">{{ l }}</label>
+                        <input :id="'f-' + k" type="range" min="0" max="30" v-model.number="w.b.formats[k]"><b>{{ w.b.formats[k] }}</b>
+                    </div>
+                    <p class="bk-mute">الإجمالي: {{ pieces() }} قطعة (أقصى عدد {{ w.opts.max_pieces }})</p>
+                    <h3>مدة الحملة</h3>
+                    <div class="bk-chips"><button v-for="dd in w.opts.days" class="bk-chip" :class="{ on: w.b.days === dd }" @click="w.b.days = dd">{{ dd }} يوم</button></div>
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'offer'">
+                    <h2>تفاصيل العرض</h2>
+                    <div class="bk-chips"><button v-for="(l, k) in w.opts.offer_types" class="bk-chip" :class="{ on: w.b.offer.type === k }" @click="w.b.offer.type = k">{{ l }}</button></div>
+                    <div v-if="w.b.offer.type === 'percent' || w.b.offer.type === 'amount'" class="ce-slide">
+                        <label for="ce-ov">{{ w.b.offer.type === 'percent' ? 'النسبة %' : 'المبلغ (جنيه)' }}</label>
+                        <input id="ce-ov" class="bk-in ce-num" type="number" min="1" :max="w.b.offer.type === 'percent' ? 90 : 1000000" v-model.number="w.b.offer.value"></div>
+                    <input v-if="w.b.offer.type === 'gift' || w.b.offer.type === 'bundle'" class="bk-in" maxlength="120" v-model="w.b.offer.what" placeholder="الهدية أو الباقة إيه؟">
+                    <h3>مدة العرض</h3>
+                    <div class="bk-chips"><button v-for="dd in w.opts.days" class="bk-chip" :class="{ on: w.b.offer.days === dd }" @click="w.b.offer.days = dd">{{ dd }} يوم</button></div>
+                    <h3>الشرط</h3>
+                    <div class="bk-chips"><button v-for="(l, k) in w.opts.offer_conditions" class="bk-chip" :class="{ on: w.b.offer.condition === k }" @click="w.b.offer.condition = k">{{ l }}</button></div>
+                    <input v-if="w.b.offer.condition === 'other'" class="bk-in" maxlength="120" v-model="w.b.offer.condition_other" placeholder="اكتب الشرط">
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'channel'">
+                    <h2>العميل يتواصل معاك إزاي؟</h2>
+                    <div class="ce-grid"><button v-for="c in w.opts.channels" class="ce-opt" :class="{ on: w.b.channel === c.key }" @click="w.b.channel = c.key"><span>{{ c.icon }}</span>{{ c.label }}</button></div>
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'boldness'">
+                    <h2>مستوى الجرأة</h2>
+                    <div class="ce-grid"><button v-for="b in w.opts.boldness" class="ce-opt" :class="{ on: w.b.boldness === b.key }" @click="w.b.boldness = b.key"><b>{{ b.label }}</b><small>{{ b.hint }}</small></button></div>
+                </section>
+
+                <section class="bk-card" v-if="w.step === 'exclusions'">
+                    <h2>حاجات مش عايزها في الحملة دي</h2>
+                    <div class="bk-chips">
+                        <button v-for="x in w.opts.exclusions" class="bk-chip" :class="{ no: w.b.exclusions.includes(x) }" @click="toggle(w.b.exclusions, x, 12)">{{ x }}</button>
+                        <span v-for="x in customExclusions()" class="bk-chip no">{{ x }} <button class="ce-x" @click="w.b.exclusions.splice(w.b.exclusions.indexOf(x), 1)" aria-label="شيل">×</button></span>
+                        <input class="ce-add" placeholder="+ حاجة تانية" @keyup.enter="addChip(w.b.exclusions, $event, 12)">
+                    </div>
+                </section>
+
+                <section class="bk-card ce-sum" v-if="w.step === 'summary'">
+                    <h2>الملخص والتكلفة</h2>
+                    <ul class="ce-list">
+                        <li><b>الهدف:</b> {{ goalLabel() }}</li>
+                        <li><b>الخدمات:</b> {{ servicesLabel() }}</li>
+                        <li><b>العملاء:</b> {{ personasLabel() }}</li>
+                        <li><b>الأشكال:</b> {{ formatsLabel() }} · {{ w.b.days }} يوم</li>
+                        <li v-if="w.b.goal === 'offer'"><b>العرض:</b> {{ offerLabel() }}</li>
+                        <li><b>التواصل:</b> {{ labelOf(w.opts.channels, w.b.channel) }} · <b>الجرأة:</b> {{ labelOf(w.opts.boldness, w.b.boldness) }}</li>
+                        <li v-if="w.b.exclusions.length"><b>من غير:</b> {{ w.b.exclusions.join('، ') }}</li>
+                    </ul>
+                    <div v-if="w.estBusy" class="bk-mute" role="status">بنحسب التكلفة…</div>
+                    <div v-if="w.est" class="ce-est">
+                        <div class="ce-est-main"><div><b>{{ w.est.credits }}</b><span>كريدت تقريبًا</span></div>
+                            <div><b>{{ fmt(w.est.tokens_total) }}</b><span>توكن</span></div>
+                            <div><b>{{ w.est.pieces }}</b><span>قطعة · {{ w.est.images }} صورة</span></div></div>
+                        <details><summary>تفاصيل كل مرحلة</summary>
+                            <div v-for="s in w.est.stages" class="ce-est-row"><span>{{ s.label }}</span><span>{{ fmt(s.tokens) }} توكن</span></div></details>
+                        <p class="bk-mute">رصيدك {{ balance }} كريدت. الكريدت بيتحجز لما الحملة تبدأ، واللي مايتصرفش بيرجعلك تلقائي.</p>
+                        <p v-if="balance < w.est.credits" class="ce-err">رصيدك مش كفاية للحملة دي — قلّل العدد أو اشحن.</p>
+                    </div>
+                    <div v-if="w.saved" class="ce-ok">✓ اتحفظ البريف. تشغيل الحملة (الخطة والكتابة) بيتفتح في التحديث الجاي.</div>
+                </section>
+
+                <div v-if="w.err" class="ce-err" role="alert">{{ w.err }}</div>
+                <div class="ce-actions">
+                    <button v-if="stepNo() > 1" class="bk-btn ghost" @click="prev()">السابق</button>
+                    <button v-if="w.step !== 'summary'" class="bk-btn pri" @click="next()">التالي</button>
+                    <button v-else class="bk-btn pri" :disabled="busy || !w.est" @click="saveBrief()">{{ w.id ? 'احفظ التعديل' : 'احفظ البريف' }}</button>
+                </div>
+            </div>
+
+            <div v-if="toast" class="bk-toast" :class="toast && toast.type" role="status">{{ toast && toast.msg }}</div>
+            </div>
+        </div>
+    </main>
+</div>
+<script src="<?= $__ver('assets/js/engine.js') ?>" defer></script>
+<?php include __DIR__ . '/../templates/footer.php'; ?>

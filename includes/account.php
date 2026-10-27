@@ -322,6 +322,11 @@ function account_purge(int $uid): void
         'DELETE FROM user_sessions WHERE user_id = ?',
         'DELETE FROM email_verifications WHERE user_id = ?',
         'DELETE FROM password_resets WHERE user_id = ?',
+        // محرك المحتوى v3 (القيود المالية نفسها في credit_transactions بتفضل)
+        'DELETE FROM ce_campaigns WHERE user_id = ?',
+        'DELETE FROM ce_brand_dna WHERE user_id = ?',
+        'DELETE FROM ce_jobs WHERE user_id = ?',
+        'DELETE FROM ce_credit_holds WHERE user_id = ?',
         'DELETE FROM credit_wallets WHERE user_id = ?',
         // تكلفة الـ AI بتفضل للتقارير — من غير رقم العميل
         'UPDATE ai_runs SET user_id = NULL WHERE user_id = ?',

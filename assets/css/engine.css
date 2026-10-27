@@ -1,0 +1,75 @@
+/* Spread AI — محرك المحتوى v3 · فوق brand-kit.css (نفس الألوان والأزرار) */
+.ce .bk-card { margin-bottom: 14px; }
+.ce h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.ce h3 { font-size: 14px; font-weight: 600; margin: 12px 0 2px; color: var(--bk-mute); }
+.ce .bk-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ce-hero { background: linear-gradient(135deg, #E6FBF7, #DCEBFF); }
+.ce-hero h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+.ce-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.ce-h h2 { margin: 0; }
+.ce .bk-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: var(--bk-soft); color: var(--bk-mute); }
+.ce .bk-pill.ok { background: #E3F8F2; color: #0B7F68; }
+.ce .bk-pill.warn { background: #FFF4DE; color: #9A6200; }
+.ce-top { display: flex; justify-content: space-between; align-items: center; margin: 0 0 10px; }
+
+/* الشغلانة */
+.ce-job { margin: 12px 0 4px; }
+.ce-bar { height: 10px; border-radius: 99px; background: var(--bk-soft); overflow: hidden; }
+.ce-bar i { display: block; height: 100%; background: linear-gradient(90deg, #0FA9C0, var(--bk-pri)); transition: width .5s; }
+.ce-job-row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; margin-top: 6px; }
+.ce-err { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: #FDECEC; color: #A3261F; font-size: 13.5px; }
+.ce-ok { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: #E3F8F2; color: #0B7F68; font-size: 13.5px; }
+
+/* الحملات */
+.ce-camp { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px; border: 1.5px solid var(--bk-line); border-radius: 14px; margin-top: 8px; cursor: pointer; }
+.ce-camp:hover { border-color: var(--bk-pri); }
+.ce-cr { font-size: 12.5px; color: var(--bk-mute); white-space: nowrap; }
+
+/* تعديل الـ DNA */
+.ce-item { padding: 10px 0; border-top: 1px solid var(--bk-line); }
+.ce-item:first-of-type { border-top: 0; }
+.ce-sel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.ce-sel .bk-in { width: auto; min-width: 140px; flex: 1; }
+.ce-x { border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 0 0 2px; opacity: .6; }
+.ce-x:hover { opacity: 1; }
+.ce-add { min-height: 36px; width: 150px; padding: 0 12px; border-radius: 999px; border: 1.5px dashed var(--bk-line); font: inherit; font-size: 13px; background: transparent; }
+.ce-add:focus { outline: none; border-color: var(--bk-pri); } /* نفس العرض: لو اتغير مع الـ blur الزرار اللي جنبه بيتحرك والضغطة بتضيع */
+.bk-chip.no { border-color: #F2B8B4; background: #FDECEC; color: #A3261F; }
+.ce-colors { display: flex; gap: 10px; flex-wrap: wrap; }
+.ce-sw { position: relative; width: 44px; height: 44px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--bk-line); cursor: pointer; }
+.ce-sw input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.ce-chars { display: flex; gap: 8px; flex-wrap: wrap; }
+.ce-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin: 6px 0 20px; position: sticky; bottom: 10px; }
+.ce-actions .bk-btn.pri { box-shadow: 0 6px 18px rgba(12,135,239,.25); }
+
+/* الـ Wizard */
+.ce-steps { display: flex; gap: 5px; margin-bottom: 12px; }
+.ce-steps i { flex: 1; height: 5px; border-radius: 9px; background: var(--bk-line); }
+.ce-steps i.done { background: #9CCBF5; }
+.ce-steps i.on { background: var(--bk-pri); }
+.ce-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
+.ce-opt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 92px; padding: 12px; border-radius: 16px;
+  border: 1.5px solid var(--bk-line); background: #fff; font: inherit; font-size: 14px; font-weight: 600; color: var(--bk-ink); cursor: pointer; text-align: center; }
+.ce-opt span { font-size: 24px; }
+.ce-opt small { font-weight: 400; font-size: 12px; color: var(--bk-mute); }
+.ce-opt.on { border-color: var(--bk-pri); background: #E8F3FF; color: var(--bk-pri-2); }
+.ce-per { align-items: flex-start; text-align: start; }
+.ce-av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.ce-slide { display: grid; grid-template-columns: 140px 1fr 36px; gap: 10px; align-items: center; margin: 10px 0; }
+.ce-slide input[type=range] { width: 100%; accent-color: var(--bk-pri); }
+.ce-slide b { text-align: center; }
+.ce-num { max-width: 160px; }
+.ce-list { list-style: none; padding: 0; margin: 6px 0 12px; line-height: 2; font-size: 14px; }
+.ce-est { border-top: 1px solid var(--bk-line); padding-top: 12px; }
+.ce-est-main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+.ce-est-main div { padding: 12px; border-radius: 14px; background: var(--bk-soft); text-align: center; }
+.ce-est-main b { display: block; font-size: 22px; }
+.ce-est-main span { font-size: 12px; color: var(--bk-mute); }
+.ce-est-main div:first-child { background: #E8F3FF; color: var(--bk-pri-2); }
+.ce-est-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--bk-line); }
+.ce details summary { cursor: pointer; font-size: 13.5px; color: var(--bk-pri); margin-bottom: 6px; }
+@media (max-width: 560px) {
+  .ce-slide { grid-template-columns: 1fr 36px; }
+  .ce-slide label { grid-column: 1 / -1; }
+  .ce-est-main b { font-size: 18px; }
+}

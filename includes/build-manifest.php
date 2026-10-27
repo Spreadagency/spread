@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-23',
-  'generated' => '2026-10-23 12:40',
+  'date' => '2026-10-27',
+  'generated' => '2026-10-27 08:37',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -166,6 +166,17 @@ return array (
     157 => 'docs/CONTENT_ENGINE_AUDIT.md',
     158 => 'docs/CONTENT_ENGINE_PHASES.md',
     159 => 'docs/CPANEL_UPDATE.md',
+    160 => 'includes/ce-jobs.php',
+    161 => 'includes/ce-dna.php',
+    162 => 'includes/ce-campaign.php',
+    163 => 'public/engine.php',
+    164 => 'public/api/engine.php',
+    165 => 'assets/js/engine.js',
+    166 => 'assets/css/engine.css',
+    167 => 'admin/ce-settings.php',
+    168 => 'cron/ce-worker.php',
+    169 => 'sql/2026_ce_engine.sql',
+    170 => 'sql/2026_ce_engine_rollback.sql',
   ),
   'files' => 
   array (
@@ -273,6 +284,11 @@ return array (
     array (
       'h' => 'c9eb494f37a742ed7cd443b105c0fe74',
       's' => 21890,
+    ),
+    'admin/ce-settings.php' => 
+    array (
+      'h' => 'b0feae26a4680fb8b2a90d185b3c9165',
+      's' => 19422,
     ),
     'admin/content-history.php' => 
     array (
@@ -519,6 +535,11 @@ return array (
       'h' => 'ee644ee731a95c022a64c6bdf98c8f52',
       's' => 49685,
     ),
+    'assets/css/engine.css' => 
+    array (
+      'h' => 'd86efb66fa2189f116412bb318f2efde',
+      's' => 5729,
+    ),
     'assets/css/main.css' => 
     array (
       'h' => '74ccb0008ee5d438f5b076d956b2b39c',
@@ -569,6 +590,11 @@ return array (
       'h' => '285d4c1fd259dc03c92db1a3a8bbd3e3',
       's' => 38338,
     ),
+    'assets/js/engine.js' => 
+    array (
+      'h' => '41d5b027685e47bdd58b43b088e8d0ba',
+      's' => 12181,
+    ),
     'assets/js/main.js' => 
     array (
       'h' => 'cc2dbea4889fe688b8aa3e153f47200b',
@@ -614,6 +640,11 @@ return array (
       'h' => 'd88f8d1f29f0ca75ce7231a7e1589062',
       's' => 3088,
     ),
+    'cron/ce-worker.php' => 
+    array (
+      'h' => '92593336f33d27f085afac3d7752c645',
+      's' => 1716,
+    ),
     'cron/daily_notifications.php' => 
     array (
       'h' => '6ef8ff2ae5cb06c37d658bb50b58359a',
@@ -631,18 +662,18 @@ return array (
     ),
     'docs/CONTENT_ENGINE_AUDIT.md' => 
     array (
-      'h' => '76b6bf7a253307d581b599607a4a5675',
-      's' => 18846,
+      'h' => '6a5bd8558c9468d90a3ef3e9137b5777',
+      's' => 18902,
     ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
-      'h' => '5ebedd8e369e2c83a8cd6ca3890a4555',
-      's' => 4650,
+      'h' => '2c4dab25dd48db5a915e08dacfed8868',
+      's' => 8571,
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'cd4b881d84ab0e929a04adaf8249a41c',
-      's' => 8110,
+      'h' => 'df438532dcdb04efb30c7f3973e10938',
+      's' => 10116,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -666,8 +697,8 @@ return array (
     ),
     'includes/account.php' => 
     array (
-      'h' => '11e90fdef151b846af6a183b79f87081',
-      's' => 20018,
+      'h' => 'b0559d3e0c6bc315355fd5e731619b64',
+      's' => 20347,
     ),
     'includes/admin-auth.php' => 
     array (
@@ -681,8 +712,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '8922e9d15d51cf213b1a023e1e2e1453',
-      's' => 14377,
+      'h' => 'f18e57310ce49cb72c5356a451209235',
+      's' => 14551,
     ),
     'includes/ai-center.php' => 
     array (
@@ -716,8 +747,8 @@ return array (
     ),
     'includes/api.php' => 
     array (
-      'h' => '05f11063f117e7fa535fe90e082fa463',
-      's' => 8442,
+      'h' => '46974fe86cd960963cab29eb60185db0',
+      's' => 8508,
     ),
     'includes/auth.php' => 
     array (
@@ -743,6 +774,21 @@ return array (
     array (
       'h' => '90b93e12bb6a87695caff3196c3a83ec',
       's' => 55285,
+    ),
+    'includes/ce-campaign.php' => 
+    array (
+      'h' => '863e4a8071dfd91f68928270a2d6eb17',
+      's' => 19016,
+    ),
+    'includes/ce-dna.php' => 
+    array (
+      'h' => 'c2dc483a3ba9e64fc092c391c20724d5',
+      's' => 25628,
+    ),
+    'includes/ce-jobs.php' => 
+    array (
+      'h' => '4983b882882f139087d62a2d9322cfac',
+      's' => 21021,
     ),
     'includes/config.sample.php' => 
     array (
@@ -831,8 +877,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => 'b2955f78ec0d58a34f3520ca96dc06ec',
-      's' => 13416,
+      'h' => '6f7c197f27e345761cadd8dc3c6e11fa',
+      's' => 13613,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -956,8 +1002,8 @@ return array (
     ),
     'includes/ui-v2.php' => 
     array (
-      'h' => '0ece35111dd3894f888e9441347d1225',
-      's' => 19181,
+      'h' => 'dd81457f88d31b05fa721202257d641a',
+      's' => 19657,
     ),
     'includes/uploader.php' => 
     array (
@@ -1133,6 +1179,11 @@ return array (
     array (
       'h' => 'b0434e898d994eb184906a9e934db10c',
       's' => 36515,
+    ),
+    'public/api/engine.php' => 
+    array (
+      'h' => '64cfcd9611b9f508e2dd18eaf07c71c1',
+      's' => 5507,
     ),
     'public/api/inbox.php' => 
     array (
@@ -1318,6 +1369,11 @@ return array (
     array (
       'h' => '5373071c11506c4e231c0c13f087862a',
       's' => 15467,
+    ),
+    'public/engine.php' => 
+    array (
+      'h' => 'e53ad7dd64eeae6d4d1943611699efcc',
+      's' => 23329,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1523,6 +1579,16 @@ return array (
     array (
       'h' => '06f8d1ba5e46a049c3c931ae4bf98eaa',
       's' => 7530,
+    ),
+    'sql/2026_ce_engine.sql' => 
+    array (
+      'h' => '1fec25b62ef3f872a9303405556eda24',
+      's' => 5769,
+    ),
+    'sql/2026_ce_engine_rollback.sql' => 
+    array (
+      'h' => 'eb4b1864e48a0360ea6c85819768ff00',
+      's' => 1399,
     ),
     'sql/2026_ce_fixes.sql' => 
     array (
@@ -1776,8 +1842,8 @@ return array (
     ),
     'templates/sidebar.php' => 
     array (
-      'h' => 'dd19da5b41b7c9cb001dbf431975f5fc',
-      's' => 6955,
+      'h' => '1e98858978afbe9eb50f787d4747d820',
+      's' => 7347,
     ),
     'templates/style-ref-picker.php' => 
     array (
