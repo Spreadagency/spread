@@ -1,19 +1,19 @@
 <?php
 /**
  * Spread AI — الأدمن: محرك المحتوى v3 (المرحلة D)
- * تبويبات: الإعدادات (قاعدة الكريدت + التقدير) · العملاء (مين يشوف المحرك) · الشغل (الطابور + حجز الكريدت) · الحملات (بالتكلفة بالدولار)
+ * تبويبات: الإعدادات (قاعدة الكريدت + التقدير) · الخطة والزوايا · الكتابة والجودة · العملاء (مين يشوف المحرك) · الشغل (الطابور + حجز الكريدت) · الحملات (بالتكلفة بالدولار)
  */
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
-require_once __DIR__ . '/../includes/ce-plan.php';
+require_once __DIR__ . '/../includes/ce-write.php';
 require_once __DIR__ . '/../includes/usage.php';
 
 require_admin();
 require_admin_can('ai_settings');
 $admin = current_admin();
 $ready = ce_ready();
-$tab = in_array($_GET['tab'] ?? '', ['settings', 'plan', 'access', 'jobs', 'campaigns'], true) ? $_GET['tab'] : 'settings';
+$tab = in_array($_GET['tab'] ?? '', ['settings', 'plan', 'write', 'access', 'jobs', 'campaigns'], true) ? $_GET['tab'] : 'settings';
 $FKEY = 'content_engine';
 
 /** [المفتاح، الافتراضي، أقل، أكبر، الوصف] */
@@ -76,6 +76,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
         foreach ($errs as $e) flash_set('danger', $e);
         if (!$errs) flash_set('success', 'اتحفظ ✓');
         redirect('admin/ce-settings.php?tab=plan');
+    }
+    if ($a === 'save_write' && ce_write_ready()) {
+        $errs = [];
+        $w = [];
+        foreach (array_keys(CE_QA_WEIGHTS) as $k) $w[$k] = max(0, (int) ($_POST['qw'][$k] ?? 0));
+        if (array_sum($w) !== 100) $errs[] = 'أوزان معايير الجودة لازم مجموعها 100 (دلوقتي ' . array_sum($w) . ')';
+        else set_setting('ce_qa_weights', json_encode($w));
+        $rng = ['ce_qa_pass_total' => [50, 100, 'حد النجاح'], 'ce_qa_min_criterion' => [0, 100, 'أقل درجة لأي معيار'], 'ce_qa_max_rounds' => [0, 4, 'جولات التحسين'],
+                'ce_select_min' => [0, 100, 'أقل درجة للفكرة المختارة'], 'ce_dedup_threshold' => [0.5, 1, 'حد التشابه']];
+        foreach ($rng as $k => [$min, $max, $label]) {
+            $v = str_replace(',', '.', trim((string) ($_POST[$k] ?? '')));
+            if (!is_numeric($v) || (float) $v < $min || (float) $v > $max) { $errs[] = "$label: من $min لـ $max"; continue; }
+            set_setting($k, (string) (0 + $v));
+        }
+        set_setting('ce_critic_other_provider', !empty($_POST['ce_critic_other_provider']) ? '1' : '0');
+        admin_log('ce_write_settings', 'settings', null, json_encode(['weights' => $w, 'pass' => $_POST['ce_qa_pass_total'] ?? null]));
+        foreach ($errs as $e) flash_set('danger', $e);
+        if (!$errs) flash_set('success', 'اتحفظ ✓');
+        redirect('admin/ce-settings.php?tab=write');
     }
     if ($a === 'save_angle') {
         $id = (int) ($_POST['id'] ?? 0);
@@ -151,7 +170,7 @@ $secret = (string) get_setting('cron_secret', '');
         <?php else: ?>
 
         <div class="a2-seg" style="margin-bottom:14px">
-            <?php foreach (['settings' => 'الإعدادات', 'plan' => 'الخطة والزوايا', 'access' => 'العملاء', 'jobs' => 'الشغل والكريدت', 'campaigns' => 'الحملات'] as $k => $l): ?>
+            <?php foreach (['settings' => 'الإعدادات', 'plan' => 'الخطة والزوايا', 'write' => 'الكتابة والجودة', 'access' => 'العملاء', 'jobs' => 'الشغل والكريدت', 'campaigns' => 'الحملات'] as $k => $l): ?>
                 <a class="<?= $tab === $k ? 'on' : '' ?>" href="?tab=<?= $k ?>"><?= $l ?></a>
             <?php endforeach; ?>
         </div>
@@ -236,6 +255,43 @@ $secret = (string) get_setting('cron_secret', '');
                 <p class="a2-muted" style="margin:8px 0 0">الأعمدة الفاضية = الزاوية تنفع مع أي عمود. الزاوية المقفولة مابتظهرش في الخطط الجديدة.</p>
             </div>
 
+        <?php elseif ($tab === 'write'):
+            if (!ce_write_ready()): ?>
+                <div class="card"><p>الكتابة لسه مش متركّبة — شغّل ترحيل <b>2026_ce_content</b> من <a href="<?= e(url('admin/migrations.php')) ?>">صفحة الترحيلات</a>.</p></div>
+            <?php else:
+            $qw = ce_qa_weights(); $rules = ce_qa_rules();
+            $st = db_one('SELECT COUNT(*) n, SUM(status = "pass") p, SUM(status = "manual") m, SUM(status = "failed") f, AVG(qa_score) a, AVG(rounds) r FROM ce_contents WHERE created_at > NOW() - INTERVAL 30 DAY');
+            $dups = db_one('SELECT COUNT(*) n, SUM(is_dup) d FROM ce_ideas WHERE created_at > NOW() - INTERVAL 30 DAY'); ?>
+            <div class="a2-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px">
+                <div class="card"><small class="a2-muted">قطع آخر 30 يوم</small><h3 class="num"><?= (int) $st['n'] ?></h3></div>
+                <div class="card"><small class="a2-muted">عدّت من غير تدخل</small><h3 class="num"><?= $st['n'] ? round(100 * $st['p'] / $st['n']) : 0 ?>%</h3></div>
+                <div class="card"><small class="a2-muted">مراجعة يدوية</small><h3 class="num"><?= (int) $st['m'] ?></h3></div>
+                <div class="card"><small class="a2-muted">متوسط الجودة</small><h3 class="num"><?= $st['a'] !== null ? round((float) $st['a'], 1) : '—' ?></h3></div>
+                <div class="card"><small class="a2-muted">متوسط جولات التحسين</small><h3 class="num"><?= $st['r'] !== null ? round((float) $st['r'], 2) : '—' ?></h3></div>
+                <div class="card"><small class="a2-muted">أفكار اترفضت (تكرار)</small><h3 class="num"><?= (int) $dups['d'] ?> / <?= (int) $dups['n'] ?></h3></div>
+            </div>
+            <form method="post" class="card">
+                <?= csrf_field() ?><input type="hidden" name="action" value="save_write">
+                <div class="a2-h"><h3>أوزان معايير الجودة (مجموعها 100)</h3></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
+                    <?php foreach (CE_QA_LABELS as $k => $l): ?>
+                        <label class="form-group" style="margin:0"><span style="font-size:13px"><?= e($l) ?></span><input class="form-control" name="qw[<?= $k ?>]" value="<?= (int) $qw[$k] ?>" inputmode="numeric"></label>
+                    <?php endforeach; ?>
+                </div>
+                <div class="a2-h" style="margin-top:16px"><h3>البوابة والأفكار</h3></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">حد النجاح (الإجمالي)</span><input class="form-control" name="ce_qa_pass_total" value="<?= e((string) $rules['pass_total']) ?>" inputmode="decimal"></label>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">أقل درجة لأي معيار</span><input class="form-control" name="ce_qa_min_criterion" value="<?= e((string) $rules['min_criterion']) ?>" inputmode="decimal"></label>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">جولات التحسين</span><input class="form-control" name="ce_qa_max_rounds" value="<?= (int) $rules['max_rounds'] ?>" inputmode="numeric"></label>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">أقل درجة للفكرة المختارة</span><input class="form-control" name="ce_select_min" value="<?= e((string) $rules['select_min']) ?>" inputmode="decimal"></label>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">حد التشابه (رفض الفكرة)</span><input class="form-control" name="ce_dedup_threshold" value="<?= e((string) $rules['dedup']) ?>" inputmode="decimal"></label>
+                </div>
+                <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" name="ce_critic_other_provider" value="1" <?= $rules['other_provider'] ? 'checked' : '' ?>> الناقد من مزود غير الكاتب (لو فيه مزود تاني شغال)</label>
+                <p class="a2-muted" style="margin:8px 0 0">PASS = الإجمالي ≥ الحد ومفيش معيار أقل من الحد الأدنى ومفيش مخالفة (كلمات ممنوعة · وعود مضمونة · استثناءات الحملة). غير كده بنحسّن الأجزاء الضعيفة بس لحد عدد الجولات، وبعدها القطعة بتتعلّم «محتاجة مراجعة» بأحسن نسخة. التشابه بالحروف (0.85 = شبه متطابقة).</p>
+                <button class="btn" style="margin-top:12px">حفظ</button>
+            </form>
+            <?php endif; ?>
+
         <?php elseif ($tab === 'access'):
             $flag = db_one('SELECT * FROM feature_flags WHERE feature_key = ?', [$FKEY]);
             $mode = $flag['default_mode'] ?? 'allowlist';
@@ -299,14 +355,15 @@ $secret = (string) get_setting('cron_secret', '');
 
         <?php else:
             $camps = db_all('SELECT c.*, u.name FROM ce_campaigns c LEFT JOIN users u ON u.id = c.user_id ORDER BY c.id DESC LIMIT 60'); ?>
-            <div class="card"><div class="a2-tw"><table class="a2-tbl"><thead><tr><th>#</th><th>العميل</th><th>الحملة</th><th>الحالة</th><th>القطع</th><th>التوكنز</th><th>التكلفة المتوقعة</th><th>الكريدت</th><th>درجة الخطة</th></tr></thead><tbody>
-                <?php foreach ($camps as $c): $e = json_decode((string) $c['estimate_json'], true) ?: []; ?>
+            <div class="card"><div class="a2-tw"><table class="a2-tbl"><thead><tr><th>#</th><th>العميل</th><th>الحملة</th><th>الحالة</th><th>القطع</th><th>التوكنز</th><th>التكلفة المتوقعة</th><th>الكريدت</th><th>درجة الخطة</th><th>الجودة</th></tr></thead><tbody>
+                <?php foreach ($camps as $c): $e = json_decode((string) $c['estimate_json'], true) ?: []; $fq = json_decode((string) ($c['final_qa_json'] ?? ''), true) ?: null; ?>
                     <tr><td class="num"><?= (int) $c['id'] ?></td><td><?= e((string) $c['name']) ?></td><td><?= e((string) $c['title']) ?></td><td><?= e($c['status']) ?></td>
                         <td class="num"><?= (int) ($e['pieces'] ?? 0) ?></td><td class="num"><?= number_format((int) ($e['tokens_total'] ?? 0)) ?></td>
                         <td class="num" dir="ltr">$<?= number_format((float) ($e['usd'] ?? 0), 3) ?></td><td class="num"><?= (int) $c['est_credits'] ?></td>
-                        <td class="num"><?= $c['plan_score'] !== null ? '<b style="color:' . ($c['plan_passed'] ? '#2a9d76' : '#d9534f') . '">' . e((string) $c['plan_score']) . '</b>' : '—' ?></td></tr>
+                        <td class="num"><?= $c['plan_score'] !== null ? '<b style="color:' . ($c['plan_passed'] ? '#2a9d76' : '#d9534f') . '">' . e((string) $c['plan_score']) . '</b>' : '—' ?></td>
+                        <td class="num"><?= $fq ? e(($fq['avg_qa'] ?? '—') . ' · ' . (int) $fq['pass'] . '✓' . ($fq['manual'] ? ' · ' . (int) $fq['manual'] . '⚠' : '')) : '—' ?></td></tr>
                 <?php endforeach; ?>
-                <?php if (!$camps): ?><tr><td colspan="9" class="a2-muted">مفيش حملات لسه</td></tr><?php endif; ?>
+                <?php if (!$camps): ?><tr><td colspan="10" class="a2-muted">مفيش حملات لسه</td></tr><?php endif; ?>
             </tbody></table></div></div>
         <?php endif; ?>
         <?php endif; ?>

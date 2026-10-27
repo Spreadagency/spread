@@ -19,11 +19,15 @@
  *   POST action=plan_rescore {id}            تقييم تاني بعد تعديلات العميل (الناقد بس)
  *   POST action=plan_save {id, slots[]}      ترتيب جديد + قفل + تعديل خانات (بالتحقق من القواعد في الكود)
  *   POST action=plan_approve {id}            اعتماد الخطة (الدرجة ≥ الحد ومفيش قواعد متكسّرة)
+ *   GET  action=write {id}                   الكتابة: الخانات + الأفكار + المحتوى + الجودة + التقرير النهائي (المرحلة F)
+ *   POST action=write_start {id}             ابدأ كتابة الحملة بعد اعتماد الخطة (حجز + شغلانة)
+ *   POST action=idea_swap {id, slot_id, idea_id}  اكتب الخانة بفكرة تانية (أو نفس الفكرة من جديد)
+ *   POST action=content_accept {id, slot_id}  اعتمد خانة «محتاجة مراجعة يدوية» زي ما هي
  *
  * المحرك متاح بس للعملاء اللي الأدمن فتحه لهم (الميزات ← content_engine).
  */
 require_once __DIR__ . '/../../includes/api.php';
-require_once __DIR__ . '/../../includes/ce-plan.php';
+require_once __DIR__ . '/../../includes/ce-write.php';
 
 $action = api_action() ?: 'home';
 $user = api_boot();
@@ -34,6 +38,13 @@ if (!ce_enabled_for($uid)) api_fail('المحرك الجديد لسه مش مت�
 
 $jobOut = function (?array $j): ?array {
     return $j ? ce_job_public($j) : null;
+};
+// الخطة + حجز الكتابة المتوقع (لما تتعتمد)
+$planOut = function (array $view, int $cid) use ($uid): array {
+    $c = ce_campaign_get($cid, $uid);
+    $view['write_credits'] = $c && $c['status'] === 'plan_ok' && ce_write_ready() ? ce_write_hold_credits($c) : null;
+    $view['write_rules'] = ce_qa_rules();
+    return $view;
 };
 
 switch ($action) {
@@ -97,7 +108,7 @@ switch ($action) {
     case 'plan':
         $c = ce_campaign_get(api_int('id'), $uid);
         if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
-        api_ok(['plan' => ce_plan_view($uid, $c), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
+        api_ok(['plan' => $planOut(ce_plan_view($uid, $c), (int) $c['id']), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
 
     case 'campaign_start':
     case 'plan_rebuild':
@@ -111,12 +122,30 @@ switch ($action) {
         if (!is_array($slots)) api_fail('مفيش بيانات', 'input');
         $r = ce_plan_save($uid, api_int('id'), array_values($slots));
         if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 409);
-        api_ok(['plan' => $r['view']]);
+        api_ok(['plan' => $planOut($r['view'], api_int('id'))]);
 
     case 'plan_approve':
         $r = ce_plan_approve($uid, api_int('id'));
         if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 409);
-        api_ok(['plan' => $r['view']]);
+        api_ok(['plan' => $planOut($r['view'], api_int('id')), 'balance' => credits_balance($uid)]);
+
+    case 'write':
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        api_ok(['write' => ce_write_view($uid, $c), 'campaign' => ce_campaign_public(ce_campaign_get((int) $c['id'], $uid)), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
+
+    case 'write_start':
+    case 'idea_swap':
+        $r = $action === 'write_start' ? ce_write_start($uid, api_int('id'))
+            : ce_write_slot($uid, api_int('id'), api_int('slot_id'), api_int('idea_id'));
+        if (!$r['ok']) api_fail($r['error'] ?? 'مقدرناش نبدأ', $r['code'] ?? 'error', ($r['code'] ?? '') === 'credits' ? 402 : (($r['code'] ?? '') === 'not_found' ? 404 : 409));
+        api_ok(['job' => ce_job_public($r['job']), 'existing' => !empty($r['existing']), 'balance' => credits_balance($uid)]);
+
+    case 'content_accept':
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        if (!ce_write_ready() || !ce_content_accept($uid, (int) $c['id'], api_int('slot_id'))) api_fail('الخانة دي مش محتاجة مراجعة', 'state', 409);
+        api_ok(['write' => ce_write_view($uid, $c)]);
 
     case 'campaign_save':
         $in = (array) (api_input()['brief'] ?? []);

@@ -133,16 +133,19 @@ function ce_release(int $holdId): array
 
 /* ═══════════════════ الشغلانات ═══════════════════ */
 
-/** تسجيل نوع شغلانة: ce_job_register('brand_dna', 'ce_dna_job', 'بناء الـ Brand DNA') */
-function ce_job_register(string $kind, string $fn, string $label): void
+/**
+ * تسجيل نوع شغلانة: ce_job_register('brand_dna', 'ce_dna_job', 'بناء الـ Brand DNA')
+ * $onCancel (اختياري): دالة بتاخد الحالة وترجّع الكريدت المستهلك لحد الإلغاء (الباقي بيرجع) — من غيرها الحجز كله بيرجع
+ */
+function ce_job_register(string $kind, string $fn, string $label, ?string $onCancel = null): void
 {
-    $GLOBALS['__ce_job_handlers'][$kind] = ['fn' => $fn, 'label' => $label];
+    $GLOBALS['__ce_job_handlers'][$kind] = ['fn' => $fn, 'label' => $label, 'on_cancel' => $onCancel];
 }
 
 function ce_job_handlers(): array
 {
     // كل وحدة بتسجّل الـ handlers بتاعتها لما تتحمّل
-    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php'] as $f) {
+    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php', 'ce-write.php'] as $f) {
         if (is_file(__DIR__ . '/' . $f)) require_once __DIR__ . '/' . $f;
     }
     return $GLOBALS['__ce_job_handlers'] ?? [];
@@ -310,7 +313,11 @@ function ce_job_cancel(int $id, int $uid): bool
         $j = db_one('SELECT * FROM ce_jobs WHERE id = ? AND user_id = ? FOR UPDATE', [$id, $uid]);
         if (!$j || !in_array($j['status'], ['queued', 'running'], true)) { $pdo->commit(); return false; }
         db_run('UPDATE ce_jobs SET status = "cancelled", stage_label = "اتلغى", lock_token = NULL, finished_at = NOW() WHERE id = ?', [$id]);
-        if (!empty($j['hold_id'])) ce_release((int) $j['hold_id']);
+        if (!empty($j['hold_id'])) {
+            $cb = ce_job_handlers()[$j['kind']]['on_cancel'] ?? null;
+            $used = $cb && function_exists($cb) ? max(0, (int) $cb(json_decode((string) $j['state_json'], true) ?: [])) : 0;
+            $used > 0 ? ce_settle((int) $j['hold_id'], $used) : ce_release((int) $j['hold_id']);
+        }
         $pdo->commit();
         return true;
     } catch (\Throwable $e) {
@@ -363,7 +370,7 @@ function ce_tokens_est(string $s): int
 function ce_ai_json(string $task, string $system, string $user, array $ctx = [], int $maxTokens = 1500, float $temperature = 0.3): array
 {
     require_once __DIR__ . '/ai-gateway.php';
-    $out = ['ok' => false, 'data' => null, 'text' => '', 'error' => null, 'usage' => ['in' => 0, 'out' => 0], 'cost_usd' => 0.0, 'run_id' => null, 'model' => null];
+    $out = ['ok' => false, 'data' => null, 'text' => '', 'error' => null, 'usage' => ['in' => 0, 'out' => 0], 'cost_usd' => 0.0, 'run_id' => null, 'model' => null, 'provider' => null];
     if (!function_exists('ai_gw_enabled') || !ai_gw_enabled()) {
         $out['error'] = 'gateway_off';
         return $out;
@@ -376,6 +383,7 @@ function ce_ai_json(string $task, string $system, string $user, array $ctx = [],
     $out['cost_usd'] = (float) ($r['cost_usd'] ?? 0);
     $out['run_id'] = $r['run_id'] ?? null;
     $out['model'] = $r['model'] ?? null;
+    $out['provider'] = is_array($r['provider'] ?? null) ? ($r['provider']['name'] ?? null) : ($r['provider'] ?? null);
     $out['text'] = (string) ($r['text'] ?? '');
     if (empty($r['ok'])) {
         $out['error'] = (string) ($r['error'] ?? 'ai_failed');

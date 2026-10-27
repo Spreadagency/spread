@@ -107,6 +107,32 @@
 .ce-slot-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
 .ce-slot-g .bk-in { min-height: 36px; padding: 0 8px; font-size: 13px; }
 .ce-obj { margin: 6px 0 0; font-size: 13px; color: var(--bk-mute); }
+
+/* ─── المحتوى والجودة (المرحلة F) ─── */
+.ce-piece { border-inline-start: 5px solid var(--bk-line); }
+.ce-piece.ok { border-inline-start-color: #13A89E; }
+.ce-piece.warn { border-inline-start-color: #F5A524; }
+.ce-piece.bad { border-inline-start-color: #E0524A; }
+.ce-piece details { margin-top: 8px; }
+.ce-piece summary { cursor: pointer; font-weight: 600; font-size: 13.5px; padding: 6px 0; }
+.ce-hooks { display: grid; gap: 4px; margin: 8px 0; }
+.ce-hooks span { font-size: 13px; color: var(--bk-mute); padding: 4px 10px; border-radius: 10px; background: var(--bk-soft); }
+.ce-hooks span.on { color: inherit; font-weight: 700; font-size: 15px; background: #E8F3FF; }
+.ce-text { white-space: pre-line; margin: 6px 0; line-height: 1.75; font-size: 14px; overflow-wrap: anywhere; }
+.ce-cta { margin: 6px 0; font-weight: 600; }
+.ce-slides { margin: 8px 0; padding-inline-start: 22px; display: grid; gap: 4px; font-size: 14px; }
+.ce-scenes { display: grid; gap: 6px; margin: 8px 0; }
+.ce-scene { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--bk-soft); font-size: 13px; }
+.ce-brief { display: grid; gap: 4px; font-size: 13px; }
+.ce-brief b { color: var(--bk-mute); font-weight: 600; margin-inline-end: 6px; }
+.ce-idea { display: grid; gap: 2px; padding: 8px 10px; border: 1.5px solid var(--bk-line); border-radius: 12px; margin-top: 6px; font-size: 13.5px; }
+.ce-idea.on { border-color: var(--bk-pri); background: #F4F9FF; }
+.ce-idea.dup { opacity: .55; }
+.ce-idea .bk-link { justify-self: start; }
+.ce-notes ol { margin: 6px 0 0; padding-inline-start: 22px; display: grid; gap: 4px; font-size: 13.5px; }
+.bk-pill.bad { background: #FDECEB; color: #A3261F; }
+.ce-go .ce-est-row { margin: 8px 0 2px; }
+
 @media (max-width: 560px) {
   .ce-slot-g { grid-template-columns: 1fr 1fr; }
   .ce-dim { grid-template-columns: 90px 1fr 30px; }

@@ -1,7 +1,7 @@
 <?php
 /**
- * Spread AI — محرك المحتوى v3 (المرحلة D)
- * صفحة واحدة: ملف الهوية المختصر (Brand DNA) ← حملة جديدة بالاختيارات (9 خطوات) ← التقدير قبل التشغيل
+ * Spread AI — محرك المحتوى v3
+ * صفحة واحدة: ملف الهوية المختصر (Brand DNA) ← حملة جديدة بالاختيارات (9 خطوات) ← التقدير ← الخطة والبوابة ← الكتابة ومراجعة الجودة
  * متاحة بس للعملاء اللي الأدمن فتحلهم الميزة (الميزات ← محرك المحتوى الجديد). الحملة القديمة شغالة زي ما هي.
  */
 require_once __DIR__ . '/../includes/auth.php';
@@ -307,7 +307,8 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <div class="ce-ring" :class="{ ok: p.score_now >= p.threshold && !p.hard }"><b>{{ p.score_now }}</b><small>من 100</small></div>
                         <div>
                             <h2>درجة الخطة</h2>
-                            <p class="bk-mute" v-if="p.campaign.status === 'plan_ok'">✓ الخطة معتمدة — الكتابة بتتفتح في التحديث الجاي.</p>
+                            <p class="bk-mute" v-if="p.campaign.status === 'plan_ok'">✓ الخطة معتمدة — جاهزين نكتب المحتوى.</p>
+                            <p class="bk-mute" v-else-if="['writing', 'done'].indexOf(p.campaign.status) >= 0">✓ الخطة معتمدة · <button class="bk-link" @click="openWrite(p.campaign.id)">افتح المحتوى</button></p>
                             <p class="bk-mute" v-else-if="p.can_approve">الخطة عدّت البوابة ({{ p.threshold }}+) — راجعها واعتمدها.</p>
                             <p class="bk-mute" v-else>لازم {{ p.threshold }} أو أكتر ومفيش قواعد متكسّرة علشان تتعتمد.</p>
                             <small class="bk-mute" v-if="p.eval">آخر تقييم: جولة {{ p.eval.round }} · {{ timeAgo(p.eval.at) }}<span v-if="dirty"> · عندك تعديلات مش محفوظة</span></small>
@@ -346,6 +347,14 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     </div>
                 </section>
 
+                <section class="bk-card ce-go" v-if="p.campaign.status === 'plan_ok'">
+                    <h2>✍️ اكتب المحتوى</h2>
+                    <p class="bk-mute">لكل خانة: 3 أفكار من زوايا مختلفة ← بنختار أقواها ← بنكتب (بوست · كاروسيل · ريلز) + وصف التصميم ← مراجع جودة من موديل تاني بيقيّم 10 معايير، واللي أقل من {{ p.write_rules ? p.write_rules.pass_total : 85 }} بنحسّنه لوحدنا.</p>
+                    <div class="ce-est-row"><span>محجوز من رصيدك</span><b>~{{ fmt(p.write_credits) }} كريدت</b></div>
+                    <small class="bk-mute">بيتحسب الفعلي بس في الآخر، والباقي بيرجع لرصيدك · رصيدك {{ fmt(balance) }}</small>
+                    <div class="bk-row"><button class="bk-btn pri" :disabled="busy" @click="startWrite()">ابدأ الكتابة ✨</button></div>
+                </section>
+
                 <div class="ce-actions" v-if="editable()">
                     <button v-if="dirty" class="bk-btn pri" :disabled="busy" @click="savePlan()">احفظ التعديلات</button>
                     <button v-if="!dirty" class="bk-btn pri" :disabled="busy || !p.can_approve" @click="approvePlan()">اعتمد الخطة ✓</button>
@@ -353,6 +362,77 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     <button v-if="!dirty" class="bk-btn ghost" :disabled="busy" @click="planJob('plan_rebuild')">ابني من جديد (المقفول يفضل)</button>
                 </div>
                 </div>
+            </div>
+
+            <!-- ═══ المحتوى والجودة (المرحلة F) ═══ -->
+            <div v-if="view === 'write' && wr">
+                <div class="ce-top"><button class="bk-link" @click="backHome()">→ رجوع</button>
+                    <button class="bk-link" @click="openPlan(wc.id)">الخطة</button></div>
+                <section class="bk-card ce-hero"><h1>{{ wc.title }}</h1>
+                    <p class="bk-mute">{{ wr.slots.length }} قطعة · {{ statusLabel[wc.status] || wc.status }}</p></section>
+
+                <section class="bk-card" v-if="writeBusy()">
+                    <h2>بنكتب…</h2>
+                    <div class="ce-job" role="status"><div class="ce-bar"><i :style="{ width: Math.max(6, wr.job.progress) + '%' }"></i></div>
+                        <div class="ce-job-row"><span>{{ wr.job.label }}</span><button class="bk-link" @click="cancelWriteJob()">إلغاء</button></div>
+                        <small class="bk-mute" v-if="!worker">خلّي الصفحة مفتوحة لحد ما تخلص</small></div>
+                </section>
+                <div v-if="wr.job && wr.job.status === 'failed'" class="ce-err">{{ wr.job.error }}</div>
+
+                <section class="bk-card ce-score" v-if="wr.final">
+                    <div class="ce-score-top">
+                        <div class="ce-ring" :class="{ ok: wr.final.score >= 80 }"><b>{{ Math.round(wr.final.score) }}</b><small>من 100</small></div>
+                        <div><h2>تقرير الحملة</h2>
+                            <p class="bk-mute">{{ wr.final.pass }} عدّت الجودة<span v-if="wr.final.manual"> · {{ wr.final.manual }} محتاجة مراجعتك</span><span v-if="wr.final.failed"> · {{ wr.final.failed }} ماتكتبتش</span><span v-if="wr.final.avg_qa"> · متوسط الجودة {{ wr.final.avg_qa }}</span></p>
+                            <small class="bk-mute">{{ wr.final.summary }}</small></div>
+                    </div>
+                    <div class="ce-dims"><div v-for="(v, d) in wr.final.dims" class="ce-dim">
+                        <span>{{ (p && p.labels && p.labels.dims[d]) || dimLabel[d] || d }}</span><div class="ce-bar"><i :class="{ low: v < 80 }" :style="{ width: v + '%' }"></i></div><b>{{ Math.round(v) }}</b></div></div>
+                    <div v-if="wr.final.notes && wr.final.notes.length" class="ce-notes"><b>أهم الملاحظات</b><ol><li v-for="n in wr.final.notes">{{ n }}</li></ol></div>
+                </section>
+
+                <section v-for="(s, i) in wr.slots" :key="s.id" class="bk-card ce-piece" :class="cTone(s)">
+                    <div class="ce-slot-h">
+                        <b>{{ i + 1 }}</b><small>{{ s.date }}</small><span class="ce-badge">{{ fmtLabel[s.format] || s.format }}</span>
+                        <span class="ce-sp"></span>
+                        <span class="bk-pill" :class="cTone(s)">{{ s.content ? cStatus[s.content.status] : 'لسه' }}<span v-if="s.content && s.content.qa_score !== null"> · {{ s.content.qa_score }}</span></span>
+                    </div>
+                    <p class="ce-obj">{{ s.objective }}</p>
+
+                    <div class="bk-tpl" v-if="s.content && s.content.body">
+                        <div class="ce-body" v-if="s.content.body.hooks">
+                            <div class="ce-hooks"><span v-for="(h, k) in s.content.body.hooks" :class="{ on: k === 0 }">{{ h }}</span></div>
+                            <p class="ce-text">{{ s.content.body.body }}</p>
+                        </div>
+                        <ol class="ce-slides" v-if="s.content.body.slides"><li v-for="x in s.content.body.slides">{{ x.text }}</li></ol>
+                        <div class="ce-scenes" v-if="s.content.body.scenes"><div v-for="x in s.content.body.scenes" class="ce-scene">
+                            <b>{{ x.time }}</b><span>🎬 {{ x.visual }}</span><span v-if="x.on_screen_text">🅣 {{ x.on_screen_text }}</span><span v-if="x.voiceover">🎙 {{ x.voiceover }}</span></div></div>
+                        <p class="ce-text" v-if="s.content.body.caption">{{ s.content.body.caption }}</p>
+                        <p class="ce-cta" v-if="s.content.body.cta">👉 {{ s.content.body.cta }}</p>
+                        <details v-if="s.content.body.design_brief"><summary>🎨 وصف التصميم</summary>
+                            <div class="ce-brief"><span v-for="(v, k) in s.content.body.design_brief" v-show="v && (!Array.isArray(v) || v.length)"><b>{{ briefLabel[k] || k }}</b> {{ Array.isArray(v) ? v.join('، ') : v }}</span></div></details>
+                    </div>
+
+                    <details v-if="s.content && s.content.qa && s.content.qa.criteria"><summary>📊 الجودة: {{ s.content.qa.total }} <small class="bk-mute">· {{ s.content.rounds ? ('بعد ' + s.content.rounds + ' تحسين') : 'من أول مرة' }}</small></summary>
+                        <div class="ce-dims"><div v-for="(c, k) in s.content.qa.criteria" class="ce-dim">
+                            <span>{{ wr.qa_labels[k] }} <small class="bk-mute">×{{ wr.qa_weights[k] }}</small></span><div class="ce-bar"><i :class="{ low: c.score < wr.rules.min_criterion }" :style="{ width: c.score + '%' }"></i></div><b>{{ Math.round(c.score) }}</b></div></div>
+                        <div v-if="s.content.qa.compliance_flags && s.content.qa.compliance_flags.length" class="ce-issues"><div v-for="f in s.content.qa.compliance_flags" class="hard">⛔ {{ f }}</div></div>
+                        <div v-for="(c, k) in s.content.qa.criteria" v-show="c.fix" class="ce-est-row"><span>{{ wr.qa_labels[k] }}</span><span>{{ c.fix }}</span></div>
+                    </details>
+
+                    <details v-if="s.ideas.length" class="ce-ideas"><summary>💡 الأفكار ({{ s.ideas.length }})</summary>
+                        <div v-for="idea in s.ideas" class="ce-idea" :class="{ on: idea.selected, dup: idea.dup }">
+                            <div><b>{{ idea.hook }}</b> <span class="ce-badge" v-if="idea.trigger">{{ wr.triggers[idea.trigger] }}</span>
+                                <span class="ce-badge" v-if="idea.score !== null">{{ idea.score }}</span><span class="ce-badge" v-if="idea.dup">شبه فكرة قديمة</span></div>
+                            <small class="bk-mute">{{ idea.insight }}</small>
+                            <button v-if="!idea.dup && !writeBusy()" class="bk-link" :disabled="busy" @click="swapIdea(s, idea)">{{ idea.selected ? 'اكتبها من جديد' : 'اكتب بالفكرة دي' }}</button>
+                        </div></details>
+
+                    <div class="bk-row" v-if="s.content && s.content.body && !writeBusy()">
+                        <button class="bk-btn sm" @click="copyContent(s)">انسخ</button>
+                        <button v-if="s.content.status === 'manual'" class="bk-btn sm pri" @click="acceptContent(s)">اعتمدها زي ما هي</button>
+                    </div>
+                </section>
             </div>
 
             <div v-if="toast" class="bk-toast" :class="toast && toast.type" role="status">{{ toast && toast.msg }}</div>

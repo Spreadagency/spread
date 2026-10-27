@@ -19,7 +19,7 @@
     var app = {
       loading: true, busy: false, view: 'home', toast: null, worker: false,
       st: {}, opts: {}, job: null, campaigns: [], balance: 0, d: null, brandKitUrl: root.dataset.brandkit,
-      p: null, dirty: false, dragFrom: -1, dragOver: -1,
+      p: null, dirty: false, dragFrom: -1, dragOver: -1, wr: null, wc: null, openQa: {},
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
       statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
@@ -115,6 +115,7 @@
         window.scrollTo(0, 0);
       },
       openCampaign: async function (c) {
+        if (['writing', 'done'].indexOf(c.status) >= 0) { await this.openWrite(c.id); return; }
         if (['draft', 'ready'].indexOf(c.status) < 0) { await this.openPlan(c.id); return; }
         var o = await A.get('engine', { action: 'wizard' });
         if (!o.ok) { this.say(o.error, 'danger'); return; }
@@ -264,6 +265,82 @@
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.p = r.plan;
         this.say('الخطة اتعتمدت ✓');
+      },
+
+      /* ─── الكتابة والجودة (المرحلة F) ─── */
+      openWrite: async function (id) {
+        var r = await A.get('engine', { action: 'write', id: id });
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.wr = r.write; this.wc = r.campaign; this.balance = r.balance; this.worker = r.worker;
+        if (this.view !== 'write') { this.view = 'write'; this.openQa = {}; window.scrollTo(0, 0); }
+        if (this.wr.job && this.wr.job.active) this.pollWrite(this.wr.job.id, id);
+      },
+      startWrite: async function () {
+        var id = this.p.campaign.id;
+        this.busy = true;
+        var r = await A.post('engine', 'write_start', { id: id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.balance = r.balance;
+        await this.openWrite(id);
+      },
+      pollWrite: function (jobId, cid) {
+        var self = this, seen = -1;
+        clearTimeout(pollTimer);
+        var tick = async function () {
+          if (self.view !== 'write') return;
+          var r = self.worker ? await A.get('engine', { action: 'job', id: jobId }) : await A.post('engine', 'job_step', { id: jobId });
+          if (!r.ok) { pollTimer = setTimeout(tick, 4000); return; }
+          self.worker = r.worker; self.wr.job = r.job;
+          // خانة خلصت ← حدّث الكروت من غير ما نستنى الحملة كلها
+          var st = r.job.progress;
+          if (st !== seen) { seen = st; var w = await A.get('engine', { action: 'write', id: cid }); if (w.ok) { self.wr.slots = w.write.slots; } }
+          if (r.job.active) { pollTimer = setTimeout(tick, self.worker ? 2500 : 600); return; }
+          if (r.job.status === 'done') self.say('المحتوى جاهز ✓');
+          else if (r.job.status === 'failed') self.say(r.job.error || 'وقفت', 'danger');
+          await self.openWrite(cid);
+        };
+        pollTimer = setTimeout(tick, 400);
+      },
+      cancelWriteJob: async function () {
+        var r = await A.post('engine', 'job_cancel', { id: this.wr.job.id });
+        clearTimeout(pollTimer);
+        if (r.ok) { this.balance = r.balance; this.say('اتلغى — اتحسب اللي اتكتب بس والباقي رجع لرصيدك'); await this.openWrite(this.wc.id); }
+        else this.say(r.error, 'danger');
+      },
+      swapIdea: async function (s, idea) {
+        if (!confirm(idea.selected ? 'نكتب نفس الفكرة من جديد؟' : 'نكتب الخانة دي بالفكرة دي بدل الحالية؟')) return;
+        this.busy = true;
+        var r = await A.post('engine', 'idea_swap', { id: this.wc.id, slot_id: s.id, idea_id: idea.id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.balance = r.balance;
+        await this.openWrite(this.wc.id);
+      },
+      acceptContent: async function (s) {
+        var r = await A.post('engine', 'content_accept', { id: this.wc.id, slot_id: s.id });
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.wr = r.write;
+        this.say('اتعتمدت ✓');
+      },
+      writeBusy: function () { return this.wr && this.wr.job && this.wr.job.active; },
+      fmtLabel: { post: 'بوست', carousel: 'كاروسيل', reel: 'ريلز' },
+      dimLabel: { balance: 'التوازن', non_repetition: 'عدم التكرار', coverage: 'التغطية', sequence: 'التسلسل', cta: 'الـ CTA', goal_fit: 'مناسبة الهدف' },
+      briefLabel: { layout: 'التكوين', focal_subject: 'العنصر الأساسي', characters_refs: 'الشخصيات', colors_hex: 'الألوان', headline: 'العنوان', subline: 'السطر التاني', text_safe_zone: 'مكان النص', mood: 'الإحساس', lighting: 'الإضاءة', camera_angle: 'زاوية الكاميرا', aspect_ratio: 'المقاس' },
+      cStatus: { pending: 'لسه', writing: 'بنكتب…', pass: 'عدّت الجودة', manual: 'محتاجة مراجعتك', failed: 'ماتكتبتش' },
+      cTone: function (s) { var c = s.content; return !c ? '' : ({ pass: 'ok', manual: 'warn', failed: 'bad' }[c.status] || ''); },
+      altIdeas: function (s) { return (s.ideas || []).filter(function (i) { return !i.selected && !i.dup; }).slice(0, 4); },
+      pickedIdea: function (s) { return (s.ideas || []).filter(function (i) { return i.selected; })[0] || null; },
+      copyContent: function (s) {
+        var b = (s.content && s.content.body) || {}, t = [];
+        if (b.hooks) t.push(b.hooks[0], '', b.body || '');
+        if (b.slides) b.slides.forEach(function (x) { t.push(x.n + '. ' + x.text); });
+        if (b.scenes) b.scenes.forEach(function (x) { t.push('[' + x.time + '] ' + (x.voiceover || x.on_screen_text)); });
+        if (b.caption) t.push('', b.caption);
+        if (b.cta) t.push('', b.cta);
+        if (b.hashtags) t.push('', b.hashtags.join(' '));
+        var self = this;
+        navigator.clipboard.writeText(t.join('\n')).then(function () { self.say('اتنسخ ✓'); }, function () { self.say('مقدرناش ننسخ', 'danger'); });
       },
 
       /* ─── نصوص الملخص ─── */
