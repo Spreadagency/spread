@@ -13,11 +13,17 @@
  *   POST action=job_cancel {id}              إلغاء — الكريدت المحجوز بيرجع
  *   POST action=estimate {brief}             تقدير من غير حفظ
  *   POST action=campaign_save {id?, brief, partial?}  حفظ البريف + التقدير
+ *   GET  action=plan {id}                    خطة الحملة: الخانات + المخالفات + الدرجة + آخر تقييم + الشغلانة (المرحلة E)
+ *   POST action=campaign_start {id}          ابدأ الحملة: حجز كريدت الخطة + شغلانة الخطة والبوابة
+ *   POST action=plan_rebuild {id}            إعادة بناء الخطة (الخانات المقفولة بتفضل)
+ *   POST action=plan_rescore {id}            تقييم تاني بعد تعديلات العميل (الناقد بس)
+ *   POST action=plan_save {id, slots[]}      ترتيب جديد + قفل + تعديل خانات (بالتحقق من القواعد في الكود)
+ *   POST action=plan_approve {id}            اعتماد الخطة (الدرجة ≥ الحد ومفيش قواعد متكسّرة)
  *
  * المحرك متاح بس للعملاء اللي الأدمن فتحه لهم (الميزات ← content_engine).
  */
 require_once __DIR__ . '/../../includes/api.php';
-require_once __DIR__ . '/../../includes/ce-campaign.php';
+require_once __DIR__ . '/../../includes/ce-plan.php';
 
 $action = api_action() ?: 'home';
 $user = api_boot();
@@ -87,6 +93,30 @@ switch ($action) {
         [$brief, $err] = ce_brief_clean($uid, (array) (api_input()['brief'] ?? []));
         if ($err) api_ok(['errors' => $err, 'estimate' => null]);
         api_ok(['errors' => [], 'estimate' => ce_estimate_public(ce_estimate($brief)), 'balance' => credits_balance($uid)]);
+
+    case 'plan':
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        api_ok(['plan' => ce_plan_view($uid, $c), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
+
+    case 'campaign_start':
+    case 'plan_rebuild':
+    case 'plan_rescore':
+        $r = ce_plan_start($uid, api_int('id'), $action === 'plan_rescore' ? 'gate_only' : 'full');
+        if (!$r['ok']) api_fail($r['error'] ?? 'مقدرناش نبدأ', $r['code'] ?? 'error', ($r['code'] ?? '') === 'credits' ? 402 : (($r['code'] ?? '') === 'not_found' ? 404 : 409));
+        api_ok(['job' => ce_job_public($r['job']), 'existing' => !empty($r['existing']), 'balance' => credits_balance($uid)]);
+
+    case 'plan_save':
+        $slots = api_input()['slots'] ?? null;
+        if (!is_array($slots)) api_fail('مفيش بيانات', 'input');
+        $r = ce_plan_save($uid, api_int('id'), array_values($slots));
+        if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 409);
+        api_ok(['plan' => $r['view']]);
+
+    case 'plan_approve':
+        $r = ce_plan_approve($uid, api_int('id'));
+        if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 409);
+        api_ok(['plan' => $r['view']]);
 
     case 'campaign_save':
         $in = (array) (api_input()['brief'] ?? []);

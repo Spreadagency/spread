@@ -19,9 +19,10 @@
     var app = {
       loading: true, busy: false, view: 'home', toast: null, worker: false,
       st: {}, opts: {}, job: null, campaigns: [], balance: 0, d: null, brandKitUrl: root.dataset.brandkit,
+      p: null, dirty: false, dragFrom: -1, dragOver: -1,
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
-      statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', writing: 'بنكتب', review: 'مستنية مراجعتك', done: 'خلصت', cancelled: 'اتلغت' },
+      statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
 
       get tokensNow() {
         // تقدير تقريبي في المتصفح (نفس نسبة السيرفر تقريبًا) — الرقم النهائي بيتحسب عند الحفظ
@@ -114,12 +115,12 @@
         window.scrollTo(0, 0);
       },
       openCampaign: async function (c) {
-        if (['draft', 'ready'].indexOf(c.status) < 0) { this.say('الحملة دي بدأت — متابعتها بتتفتح في التحديث الجاي', 'warning'); return; }
+        if (['draft', 'ready'].indexOf(c.status) < 0) { await this.openPlan(c.id); return; }
         var o = await A.get('engine', { action: 'wizard' });
         if (!o.ok) { this.say(o.error, 'danger'); return; }
         var b = Object.assign(blankBrief(o.options.default_channel), clone(c.brief || {}));
         if (!b.offer) b.offer = blankBrief().offer;
-        this.w = { step: 'summary', b: b, opts: o.options, est: null, estBusy: false, err: '', id: c.id, saved: false };
+        this.w = { step: 'summary', b: b, opts: o.options, est: null, estBusy: false, err: '', id: c.id, saved: c.status === 'ready' };
         this.balance = o.balance;
         this.view = 'wizard';
         this.estimate();
@@ -159,7 +160,7 @@
         window.scrollTo(0, 0);
         if (this.w.step === 'summary') this.estimate();
       },
-      prev: function () { var l = this.steps(); this.w.err = ''; this.w.step = l[Math.max(0, l.indexOf(this.w.step) - 1)]; },
+      prev: function () { var l = this.steps(); this.w.err = ''; this.w.saved = false; this.w.step = l[Math.max(0, l.indexOf(this.w.step) - 1)]; },
       estimate: async function () {
         this.w.estBusy = true; this.w.est = null; this.w.err = '';
         var r = await A.post('engine', 'estimate', { brief: this.w.b });
@@ -178,6 +179,91 @@
         this.say('اتحفظ ✓');
         var h = await A.get('engine', { action: 'home' });
         if (h.ok) this.campaigns = h.campaigns;
+      },
+
+      /* ─── خطة الحملة (المرحلة E) ─── */
+      backHome: async function () {
+        if (this.dirty && !confirm('عندك تعديلات على الخطة مش محفوظة — تخرج من غير حفظ؟')) return;
+        clearTimeout(pollTimer); this.dirty = false; this.view = 'home'; await this.load();
+      },
+      openPlan: async function (id) {
+        var r = await A.get('engine', { action: 'plan', id: id });
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.p = r.plan; this.balance = r.balance; this.worker = r.worker; this.dirty = false;
+        this.view = 'plan';
+        window.scrollTo(0, 0);
+        if (this.p.job && this.p.job.active) this.pollPlan(this.p.job.id, id);
+      },
+      startCampaign: async function (id) {
+        this.busy = true;
+        var r = await A.post('engine', 'campaign_start', { id: id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.balance = r.balance;
+        await this.openPlan(id);
+      },
+      pollPlan: function (jobId, cid) {
+        var self = this;
+        clearTimeout(pollTimer);
+        var tick = async function () {
+          if (self.view !== 'plan') return;
+          var r = self.worker ? await A.get('engine', { action: 'job', id: jobId }) : await A.post('engine', 'job_step', { id: jobId });
+          if (!r.ok) { pollTimer = setTimeout(tick, 4000); return; }
+          self.worker = r.worker; self.p.job = r.job;
+          if (r.job.active) { pollTimer = setTimeout(tick, self.worker ? 2000 : 600); return; }
+          if (r.job.status === 'done') self.say(r.job.result && r.job.result.passed ? 'الخطة جاهزة وعدّت البوابة ✓' : 'الخطة جاهزة — راجع الملاحظات', r.job.result && r.job.result.passed ? 'success' : 'warning');
+          else if (r.job.status === 'failed') self.say(r.job.error || 'وقفت', 'danger');
+          await self.openPlan(cid);
+        };
+        pollTimer = setTimeout(tick, 400);
+      },
+      cancelPlanJob: async function () {
+        var r = await A.post('engine', 'job_cancel', { id: this.p.job.id });
+        clearTimeout(pollTimer);
+        if (r.ok) { this.balance = r.balance; this.say('اتلغى — الكريدت المحجوز رجع لرصيدك'); await this.openPlan(this.p.campaign.id); }
+        else this.say(r.error, 'danger');
+      },
+      editable: function () { return this.p && this.p.campaign.status === 'review' && !(this.p.job && this.p.job.active); },
+      move: function (i, d) {
+        var j = i + d, l = this.p.slots;
+        if (j < 0 || j >= l.length) return;
+        var x = l.splice(i, 1)[0]; l.splice(j, 0, x);
+        this.dirty = true;
+      },
+      dropAt: function (i) {
+        var f = this.dragFrom;
+        this.dragOver = -1; this.dragFrom = -1;
+        if (f < 0 || f === i) return;
+        var l = this.p.slots, x = l.splice(f, 1)[0]; l.splice(i, 0, x);
+        this.dirty = true;
+      },
+      savePlan: async function () {
+        this.busy = true;
+        var slots = this.p.slots.map(function (s) {
+          return { id: s.id, locked: s.locked ? 1 : 0, format: s.format, pillar: s.pillar, angle: s.angle, service_id: s.service_id,
+            persona_id: s.persona_id, cta_level: s.cta_level, funnel: s.funnel };
+        });
+        var r = await A.post('engine', 'plan_save', { id: this.p.campaign.id, slots: slots });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.p = r.plan; this.dirty = false;
+        this.say(r.plan.hard ? 'اتحفظ — بس فيه قواعد متكسّرة لازم تتصلّح' : 'اتحفظ ✓', r.plan.hard ? 'warning' : 'success');
+      },
+      planJob: async function (action) {
+        this.busy = true;
+        var r = await A.post('engine', action, { id: this.p.campaign.id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.balance = r.balance;
+        await this.openPlan(this.p.campaign.id);
+      },
+      approvePlan: async function () {
+        this.busy = true;
+        var r = await A.post('engine', 'plan_approve', { id: this.p.campaign.id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.p = r.plan;
+        this.say('الخطة اتعتمدت ✓');
       },
 
       /* ─── نصوص الملخص ─── */

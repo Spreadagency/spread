@@ -266,14 +266,92 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <p class="bk-mute">رصيدك {{ balance }} كريدت. الكريدت بيتحجز لما الحملة تبدأ، واللي مايتصرفش بيرجعلك تلقائي.</p>
                         <p v-if="balance < w.est.credits" class="ce-err">رصيدك مش كفاية للحملة دي — قلّل العدد أو اشحن.</p>
                     </div>
-                    <div v-if="w.saved" class="ce-ok">✓ اتحفظ البريف. تشغيل الحملة (الخطة والكتابة) بيتفتح في التحديث الجاي.</div>
+                    <div v-if="w.saved" class="ce-ok">✓ اتحفظ البريف. دوس «ابدأ الحملة» علشان نبني الخطة ونراجعها.</div>
                 </section>
 
                 <div v-if="w.err" class="ce-err" role="alert">{{ w.err }}</div>
                 <div class="ce-actions">
                     <button v-if="stepNo() > 1" class="bk-btn ghost" @click="prev()">السابق</button>
                     <button v-if="w.step !== 'summary'" class="bk-btn pri" @click="next()">التالي</button>
-                    <button v-else class="bk-btn pri" :disabled="busy || !w.est" @click="saveBrief()">{{ w.id ? 'احفظ التعديل' : 'احفظ البريف' }}</button>
+                    <button v-else-if="!w.saved" class="bk-btn pri" :disabled="busy || !w.est" @click="saveBrief()">{{ w.id ? 'احفظ التعديل' : 'احفظ البريف' }}</button>
+                    <button v-if="w.step === 'summary' && w.saved" class="bk-btn pri" :disabled="busy" @click="startCampaign(w.id)">ابدأ الحملة ✨</button>
+                </div>
+                <p v-if="w.step === 'summary' && w.saved" class="bk-mute">هنحجز كريدت الخطة بس دلوقتي (واللي مايتصرفش بيرجع). كريدت الكتابة بيتحجز لما تعتمد الخطة.</p>
+            </div>
+
+
+            <!-- ═══ خطة الحملة (المرحلة E) ═══ -->
+            <div v-if="view === 'plan' && p">
+                <div class="ce-top"><button class="bk-link" @click="backHome()">→ رجوع</button>
+                    <span class="bk-mute">{{ statusLabel[p.campaign.status] || p.campaign.status }}</span></div>
+                <section class="bk-card ce-hero"><h1>{{ p.campaign.title }}</h1>
+                    <p class="bk-mute" v-if="p.slots.length">{{ p.slots.length }} خانة · من {{ p.slots[0].date }} لـ {{ p.slots[p.slots.length - 1].date }}</p></section>
+
+                <section class="bk-card" v-if="p.job && p.job.active">
+                    <h2>بنبني الخطة…</h2>
+                    <div class="ce-job" role="status"><div class="ce-bar"><i :style="{ width: Math.max(6, p.job.progress) + '%' }"></i></div>
+                        <div class="ce-job-row"><span>{{ p.job.label }}</span><button class="bk-link" @click="cancelPlanJob()">إلغاء</button></div>
+                        <small class="bk-mute" v-if="!worker">خلّي الصفحة مفتوحة لحد ما تخلص</small></div>
+                </section>
+                <div v-if="p.job && p.job.status === 'failed' && !p.slots.length" class="ce-err">{{ p.job.error }}</div>
+
+                <section class="bk-card" v-if="p.campaign.status === 'ready' && !(p.job && p.job.active)">
+                    <h2>جاهزة للتشغيل</h2>
+                    <p class="bk-mute">هنبني خطة المحتوى ونراجعها بالقواعد وبناقد. لو الدرجة أقل من {{ p.threshold }} بنحسّنها لوحدنا.</p>
+                    <button class="bk-btn pri" :disabled="busy" @click="startCampaign(p.campaign.id)">ابدأ الحملة ✨</button>
+                </section>
+
+                <div class="bk-tpl" v-if="p.slots.length && !(p.job && p.job.active)">
+                <section class="bk-card ce-score">
+                    <div class="ce-score-top">
+                        <div class="ce-ring" :class="{ ok: p.score_now >= p.threshold && !p.hard }"><b>{{ p.score_now }}</b><small>من 100</small></div>
+                        <div>
+                            <h2>درجة الخطة</h2>
+                            <p class="bk-mute" v-if="p.campaign.status === 'plan_ok'">✓ الخطة معتمدة — الكتابة بتتفتح في التحديث الجاي.</p>
+                            <p class="bk-mute" v-else-if="p.can_approve">الخطة عدّت البوابة ({{ p.threshold }}+) — راجعها واعتمدها.</p>
+                            <p class="bk-mute" v-else>لازم {{ p.threshold }} أو أكتر ومفيش قواعد متكسّرة علشان تتعتمد.</p>
+                            <small class="bk-mute" v-if="p.eval">آخر تقييم: جولة {{ p.eval.round }} · {{ timeAgo(p.eval.at) }}<span v-if="dirty"> · عندك تعديلات مش محفوظة</span></small>
+                        </div>
+                    </div>
+                    <div class="ce-dims"><div v-for="(l, d) in p.labels.dims" class="ce-dim">
+                        <span>{{ l }}</span><div class="ce-bar"><i :class="{ low: (p.dims_now || {})[d] < 80 }" :style="{ width: ((p.dims_now || {})[d] || 0) + '%' }"></i></div><b>{{ Math.round((p.dims_now || {})[d] || 0) }}</b></div></div>
+                    <div v-if="p.issues.length" class="ce-issues"><div v-for="x in p.issues" :class="{ hard: x.hard }">{{ x.hard ? '⛔' : '⚠️' }} {{ x.msg }}</div></div>
+                    <details v-if="p.eval && p.eval.critic"><summary>ملاحظات الناقد</summary>
+                        <p class="bk-mute">{{ p.eval.critic.summary }}</p>
+                        <div v-for="f in p.eval.critic.fixes" class="ce-est-row"><span>الخانة {{ f.slot }}: {{ f.issue }}</span><span>{{ f.fix }}</span></div></details>
+                </section>
+
+                <section class="bk-card">
+                    <div class="ce-h"><h2>الخطة</h2><small class="bk-mute">اسحب للترتيب · 🔒 = ماتتغيرش لما نعيد البناء</small></div>
+                    <div class="ce-mix bk-mute">المطلوب: <span v-for="(v, k) in p.mix">{{ p.labels.funnels[k] }} {{ v }}% · </span></div>
+                    <div v-for="(s, i) in p.slots" :key="s.id" class="ce-slot" :class="['f-' + s.funnel, { locked: s.locked, tail: i >= p.tail_from, over: dragOver === i }]"
+                         :draggable="editable()" @dragstart="dragFrom = i" @dragover.prevent="dragOver = i" @dragleave="dragOver = -1" @drop.prevent="dropAt(i)">
+                        <div class="ce-slot-h">
+                            <span class="ce-grip" aria-hidden="true">⋮⋮</span><b>{{ i + 1 }}</b><small>{{ s.date }}</small>
+                            <span class="ce-badge">{{ p.labels.funnels[s.funnel] }}</span><span class="ce-badge" v-if="i === p.tail_from">آخر 30%</span>
+                            <span class="ce-sp"></span>
+                            <button class="ce-ic" v-if="editable()" :disabled="i === 0" @click="move(i, -1)" aria-label="لفوق">↑</button>
+                            <button class="ce-ic" v-if="editable()" :disabled="i === p.slots.length - 1" @click="move(i, 1)" aria-label="لتحت">↓</button>
+                            <button class="ce-ic" v-if="editable()" :class="{ on: s.locked }" @click="s.locked = !s.locked; dirty = true" :aria-label="s.locked ? 'فك القفل' : 'اقفل'">{{ s.locked ? '🔒' : '🔓' }}</button>
+                        </div>
+                        <div class="ce-slot-g">
+                            <select class="bk-in" v-model="s.format" :disabled="!editable()" @change="dirty = true" aria-label="الشكل"><option v-for="(l, k) in p.labels.formats" :value="k">{{ l }}</option></select>
+                            <select class="bk-in" v-model="s.pillar" :disabled="!editable()" @change="dirty = true" aria-label="العمود"><option v-for="(l, k) in p.labels.pillars" :value="k">{{ l }}</option></select>
+                            <select class="bk-in" v-model="s.angle" :disabled="!editable()" @change="dirty = true" aria-label="الزاوية"><option v-for="(l, k) in p.labels.angles" :value="k">{{ l }}</option></select>
+                            <select class="bk-in" v-model.number="s.service_id" :disabled="!editable()" @change="dirty = true" aria-label="الخدمة"><option v-for="(l, k) in p.labels.services" :value="Number(k)">{{ l }}</option></select>
+                            <select class="bk-in" v-model.number="s.persona_id" :disabled="!editable()" @change="dirty = true" aria-label="العميل"><option v-for="(l, k) in p.labels.personas" :value="Number(k)">{{ l }}</option></select>
+                            <select class="bk-in" v-model="s.cta_level" :disabled="!editable()" @change="dirty = true" aria-label="الـ CTA"><option v-for="(l, k) in p.labels.cta" :value="k">CTA {{ l }}</option></select>
+                        </div>
+                        <p class="ce-obj">{{ s.objective }}</p>
+                    </div>
+                </section>
+
+                <div class="ce-actions" v-if="editable()">
+                    <button v-if="dirty" class="bk-btn pri" :disabled="busy" @click="savePlan()">احفظ التعديلات</button>
+                    <button v-if="!dirty" class="bk-btn pri" :disabled="busy || !p.can_approve" @click="approvePlan()">اعتمد الخطة ✓</button>
+                    <button v-if="!dirty" class="bk-btn" :disabled="busy" @click="planJob('plan_rescore')">قيّم تاني</button>
+                    <button v-if="!dirty" class="bk-btn ghost" :disabled="busy" @click="planJob('plan_rebuild')">ابني من جديد (المقفول يفضل)</button>
+                </div>
                 </div>
             </div>
 

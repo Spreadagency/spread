@@ -289,6 +289,7 @@ function ce_campaign_public(array $c, bool $admin = false): array
         'brief' => json_decode((string) ($c['brief_json'] ?? ''), true) ?: null,
         'estimate' => $e ? ($admin ? $e : ce_estimate_public($e)) : null,
         'est_credits' => (int) $c['est_credits'], 'created_at' => $c['created_at'], 'updated_at' => $c['updated_at'],
+        'plan_score' => isset($c['plan_score']) ? (float) $c['plan_score'] : null, 'plan_passed' => !empty($c['plan_passed']),
     ];
 }
 

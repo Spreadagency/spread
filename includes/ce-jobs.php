@@ -142,7 +142,7 @@ function ce_job_register(string $kind, string $fn, string $label): void
 function ce_job_handlers(): array
 {
     // كل وحدة بتسجّل الـ handlers بتاعتها لما تتحمّل
-    foreach (['ce-dna.php', 'ce-campaign.php'] as $f) {
+    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php'] as $f) {
         if (is_file(__DIR__ . '/' . $f)) require_once __DIR__ . '/' . $f;
     }
     return $GLOBALS['__ce_job_handlers'] ?? [];

@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-27',
-  'generated' => '2026-10-27 08:37',
+  'generated' => '2026-10-27 09:32',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -177,6 +177,9 @@ return array (
     168 => 'cron/ce-worker.php',
     169 => 'sql/2026_ce_engine.sql',
     170 => 'sql/2026_ce_engine_rollback.sql',
+    171 => 'includes/ce-plan.php',
+    172 => 'sql/2026_ce_plan.sql',
+    173 => 'sql/2026_ce_plan_rollback.sql',
   ),
   'files' => 
   array (
@@ -287,8 +290,8 @@ return array (
     ),
     'admin/ce-settings.php' => 
     array (
-      'h' => 'b0feae26a4680fb8b2a90d185b3c9165',
-      's' => 19422,
+      'h' => 'd51c536ef3859f09e4b2bc56558f5f88',
+      's' => 28812,
     ),
     'admin/content-history.php' => 
     array (
@@ -537,8 +540,8 @@ return array (
     ),
     'assets/css/engine.css' => 
     array (
-      'h' => 'd86efb66fa2189f116412bb318f2efde',
-      's' => 5729,
+      'h' => '80238cbb59486ca55b753b9e9915d784',
+      's' => 8196,
     ),
     'assets/css/main.css' => 
     array (
@@ -592,8 +595,8 @@ return array (
     ),
     'assets/js/engine.js' => 
     array (
-      'h' => '41d5b027685e47bdd58b43b088e8d0ba',
-      's' => 12181,
+      'h' => '9da38809a8fe6b4508c5a40ccd9eddeb',
+      's' => 16621,
     ),
     'assets/js/main.js' => 
     array (
@@ -667,13 +670,13 @@ return array (
     ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
-      'h' => '2c4dab25dd48db5a915e08dacfed8868',
-      's' => 8571,
+      'h' => 'e58a1382a8fc33de760e4df3b99affb9',
+      's' => 12300,
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'df438532dcdb04efb30c7f3973e10938',
-      's' => 10116,
+      'h' => '3f9ada4101a6f324a7243727f4df70da',
+      's' => 11584,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -697,8 +700,8 @@ return array (
     ),
     'includes/account.php' => 
     array (
-      'h' => 'b0559d3e0c6bc315355fd5e731619b64',
-      's' => 20347,
+      'h' => 'c03352a60dbdfa1cb82d5f4e142af82f',
+      's' => 20502,
     ),
     'includes/admin-auth.php' => 
     array (
@@ -747,8 +750,8 @@ return array (
     ),
     'includes/api.php' => 
     array (
-      'h' => '46974fe86cd960963cab29eb60185db0',
-      's' => 8508,
+      'h' => '7cdd2cadfbb43d5eed62b6961a3a508b',
+      's' => 8516,
     ),
     'includes/auth.php' => 
     array (
@@ -777,8 +780,8 @@ return array (
     ),
     'includes/ce-campaign.php' => 
     array (
-      'h' => '863e4a8071dfd91f68928270a2d6eb17',
-      's' => 19016,
+      'h' => '1af35ae84375d7ee740508c8cee1aa0b',
+      's' => 19143,
     ),
     'includes/ce-dna.php' => 
     array (
@@ -787,8 +790,13 @@ return array (
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => '4983b882882f139087d62a2d9322cfac',
-      's' => 21021,
+      'h' => '139a86e461e64cc3755ff61f8c244924',
+      's' => 21036,
+    ),
+    'includes/ce-plan.php' => 
+    array (
+      'h' => '295298863a74413f939ba4d4dbe8157b',
+      's' => 49760,
     ),
     'includes/config.sample.php' => 
     array (
@@ -877,8 +885,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '6f7c197f27e345761cadd8dc3c6e11fa',
-      's' => 13613,
+      'h' => '659ba79d54502b0b02d5ce3d24974e06',
+      's' => 13780,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1182,8 +1190,8 @@ return array (
     ),
     'public/api/engine.php' => 
     array (
-      'h' => '64cfcd9611b9f508e2dd18eaf07c71c1',
-      's' => 5507,
+      'h' => 'e9f0aeafdcb5471d1ee2963bc0e0b9bc',
+      's' => 7679,
     ),
     'public/api/inbox.php' => 
     array (
@@ -1372,8 +1380,8 @@ return array (
     ),
     'public/engine.php' => 
     array (
-      'h' => 'e53ad7dd64eeae6d4d1943611699efcc',
-      's' => 23329,
+      'h' => 'af4c9b9f432a0f00df2fdff7534bd6e1',
+      's' => 31620,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1609,6 +1617,16 @@ return array (
     array (
       'h' => '763ae58ec6cd2aa64974ecf45f206e50',
       's' => 4044,
+    ),
+    'sql/2026_ce_plan.sql' => 
+    array (
+      'h' => '1846b9c58462ca2a83386426186f7bc9',
+      's' => 6637,
+    ),
+    'sql/2026_ce_plan_rollback.sql' => 
+    array (
+      'h' => 'd35a73bf9a75e77fa6c51b16f444f79c',
+      's' => 1589,
     ),
     'sql/2026_google_auth.sql' => 
     array (

@@ -6,14 +6,14 @@
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
-require_once __DIR__ . '/../includes/ce-campaign.php';
+require_once __DIR__ . '/../includes/ce-plan.php';
 require_once __DIR__ . '/../includes/usage.php';
 
 require_admin();
 require_admin_can('ai_settings');
 $admin = current_admin();
 $ready = ce_ready();
-$tab = in_array($_GET['tab'] ?? '', ['settings', 'access', 'jobs', 'campaigns'], true) ? $_GET['tab'] : 'settings';
+$tab = in_array($_GET['tab'] ?? '', ['settings', 'plan', 'access', 'jobs', 'campaigns'], true) ? $_GET['tab'] : 'settings';
 $FKEY = 'content_engine';
 
 /** [المفتاح، الافتراضي، أقل، أكبر، الوصف] */
@@ -52,6 +52,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
         foreach ($errs as $e) flash_set('danger', $e);
         flash_set('success', $changed ? 'اتحفظ ✓' : 'مفيش تغيير');
         redirect('admin/ce-settings.php?tab=settings');
+    }
+    if ($a === 'save_plan') {
+        $errs = [];
+        $mix = [];
+        foreach (array_keys(CE_FUNNEL_MIX) as $g) {
+            $row = [(int) ($_POST['mix'][$g]['tofu'] ?? 0), (int) ($_POST['mix'][$g]['mofu'] ?? 0), (int) ($_POST['mix'][$g]['bofu'] ?? 0)];
+            if (array_sum($row) !== 100 || min($row) < 0) { $errs[] = 'نسب «' . (CE_GOALS[$g][0] ?? $g) . '» لازم مجموعها 100'; continue; }
+            $mix[$g] = $row;
+        }
+        if (!$errs) set_setting('ce_funnel_mix', json_encode($mix));
+        $w = [];
+        foreach (array_keys(CE_PLAN_WEIGHTS) as $d) $w[$d] = max(0, (int) ($_POST['w'][$d] ?? 0));
+        if (array_sum($w) !== 100) $errs[] = 'أوزان المعايير لازم مجموعها 100';
+        else set_setting('ce_plan_weights', json_encode($w));
+        $th = (int) ($_POST['ce_plan_threshold'] ?? 80);
+        $mr = (int) ($_POST['ce_plan_max_rounds'] ?? 2);
+        if ($th < 50 || $th > 100) $errs[] = 'حد النجاح من 50 لـ 100'; else set_setting('ce_plan_threshold', (string) $th);
+        if ($mr < 0 || $mr > 4) $errs[] = 'جولات التحسين من 0 لـ 4'; else set_setting('ce_plan_max_rounds', (string) $mr);
+        $pm = (int) ($_POST['ce_plan_min_credits'] ?? 1);
+        set_setting('ce_plan_min_credits', (string) max(0, min(50, $pm)));
+        admin_log('ce_plan_settings', 'settings', null, json_encode(['th' => $th, 'rounds' => $mr]));
+        foreach ($errs as $e) flash_set('danger', $e);
+        if (!$errs) flash_set('success', 'اتحفظ ✓');
+        redirect('admin/ce-settings.php?tab=plan');
+    }
+    if ($a === 'save_angle') {
+        $id = (int) ($_POST['id'] ?? 0);
+        $key = strtolower(preg_replace('/[^a-z0-9_]/i', '', (string) ($_POST['akey'] ?? '')));
+        $label = mb_substr(trim((string) ($_POST['label'] ?? '')), 0, 120);
+        $pill = implode(',', array_values(array_intersect(array_keys(CE_PILLARS), (array) ($_POST['pillars'] ?? []))));
+        $vals = [$label, mb_substr(trim((string) ($_POST['hint'] ?? '')), 0, 255) ?: null, mb_substr(trim((string) ($_POST['safeguard'] ?? '')), 0, 255) ?: null,
+                 $pill ?: null, !empty($_POST['is_active']) ? 1 : 0, (int) ($_POST['sort_order'] ?? 0)];
+        if ($label === '') { flash_set('danger', 'اكتب اسم الزاوية'); redirect('admin/ce-settings.php?tab=plan'); }
+        if ($id) {
+            db_run('UPDATE ce_angles SET label = ?, hint = ?, safeguard = ?, pillars = ?, is_active = ?, sort_order = ? WHERE id = ?', array_merge($vals, [$id]));
+        } else {
+            if ($key === '' || db_one('SELECT id FROM ce_angles WHERE akey = ?', [$key])) { flash_set('danger', 'المفتاح لازم يبقى إنجليزي ومش مكرر'); redirect('admin/ce-settings.php?tab=plan'); }
+            db_insert('INSERT INTO ce_angles (label, hint, safeguard, pillars, is_active, sort_order, akey) VALUES (?,?,?,?,?,?,?)', array_merge($vals, [$key]));
+        }
+        admin_log('ce_angle_save', 'ce_angles', $id ?: null, $key ?: $label);
+        flash_set('success', 'الزاوية اتحفظت ✓');
+        redirect('admin/ce-settings.php?tab=plan');
     }
     if ($a === 'set_mode') {
         $mode = in_array($_POST['mode'] ?? '', ['off', 'on', 'allowlist'], true) ? $_POST['mode'] : 'allowlist';
@@ -109,7 +151,7 @@ $secret = (string) get_setting('cron_secret', '');
         <?php else: ?>
 
         <div class="a2-seg" style="margin-bottom:14px">
-            <?php foreach (['settings' => 'الإعدادات', 'access' => 'العملاء', 'jobs' => 'الشغل والكريدت', 'campaigns' => 'الحملات'] as $k => $l): ?>
+            <?php foreach (['settings' => 'الإعدادات', 'plan' => 'الخطة والزوايا', 'access' => 'العملاء', 'jobs' => 'الشغل والكريدت', 'campaigns' => 'الحملات'] as $k => $l): ?>
                 <a class="<?= $tab === $k ? 'on' : '' ?>" href="?tab=<?= $k ?>"><?= $l ?></a>
             <?php endforeach; ?>
         </div>
@@ -148,6 +190,51 @@ $secret = (string) get_setting('cron_secret', '');
                 </tbody></table></div>
                 <button class="btn" style="margin-top:12px">حفظ</button>
             </form>
+
+        <?php elseif ($tab === 'plan'):
+            $mixAll = []; foreach (array_keys(CE_FUNNEL_MIX) as $g) $mixAll[$g] = ce_funnel_mix($g);
+            $w = ce_plan_weights(); $angles = ce_angles(false); ?>
+            <form method="post" class="card" style="margin-bottom:14px">
+                <?= csrf_field() ?><input type="hidden" name="action" value="save_plan">
+                <div class="a2-h"><h3>نسب المراحل لكل هدف (%)</h3></div>
+                <p class="a2-muted" style="margin:0 0 8px">وعي (TOFU) · اهتمام (MOFU) · قرار (BOFU) — مجموع كل صف 100. الخطة بتتحاسب على البعد عن النسب دي (±5% مسموح).</p>
+                <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>الهدف</th><th>وعي</th><th>اهتمام</th><th>قرار</th></tr></thead><tbody>
+                    <?php foreach ($mixAll as $g => $m): ?>
+                        <tr><td><?= e(CE_GOALS[$g][0] ?? $g) ?></td>
+                            <?php foreach (['tofu', 'mofu', 'bofu'] as $f): ?><td><input class="form-control" style="width:80px" name="mix[<?= $g ?>][<?= $f ?>]" value="<?= (int) $m[$f] ?>" inputmode="numeric"></td><?php endforeach; ?></tr>
+                    <?php endforeach; ?>
+                </tbody></table></div>
+                <div class="a2-h" style="margin-top:16px"><h3>بوابة الخطة</h3></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
+                    <?php foreach (CE_PLAN_DIMS as $d => $l): ?>
+                        <label class="form-group" style="margin:0"><span style="font-size:13px">وزن «<?= e($l) ?>»</span><input class="form-control" name="w[<?= $d ?>]" value="<?= (int) $w[$d] ?>" inputmode="numeric"></label>
+                    <?php endforeach; ?>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">حد النجاح</span><input class="form-control" name="ce_plan_threshold" value="<?= e((string) get_setting('ce_plan_threshold', '80')) ?>" inputmode="numeric"></label>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">جولات التحسين لو أقل</span><input class="form-control" name="ce_plan_max_rounds" value="<?= e((string) get_setting('ce_plan_max_rounds', '2')) ?>" inputmode="numeric"></label>
+                    <label class="form-group" style="margin:0"><span style="font-size:13px">أقل كريدت للخطة</span><input class="form-control" name="ce_plan_min_credits" value="<?= e((string) get_setting('ce_plan_min_credits', '1')) ?>" inputmode="numeric"></label>
+                </div>
+                <p class="a2-muted" style="margin:8px 0 0">مجموع الأوزان 100. الدرجة النهائية لكل معيار = الأقل بين قياس الكود ودرجة الناقد. القواعد الثابتة (التكرار ورا بعض · التغطية · مكان الـ CTA القوي · عدد الأشكال) لازم تبقى سليمة كمان.</p>
+                <button class="btn" style="margin-top:12px">حفظ</button>
+            </form>
+
+            <div class="card">
+                <div class="a2-h"><h3>مكتبة الزوايا</h3></div>
+                <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>الزاوية</th><th>المعنى · القيد</th><th>الأعمدة</th><th>شغالة</th><th></th></tr></thead><tbody>
+                    <?php foreach ($angles as $a): ?>
+                        <tr><td colspan="5" style="padding:0"><form method="post" style="display:grid;grid-template-columns:1.2fr 2fr 1.6fr 60px 80px;gap:8px;padding:8px;align-items:start"><?= csrf_field() ?>
+                            <input type="hidden" name="action" value="save_angle"><input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
+                            <div><input class="form-control" name="label" value="<?= e($a['label']) ?>"><small class="a2-muted" dir="ltr"><?= e($a['akey']) ?></small></div>
+                            <div><input class="form-control" name="hint" value="<?= e((string) $a['hint']) ?>" placeholder="المعنى"><input class="form-control" style="margin-top:4px" name="safeguard" value="<?= e((string) $a['safeguard']) ?>" placeholder="قيد (اختياري)"></div>
+                            <div style="font-size:12.5px"><?php foreach (CE_PILLARS as $pk => $pl): ?><label style="display:inline-flex;gap:3px;margin:0 6px 4px 0"><input type="checkbox" name="pillars[]" value="<?= $pk ?>" <?= in_array($pk, $a['pillar_list'], true) ? 'checked' : '' ?>><?= e($pl) ?></label><?php endforeach; ?></div>
+                            <label><input type="checkbox" name="is_active" value="1" <?= $a['is_active'] ? 'checked' : '' ?>></label>
+                            <div><input type="hidden" name="sort_order" value="<?= (int) $a['sort_order'] ?>"><button class="btn sm ghost">حفظ</button></div>
+                        </form></td></tr>
+                    <?php endforeach; ?>
+                </tbody></table></div>
+                <form method="post" style="display:grid;grid-template-columns:1fr 1.2fr 2fr auto;gap:8px;margin-top:12px"><?= csrf_field() ?><input type="hidden" name="action" value="save_angle"><input type="hidden" name="is_active" value="1"><input type="hidden" name="sort_order" value="<?= count($angles) + 1 ?>">
+                    <input class="form-control" name="akey" dir="ltr" placeholder="key_in_english"><input class="form-control" name="label" placeholder="اسم الزاوية"><input class="form-control" name="hint" placeholder="المعنى"><button class="btn">+ إضافة</button></form>
+                <p class="a2-muted" style="margin:8px 0 0">الأعمدة الفاضية = الزاوية تنفع مع أي عمود. الزاوية المقفولة مابتظهرش في الخطط الجديدة.</p>
+            </div>
 
         <?php elseif ($tab === 'access'):
             $flag = db_one('SELECT * FROM feature_flags WHERE feature_key = ?', [$FKEY]);
@@ -212,13 +299,14 @@ $secret = (string) get_setting('cron_secret', '');
 
         <?php else:
             $camps = db_all('SELECT c.*, u.name FROM ce_campaigns c LEFT JOIN users u ON u.id = c.user_id ORDER BY c.id DESC LIMIT 60'); ?>
-            <div class="card"><div class="a2-tw"><table class="a2-tbl"><thead><tr><th>#</th><th>العميل</th><th>الحملة</th><th>الحالة</th><th>القطع</th><th>التوكنز</th><th>التكلفة المتوقعة</th><th>الكريدت</th></tr></thead><tbody>
+            <div class="card"><div class="a2-tw"><table class="a2-tbl"><thead><tr><th>#</th><th>العميل</th><th>الحملة</th><th>الحالة</th><th>القطع</th><th>التوكنز</th><th>التكلفة المتوقعة</th><th>الكريدت</th><th>درجة الخطة</th></tr></thead><tbody>
                 <?php foreach ($camps as $c): $e = json_decode((string) $c['estimate_json'], true) ?: []; ?>
                     <tr><td class="num"><?= (int) $c['id'] ?></td><td><?= e((string) $c['name']) ?></td><td><?= e((string) $c['title']) ?></td><td><?= e($c['status']) ?></td>
                         <td class="num"><?= (int) ($e['pieces'] ?? 0) ?></td><td class="num"><?= number_format((int) ($e['tokens_total'] ?? 0)) ?></td>
-                        <td class="num" dir="ltr">$<?= number_format((float) ($e['usd'] ?? 0), 3) ?></td><td class="num"><?= (int) $c['est_credits'] ?></td></tr>
+                        <td class="num" dir="ltr">$<?= number_format((float) ($e['usd'] ?? 0), 3) ?></td><td class="num"><?= (int) $c['est_credits'] ?></td>
+                        <td class="num"><?= $c['plan_score'] !== null ? '<b style="color:' . ($c['plan_passed'] ? '#2a9d76' : '#d9534f') . '">' . e((string) $c['plan_score']) . '</b>' : '—' ?></td></tr>
                 <?php endforeach; ?>
-                <?php if (!$camps): ?><tr><td colspan="8" class="a2-muted">مفيش حملات لسه</td></tr><?php endif; ?>
+                <?php if (!$camps): ?><tr><td colspan="9" class="a2-muted">مفيش حملات لسه</td></tr><?php endif; ?>
             </tbody></table></div></div>
         <?php endif; ?>
         <?php endif; ?>

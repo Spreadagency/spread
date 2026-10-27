@@ -73,3 +73,41 @@
   .ce-slide label { grid-column: 1 / -1; }
   .ce-est-main b { font-size: 18px; }
 }
+
+/* ─── خطة الحملة (المرحلة E) ─── */
+.ce-score-top { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
+.ce-ring { flex: none; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #FFF4DE; color: #9A6200; border: 3px solid #F5C66B; }
+.ce-ring.ok { background: #E3F8F2; color: #0B7F68; border-color: #7FD8C0; }
+.ce-ring b { font-size: 26px; line-height: 1; }
+.ce-ring small { font-size: 11px; }
+.ce-dims { display: grid; gap: 6px; margin: 4px 0 10px; }
+.ce-dim { display: grid; grid-template-columns: 110px 1fr 34px; gap: 8px; align-items: center; font-size: 13px; }
+.ce-dim .ce-bar { height: 8px; }
+.ce-dim .ce-bar i.low { background: linear-gradient(90deg, #F5A524, #E0524A); }
+.ce-dim b { text-align: center; font-size: 13px; }
+.ce-issues { display: grid; gap: 4px; margin: 6px 0; font-size: 13px; }
+.ce-issues .hard { color: #A3261F; font-weight: 600; }
+.ce-mix { font-size: 12.5px; margin-bottom: 8px; }
+.ce-slot { border: 1.5px solid var(--bk-line); border-inline-start: 5px solid #9CCBF5; border-radius: 14px; padding: 10px 12px; margin-top: 8px; background: #fff; }
+.ce-slot.f-mofu { border-inline-start-color: #7C6CF0; }
+.ce-slot.f-bofu { border-inline-start-color: #13A89E; }
+.ce-slot.tail { background: #FBFFFE; }
+.ce-slot.locked { background: #F6F8FB; }
+.ce-slot.over { outline: 2px dashed var(--bk-pri); }
+.ce-slot[draggable=true] { cursor: grab; }
+.ce-slot-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.ce-slot-h b { font-size: 15px; }
+.ce-grip { color: var(--bk-mute); letter-spacing: -2px; }
+.ce-sp { flex: 1; }
+.ce-badge { padding: 2px 8px; border-radius: 99px; background: var(--bk-soft); font-size: 11.5px; color: var(--bk-mute); }
+.ce-ic { min-width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid var(--bk-line); background: #fff; cursor: pointer; font-size: 14px; }
+.ce-ic.on { border-color: var(--bk-pri); background: #E8F3FF; }
+.ce-ic:disabled { opacity: .35; cursor: default; }
+.ce-slot-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.ce-slot-g .bk-in { min-height: 36px; padding: 0 8px; font-size: 13px; }
+.ce-obj { margin: 6px 0 0; font-size: 13px; color: var(--bk-mute); }
+@media (max-width: 560px) {
+  .ce-slot-g { grid-template-columns: 1fr 1fr; }
+  .ce-dim { grid-template-columns: 90px 1fr 30px; }
+}
