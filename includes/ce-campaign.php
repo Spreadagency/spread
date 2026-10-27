@@ -193,7 +193,9 @@ function ce_image_price(): array
     $model = null;
     $prov = null;
     try {
-        $chain = function_exists('ai_gw_chain') ? ai_gw_chain('design') : [];
+        // مرحلة صورة المحرك (ce_image) لو متربطة — غير كده مسار التصميم العادي
+        $route = db_one('SELECT chain_json FROM ai_task_routes WHERE task = "ce_image"');
+        $chain = function_exists('ai_gw_chain') ? ai_gw_chain($route && !empty($route['chain_json']) ? 'ce_image' : 'design') : [];
         if ($chain) { $prov = (string) $chain[0]['p']['name']; $model = (string) $chain[0]['m']; }
     } catch (\Throwable $e) {}
     $p = $model ? usage_price($prov, $model, 'image') : null;
@@ -211,9 +213,10 @@ function ce_estimate(array $brief): array
     $car = (int) ($f['carousel'] ?? 0);
     $reel = (int) ($f['reel'] ?? 0);
     $pieces = $post + $car + $reel;
-    $visual = $post + $car;               // القطع اللي ليها تصميم (الريلز سكريبت بس)
-    $slides = 4;                          // متوسط شرائح الكاروسيل
-    $images = $post + $car * $slides;
+    // الصور: بوست = صورة · كاروسيل = أول شريحة بصورة AI (الباقي نص على خلفية البراند) · ريلز = غلاف
+    $carAi = max(1, ce_setting_int('ce_carousel_ai_images', 1));
+    $images = $post + $car * $carAi + ($reel * (ce_setting_int('ce_reel_cover', 1) ? 1 : 0));
+    $visual = $images;                    // برومبت التصميم + مراجعة الصورة لكل صورة
     $rf = max(1.0, ce_setting_float('ce_revision_factor', 1.4));
     $def = ce_token_defaults();
 
@@ -250,8 +253,8 @@ function ce_estimate(array $brief): array
     $credits = max(ce_usd_to_credits($usd), $pieces * max(0, ce_setting_int('ce_min_credits_piece', 1)));
     $assume = [
         'الكاتب والناقد × ' . $rf . ' (إعادة كتابة محتملة)',
-        'الكاروسيل ' . $slides . ' شرائح في المتوسط',
-        'الريلز: سكريبت من غير تصميم صورة',
+        'الكاروسيل: ' . $carAi . ' شريحة بصورة AI والباقي نص على خلفية البراند',
+        ce_setting_int('ce_reel_cover', 1) ? 'الريلز: سكريبت + غلاف 9:16' : 'الريلز: سكريبت من غير غلاف',
     ];
     if ($unpriced) $assume[] = $unpriced . ' مرحلة موديلها مش متسعّر — اتحسبت بالسعر الاحتياطي';
     if ($images && !$img['priced']) $assume[] = 'موديل الصور مش متسعّر — اتحسب بالسعر الاحتياطي';

@@ -323,6 +323,7 @@ function account_purge(int $uid): void
         'DELETE FROM email_verifications WHERE user_id = ?',
         'DELETE FROM password_resets WHERE user_id = ?',
         // محرك المحتوى v3 (القيود المالية نفسها في credit_transactions بتفضل)
+        'DELETE FROM ce_designs WHERE user_id = ?',
         'DELETE v FROM ce_content_versions v JOIN ce_contents x ON x.id = v.content_id WHERE x.user_id = ?',
         'DELETE FROM ce_contents WHERE user_id = ?',
         'DELETE FROM ce_ideas WHERE user_id = ?',
@@ -350,6 +351,12 @@ function account_purge(int $uid): void
         }
         db_run('DELETE FROM users WHERE id = ?', [$uid]);
         if ($own) $pdo->commit();
+        // صور تصميمات المحرك الجديد (فولدر العميل بس)
+        $dir = (defined('STORAGE_PATH') ? STORAGE_PATH : dirname(__DIR__) . '/storage') . '/uploads/ce-designs/' . $uid;
+        if ($uid > 0 && is_dir($dir)) {
+            foreach (glob($dir . '/*') ?: [] as $f) if (is_file($f)) @unlink($f);
+            @rmdir($dir);
+        }
     } catch (\Throwable $e) {
         if ($own && $pdo->inTransaction()) $pdo->rollBack();
         throw $e;

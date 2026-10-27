@@ -23,11 +23,16 @@
  *   POST action=write_start {id}             ابدأ كتابة الحملة بعد اعتماد الخطة (حجز + شغلانة)
  *   POST action=idea_swap {id, slot_id, idea_id}  اكتب الخانة بفكرة تانية (أو نفس الفكرة من جديد)
  *   POST action=content_accept {id, slot_id}  اعتمد خانة «محتاجة مراجعة يدوية» زي ما هي
+ *   GET  action=design {id}                  التصميمات لكل خانة + القوالب + الشغلانة + الحجز المتوقع (المرحلة G)
+ *   POST action=design_start {id}            صمّم الحملة (اللي اتصمم قبل كده بيفضل)
+ *   POST action=design_redo {id, slot_id, frame}  صورة جديدة لتصميم واحد
+ *   POST action=design_text {id, slot_id, frame, headline, subline, template_id}  تعديل النص/القالب ← رسم تاني من غير كريدت
+ *   POST action=design_accept {id, slot_id, frame}  اعتمد تصميم «محتاج مراجعة» زي ما هو
  *
  * المحرك متاح بس للعملاء اللي الأدمن فتحه لهم (الميزات ← content_engine).
  */
 require_once __DIR__ . '/../../includes/api.php';
-require_once __DIR__ . '/../../includes/ce-write.php';
+require_once __DIR__ . '/../../includes/ce-design.php';
 
 $action = api_action() ?: 'home';
 $user = api_boot();
@@ -132,7 +137,9 @@ switch ($action) {
     case 'write':
         $c = ce_campaign_get(api_int('id'), $uid);
         if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
-        api_ok(['write' => ce_write_view($uid, $c), 'campaign' => ce_campaign_public(ce_campaign_get((int) $c['id'], $uid)), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
+        $wv = ce_write_view($uid, $c);
+        $c = ce_campaign_get((int) $c['id'], $uid);
+        api_ok(['write' => $wv, 'design' => ce_design_view($uid, $c), 'campaign' => ce_campaign_public($c), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
 
     case 'write_start':
     case 'idea_swap':
@@ -146,6 +153,31 @@ switch ($action) {
         if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
         if (!ce_write_ready() || !ce_content_accept($uid, (int) $c['id'], api_int('slot_id'))) api_fail('الخانة دي مش محتاجة مراجعة', 'state', 409);
         api_ok(['write' => ce_write_view($uid, $c)]);
+
+    case 'design':
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        api_ok(['design' => ce_design_view($uid, $c), 'balance' => credits_balance($uid), 'worker' => ce_worker_alive()]);
+
+    case 'design_start':
+    case 'design_redo':
+        $r = $action === 'design_start' ? ce_design_start($uid, api_int('id'))
+            : ce_design_redo($uid, api_int('id'), api_int('slot_id'), api_int('frame'));
+        if (!$r['ok']) api_fail($r['error'] ?? 'مقدرناش نبدأ', $r['code'] ?? 'error', ($r['code'] ?? '') === 'credits' ? 402 : (($r['code'] ?? '') === 'not_found' ? 404 : 409));
+        api_ok(['job' => ce_job_public($r['job']), 'existing' => !empty($r['existing']), 'balance' => credits_balance($uid)]);
+
+    case 'design_text':
+    case 'design_accept':
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        if ($action === 'design_accept') {
+            if (!ce_design_ready() || !ce_design_accept($uid, (int) $c['id'], api_int('slot_id'), api_int('frame'))) api_fail('التصميم ده مش محتاج مراجعة', 'state', 409);
+        } else {
+            $in = api_input();
+            $r = ce_design_text($uid, (int) $c['id'], api_int('slot_id'), api_int('frame'), array_intersect_key($in, array_flip(['headline', 'subline', 'template_id'])));
+            if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 422);
+        }
+        api_ok(['design' => ce_design_view($uid, $c)]);
 
     case 'campaign_save':
         $in = (array) (api_input()['brief'] ?? []);

@@ -229,7 +229,8 @@ function ce_content_check(array $body, string $format, array $ctx, array $brief)
     if (count($missing) > 4) $err[] = 'الـ design_brief ناقص: ' . implode(', ', $missing);
     $dna = $ctx['dna'];
     if (empty($db['colors_hex'])) $db['colors_hex'] = $dna['visual']['colors_hex'] ?? [];
-    if (empty($db['aspect_ratio'])) $db['aspect_ratio'] = $format === 'reel' ? '9:16' : '4:5';
+    // المقاس ثابت حسب الشكل: بوست 1:1 · كاروسيل 4:5 · ريلز 9:16
+    $db['aspect_ratio'] = ['post' => '1:1', 'carousel' => '4:5', 'reel' => '9:16'][$format] ?? '1:1';
     if (empty($db['characters_refs']) && !empty($brief['character_id'])) {
         foreach ($dna['visual']['characters'] ?? [] as $c) if ((int) $c['id'] === (int) $brief['character_id']) $db['characters_refs'] = [$c['name']];
     }

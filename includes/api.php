@@ -190,7 +190,7 @@ function api_get_allowed(string $endpoint, string $action): bool
         'studio'        => ['home', 'drafts', 'draft', 'size_hint', 'trends', 'design'],
         'whatsapp'      => ['home'],
         'billing'       => [],
-        'engine'        => ['home', 'job', 'campaign', 'wizard', 'plan', 'write'],
+        'engine'        => ['home', 'job', 'campaign', 'wizard', 'plan', 'write', 'design'],
     ];
     if (!isset($read[$endpoint])) return true;   // endpoint مش في القايمة (wa/v1 ليهم حماية تانية) — نفس السلوك القديم
     return $action === '' || in_array($action, $read[$endpoint], true);

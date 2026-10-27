@@ -198,8 +198,9 @@ t('هدف العرض من غير قيمة ← مرفوض', isset($e2['offer']));
 t('بريف سليم · الخدمة الغريبة اتشالت · مدة غلط ← 30', !$e3 && $b3['service_ids'] === [$svc[0]] && $b3['days'] === 30, json_encode($e3, JSON_UNESCAPED_UNICODE));
 $est = ce_estimate($b3);
 $w = array_values(array_filter($est['stages'], fn($s) => $s['key'] === 'ce_writer'))[0];
-t('التقدير: 7 قطع · الكاتب × 1.4 · 6 تصميمات', $est['pieces'] === 7 && abs($w['count'] - 9.8) < 0.01
-    && array_values(array_filter($est['stages'], fn($s) => $s['key'] === 'ce_design_prompt'))[0]['count'] == 6, json_encode($w));
+// الصور (المرحلة G): بوست = صورة · كاروسيل = أول شريحة · ريلز = غلاف ← 4 + 2 + 1
+t('التقدير: 7 قطع · الكاتب × 1.4 · 7 صور', $est['pieces'] === 7 && abs($w['count'] - 9.8) < 0.01
+    && array_values(array_filter($est['stages'], fn($s) => $s['key'] === 'ce_design_prompt'))[0]['count'] == 7 && $est['images']['count'] === 7, json_encode($w));
 t('التقدير من الافتراضي لو مفيش سجل', in_array($w['source'], ['default', 'history'], true) && $est['credits'] >= 7);
 $hist = [];
 for ($i = 0; $i < 5; $i++) $hist[] = (int) db_insert('INSERT INTO ai_runs (run_key, task, status, tokens_in, tokens_out, sandbox) VALUES (?, "ce_vision_qa", "ok", 1000, 100, 0)', [bin2hex(random_bytes(8))]);

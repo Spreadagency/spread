@@ -371,7 +371,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                 <section class="bk-card ce-hero"><h1>{{ wc.title }}</h1>
                     <p class="bk-mute">{{ wr.slots.length }} قطعة · {{ statusLabel[wc.status] || wc.status }}</p></section>
 
-                <section class="bk-card" v-if="writeBusy()">
+                <section class="bk-card" v-if="wr.job && wr.job.active">
                     <h2>بنكتب…</h2>
                     <div class="ce-job" role="status"><div class="ce-bar"><i :style="{ width: Math.max(6, wr.job.progress) + '%' }"></i></div>
                         <div class="ce-job-row"><span>{{ wr.job.label }}</span><button class="bk-link" @click="cancelWriteJob()">إلغاء</button></div>
@@ -390,6 +390,22 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <span>{{ (p && p.labels && p.labels.dims[d]) || dimLabel[d] || d }}</span><div class="ce-bar"><i :class="{ low: v < 80 }" :style="{ width: v + '%' }"></i></div><b>{{ Math.round(v) }}</b></div></div>
                     <div v-if="wr.final.notes && wr.final.notes.length" class="ce-notes"><b>أهم الملاحظات</b><ol><li v-for="n in wr.final.notes">{{ n }}</li></ol></div>
                 </section>
+
+                <!-- التصميم (المرحلة G) -->
+                <section class="bk-card" v-if="designBusy()">
+                    <h2>بنصمّم…</h2>
+                    <div class="ce-job" role="status"><div class="ce-bar"><i :style="{ width: Math.max(6, dz.job.progress) + '%' }"></i></div>
+                        <div class="ce-job-row"><span>{{ dz.job.label }}</span><button class="bk-link" @click="cancelDesignJob()">إلغاء</button></div>
+                        <small class="bk-mute" v-if="!worker">خلّي الصفحة مفتوحة لحد ما يخلص</small></div>
+                </section>
+                <section class="bk-card ce-go" v-else-if="dz && dz.ready && wc.status === 'done' && dz.pending > 0 && !(wr.job && wr.job.active)">
+                    <h2>🎨 صمّم المحتوى</h2>
+                    <p class="bk-mute">لكل قطعة صورة من غير أي كلام جوّاها ← مراجعة للصورة (الألوان · مكان النص · العيوب · الفكرة) ولو ماعدّتش بنعيدها ← وبعدين بنحط العنوان بخط البراند في المكان الفاضي. شرايح الكاروسيل بعد الأولى: نص على خلفية بألوانك.</p>
+                    <div class="ce-est-row"><span>{{ dz.pending }} تصميم · محجوز من رصيدك</span><b>~{{ fmt(dz.credits) }} كريدت</b></div>
+                    <small class="bk-mute">بيتحسب الفعلي بس في الآخر، والباقي بيرجع لرصيدك · رصيدك {{ fmt(balance) }}</small>
+                    <div class="bk-row"><button class="bk-btn pri" :disabled="busy" @click="startDesign()">صمّم ✨</button></div>
+                </section>
+                <div v-if="dz && dz.job && dz.job.status === 'failed'" class="ce-err">{{ dz.job.error }}</div>
 
                 <section v-for="(s, i) in wr.slots" :key="s.id" class="bk-card ce-piece" :class="cTone(s)">
                     <div class="ce-slot-h">
@@ -413,6 +429,32 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <div class="ce-brief"><span v-for="(v, k) in s.content.body.design_brief" v-show="v && (!Array.isArray(v) || v.length)"><b>{{ briefLabel[k] || k }}</b> {{ Array.isArray(v) ? v.join('، ') : v }}</span></div></details>
                     </div>
 
+                    <div class="ce-designs" v-if="designsOf(s).length">
+                        <figure v-for="d in designsOf(s)" class="ce-dsg" :class="dTone(d)">
+                            <button class="ce-dsg-img" :class="'r' + d.aspect.replace(':', 'x')" @click="d.url && (dZoom = d.url)" :aria-label="'تصميم ' + d.frame">
+                                <img v-if="d.url" :src="d.url" :alt="d.headline" loading="lazy">
+                                <span v-else class="bk-mute">{{ dStatus[d.status] }}</span></button>
+                            <figcaption>
+                                <span class="bk-pill" :class="dTone(d)">{{ dStatus[d.status] }}<span v-if="d.qa_score !== null"> · {{ d.qa_score }}</span></span>
+                                <small class="bk-mute" v-if="s.format === 'carousel'">شريحة {{ d.frame }}{{ d.kind === 'text' ? ' · نص' : '' }}</small>
+                                <small class="ce-warn" v-if="d.qa && d.qa.issues && d.qa.issues.length && d.status === 'manual'">{{ d.qa.issues.join(' · ') }}</small>
+                                <small class="bk-mute" v-if="d.qa && d.qa.skipped">{{ d.qa.note }}</small>
+                                <span class="ce-dsg-act" v-if="d.url && !writeBusy()">
+                                    <button class="bk-link" @click="editDesign(s, d)">النص والقالب</button>
+                                    <button class="bk-link" v-if="d.kind === 'ai'" :disabled="busy" @click="redoDesign(s, d)">صورة جديدة</button>
+                                    <button class="bk-link" v-if="d.status === 'manual'" @click="acceptDesign(s, d)">اعتمده</button>
+                                    <a class="bk-link" :href="d.url" download>تحميل</a></span>
+                            </figcaption>
+                            <div class="ce-dedit" v-if="dEdit.slot === s.id && dEdit.frame === d.frame">
+                                <label>العنوان<input class="bk-in" v-model="dEdit.headline" maxlength="90"></label>
+                                <label>السطر التاني<input class="bk-in" v-model="dEdit.subline" maxlength="140"></label>
+                                <label>القالب<select class="bk-in" v-model.number="dEdit.template_id"><option v-for="t in tplsFor(s.format)" :value="t.id">{{ t.name }}</option></select></label>
+                                <div class="bk-row"><button class="bk-btn sm pri" :disabled="busy" @click="saveDesignText()">ارسم تاني</button><button class="bk-btn sm ghost" @click="dEdit.slot = 0">إلغاء</button></div>
+                                <small class="bk-mute">من غير كريدت — نفس الصورة بالنص الجديد.</small>
+                            </div>
+                        </figure>
+                    </div>
+
                     <details v-if="s.content && s.content.qa && s.content.qa.criteria"><summary>📊 الجودة: {{ s.content.qa.total }} <small class="bk-mute">· {{ s.content.rounds ? ('بعد ' + s.content.rounds + ' تحسين') : 'من أول مرة' }}</small></summary>
                         <div class="ce-dims"><div v-for="(c, k) in s.content.qa.criteria" class="ce-dim">
                             <span>{{ wr.qa_labels[k] }} <small class="bk-mute">×{{ wr.qa_weights[k] }}</small></span><div class="ce-bar"><i :class="{ low: c.score < wr.rules.min_criterion }" :style="{ width: c.score + '%' }"></i></div><b>{{ Math.round(c.score) }}</b></div></div>
@@ -434,6 +476,8 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     </div>
                 </section>
             </div>
+
+            <div v-if="dZoom" class="ce-zoom" @click="dZoom = null" role="dialog" aria-label="التصميم"><img :src="dZoom" alt=""><button class="ce-ic" aria-label="قفل">✕</button></div>
 
             <div v-if="toast" class="bk-toast" :class="toast && toast.type" role="status">{{ toast && toast.msg }}</div>
             </div>

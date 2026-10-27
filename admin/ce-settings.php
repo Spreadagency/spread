@@ -1,19 +1,19 @@
 <?php
 /**
  * Spread AI — الأدمن: محرك المحتوى v3 (المرحلة D)
- * تبويبات: الإعدادات (قاعدة الكريدت + التقدير) · الخطة والزوايا · الكتابة والجودة · العملاء (مين يشوف المحرك) · الشغل (الطابور + حجز الكريدت) · الحملات (بالتكلفة بالدولار)
+ * تبويبات: الإعدادات (قاعدة الكريدت + التقدير) · الخطة والزوايا · الكتابة والجودة · التصميم والقوالب · العملاء (مين يشوف المحرك) · الشغل (الطابور + حجز الكريدت) · الحملات (بالتكلفة بالدولار)
  */
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
-require_once __DIR__ . '/../includes/ce-write.php';
+require_once __DIR__ . '/../includes/ce-design.php';
 require_once __DIR__ . '/../includes/usage.php';
 
 require_admin();
 require_admin_can('ai_settings');
 $admin = current_admin();
 $ready = ce_ready();
-$tab = in_array($_GET['tab'] ?? '', ['settings', 'plan', 'write', 'access', 'jobs', 'campaigns'], true) ? $_GET['tab'] : 'settings';
+$tab = in_array($_GET['tab'] ?? '', ['settings', 'plan', 'write', 'design', 'access', 'jobs', 'campaigns'], true) ? $_GET['tab'] : 'settings';
 $FKEY = 'content_engine';
 
 /** [المفتاح، الافتراضي، أقل، أكبر، الوصف] */
@@ -96,6 +96,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
         if (!$errs) flash_set('success', 'اتحفظ ✓');
         redirect('admin/ce-settings.php?tab=write');
     }
+    if (in_array($a, ['save_design', 'save_template', 'upload_font', 'delete_font'], true) && !ce_design_ready()) {
+        flash_set('danger', 'شغّل ترحيل 2026_ce_design الأول');
+        redirect('admin/ce-settings.php?tab=design');
+    }
+    if ($a === 'save_design') {
+        $errs = [];
+        foreach (['ce_vision_max_regen' => [0, 4, 'إعادات الصورة'], 'ce_vision_min_idea' => [0, 100, 'أقل مطابقة للفكرة'], 'ce_vision_min_palette' => [0, 100, 'أقل مطابقة للألوان'],
+                  'ce_carousel_ai_images' => [1, 10, 'شرايح الكاروسيل بصورة AI'], 'ce_min_credits_image' => [0, 50, 'أقل كريدت للصورة']] as $k => [$min, $max, $label]) {
+            $v = trim((string) ($_POST[$k] ?? ''));
+            if (!is_numeric($v) || (float) $v < $min || (float) $v > $max) { $errs[] = "$label: من $min لـ $max"; continue; }
+            set_setting($k, (string) (int) $v);
+        }
+        set_setting('ce_reel_cover', !empty($_POST['ce_reel_cover']) ? '1' : '0');
+        admin_log('ce_design_settings', 'settings', null, json_encode(array_intersect_key($_POST, array_flip(['ce_vision_max_regen', 'ce_vision_min_idea', 'ce_vision_min_palette', 'ce_carousel_ai_images']))));
+        foreach ($errs as $e) flash_set('danger', $e);
+        if (!$errs) flash_set('success', 'اتحفظ ✓');
+        redirect('admin/ce-settings.php?tab=design');
+    }
+    if ($a === 'save_template') {
+        $id = (int) ($_POST['id'] ?? 0);
+        $name = mb_substr(trim((string) ($_POST['name'] ?? '')), 0, 80);
+        if ($name === '') { flash_set('danger', 'اكتب اسم القالب'); redirect('admin/ce-settings.php?tab=design'); }
+        $in = (array) ($_POST['st'] ?? []);
+        if (($in['scrim_color'] ?? '') === 'hex') $in['scrim_color'] = (string) ($_POST['scrim_hex'] ?? '');
+        if (($in['text_color'] ?? '') === 'hex') $in['text_color'] = (string) ($_POST['text_hex'] ?? '');
+        $style = ce_tpl_clean($in);
+        $formats = array_values(array_intersect(['post', 'carousel', 'reel'], (array) ($_POST['formats'] ?? [])));
+        if (!$formats) $formats = ['post', 'carousel', 'reel'];
+        $active = !empty($_POST['is_active']) ? 1 : 0;
+        if ($id) {
+            db_run('UPDATE ce_text_templates SET name = ?, style_json = ?, formats = ?, is_active = ?, sort_order = ? WHERE id = ?',
+                [$name, json_encode($style), implode(',', $formats), $active, (int) ($_POST['sort_order'] ?? 0), $id]);
+        } else {
+            $id = (int) db_insert('INSERT INTO ce_text_templates (tkey, name, style_json, formats, is_active, sort_order) VALUES (?,?,?,?,?,?)',
+                ['t' . date('ymdHis') . bin2hex(random_bytes(2)), $name, json_encode($style), implode(',', $formats), $active, (int) db_one('SELECT COALESCE(MAX(sort_order),0) + 1 n FROM ce_text_templates')['n']]);
+        }
+        if (!db_one('SELECT id FROM ce_text_templates WHERE is_active = 1')) {
+            db_run('UPDATE ce_text_templates SET is_active = 1 WHERE id = ?', [$id]);
+            flash_set('warning', 'لازم يفضل قالب واحد شغال على الأقل — القالب ده اتساب شغال');
+        }
+        admin_log('ce_template_save', 'ce_text_template', $id, $name);
+        flash_set('success', 'اتحفظ ✓');
+        redirect('admin/ce-settings.php?tab=design#tpl-' . $id);
+    }
+    if ($a === 'upload_font') {
+        $f = $_FILES['font'] ?? null;
+        $ext = strtolower(pathinfo((string) ($f['name'] ?? ''), PATHINFO_EXTENSION));
+        if (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK || !in_array($ext, ['ttf', 'otf'], true) || $f['size'] > 3 * 1024 * 1024) {
+            flash_set('danger', 'ارفع ملف خط TTF أو OTF لحد 3 ميجا');
+            redirect('admin/ce-settings.php?tab=design');
+        }
+        $magic = (string) file_get_contents($f['tmp_name'], false, null, 0, 4);
+        if (!in_array($magic, ["\x00\x01\x00\x00", 'true', 'OTTO'], true)) {
+            flash_set('danger', 'الملف ده مش خط حقيقي');
+            redirect('admin/ce-settings.php?tab=design');
+        }
+        $key = preg_replace('/[^A-Za-z0-9_\-]/', '', pathinfo((string) $f['name'], PATHINFO_FILENAME)) ?: 'font' . time();
+        if (isset(ce_fonts()[$key])) $key .= '-' . bin2hex(random_bytes(2));
+        $dir = STORAGE_PATH . '/uploads/ce-fonts';
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+        $dest = $dir . '/' . $key . '.' . $ext;
+        if (!move_uploaded_file($f['tmp_name'], $dest)) { flash_set('danger', 'مقدرناش نحفظ الملف'); redirect('admin/ce-settings.php?tab=design'); }
+        if (!ce_font_has_arabic($dest)) {
+            @unlink($dest);
+            flash_set('danger', 'الخط ده مافيهوش أشكال الحروف العربية الموصولة — النص هيطلع مقطّع. جرّب خط تاني (مثلًا من Google Fonts: Cairo · Tajawal · Almarai)');
+            redirect('admin/ce-settings.php?tab=design');
+        }
+        admin_log('ce_font_upload', 'ce_font', null, $key);
+        flash_set('success', 'الخط «' . $key . '» اتضاف ✓ — اختاره من أي قالب');
+        redirect('admin/ce-settings.php?tab=design#fonts');
+    }
+    if ($a === 'delete_font') {
+        $key = (string) ($_POST['key'] ?? '');
+        $font = ce_fonts()[$key] ?? null;
+        if ($font && !$font['builtin'] && str_starts_with(realpath($font['path']) ?: '', realpath(STORAGE_PATH . '/uploads/ce-fonts') ?: '//')) {
+            @unlink($font['path']);
+            admin_log('ce_font_delete', 'ce_font', null, $key);
+            flash_set('success', 'اتشال — القوالب اللي كانت بتستخدمه هترجع للخط الافتراضي');
+        }
+        redirect('admin/ce-settings.php?tab=design#fonts');
+    }
     if ($a === 'save_angle') {
         $id = (int) ($_POST['id'] ?? 0);
         $key = strtolower(preg_replace('/[^a-z0-9_]/i', '', (string) ($_POST['akey'] ?? '')));
@@ -157,7 +238,7 @@ $secret = (string) get_setting('cron_secret', '');
 ?>
 <div class="app">
     <?php include __DIR__ . '/../templates/admin-sidebar.php'; ?>
-    <main class="main">
+    <main class="main ce-adm">
         <div class="topbar"><button class="menu-toggle" onclick="toggleSidebar()">☰</button></div>
         <?= render_flash() ?>
         <div class="page-head">
@@ -170,7 +251,7 @@ $secret = (string) get_setting('cron_secret', '');
         <?php else: ?>
 
         <div class="a2-seg" style="margin-bottom:14px">
-            <?php foreach (['settings' => 'الإعدادات', 'plan' => 'الخطة والزوايا', 'write' => 'الكتابة والجودة', 'access' => 'العملاء', 'jobs' => 'الشغل والكريدت', 'campaigns' => 'الحملات'] as $k => $l): ?>
+            <?php foreach (['settings' => 'الإعدادات', 'plan' => 'الخطة والزوايا', 'write' => 'الكتابة والجودة', 'design' => 'التصميم والقوالب', 'access' => 'العملاء', 'jobs' => 'الشغل والكريدت', 'campaigns' => 'الحملات'] as $k => $l): ?>
                 <a class="<?= $tab === $k ? 'on' : '' ?>" href="?tab=<?= $k ?>"><?= $l ?></a>
             <?php endforeach; ?>
         </div>
@@ -189,10 +270,11 @@ $secret = (string) get_setting('cron_secret', '');
                 <div class="a2-h"><h3>قاعدة الكريدت</h3></div>
                 <p class="a2-muted" style="margin:0 0 10px;line-height:1.9">الكريدت = التكلفة بالدولار × سعر الدولار (<?= e((string) (function_exists('usage_fx_rate') ? usage_fx_rate() : '')) ?> جنيه) × (1 + الهامش%) ÷ قيمة الكريدت بالجنيه — ومش أقل من «أقل كريدت لكل قطعة» × عدد القطع.
                     الكريدت بيتحجز قبل التشغيل، والفرق بيرجع للعميل بعده. مفيش أبدًا خصم أكتر من المحجوز.</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+                <div class="ce-fgrid">
                     <?php foreach ($nums as $k => [$def, $min, $max, $label]): ?>
-                        <label class="form-group" style="margin:0"><span style="font-size:13px"><?= e($label) ?></span>
-                            <input class="form-control" name="<?= $k ?>" inputmode="decimal" value="<?= e((string) get_setting($k, (string) $def)) ?>"></label>
+                        <label class="ce-f"><span><?= e($label) ?></span>
+                            <input class="form-control" name="<?= $k ?>" inputmode="decimal" value="<?= e((string) get_setting($k, (string) $def)) ?>">
+                            <small>من <?= e((string) $min) ?> لـ <?= e((string) $max) ?> · الافتراضي <?= e((string) $def) ?></small></label>
                     <?php endforeach; ?>
                 </div>
 
@@ -223,14 +305,14 @@ $secret = (string) get_setting('cron_secret', '');
                             <?php foreach (['tofu', 'mofu', 'bofu'] as $f): ?><td><input class="form-control" style="width:80px" name="mix[<?= $g ?>][<?= $f ?>]" value="<?= (int) $m[$f] ?>" inputmode="numeric"></td><?php endforeach; ?></tr>
                     <?php endforeach; ?>
                 </tbody></table></div>
-                <div class="a2-h" style="margin-top:16px"><h3>بوابة الخطة</h3></div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
+                <div class="a2-h" style="margin-top:16px"><h3>بوابة الخطة</h3><span class="ce-sum" data-sum="w[">المجموع: 100</span></div>
+                <div class="ce-fgrid">
                     <?php foreach (CE_PLAN_DIMS as $d => $l): ?>
-                        <label class="form-group" style="margin:0"><span style="font-size:13px">وزن «<?= e($l) ?>»</span><input class="form-control" name="w[<?= $d ?>]" value="<?= (int) $w[$d] ?>" inputmode="numeric"></label>
+                        <label class="ce-f"><span>وزن «<?= e($l) ?>»</span><input class="form-control" name="w[<?= $d ?>]" value="<?= (int) $w[$d] ?>" inputmode="numeric"></label>
                     <?php endforeach; ?>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">حد النجاح</span><input class="form-control" name="ce_plan_threshold" value="<?= e((string) get_setting('ce_plan_threshold', '80')) ?>" inputmode="numeric"></label>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">جولات التحسين لو أقل</span><input class="form-control" name="ce_plan_max_rounds" value="<?= e((string) get_setting('ce_plan_max_rounds', '2')) ?>" inputmode="numeric"></label>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">أقل كريدت للخطة</span><input class="form-control" name="ce_plan_min_credits" value="<?= e((string) get_setting('ce_plan_min_credits', '1')) ?>" inputmode="numeric"></label>
+                    <label class="ce-f"><span>حد النجاح</span><input class="form-control" name="ce_plan_threshold" value="<?= e((string) get_setting('ce_plan_threshold', '80')) ?>" inputmode="numeric"></label>
+                    <label class="ce-f"><span>جولات التحسين لو أقل</span><input class="form-control" name="ce_plan_max_rounds" value="<?= e((string) get_setting('ce_plan_max_rounds', '2')) ?>" inputmode="numeric"></label>
+                    <label class="ce-f"><span>أقل كريدت للخطة</span><input class="form-control" name="ce_plan_min_credits" value="<?= e((string) get_setting('ce_plan_min_credits', '1')) ?>" inputmode="numeric"></label>
                 </div>
                 <p class="a2-muted" style="margin:8px 0 0">مجموع الأوزان 100. الدرجة النهائية لكل معيار = الأقل بين قياس الكود ودرجة الناقد. القواعد الثابتة (التكرار ورا بعض · التغطية · مكان الـ CTA القوي · عدد الأشكال) لازم تبقى سليمة كمان.</p>
                 <button class="btn" style="margin-top:12px">حفظ</button>
@@ -262,34 +344,129 @@ $secret = (string) get_setting('cron_secret', '');
             $qw = ce_qa_weights(); $rules = ce_qa_rules();
             $st = db_one('SELECT COUNT(*) n, SUM(status = "pass") p, SUM(status = "manual") m, SUM(status = "failed") f, AVG(qa_score) a, AVG(rounds) r FROM ce_contents WHERE created_at > NOW() - INTERVAL 30 DAY');
             $dups = db_one('SELECT COUNT(*) n, SUM(is_dup) d FROM ce_ideas WHERE created_at > NOW() - INTERVAL 30 DAY'); ?>
-            <div class="a2-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px">
-                <div class="card"><small class="a2-muted">قطع آخر 30 يوم</small><h3 class="num"><?= (int) $st['n'] ?></h3></div>
-                <div class="card"><small class="a2-muted">عدّت من غير تدخل</small><h3 class="num"><?= $st['n'] ? round(100 * $st['p'] / $st['n']) : 0 ?>%</h3></div>
-                <div class="card"><small class="a2-muted">مراجعة يدوية</small><h3 class="num"><?= (int) $st['m'] ?></h3></div>
-                <div class="card"><small class="a2-muted">متوسط الجودة</small><h3 class="num"><?= $st['a'] !== null ? round((float) $st['a'], 1) : '—' ?></h3></div>
-                <div class="card"><small class="a2-muted">متوسط جولات التحسين</small><h3 class="num"><?= $st['r'] !== null ? round((float) $st['r'], 2) : '—' ?></h3></div>
-                <div class="card"><small class="a2-muted">أفكار اترفضت (تكرار)</small><h3 class="num"><?= (int) $dups['d'] ?> / <?= (int) $dups['n'] ?></h3></div>
+            <div class="ce-kpis">
+                <div class="a2-kpi"><small>قطع آخر 30 يوم</small><b><?= (int) $st['n'] ?></b></div>
+                <div class="a2-kpi"><small>عدّت من غير تدخل</small><b><?= $st['n'] ? round(100 * $st['p'] / $st['n']) : 0 ?>%</b></div>
+                <div class="a2-kpi"><small>مراجعة يدوية</small><b><?= (int) $st['m'] ?></b></div>
+                <div class="a2-kpi"><small>متوسط الجودة</small><b><?= $st['a'] !== null ? round((float) $st['a'], 1) : '—' ?></b></div>
+                <div class="a2-kpi"><small>متوسط جولات التحسين</small><b><?= $st['r'] !== null ? round((float) $st['r'], 2) : '—' ?></b></div>
+                <div class="a2-kpi"><small>أفكار اترفضت (تكرار)</small><b><?= (int) $dups['d'] ?> / <?= (int) $dups['n'] ?></b></div>
             </div>
             <form method="post" class="card">
                 <?= csrf_field() ?><input type="hidden" name="action" value="save_write">
-                <div class="a2-h"><h3>أوزان معايير الجودة (مجموعها 100)</h3></div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
+                <div class="a2-h"><h3>أوزان معايير الجودة</h3><span class="ce-sum" data-sum="qw[">المجموع: 100</span></div>
+                <div class="ce-fgrid">
                     <?php foreach (CE_QA_LABELS as $k => $l): ?>
-                        <label class="form-group" style="margin:0"><span style="font-size:13px"><?= e($l) ?></span><input class="form-control" name="qw[<?= $k ?>]" value="<?= (int) $qw[$k] ?>" inputmode="numeric"></label>
+                        <label class="ce-f"><span><?= e($l) ?></span><input class="form-control" name="qw[<?= $k ?>]" value="<?= (int) $qw[$k] ?>" inputmode="numeric"></label>
                     <?php endforeach; ?>
                 </div>
                 <div class="a2-h" style="margin-top:16px"><h3>البوابة والأفكار</h3></div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px">
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">حد النجاح (الإجمالي)</span><input class="form-control" name="ce_qa_pass_total" value="<?= e((string) $rules['pass_total']) ?>" inputmode="decimal"></label>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">أقل درجة لأي معيار</span><input class="form-control" name="ce_qa_min_criterion" value="<?= e((string) $rules['min_criterion']) ?>" inputmode="decimal"></label>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">جولات التحسين</span><input class="form-control" name="ce_qa_max_rounds" value="<?= (int) $rules['max_rounds'] ?>" inputmode="numeric"></label>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">أقل درجة للفكرة المختارة</span><input class="form-control" name="ce_select_min" value="<?= e((string) $rules['select_min']) ?>" inputmode="decimal"></label>
-                    <label class="form-group" style="margin:0"><span style="font-size:13px">حد التشابه (رفض الفكرة)</span><input class="form-control" name="ce_dedup_threshold" value="<?= e((string) $rules['dedup']) ?>" inputmode="decimal"></label>
+                <div class="ce-fgrid">
+                    <label class="ce-f"><span>حد النجاح (الإجمالي)</span><input class="form-control" name="ce_qa_pass_total" value="<?= e((string) $rules['pass_total']) ?>" inputmode="decimal"></label>
+                    <label class="ce-f"><span>أقل درجة لأي معيار</span><input class="form-control" name="ce_qa_min_criterion" value="<?= e((string) $rules['min_criterion']) ?>" inputmode="decimal"></label>
+                    <label class="ce-f"><span>جولات التحسين</span><input class="form-control" name="ce_qa_max_rounds" value="<?= (int) $rules['max_rounds'] ?>" inputmode="numeric"></label>
+                    <label class="ce-f"><span>أقل درجة للفكرة المختارة</span><input class="form-control" name="ce_select_min" value="<?= e((string) $rules['select_min']) ?>" inputmode="decimal"></label>
+                    <label class="ce-f"><span>حد التشابه (رفض الفكرة)</span><input class="form-control" name="ce_dedup_threshold" value="<?= e((string) $rules['dedup']) ?>" inputmode="decimal"></label>
                 </div>
-                <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" name="ce_critic_other_provider" value="1" <?= $rules['other_provider'] ? 'checked' : '' ?>> الناقد من مزود غير الكاتب (لو فيه مزود تاني شغال)</label>
+                <label class="st-sw ce-sw"><input type="checkbox" name="ce_critic_other_provider" value="1" <?= $rules['other_provider'] ? 'checked' : '' ?>><span><b>الناقد من مزود غير الكاتب</b><small>لو فيه مزود تاني شغال — ولو وقع بنرجع للسلسلة العادية</small></span></label>
                 <p class="a2-muted" style="margin:8px 0 0">PASS = الإجمالي ≥ الحد ومفيش معيار أقل من الحد الأدنى ومفيش مخالفة (كلمات ممنوعة · وعود مضمونة · استثناءات الحملة). غير كده بنحسّن الأجزاء الضعيفة بس لحد عدد الجولات، وبعدها القطعة بتتعلّم «محتاجة مراجعة» بأحسن نسخة. التشابه بالحروف (0.85 = شبه متطابقة).</p>
                 <button class="btn" style="margin-top:12px">حفظ</button>
             </form>
+            <?php endif; ?>
+
+        <?php elseif ($tab === 'design'):
+            if (!ce_design_ready()): ?>
+                <div class="card"><p>التصميم لسه مش متركّب — شغّل ترحيل <b>2026_ce_design</b> من <a href="<?= e(url('admin/migrations.php')) ?>">صفحة الترحيلات</a>.</p></div>
+            <?php else:
+            $dr = ce_design_rules(); $tpls = ce_templates(false); $fonts = ce_fonts();
+            $ds = db_one('SELECT COUNT(*) n, SUM(status = "pass") p, SUM(status = "manual") m, SUM(status = "failed") f, AVG(CASE WHEN kind = "ai" THEN qa_score END) q, AVG(CASE WHEN kind = "ai" THEN attempts END) a FROM ce_designs WHERE created_at > NOW() - INTERVAL 30 DAY');
+            $fontOpts = function (string $sel) use ($fonts) {
+                $h = '';
+                foreach ($fonts as $k => $f) $h .= '<option value="' . e($k) . '"' . ($k === $sel ? ' selected' : '') . '>' . e($f['label']) . ($f['builtin'] ? '' : ' (مرفوع)') . '</option>';
+                return $h;
+            };
+            $opts = function (array $list, string $sel) {
+                $h = '';
+                foreach ($list as $k => $l) $h .= '<option value="' . e($k) . '"' . ($k === $sel ? ' selected' : '') . '>' . e($l) . '</option>';
+                return $h;
+            }; ?>
+            <div class="ce-kpis">
+                <div class="a2-kpi"><small>تصميمات آخر 30 يوم</small><b><?= (int) $ds['n'] ?></b></div>
+                <div class="a2-kpi"><small>جاهزة من غير تدخل</small><b><?= $ds['n'] ? round(100 * $ds['p'] / $ds['n']) : 0 ?>%</b></div>
+                <div class="a2-kpi"><small>محتاجة مراجعة</small><b><?= (int) $ds['m'] ?></b></div>
+                <div class="a2-kpi"><small>فشلت</small><b><?= (int) $ds['f'] ?></b></div>
+                <div class="a2-kpi"><small>متوسط مراجعة الصورة</small><b><?= $ds['q'] !== null ? round((float) $ds['q'], 1) : '—' ?></b></div>
+                <div class="a2-kpi"><small>متوسط المحاولات للصورة</small><b><?= $ds['a'] !== null ? round((float) $ds['a'], 2) : '—' ?></b></div>
+            </div>
+
+            <form method="post" class="card" style="margin-bottom:14px">
+                <?= csrf_field() ?><input type="hidden" name="action" value="save_design">
+                <div class="a2-h"><h3>مراجعة الصورة والكريدت</h3></div>
+                <div class="ce-fgrid">
+                    <label class="ce-f"><span>إعادة الصورة لو ماعدّتش</span><input class="form-control" name="ce_vision_max_regen" value="<?= (int) $dr['max_regen'] ?>" inputmode="numeric"><small>من 0 لـ 4 · الافتراضي 2</small></label>
+                    <label class="ce-f"><span>أقل مطابقة للفكرة</span><input class="form-control" name="ce_vision_min_idea" value="<?= (int) $dr['min_idea'] ?>" inputmode="numeric"><small>الافتراضي 70</small></label>
+                    <label class="ce-f"><span>أقل مطابقة لألوان البراند</span><input class="form-control" name="ce_vision_min_palette" value="<?= (int) $dr['min_palette'] ?>" inputmode="numeric"><small>الافتراضي 60</small></label>
+                    <label class="ce-f"><span>شرايح الكاروسيل بصورة AI</span><input class="form-control" name="ce_carousel_ai_images" value="<?= (int) $dr['carousel_ai'] ?>" inputmode="numeric"><small>الباقي نص على خلفية البراند · الافتراضي 1</small></label>
+                    <label class="ce-f"><span>أقل كريدت للصورة</span><input class="form-control" name="ce_min_credits_image" value="<?= (int) $dr['min_credits'] ?>" inputmode="numeric"><small>الافتراضي 1</small></label>
+                </div>
+                <label class="st-sw ce-sw"><input type="checkbox" name="ce_reel_cover" value="1" <?= $dr['reel_cover'] ? 'checked' : '' ?>><span><b>غلاف للريلز (9:16)</b><small>صورة بعنوان الريلز — من غيرها الريلز سكريبت بس</small></span></label>
+                <p class="a2-muted" style="margin:8px 0 0">الموديل مابيكتبش أي نص جوه الصورة. المراجعة بتشوف: الألوان · المكان الفاضي للنص · العيوب (إيدين · أسنان · وشوش) · فيه كلام في الصورة · مطابقة الفكرة. موديل الصورة والمراجعة من «الموديلات ← خريطة المراحل» (ce_image · ce_vision_qa).</p>
+                <button class="btn" style="margin-top:12px">حفظ</button>
+            </form>
+
+            <div class="card" style="margin-bottom:14px">
+                <div class="a2-h"><h3>قوالب النص العربي</h3><span class="a2-grow"></span><small class="a2-muted">المعاينة على صورة تجريبية · العميل بيختار القالب لكل تصميم</small></div>
+                <div class="ce-tpls">
+                <?php foreach (array_merge($tpls, [['id' => 0, 'name' => '', 'style' => CE_TPL_DEFAULT, 'formats' => ['post', 'carousel', 'reel'], 'is_active' => 1, 'sort_order' => 0]]) as $t): $st = $t['style'];
+                    $scHex = preg_match('/^#/', $st['scrim_color']) ? $st['scrim_color'] : '#0B1526'; $tcHex = preg_match('/^#/', $st['text_color']) ? $st['text_color'] : '#FFFFFF'; ?>
+                    <form method="post" class="ce-tpl" id="tpl-<?= (int) $t['id'] ?>"><?= csrf_field() ?><input type="hidden" name="action" value="save_template"><input type="hidden" name="id" value="<?= (int) $t['id'] ?>"><input type="hidden" name="sort_order" value="<?= (int) $t['sort_order'] ?>">
+                        <?php if ($t['id']): ?>
+                            <div class="ce-tpl-prev"><img src="<?= e(url('admin/ce-template-preview.php?id=' . $t['id'] . '&aspect=4:5&v=' . substr(md5(json_encode($st)), 0, 6))) ?>" alt="" loading="lazy">
+                                <img src="<?= e(url('admin/ce-template-preview.php?id=' . $t['id'] . '&aspect=1:1&bg=text&v=' . substr(md5(json_encode($st)), 0, 6))) ?>" alt="" loading="lazy"></div>
+                        <?php endif; ?>
+                        <details class="ce-tpl-ed"><summary><?= $t['id'] ? '<b>' . e($t['name']) . '</b> · ' . ($t['is_active'] ? 'شغال' : '<span class="a2-muted">مقفول</span>') . ' — تعديل' : '<b>+ قالب جديد</b>' ?></summary>
+                        <div class="ce-fgrid ce-fgrid-sm">
+                            <label class="ce-f ce-f-wide"><span>الاسم</span><input class="form-control" name="name" value="<?= e($t['name']) ?>" placeholder="اسم القالب"></label>
+                            <label class="ce-f"><span>مكان النص</span><select class="form-control" name="st[layout]"><?= $opts(CE_TPL_LAYOUTS, $st['layout']) ?></select></label>
+                            <label class="ce-f"><span>خلفية النص</span><select class="form-control" name="st[scrim]"><?= $opts(CE_TPL_SCRIMS, $st['scrim']) ?></select></label>
+                            <label class="ce-f"><span>لونها</span><select class="form-control" name="st[scrim_color]"><?= $opts(CE_TPL_COLORS + ['hex' => 'لون مخصوص'], preg_match('/^#/', $st['scrim_color']) ? 'hex' : $st['scrim_color']) ?></select><input type="color" name="scrim_hex" value="<?= e($scHex) ?>" aria-label="اللون المخصوص"></label>
+                            <label class="ce-f"><span>الشفافية %</span><input class="form-control" name="st[scrim_opacity]" value="<?= e((string) $st['scrim_opacity']) ?>" inputmode="numeric"></label>
+                            <label class="ce-f"><span>لون الكلام</span><select class="form-control" name="st[text_color]"><option value="auto"<?= $st['text_color'] === 'auto' ? ' selected' : '' ?>>تلقائي (حسب الخلفية)</option><option value="hex"<?= $st['text_color'] !== 'auto' ? ' selected' : '' ?>>لون مخصوص</option></select><input type="color" name="text_hex" value="<?= e($tcHex) ?>" aria-label="لون الكلام"></label>
+                            <label class="ce-f"><span>المحاذاة</span><select class="form-control" name="st[align]"><?= $opts(['center' => 'في النص', 'right' => 'يمين'], $st['align']) ?></select></label>
+                            <label class="ce-f"><span>خط العنوان</span><select class="form-control" name="st[font_h]"><?= $fontOpts($st['font_h']) ?></select></label>
+                            <label class="ce-f"><span>خط السطر التاني</span><select class="form-control" name="st[font_s]"><?= $fontOpts($st['font_s']) ?></select></label>
+                            <label class="ce-f"><span>حجم العنوان (% من العرض)</span><input class="form-control" name="st[h_size]" value="<?= e((string) $st['h_size']) ?>" inputmode="decimal"></label>
+                            <label class="ce-f"><span>حجم السطر التاني</span><input class="form-control" name="st[s_size]" value="<?= e((string) $st['s_size']) ?>" inputmode="decimal"></label>
+                            <label class="ce-f"><span>مساحة النص (% من الصورة)</span><input class="form-control" name="st[band]" value="<?= e((string) $st['band']) ?>" inputmode="numeric"></label>
+                        </div>
+                        <div class="ce-tpl-sw">
+                            <label class="st-sw"><input type="checkbox" name="st[accent]" value="1" <?= $st['accent'] ? 'checked' : '' ?>><span>خط بلون البراند فوق العنوان</span></label>
+                            <input type="hidden" name="st[logo]" value="none"><label class="st-sw"><input type="checkbox" name="st[logo]" value="corner" <?= $st['logo'] === 'corner' ? 'checked' : '' ?>><span>شعار العميل في الركن</span></label>
+                            <?php foreach (['post' => 'بوست', 'carousel' => 'كاروسيل', 'reel' => 'ريلز'] as $fk => $fl): ?>
+                                <label class="st-sw"><input type="checkbox" name="formats[]" value="<?= $fk ?>" <?= in_array($fk, $t['formats'], true) ? 'checked' : '' ?>><span><?= $fl ?></span></label>
+                            <?php endforeach; ?>
+                            <label class="st-sw"><input type="checkbox" name="is_active" value="1" <?= $t['is_active'] ? 'checked' : '' ?>><span>شغال</span></label>
+                        </div>
+                        <button class="btn sm"><?= $t['id'] ? 'حفظ ومعاينة' : 'إضافة' ?></button>
+                        </details>
+                    </form>
+                <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="card" id="fonts">
+                <div class="a2-h"><h3>الخطوط</h3></div>
+                <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>الخط</th><th>المصدر</th><th>الحروف العربية</th><th></th></tr></thead><tbody>
+                    <?php foreach ($fonts as $k => $f): ?>
+                        <tr><td><b><?= e($f['label']) ?></b> <small class="a2-muted" dir="ltr"><?= e($k) ?></small></td><td><?= $f['builtin'] ? 'مع المنصة (OFL)' : 'مرفوع' ?></td>
+                            <td><?= ce_font_has_arabic($f['path']) ? '<span class="chip chip-mint">كاملة</span>' : '<span class="chip chip-coral">ناقصة</span>' ?></td>
+                            <td><?php if (!$f['builtin']): ?><form method="post" style="margin:0"><?= csrf_field() ?><input type="hidden" name="action" value="delete_font"><input type="hidden" name="key" value="<?= e($k) ?>"><button class="btn sm ghost" data-confirm="تشيل الخط ده؟">شيل</button></form><?php endif; ?></td></tr>
+                    <?php endforeach; ?>
+                </tbody></table></div>
+                <form method="post" enctype="multipart/form-data" class="ce-upl"><?= csrf_field() ?><input type="hidden" name="action" value="upload_font">
+                    <input type="file" name="font" accept=".ttf,.otf" required class="form-control"><button class="btn">رفع خط</button></form>
+                <p class="a2-muted" style="margin:8px 0 0">TTF أو OTF لحد 3 ميجا. لو خط البراند (من الهوية) اسمه زي خط مرفوع، بيتستخدم في العنوان أوتوماتيك. لازم الخط يكون فيه أشكال الحروف الموصولة — بنتأكد قبل ما نقبله.</p>
+            </div>
             <?php endif; ?>
 
         <?php elseif ($tab === 'access'):
@@ -328,10 +505,10 @@ $secret = (string) get_setting('cron_secret', '');
             $held = db_one('SELECT COUNT(*) n, COALESCE(SUM(reserved),0) s FROM ce_credit_holds WHERE status = "held"');
             $stuck = (int) (db_one('SELECT COUNT(*) n FROM ce_jobs WHERE status IN ("queued","running") AND created_at < NOW() - INTERVAL 30 MINUTE')['n'] ?? 0);
             $stLabel = ['queued' => 'في الطابور', 'running' => 'شغال', 'done' => 'خلص', 'failed' => 'فشل', 'cancelled' => 'اتلغى']; ?>
-            <div class="a2-kpis" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:14px">
-                <div class="card"><div class="a2-muted">كريدت محجوز دلوقتي</div><b style="font-size:22px"><?= (int) $held['s'] ?></b> <small class="a2-muted">في <?= (int) $held['n'] ?> حجز</small></div>
-                <div class="card"><div class="a2-muted">شغل واقف من أكتر من 30 دقيقة</div><b style="font-size:22px;color:<?= $stuck ? '#d9534f' : 'inherit' ?>"><?= $stuck ?></b>
-                    <?php if ($stuck && !ce_worker_alive()): ?><small class="a2-muted"> — الـ cron مش شغال</small><?php endif; ?></div>
+            <div class="ce-kpis">
+                <div class="a2-kpi"><small>كريدت محجوز دلوقتي</small><b><?= (int) $held['s'] ?></b><em>في <?= (int) $held['n'] ?> حجز</em></div>
+                <div class="a2-kpi"><small>شغل واقف من أكتر من 30 دقيقة</small><b style="color:<?= $stuck ? '#C2362E' : 'inherit' ?>"><?= $stuck ?></b>
+                    <em><?= $stuck && !ce_worker_alive() ? 'الـ cron مش شغال' : '&nbsp;' ?></em></div>
             </div>
             <div class="card"><div class="a2-tw"><table class="a2-tbl"><thead><tr><th>#</th><th>العميل</th><th>النوع</th><th>الحالة</th><th>المحاولات</th><th>الكريدت (محجوز/اتصرف/رجع)</th><th>الوقت</th><th></th></tr></thead><tbody>
                 <?php foreach ($jobs as $j): ?>
@@ -369,4 +546,16 @@ $secret = (string) get_setting('cron_secret', '');
         <?php endif; ?>
     </main>
 </div>
+<script>
+// مجموع الأوزان لحظيًا (لازم 100)
+document.querySelectorAll('.ce-sum[data-sum]').forEach(function (b) {
+    var f = b.closest('form'), pre = b.dataset.sum;
+    var calc = function () {
+        var t = 0;
+        f.querySelectorAll('input').forEach(function (i) { if (i.name.indexOf(pre) === 0) t += parseInt(i.value || 0, 10) || 0; });
+        b.textContent = 'المجموع: ' + t; b.classList.toggle('bad', t !== 100);
+    };
+    f.addEventListener('input', calc); calc();
+});
+</script>
 <?php include __DIR__ . '/../templates/admin-footer.php'; ?>

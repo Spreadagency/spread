@@ -145,7 +145,7 @@ function ce_job_register(string $kind, string $fn, string $label, ?string $onCan
 function ce_job_handlers(): array
 {
     // كل وحدة بتسجّل الـ handlers بتاعتها لما تتحمّل
-    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php', 'ce-write.php'] as $f) {
+    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php', 'ce-write.php', 'ce-design.php'] as $f) {
         if (is_file(__DIR__ . '/' . $f)) require_once __DIR__ . '/' . $f;
     }
     return $GLOBALS['__ce_job_handlers'] ?? [];
@@ -367,7 +367,7 @@ function ce_tokens_est(string $s): int
  * الـ system ثابت (أول البرومبت) عشان الـ prompt caching عند المزودين اللي بيدعموه.
  * @return array{ok:bool, data:?array, text:string, error:?string, usage:array, cost_usd:float, run_id:?int, model:?string}
  */
-function ce_ai_json(string $task, string $system, string $user, array $ctx = [], int $maxTokens = 1500, float $temperature = 0.3): array
+function ce_ai_json(string $task, string $system, string $user, array $ctx = [], int $maxTokens = 1500, float $temperature = 0.3, array $images = []): array
 {
     require_once __DIR__ . '/ai-gateway.php';
     $out = ['ok' => false, 'data' => null, 'text' => '', 'error' => null, 'usage' => ['in' => 0, 'out' => 0], 'cost_usd' => 0.0, 'run_id' => null, 'model' => null, 'provider' => null];
@@ -376,7 +376,10 @@ function ce_ai_json(string $task, string $system, string $user, array $ctx = [],
         return $out;
     }
     $r = ai_run($task, [
-        'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $user]],
+        // صور داخلة للموديل (مراجعة الصورة): data URI أو رابط — والـ gateway بيختار مزود بيدعم الرؤية
+        'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $images
+            ? array_merge([['type' => 'text', 'text' => $user]], array_map(fn($u) => ['type' => 'image_url', 'image_url' => ['url' => $u]], array_slice($images, 0, 4)))
+            : $user]],
         'max_tokens' => $maxTokens, 'temperature' => $temperature, 'json' => true,
     ], $ctx + ['feature' => 'content_engine']);
     $out['usage'] = $r['usage'] ?? $out['usage'];

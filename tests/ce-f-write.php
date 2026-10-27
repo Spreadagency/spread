@@ -105,8 +105,8 @@ $ctx0 = ce_plan_ctx($uid, ce_campaign_get($c0, $uid));
 $br = ['headline' => 'واحد اتنين تلاتة أربعة خمسة ستة سبعة تمانية تسعة'];
 [$b, $err] = ce_content_check(['hooks' => ['أ', 'ب'], 'body' => 'نص', 'cta' => 'احجز', 'design_brief' => $br], 'post', $ctx0, $ctx0['brief']);
 t('بوست بـ 2 Hooks ← خطأ', (bool) array_filter($err, fn($e) => str_contains($e, '3 Hooks')), json_encode($err, JSON_UNESCAPED_UNICODE));
-t('العنوان بيتقصّ لـ 7 كلمات · المقاس 4:5 · كل حقول الـ brief موجودة',
-    count(explode(' ', $b['design_brief']['headline'])) === 7 && $b['design_brief']['aspect_ratio'] === '4:5' && !array_diff(CE_BRIEF_FIELDS, array_keys($b['design_brief'])));
+t('العنوان بيتقصّ لـ 7 كلمات · مقاس البوست 1:1 · كل حقول الـ brief موجودة',
+    count(explode(' ', $b['design_brief']['headline'])) === 7 && $b['design_brief']['aspect_ratio'] === '1:1' && !array_diff(CE_BRIEF_FIELDS, array_keys($b['design_brief'])));
 [, $err] = ce_content_check(['slides' => [['text' => 'أ'], ['text' => 'ب'], ['text' => 'ج']], 'cta' => 'x', 'design_brief' => []], 'carousel', $ctx0, $ctx0['brief']);
 t('كاروسيل 3 شرائح ← خطأ', (bool) array_filter($err, fn($e) => str_contains($e, '5 لـ 8')));
 [$b, $err] = ce_content_check(['scenes' => [['time' => '0-2s', 'visual' => 'أ'], ['time' => '2-60s', 'voiceover' => 'ب']], 'cta' => 'x', 'design_brief' => []], 'reel', $ctx0, $ctx0['brief']);

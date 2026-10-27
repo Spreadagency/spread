@@ -89,12 +89,16 @@ function admin_nav(): array
             ['templates', 'القوالب', 'Templates', 'layout', 'admin/templates.php', 'view_content', ['templates']],
             ['watermark', 'العلامة المائية', 'Watermark', 'drop', 'admin/watermark.php', 'site_settings', ['watermark']],
         ],
-        'AI CENTER' => [
-            ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
+        // محرك المحتوى الجديد ومراقبته: مجموعة لوحدها
+        'CONTENT ENGINE' => [
+            ['ce-settings', 'محرك المحتوى', 'Content Engine', 'spark', 'admin/ce-settings.php', 'ai_settings', ['ce-settings']],
             // مركز الجودة: زرار واحد — الصفحات الخمسة (التقرير · التقييمات · البلاغات · سجل الـ MCP · الإعدادات) تبويبات جوّاه
             ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
+            ['mcp-setup', 'إعدادات الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
+        ],
+        'AI CENTER' => [
+            ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
             ['ai-models', 'الموديلات (السجل والمراحل)', 'Model Registry', 'cpu', 'admin/ai-models.php', 'ai_settings', ['ai-models']],
-            ['ce-settings', 'محرك المحتوى (الإعدادات والشغل)', 'Content Engine', 'spark', 'admin/ce-settings.php', 'ai_settings', ['ce-settings']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
             ['prompts', 'مكتبة البرومبتات', 'Prompt Library', 'text', 'admin/prompts.php', 'ai_settings', ['prompts', 'type-prompts']],
             ['brand-learning', 'مكتبة التعلّم', 'Learning Library', 'flask', 'admin/brand-learning.php', 'ai_settings', ['brand-learning']],
@@ -103,7 +107,6 @@ function admin_nav(): array
             ['style-presets', 'مكتبة الـ Presets', 'Style Presets', 'sliders', 'admin/style-presets.php', 'ai_settings', ['style-presets']],
             ['ai-logs', 'سجل طلبات الـ AI', 'AI Request Logs', 'list', 'admin/ai-runs.php', 'view_costs', ['ai-logs', 'ai-runs']],
             ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
-            ['mcp-setup', 'إعداد الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
         ],
         'PUBLISHING' => [
             ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],

@@ -19,7 +19,7 @@
     var app = {
       loading: true, busy: false, view: 'home', toast: null, worker: false,
       st: {}, opts: {}, job: null, campaigns: [], balance: 0, d: null, brandKitUrl: root.dataset.brandkit,
-      p: null, dirty: false, dragFrom: -1, dragOver: -1, wr: null, wc: null, openQa: {},
+      p: null, dirty: false, dragFrom: -1, dragOver: -1, wr: null, wc: null, openQa: {}, dz: null, dEdit: { slot: 0, frame: 0, headline: '', subline: '', template_id: 0 }, dZoom: null,
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
       statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
@@ -271,9 +271,10 @@
       openWrite: async function (id) {
         var r = await A.get('engine', { action: 'write', id: id });
         if (!r.ok) { this.say(r.error, 'danger'); return; }
-        this.wr = r.write; this.wc = r.campaign; this.balance = r.balance; this.worker = r.worker;
-        if (this.view !== 'write') { this.view = 'write'; this.openQa = {}; window.scrollTo(0, 0); }
+        this.wr = r.write; this.wc = r.campaign; this.dz = r.design; this.balance = r.balance; this.worker = r.worker;
+        if (this.view !== 'write') { this.view = 'write'; this.openQa = {}; this.dEdit.slot = 0; window.scrollTo(0, 0); }
         if (this.wr.job && this.wr.job.active) this.pollWrite(this.wr.job.id, id);
+        else if (this.dz && this.dz.job && this.dz.job.active) this.pollWrite(this.dz.job.id, id, true);
       },
       startWrite: async function () {
         var id = this.p.campaign.id;
@@ -284,19 +285,20 @@
         this.balance = r.balance;
         await this.openWrite(id);
       },
-      pollWrite: function (jobId, cid) {
+      pollWrite: function (jobId, cid, design) {
         var self = this, seen = -1;
         clearTimeout(pollTimer);
         var tick = async function () {
           if (self.view !== 'write') return;
           var r = self.worker ? await A.get('engine', { action: 'job', id: jobId }) : await A.post('engine', 'job_step', { id: jobId });
           if (!r.ok) { pollTimer = setTimeout(tick, 4000); return; }
-          self.worker = r.worker; self.wr.job = r.job;
+          self.worker = r.worker;
+          if (design) self.dz.job = r.job; else self.wr.job = r.job;
           // خانة خلصت ← حدّث الكروت من غير ما نستنى الحملة كلها
           var st = r.job.progress;
-          if (st !== seen) { seen = st; var w = await A.get('engine', { action: 'write', id: cid }); if (w.ok) { self.wr.slots = w.write.slots; } }
+          if (st !== seen) { seen = st; var w = await A.get('engine', { action: 'write', id: cid }); if (w.ok) { self.wr.slots = w.write.slots; self.dz.by_slot = w.design.by_slot; } }
           if (r.job.active) { pollTimer = setTimeout(tick, self.worker ? 2500 : 600); return; }
-          if (r.job.status === 'done') self.say('المحتوى جاهز ✓');
+          if (r.job.status === 'done') self.say(design ? 'التصميمات جاهزة ✓' : 'المحتوى جاهز ✓');
           else if (r.job.status === 'failed') self.say(r.job.error || 'وقفت', 'danger');
           await self.openWrite(cid);
         };
@@ -307,6 +309,55 @@
         clearTimeout(pollTimer);
         if (r.ok) { this.balance = r.balance; this.say('اتلغى — اتحسب اللي اتكتب بس والباقي رجع لرصيدك'); await this.openWrite(this.wc.id); }
         else this.say(r.error, 'danger');
+      },
+
+      /* ─── التصميم (المرحلة G) ─── */
+      designBusy: function () { return this.dz && this.dz.job && this.dz.job.active; },
+      designsOf: function (s) { return (this.dz && this.dz.by_slot && this.dz.by_slot[s.id]) || []; },
+      tplsFor: function (fmt) { return ((this.dz && this.dz.templates) || []).filter(function (t) { return t.formats.indexOf(fmt) >= 0; }); },
+      dStatus: { pending: 'لسه', generating: 'بنصمم…', pass: 'جاهز', manual: 'محتاج مراجعتك', failed: 'ماتصممش' },
+      dTone: function (d) { return ({ pass: 'ok', manual: 'warn', failed: 'bad' })[d.status] || ''; },
+      startDesign: async function () {
+        this.busy = true;
+        var r = await A.post('engine', 'design_start', { id: this.wc.id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.balance = r.balance;
+        await this.openWrite(this.wc.id);
+      },
+      cancelDesignJob: async function () {
+        var r = await A.post('engine', 'job_cancel', { id: this.dz.job.id });
+        clearTimeout(pollTimer);
+        if (r.ok) { this.balance = r.balance; this.say('اتلغى — اتحسب اللي اتصمم بس والباقي رجع لرصيدك'); await this.openWrite(this.wc.id); }
+        else this.say(r.error, 'danger');
+      },
+      redoDesign: async function (s, d) {
+        if (!confirm('نعمل صورة جديدة للتصميم ده؟ (بيتخصم كريدت صورة)')) return;
+        this.busy = true;
+        var r = await A.post('engine', 'design_redo', { id: this.wc.id, slot_id: s.id, frame: d.frame });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.balance = r.balance;
+        await this.openWrite(this.wc.id);
+      },
+      editDesign: function (s, d) {
+        // كائن ثابت (مش null) — الحقول المربوطة بـ v-model مابتقراش من null وهي بتتشال
+        Object.assign(this.dEdit, { slot: s.id, frame: d.frame, headline: d.headline || '', subline: d.subline || '', template_id: d.template_id || ((this.tplsFor(s.format)[0] || {}).id || 0) });
+      },
+      saveDesignText: async function () {
+        var e = this.dEdit;
+        this.busy = true;
+        var r = await A.post('engine', 'design_text', { id: this.wc.id, slot_id: e.slot, frame: e.frame, headline: e.headline, subline: e.subline, template_id: e.template_id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.dz = r.design; this.dEdit.slot = 0;
+        this.say('اتحدّث ✓');
+      },
+      acceptDesign: async function (s, d) {
+        var r = await A.post('engine', 'design_accept', { id: this.wc.id, slot_id: s.id, frame: d.frame });
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.dz = r.design;
+        this.say('اتعتمد ✓');
       },
       swapIdea: async function (s, idea) {
         if (!confirm(idea.selected ? 'نكتب نفس الفكرة من جديد؟' : 'نكتب الخانة دي بالفكرة دي بدل الحالية؟')) return;
@@ -323,7 +374,7 @@
         this.wr = r.write;
         this.say('اتعتمدت ✓');
       },
-      writeBusy: function () { return this.wr && this.wr.job && this.wr.job.active; },
+      writeBusy: function () { return (this.wr && this.wr.job && this.wr.job.active) || this.designBusy(); },
       fmtLabel: { post: 'بوست', carousel: 'كاروسيل', reel: 'ريلز' },
       dimLabel: { balance: 'التوازن', non_repetition: 'عدم التكرار', coverage: 'التغطية', sequence: 'التسلسل', cta: 'الـ CTA', goal_fit: 'مناسبة الهدف' },
       briefLabel: { layout: 'التكوين', focal_subject: 'العنصر الأساسي', characters_refs: 'الشخصيات', colors_hex: 'الألوان', headline: 'العنوان', subline: 'السطر التاني', text_safe_zone: 'مكان النص', mood: 'الإحساس', lighting: 'الإضاءة', camera_angle: 'زاوية الكاميرا', aspect_ratio: 'المقاس' },

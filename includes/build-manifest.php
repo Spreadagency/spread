@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-27',
-  'generated' => '2026-10-27 10:55',
+  'generated' => '2026-10-27 14:39',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -183,6 +183,18 @@ return array (
     174 => 'includes/ce-write.php',
     175 => 'sql/2026_ce_content.sql',
     176 => 'sql/2026_ce_content_rollback.sql',
+    177 => 'includes/ce-design.php',
+    178 => 'includes/ce-overlay.php',
+    179 => 'admin/ce-template-preview.php',
+    180 => 'sql/2026_ce_design.sql',
+    181 => 'sql/2026_ce_design_rollback.sql',
+    182 => 'assets/fonts/Cairo-400.ttf',
+    183 => 'assets/fonts/Cairo-700.ttf',
+    184 => 'assets/fonts/Cairo-800.ttf',
+    185 => 'assets/fonts/Tajawal-400.ttf',
+    186 => 'assets/fonts/Tajawal-700.ttf',
+    187 => 'assets/fonts/Tajawal-800.ttf',
+    188 => 'assets/fonts/OFL.txt',
   ),
   'files' => 
   array (
@@ -293,8 +305,13 @@ return array (
     ),
     'admin/ce-settings.php' => 
     array (
-      'h' => '2d804a02bc5b60a5b8c4ee839d64396d',
-      's' => 35777,
+      'h' => 'ba19bf7f2380f29ce5a271fa21201cb6',
+      's' => 53811,
+    ),
+    'admin/ce-template-preview.php' => 
+    array (
+      'h' => '6c7f610ef11960ea7a2e01a86043c538',
+      's' => 2022,
     ),
     'admin/content-history.php' => 
     array (
@@ -528,8 +545,8 @@ return array (
     ),
     'assets/css/admin-v2.css' => 
     array (
-      'h' => 'c73fc5cd4bf67e3c791dd198c40ceb00',
-      's' => 35691,
+      'h' => '7c490fdeffbe2ba720a7b0aff82b3290',
+      's' => 39000,
     ),
     'assets/css/brand-kit.css' => 
     array (
@@ -543,8 +560,8 @@ return array (
     ),
     'assets/css/engine.css' => 
     array (
-      'h' => '95fa50435ad6dad43413376edb89ecdc',
-      's' => 9967,
+      'h' => 'f669ac3f37118440d60a30c188bee915',
+      's' => 11704,
     ),
     'assets/css/main.css' => 
     array (
@@ -581,6 +598,41 @@ return array (
       'h' => '1a6f11a8202d1ebe78c6b64849f6024a',
       's' => 3542,
     ),
+    'assets/fonts/Cairo-400.ttf' => 
+    array (
+      'h' => '9baf6c2d0e75f4b5554d6cc8381375fb',
+      's' => 91498,
+    ),
+    'assets/fonts/Cairo-700.ttf' => 
+    array (
+      'h' => 'e175bb1edfc69945366527c2b0dab347',
+      's' => 91654,
+    ),
+    'assets/fonts/Cairo-800.ttf' => 
+    array (
+      'h' => 'f4652f500039fb6bc2a5b31b94a4f01e',
+      's' => 91739,
+    ),
+    'assets/fonts/OFL.txt' => 
+    array (
+      'h' => '7dbc5cded8a27512de3ad5e3012da05a',
+      's' => 4560,
+    ),
+    'assets/fonts/Tajawal-400.ttf' => 
+    array (
+      'h' => '2901ad38b474dc4a05539a0d2a523d10',
+      's' => 55072,
+    ),
+    'assets/fonts/Tajawal-700.ttf' => 
+    array (
+      'h' => 'abbc43b574296d7ef01527f3e3400ce5',
+      's' => 55519,
+    ),
+    'assets/fonts/Tajawal-800.ttf' => 
+    array (
+      'h' => 'e9f43c4a6a4531c3d95e250b9f479520',
+      's' => 55244,
+    ),
     'assets/js/admin-v2.js' => 
     array (
       'h' => 'f4a0f4534e4ae6e1f29d2d372ca6d0ba',
@@ -598,8 +650,8 @@ return array (
     ),
     'assets/js/engine.js' => 
     array (
-      'h' => '43e6c703eca4696df725f1c9f6007d7a',
-      's' => 21909,
+      'h' => '9a77e4ec6e5bbe53b16780d3d07c02bf',
+      's' => 25249,
     ),
     'assets/js/main.js' => 
     array (
@@ -673,13 +725,13 @@ return array (
     ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
-      'h' => 'c1ea11ae2c010cdf302f852ef57cbe71',
-      's' => 16937,
+      'h' => 'ea06727de173d7fe25f3b889691fc28d',
+      's' => 22612,
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'b496338ee6918cbab484c298fee067a3',
-      's' => 13341,
+      'h' => '3332bdbc65958f75f484451729694793',
+      's' => 15425,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -703,8 +755,8 @@ return array (
     ),
     'includes/account.php' => 
     array (
-      'h' => 'f75a8031146e8897b3fee8b6be169cea',
-      's' => 20714,
+      'h' => 'a31c1ef10bf90bfc7d88873b387fe12c',
+      's' => 21135,
     ),
     'includes/admin-auth.php' => 
     array (
@@ -718,8 +770,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '9466de130cca8c1866b677136a54daed',
-      's' => 14887,
+      'h' => '4dca198ebc2aa618978e4db5753311bb',
+      's' => 14990,
     ),
     'includes/ai-center.php' => 
     array (
@@ -753,8 +805,8 @@ return array (
     ),
     'includes/api.php' => 
     array (
-      'h' => 'ea6c1a0191b336cdbed2a6dec198fa55',
-      's' => 8525,
+      'h' => 'e33e74e864a9f140209c53499573cebd',
+      's' => 8535,
     ),
     'includes/auth.php' => 
     array (
@@ -783,8 +835,13 @@ return array (
     ),
     'includes/ce-campaign.php' => 
     array (
-      'h' => '1af35ae84375d7ee740508c8cee1aa0b',
-      's' => 19143,
+      'h' => '511abc98bcdd0eb97079c1e30dd7bacd',
+      's' => 19736,
+    ),
+    'includes/ce-design.php' => 
+    array (
+      'h' => '0eba3ee9008528f68d7a3aab70607d33',
+      's' => 36819,
     ),
     'includes/ce-dna.php' => 
     array (
@@ -793,8 +850,13 @@ return array (
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => '9d1c11c50917e1a2e44ffdb37f608228',
-      's' => 21724,
+      'h' => 'e1d679f226896ceb69a7e3821ee0b665',
+      's' => 22115,
+    ),
+    'includes/ce-overlay.php' => 
+    array (
+      'h' => '83f8eb3da88ec21dd414d6f9889e0fd1',
+      's' => 25271,
     ),
     'includes/ce-plan.php' => 
     array (
@@ -803,8 +865,8 @@ return array (
     ),
     'includes/ce-write.php' => 
     array (
-      'h' => '759719790aac59aa8c1b1fcd2a73b74d',
-      's' => 47001,
+      'h' => '34f3faf16e8580aa6ae42c8d54f8723c',
+      's' => 47108,
     ),
     'includes/config.sample.php' => 
     array (
@@ -893,8 +955,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '5d0eadf6f24bc917ff3a88fb4b7b7565',
-      's' => 13981,
+      'h' => '13cc7f0e685f0e12d62cb2945505b81a',
+      's' => 14155,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1198,8 +1260,8 @@ return array (
     ),
     'public/api/engine.php' => 
     array (
-      'h' => '6a8dbbcc12d922fd927686d4139f64ac',
-      's' => 9976,
+      'h' => 'f3a4728579d9c797286969e5e2a2a4ac',
+      's' => 12311,
     ),
     'public/api/inbox.php' => 
     array (
@@ -1388,8 +1450,8 @@ return array (
     ),
     'public/engine.php' => 
     array (
-      'h' => '364f23a1204fd7f9e8e2698f59f6dbd4',
-      's' => 39937,
+      'h' => '6c0e74586ca55ebca68f36fbe8f93202',
+      's' => 44849,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1605,6 +1667,16 @@ return array (
     array (
       'h' => 'bb4daf05d48709ed0301baa250d15de5',
       's' => 1453,
+    ),
+    'sql/2026_ce_design.sql' => 
+    array (
+      'h' => 'c819fc96a3749c72aa4b4c211a1cfb90',
+      's' => 5626,
+    ),
+    'sql/2026_ce_design_rollback.sql' => 
+    array (
+      'h' => 'c4bbe63654eaeb6ebbea81e46d542fde',
+      's' => 968,
     ),
     'sql/2026_ce_engine.sql' => 
     array (
