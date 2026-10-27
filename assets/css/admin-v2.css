@@ -488,3 +488,26 @@ body.adm2 .st-nav a { color: #4A5468; } body.adm2 .st-nav a.on { color: #fff; } 
 .dg-row b { color: #4A5468; } .dg-row b.bad { color: #C2362E; }
 .dg-sum.warn { border-color: #F2A93B; }
 .dg-list.warn { color: #8A5A10; }
+
+/* ─── القائمة: مجموعات بتتقفل وتتفتح — المفتوحة بس هي مجموعة الصفحة الحالية ─── */
+body.adm2 .nav .nav-gbtn {
+    width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; cursor: pointer;
+    border-radius: 10px; margin-top: 2px; text-align: start;
+}
+body.adm2 .nav .nav-gbtn > span:first-child { flex: 1; text-align: right; }
+body.adm2 .nav .nav-gbtn:hover { color: #5B6478; background: rgba(12, 135, 239, .04); }
+body.adm2 .nav .nav-gbtn svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform .25s cubic-bezier(.16, 1, .3, 1); transform: rotate(180deg); }
+body.adm2 .nav .nav-grp.open > .nav-gbtn { color: #0A5FCF; }
+body.adm2 .nav .nav-grp.open > .nav-gbtn svg { transform: rotate(90deg); }
+body.adm2 .nav .nav-gitems { overflow: hidden; }
+body.adm2 .nav .nav-gitems > a { transition: height .25s cubic-bezier(.16, 1, .3, 1), opacity .2s, margin .25s, background .25s, color .2s; }
+body.adm2 .nav .nav-grp:not(.open) .nav-gitems > a { height: 0; margin: 0; opacity: 0; pointer-events: none; visibility: hidden; }
+body.adm2 .nav .a2-gcnt {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0; background: #FDECEC; color: #C2362E;
+}
+body.adm2 .nav .nav-grp.open .a2-gcnt { display: none; }
+/* القائمة المصغّرة: كل الأيقونات ظاهرة والعناوين فواصل بس */
+body.adm2.a2-mini .nav .nav-gbtn { justify-content: center; pointer-events: none; }
+body.adm2.a2-mini .nav .nav-gbtn svg, body.adm2.a2-mini .nav .a2-gcnt { display: none; }
+body.adm2.a2-mini .nav .nav-grp:not(.open) .nav-gitems > a { height: 42px; margin: 1px 0; opacity: 1; pointer-events: auto; visibility: visible; }

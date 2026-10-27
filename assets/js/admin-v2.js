@@ -133,6 +133,18 @@
     }
 
     // 5) تصغير القائمة (ديسكتوب)
+    /* القائمة: فتح مجموعة بيقفل الباقي (accordion) */
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest && e.target.closest('.nav-gbtn');
+        if (!btn || body.classList.contains('a2-mini')) return;
+        var grp = btn.parentElement, open = !grp.classList.contains('open');
+        document.querySelectorAll('.sidebar .nav-grp.open').forEach(function (g) {
+            if (g !== grp) { g.classList.remove('open'); g.querySelector('.nav-gbtn').setAttribute('aria-expanded', 'false'); }
+        });
+        grp.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
     window.a2Collapse = function () {
         var on = body.classList.toggle('a2-mini');
         try { localStorage.setItem('a2-mini', on ? '1' : '0'); } catch (e) {}

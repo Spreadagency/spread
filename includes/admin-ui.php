@@ -91,6 +91,8 @@ function admin_nav(): array
         ],
         'AI CENTER' => [
             ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
+            // مركز الجودة: زرار واحد — الصفحات الخمسة (التقرير · التقييمات · البلاغات · سجل الـ MCP · الإعدادات) تبويبات جوّاه
+            ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
             ['ai-models', 'الموديلات (السجل والمراحل)', 'Model Registry', 'cpu', 'admin/ai-models.php', 'ai_settings', ['ai-models']],
             ['ce-settings', 'محرك المحتوى (الإعدادات والشغل)', 'Content Engine', 'spark', 'admin/ce-settings.php', 'ai_settings', ['ce-settings']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
@@ -102,13 +104,6 @@ function admin_nav(): array
             ['ai-logs', 'سجل طلبات الـ AI', 'AI Request Logs', 'list', 'admin/ai-runs.php', 'view_costs', ['ai-logs', 'ai-runs']],
             ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
             ['mcp-setup', 'إعداد الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
-        ],
-        'AI QUALITY' => [
-            ['ai-report', 'التقرير اليومي', 'Daily Report', 'chart', 'admin/ai-report.php', 'ai_settings', ['ai-report']],
-            ['ai-evaluations', 'تقييمات المحتوى', 'Content Evaluations', 'gauge', 'admin/ai-evaluations.php', 'ai_settings', ['ai-evaluations']],
-            ['ai-issues', 'البلاغات', 'User Issues', 'warn', 'admin/ai-issues.php', 'view_users', ['ai-issues'], 'issues'],
-            ['ai-mcp-log', 'سجل الـ MCP', 'MCP Audit Log', 'list', 'admin/ai-mcp-log.php', 'ai_settings', ['ai-mcp-log']],
-            ['ai-quality-settings', 'إعدادات الجودة', 'Quality Settings', 'sliders', 'admin/ai-quality-settings.php', 'ai_settings', ['ai-quality-settings']],
         ],
         'PUBLISHING' => [
             ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
@@ -134,6 +129,18 @@ function admin_nav(): array
             ['migrations', 'الترحيلات', 'Migrations', 'db', 'admin/migrations.php', 'site_settings', ['migrations']],
             ['ui-diagnose', 'فحص التحديث', 'Update Check', 'tool', 'admin/ui-diagnose.php', 'site_settings', ['ui-diagnose']],
         ],
+    ];
+}
+
+/** صفحات جوه زرار واحد (تبويبات) — بتظهر في البحث العام بس: [label, en, url, perm] */
+function admin_nav_search_extra(): array
+{
+    return [
+        ['التقرير اليومي', 'Daily Report', 'admin/ai-report.php', 'ai_settings'],
+        ['تقييمات المحتوى', 'Content Evaluations', 'admin/ai-evaluations.php', 'ai_settings'],
+        ['البلاغات', 'User Issues', 'admin/ai-issues.php', 'view_users'],
+        ['سجل الـ MCP', 'MCP Audit Log', 'admin/ai-mcp-log.php', 'ai_settings'],
+        ['إعدادات الجودة', 'Quality Settings', 'admin/ai-quality-settings.php', 'ai_settings'],
     ];
 }
 

@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-27',
-  'generated' => '2026-10-27 09:32',
+  'generated' => '2026-10-27 10:34',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -525,8 +525,8 @@ return array (
     ),
     'assets/css/admin-v2.css' => 
     array (
-      'h' => '7281643cc4d2e5c7d70589fc84f5442b',
-      's' => 33821,
+      'h' => 'c73fc5cd4bf67e3c791dd198c40ceb00',
+      's' => 35691,
     ),
     'assets/css/brand-kit.css' => 
     array (
@@ -580,8 +580,8 @@ return array (
     ),
     'assets/js/admin-v2.js' => 
     array (
-      'h' => '4b0233ffc40f3811e7f657885ebe0838',
-      's' => 9240,
+      'h' => 'f4a0f4534e4ae6e1f29d2d372ca6d0ba',
+      's' => 9930,
     ),
     'assets/js/brand-kit-post.js' => 
     array (
@@ -715,8 +715,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => 'f18e57310ce49cb72c5356a451209235',
-      's' => 14551,
+      'h' => '9466de130cca8c1866b677136a54daed',
+      's' => 14887,
     ),
     'includes/ai-center.php' => 
     array (
@@ -1820,8 +1820,8 @@ return array (
     ),
     'templates/admin-sidebar.php' => 
     array (
-      'h' => '9f8c6bcfc4f621035de80b61c829afd8',
-      's' => 8470,
+      'h' => '767d712f666fea386f7a22f8f2c22916',
+      's' => 9579,
     ),
     'templates/brand-kit-post.php' => 
     array (
