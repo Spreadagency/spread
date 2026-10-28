@@ -60,6 +60,8 @@ function ce_wizard_options(int $uid): array
         'max_pieces' => max(1, ce_setting_int('ce_max_pieces', 60)),
         'default_channel' => isset(CE_CHANNELS[$dna['cta']['type'] ?? '']) ? $dna['cta']['type'] : 'whatsapp',
         'reel_cover_default' => ce_setting_int('ce_reel_cover', 0) === 1,
+        // أسئلة إضافية من Skill التخصص (اختيارية)
+        'skill' => ($sk = ce_skill_for_dna($dna)) ? ['name' => $sk['name'], 'questions' => ce_skill_questions($sk)] : null,
     ];
 }
 
@@ -126,12 +128,24 @@ function ce_brief_clean(int $uid, array $in): array
         if (count($excl) >= 12) break;
     }
 
+    // إجابات أسئلة المجال (من الـ Skill) — اختيارية وقصيرة، والسؤال لازم يكون من الأسئلة الحالية
+    $answers = [];
+    $qs = $opt['skill']['questions'] ?? [];
+    foreach ((array) ($in['skill_answers'] ?? []) as $x) {
+        if (!is_array($x)) continue;
+        $q = $s($x['q'] ?? '', 160);
+        $a = $s($x['a'] ?? '', 200);
+        if ($a !== '' && in_array($q, $qs, true)) $answers[] = ['q' => $q, 'a' => $a];
+        if (count($answers) >= 5) break;
+    }
+
     return [[
         'goal' => $goal, 'goal_other' => $goalOther, 'all_services' => $allSvc, 'service_ids' => $services, 'persona_ids' => $personas,
         'character_id' => $character, 'formats' => $formats, 'days' => $days, 'offer' => $offer, 'channel' => $channel,
         'boldness' => $bold, 'exclusions' => $excl,
         // غلاف الريلز (صورة 9:16 بالعنوان) — اختيار العميل
         'reel_cover' => $formats['reel'] > 0 && !empty($in['reel_cover']) ? 1 : 0,
+        'skill_answers' => $answers,
     ], $err];
 }
 

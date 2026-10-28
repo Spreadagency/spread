@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
 require_once __DIR__ . '/../includes/ce-prompts.php';
+require_once __DIR__ . '/../includes/ce-skills.php';
 
 require_admin();
 require_admin_can('ai_settings');
@@ -99,6 +100,11 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     <div class="lab-sel">
                         <label class="ce-f"><span>البراند</span><select class="form-control" v-model.number="pg.uid"><option v-for="b in st.brands" :value="b.uid">{{ b.name }}</option></select></label>
                         <label class="ce-f"><span>الشكل</span><select class="form-control" v-model="pg.format"><option value="post">بوست</option><option value="carousel">كاروسيل</option><option value="reel">ريلز</option></select></label>
+                        <label class="ce-f"><span>Skill التخصص</span><select class="form-control" v-model="pg.skill">
+                            <option value="auto">من البراند{{ pg.brandSkill ? ' — ' + pg.brandSkill.name + ' v' + pg.brandSkill.version : '' }}</option>
+                            <option value="none">من غير Skill</option>
+                            <optgroup v-for="s in st.skills" :key="s.id" :label="s.name"><option v-for="v in s.versions" :key="v.id" :value="String(v.id)">{{ s.name }} v{{ v.version }}{{ v.active ? ' (الشغالة)' : '' }}</option></optgroup>
+                        </select></label>
                         <label class="ce-f"><span>البرومبت</span><select class="form-control" v-model="pg.src">
                             <option value="active">النسخة الشغالة</option><option value="draft" :disabled="!edBody">المسودة اللي في المحرر</option>
                             <option v-for="v in versionsAll()" :value="'v' + v.id">v{{ v.version }}{{ v.is_active ? ' (شغالة)' : '' }}</option></select></label>

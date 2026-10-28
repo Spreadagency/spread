@@ -12,9 +12,17 @@
       return { goal: '', goal_other: '', all_services: false, service_ids: [], persona_ids: [], character_id: 0,
         formats: { post: 6, carousel: 2, reel: 0 }, days: 30,
         offer: { type: '', value: 0, what: '', days: 0, condition: '', condition_other: '' },
-        channel: ch || 'whatsapp', boldness: 'medium', exclusions: [], reel_cover: false };
+        channel: ch || 'whatsapp', boldness: 'medium', exclusions: [], reel_cover: false, skill_answers: [] };
     };
     var pollTimer = null;
+    // أسئلة المجال (Skill التخصص): قايمة ثابتة {q, a} بنفس ترتيب الأسئلة — عشان v-model مايقعش على null
+    var skillAnswers = function (opts, old) {
+      var qs = (opts && opts.skill && opts.skill.questions) || [];
+      return qs.map(function (q) {
+        var hit = (old || []).filter(function (x) { return x && x.q === q; })[0];
+        return { q: q, a: hit ? String(hit.a || '') : '' };
+      });
+    };
 
     var app = {
       loading: true, busy: false, view: 'home', toast: null, worker: false,
@@ -39,6 +47,7 @@
         if (!r.ok) { this.loading = false; this.say(r.error, 'danger'); return; }
         this.st = r.dna_state; this.opts = r.options; this.campaigns = r.campaigns; this.balance = r.balance; this.worker = r.worker;
         this.d = r.dna ? clone(r.dna) : null;
+        if (this.d && this.d.brand && this.d.brand.skill === undefined) this.d.brand.skill = '';
         this.job = r.dna_job;
         this.loading = false;
         if (this.job && this.job.active) this.poll(this.job.id);
@@ -94,6 +103,7 @@
         this.busy = false;
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.d = clone(r.dna); this.st = r.dna_state;
+        if (this.d.brand && this.d.brand.skill === undefined) this.d.brand.skill = '';
         this.say('اتحفظ ✓ — التعديلات دي مش هتتغير لو بنيت الملف تاني');
       },
       undoDna: async function () {
@@ -111,6 +121,7 @@
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.w = { step: 'goal', b: blankBrief(r.options.default_channel), opts: r.options, est: null, estBusy: false, err: '', id: 0, saved: false };
         this.w.b.reel_cover = !!r.options.reel_cover_default;
+        this.w.b.skill_answers = skillAnswers(r.options, []);
         this.balance = r.balance;
         this.view = 'wizard';
         window.scrollTo(0, 0);
@@ -122,12 +133,14 @@
         if (!o.ok) { this.say(o.error, 'danger'); return; }
         var b = Object.assign(blankBrief(o.options.default_channel), clone(c.brief || {}));
         b.reel_cover = !!b.reel_cover;
+        b.skill_answers = skillAnswers(o.options, b.skill_answers);
         if (!b.offer) b.offer = blankBrief().offer;
         this.w = { step: 'summary', b: b, opts: o.options, est: null, estBusy: false, err: '', id: c.id, saved: c.status === 'ready' };
         this.balance = o.balance;
         this.view = 'wizard';
         this.estimate();
       },
+      skillAnswered: function () { return (this.w.b.skill_answers || []).filter(function (x) { return x.a && x.a.trim(); }); },
       steps: function () { var g = this.w.b.goal; return STEPS.filter(function (s) { return s !== 'offer' || g === 'offer'; }); },
       stepNo: function () { return this.steps().indexOf(this.w.step) + 1; },
       pieces: function () { var f = this.w.b.formats; return (f.post || 0) + (f.carousel || 0) + (f.reel || 0); },

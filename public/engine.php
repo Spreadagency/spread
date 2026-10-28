@@ -80,6 +80,16 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                 <div class="ce-top"><button class="bk-link" @click="view = 'home'">→ رجوع</button>
                     <span class="bk-mute">~{{ tokensNow }} توكن من {{ opts.max_tokens }}</span></div>
 
+                <section class="bk-card" v-if="opts.skills && opts.skills.length">
+                    <h2>🧠 التخصص</h2>
+                    <p class="bk-mute">المحرك بيخطط ويكتب ويصمم بخبرة مجالك (قواعده وممنوعاته وأمثلته).</p>
+                    <select class="bk-in" v-model="d.brand.skill" aria-label="التخصص">
+                        <option value="">تلقائي{{ opts.skill_detected ? ' — ' + opts.skill_detected : ' (مفيش تخصص مطابق لمجالك)' }}</option>
+                        <option v-for="s in opts.skills" :key="s.key" :value="s.key">{{ s.name }}</option>
+                        <option value="none">عام (من غير تخصص)</option>
+                    </select>
+                </section>
+
                 <section class="bk-card">
                     <h2>🎯 التموضع</h2>
                     <p class="bk-mute">جملة واحدة: أنت لمين وبتحل إيه وبتختلف في إيه.</p>
@@ -244,6 +254,11 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <span v-for="x in customExclusions()" class="bk-chip no">{{ x }} <button class="ce-x" @click="w.b.exclusions.splice(w.b.exclusions.indexOf(x), 1)" aria-label="شيل">×</button></span>
                         <input class="ce-add" placeholder="+ حاجة تانية" @keyup.enter="addChip(w.b.exclusions, $event, 12)">
                     </div>
+                    <div v-if="w.b.skill_answers.length" class="ce-skillq">
+                        <h3>أسئلة عن مجالك ({{ w.opts.skill.name }}) <small class="bk-mute">— اختياري، بيساعدنا نكتب أدق</small></h3>
+                        <label v-for="(x, i) in w.b.skill_answers" :key="i" class="ce-skillq-i"><span>{{ x.q }}</span>
+                            <input class="bk-in" maxlength="200" v-model="x.a"></label>
+                    </div>
                 </section>
 
                 <section class="bk-card ce-sum" v-if="w.step === 'summary'">
@@ -256,6 +271,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <li v-if="w.b.goal === 'offer'"><b>العرض:</b> {{ offerLabel() }}</li>
                         <li><b>التواصل:</b> {{ labelOf(w.opts.channels, w.b.channel) }} · <b>الجرأة:</b> {{ labelOf(w.opts.boldness, w.b.boldness) }}</li>
                         <li v-if="w.b.exclusions.length"><b>من غير:</b> {{ w.b.exclusions.join('، ') }}</li>
+                        <li v-for="x in skillAnswered()"><b>{{ x.q }}</b> {{ x.a }}</li>
                     </ul>
                     <div v-if="w.estBusy" class="bk-mute" role="status">بنحسب التكلفة…</div>
                     <div v-if="w.est" class="ce-est">

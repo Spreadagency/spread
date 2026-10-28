@@ -621,3 +621,16 @@ tr.lab-on td { background: #F4FBF9; }
 .ce-adm .ce-warn { color: #9A5B00; }
 @media (max-width: 1000px) { .lab-grid { grid-template-columns: 1fr; } .lab-vars { position: static; } .lab-results { grid-template-columns: 1fr !important; } }
 
+
+/* ─── Skills التخصصات (H2) ─── */
+.ce-adm .ce-row-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ce-adm .ce-row-btns form { display: inline-flex; gap: 6px; align-items: center; margin: 0; }
+.ce-adm .ce-skill-up .ce-f, .ce-adm form > .ce-f { display: block; margin-bottom: 10px; }
+.ce-adm .ce-skill-map { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; font-size: 13px; }
+.ce-adm .ce-skill-blk { border: 1px solid #DCE6F0; border-radius: 10px; padding: 8px 12px; margin: 6px 0; }
+.ce-adm .ce-skill-blk summary { cursor: pointer; font-weight: 600; }
+.ce-adm .ce-skill-blk pre { white-space: pre-wrap; max-height: 280px; overflow: auto; background: #F6F9FC; padding: 10px; border-radius: 8px; font-size: 12px; line-height: 1.7; margin: 8px 0 0; }
+.ce-adm .ce-skill-ed { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.7; min-height: 360px; }
+.ce-adm .ce-skill-run { margin-top: 14px; }
+.ce-adm .a2-tbl tr.on td { background: #F2F8FF; }
+@media (max-width: 860px) { .ce-adm .ce-fgrid[style] { grid-template-columns: minmax(0, 1fr) !important; } }

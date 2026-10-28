@@ -86,6 +86,7 @@ function ce_plan_ctx(int $uid, array $c): array
     $start = $c['start_date'] ?? null;
     return [
         'uid' => $uid, 'campaign_id' => (int) $c['id'], 'brief' => $b, 'dna' => $dna, 'goal' => (string) ($b['goal'] ?? 'other'),
+        'skill' => ce_skill_for_campaign($c, $dna),
         'n' => $n, 'formats' => $formats, 'days' => max(1, (int) ($b['days'] ?? 30)),
         'start' => $start ?: date('Y-m-d', strtotime('+1 day')),
         'services' => $services, 'personas' => $personas, 'mix' => ce_funnel_mix((string) ($b['goal'] ?? 'other')),
@@ -467,6 +468,7 @@ function ce_plan_brief_text(array $ctx): string
         'قناة التواصل: ' . (CE_CHANNELS[$b['channel'] ?? ''][0] ?? ''),
         'مستوى الجرأة: ' . (CE_BOLDNESS[$b['boldness'] ?? ''][0] ?? '') . ' — ' . (CE_BOLDNESS[$b['boldness'] ?? ''][1] ?? ''),
         !empty($b['exclusions']) ? 'ممنوع في الحملة دي: ' . implode('، ', $b['exclusions']) : '',
+        !empty($b['skill_answers']) ? "أسئلة المجال:\n" . implode("\n", array_map(fn($x) => '- ' . $x['q'] . ' ' . $x['a'], $b['skill_answers'])) : '',
     ]));
 }
 
@@ -597,7 +599,7 @@ function ce_plan_job(array $job, array &$state): array
     $state += ['mode' => 'full', 'round' => 1, 'phase' => 'matrix', 'fixes' => [], 'cost_usd' => 0.0, 'best' => null, 'locked' => []];
     $locked = [];
     foreach ((array) $state['locked'] as $s) if (isset($s['position']) && $s['position'] < $ctx['n']) $locked[(int) $s['position']] = $s + ['locked' => true];
-    $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id']];
+    $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id'], 'skill' => $ctx['skill'] ?? null];
     $total = $state['mode'] === 'gate_only' ? 1 : $maxRounds * 2;
     $done = ($state['round'] - 1) * 2 + ($state['phase'] === 'gate' ? 1 : 0);
 
@@ -695,6 +697,10 @@ function ce_plan_start(int $uid, int $cid, string $mode = 'full'): array
     if ($st->rowCount() !== 1) {
         $active = ce_job_active_for($uid, 'campaign_plan', 'ce_campaign', $cid);
         return $active ? ['ok' => true, 'job' => $active, 'existing' => true] : ['ok' => false, 'code' => 'state', 'error' => 'حصل تغيير في نفس اللحظة — حدّث الصفحة'];
+    }
+    // الحملة بتفضل على نسخة الـ Skill اللي بدأت بيها (حتى لو الأدمن فعّل نسخة جديدة في النص)
+    if ($c['status'] === 'ready' && ($c['skill_version_id'] ?? null) === null) {
+        ce_skill_bind_campaign($cid, ce_skill_for_dna(ce_dna_get($uid) ?? []));
     }
     $locked = $mode === 'full' ? array_values(array_filter(ce_plan_slots_load($cid), fn($s) => $s['locked'])) : [];
     $state = $mode === 'gate_only' ? ['mode' => 'gate_only', 'phase' => 'gate'] : ['mode' => 'full', 'locked' => $locked];

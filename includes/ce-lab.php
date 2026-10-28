@@ -170,7 +170,8 @@ function ce_lab_input(string $stage, int $uid, string $format = 'post', array $p
         default:
             $user = '';
     }
-    return ['user' => $user, 'images' => $images, 'meta' => $meta, 'vars' => ce_prompt_vars($stage, $ctx)];
+    return ['user' => $user, 'images' => $images, 'meta' => $meta, 'vars' => ce_prompt_vars($stage, $ctx),
+            'skill' => !empty($ctx['skill']) ? ['version_id' => $ctx['skill']['version_id'], 'name' => $ctx['skill']['name'], 'version' => $ctx['skill']['version']] : null];
 }
 
 /* ═══════════════════ التشغيل (sandbox) ═══════════════════ */
@@ -339,9 +340,30 @@ function ce_lab_score(string $stage, ?array $d, array $meta = [], ?array $expect
 
 /* ═══════════════════ حالات الاختبار ═══════════════════ */
 
+/** حالات المرحلة (من غير حالات الـ Skills — دي بتتختبر مع نسخ الـ Skill بس) */
 function ce_lab_cases(string $stage, bool $activeOnly = false): array
 {
-    return db_all('SELECT * FROM ce_golden_cases WHERE stage = ?' . ($activeOnly ? ' AND is_active = 1' : '') . ' ORDER BY id', [$stage]);
+    return db_all('SELECT * FROM ce_golden_cases WHERE stage = ?' . (ce_skills_ready() ? ' AND skill_id IS NULL' : '') . ($activeOnly ? ' AND is_active = 1' : '') . ' ORDER BY id', [$stage]);
+}
+
+/** كل الـ Skills بنسخها (لاختيار الـ Playground) */
+function ce_lab_skill_options(): array
+{
+    if (!ce_skills_ready()) return [];
+    $out = [];
+    foreach (db_all('SELECT id, skey, name, is_enabled FROM ce_skills ORDER BY name') as $s) {
+        $vers = array_map(fn($v) => ['id' => (int) $v['id'], 'version' => (int) $v['version'], 'active' => (int) $v['is_active'] === 1],
+                          db_all('SELECT id, version, is_active FROM ce_skill_versions WHERE skill_id = ? ORDER BY version DESC LIMIT 10', [(int) $s['id']]));
+        $out[] = ['id' => (int) $s['id'], 'key' => $s['skey'], 'name' => $s['name'], 'enabled' => (int) $s['is_enabled'] === 1, 'versions' => $vers];
+    }
+    return $out;
+}
+
+/** حالات Skill (كل المراحل) */
+function ce_lab_skill_cases(int $skillId, bool $activeOnly = false): array
+{
+    if (!ce_skills_ready()) return [];
+    return db_all('SELECT * FROM ce_golden_cases WHERE skill_id = ?' . ($activeOnly ? ' AND is_active = 1' : '') . ' ORDER BY id', [$skillId]);
 }
 
 /** «احفظ كحالة اختبار» — للنقاد الرد الحالي بيتحفظ كمتوقع (عشان أي نسخة جديدة تتقاس بيه) */
@@ -354,11 +376,13 @@ function ce_lab_case_save(string $stage, array $in, ?int $adminId): array
     $images = array_values(array_filter((array) ($in['images'] ?? []), fn($u) => is_string($u) && str_starts_with($u, 'data:image/') && strlen($u) < 2_000_000));
     $expected = is_array($in['expected'] ?? null) && !in_array($stage, CE_PROMPT_PRODUCTION, true) ? $in['expected'] : null;
     $min = max(0, min(100, (float) ($in['min_score'] ?? 0)));
-    $id = (int) db_insert('INSERT INTO ce_golden_cases (stage, name, user_text, vars_json, images_json, meta_json, min_score, expected_json, created_by) VALUES (?,?,?,?,?,?,?,?,?)', [
-        $stage, $name, mb_substr($user, 0, 60000), json_encode((array) ($in['vars'] ?? []), JSON_UNESCAPED_UNICODE),
+    $skillId = (int) ($in['skill_id'] ?? 0) ?: null;
+    if ($skillId && (!ce_skills_ready() || !db_one('SELECT id FROM ce_skills WHERE id = ?', [$skillId]))) return ['ok' => false, 'error' => 'الـ Skill مش موجودة'];
+    $id = (int) db_insert('INSERT INTO ce_golden_cases (stage, ' . ($skillId ? 'skill_id, ' : '') . 'name, user_text, vars_json, images_json, meta_json, min_score, expected_json, created_by) VALUES (?,' . ($skillId ? '?,' : '') . '?,?,?,?,?,?,?,?)', array_merge([$stage], $skillId ? [$skillId] : [], [
+        $name, mb_substr($user, 0, 60000), json_encode((array) ($in['vars'] ?? []), JSON_UNESCAPED_UNICODE),
         $images ? json_encode($images) : null, json_encode((array) ($in['meta'] ?? []), JSON_UNESCAPED_UNICODE), $min,
         $expected ? json_encode($expected, JSON_UNESCAPED_UNICODE) : null, $adminId,
-    ]);
+    ]));
     return ['ok' => true, 'id' => $id];
 }
 
@@ -408,10 +432,31 @@ function ce_lab_regression_step(int $runId): array
     $res = json_decode((string) $run['results_json'], true) ?: ['cases' => [], 'items' => []];
     $i = count($res['items']);
     $stage = (string) $run['stage'];
+    $isSkill = $run['kind'] === 'skill';
     if ($i < count($res['cases'])) {
         $case = db_one('SELECT * FROM ce_golden_cases WHERE id = ?', [(int) $res['cases'][$i]]);
         if (!$case) {
             $res['items'][] = ['case' => (int) $res['cases'][$i], 'skipped' => true];
+        } elseif ($isSkill) {
+            // نسخة Skill: نفس برومبت المرحلة الشغال — الفرق في جزء الـ Skill بس (الشغالة/من غيرها قدام الجديدة)
+            $cs = (string) $case['stage'];
+            $vars = (json_decode((string) $case['vars_json'], true) ?: []) + ce_prompt_vars($cs);
+            $meta = json_decode((string) $case['meta_json'], true) ?: [];
+            $images = json_decode((string) $case['images_json'], true) ?: [];
+            $expected = json_decode((string) $case['expected_json'], true) ?: null;
+            $sys = ce_lab_system($cs, null, $vars);
+            $baseSkill = $run['baseline_skill_version_id'] ? ce_skill_version_load((int) $run['baseline_skill_version_id']) : null;
+            $candSkill = ce_skill_version_load((int) $run['candidate_skill_version_id']);
+            $b = ce_lab_call($cs, $sys . ce_skill_block($cs, $baseSkill), (string) $case['user_text'], $images);
+            $n = ce_lab_call($cs, $sys . ce_skill_block($cs, $candSkill), (string) $case['user_text'], $images);
+            $bs = ce_lab_score($cs, $b['ok'] ? $b['data'] : null, $meta, $expected);
+            $ns = ce_lab_score($cs, $n['ok'] ? $n['data'] : null, $meta, $expected);
+            $res['items'][] = [
+                'case' => (int) $case['id'], 'name' => $case['name'], 'stage' => $cs, 'min' => (float) $case['min_score'],
+                'base' => ['score' => $bs['score'], 'valid' => $bs['valid'], 'issues' => $bs['issues'], 'error' => $b['error'], 'ms' => $b['ms']],
+                'new' => ['score' => $ns['score'], 'valid' => $ns['valid'], 'issues' => $ns['issues'], 'error' => $n['error'], 'ms' => $n['ms'], 'model' => $n['provider'] . ' · ' . $n['model']],
+            ];
+            db_run('UPDATE ce_regression_runs SET cost_usd = cost_usd + ? WHERE id = ?', [$b['cost_usd'] + $n['cost_usd'] + $bs['cost_usd'] + $ns['cost_usd'], $runId]);
         } else {
             $vars = (json_decode((string) $case['vars_json'], true) ?: []) + ce_prompt_vars($stage);
             $meta = json_decode((string) $case['meta_json'], true) ?: [];
@@ -458,7 +503,8 @@ function ce_lab_run_public(array $r): array
 {
     $res = json_decode((string) $r['results_json'], true) ?: [];
     return [
-        'id' => (int) $r['id'], 'stage' => $r['stage'], 'kind' => $r['kind'], 'status' => $r['status'], 'total' => (int) $r['total'], 'done' => (int) $r['done'],
+        'id' => (int) $r['id'], 'stage' => $r['stage'], 'kind' => $r['kind'],
+        'skill_id' => isset($r['skill_id']) ? (int) $r['skill_id'] : null, 'candidate_skill_version_id' => !empty($r['candidate_skill_version_id']) ? (int) $r['candidate_skill_version_id'] : null, 'status' => $r['status'], 'total' => (int) $r['total'], 'done' => (int) $r['done'],
         'candidate_version_id' => $r['candidate_version_id'] ? (int) $r['candidate_version_id'] : null, 'candidate_model' => $r['candidate_model'],
         'baseline_model' => $res['baseline_model'] ?? null, 'avg_base' => $r['avg_base'] !== null ? (float) $r['avg_base'] : null,
         'avg_new' => $r['avg_new'] !== null ? (float) $r['avg_new'] : null, 'delta' => $r['delta'] !== null ? (float) $r['delta'] : null,
@@ -482,4 +528,59 @@ function ce_lab_model_apply(string $stage, string $model, ?int $adminId, bool $a
     db_run('UPDATE ai_task_routes SET chain_json = ?, updated_by = ?, updated_at = NOW() WHERE task = ?', [json_encode(array_slice($chain, 0, 4), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $adminId, $stage]);
     if (function_exists('ai_gw_cache_bust')) ai_gw_cache_bust();
     return ['ok' => true];
+}
+
+/* ═══════════════════ Skills التخصصات (H2) ═══════════════════ */
+
+/** اختبار رجوع لنسخة Skill: كل حالات الـ Skill (أي مرحلة) بالنسخة الشغالة (أو من غير Skill) قدام الجديدة */
+function ce_lab_skill_regression_start(int $skillId, int $versionId, ?int $adminId): array
+{
+    $sk = db_one('SELECT * FROM ce_skills WHERE id = ?', [$skillId]);
+    if (!$sk) return ['ok' => false, 'error' => 'الـ Skill مش موجودة'];
+    if (!db_one('SELECT id FROM ce_skill_versions WHERE id = ? AND skill_id = ?', [$versionId, $skillId])) return ['ok' => false, 'error' => 'النسخة مش موجودة'];
+    $cases = array_map(fn($c) => (int) $c['id'], ce_lab_skill_cases($skillId, true));
+    if (!$cases) return ['ok' => false, 'code' => 'no_cases', 'error' => 'مفيش حالات اختبار للـ Skill دي — اعمل حالات (زرار «حالات للـ Skill») أو احفظ تجربة من الـ Playground'];
+    $active = db_one('SELECT id FROM ce_skill_versions WHERE skill_id = ? AND is_active = 1 LIMIT 1', [$skillId]);
+    $id = (int) db_insert('INSERT INTO ce_regression_runs (stage, kind, skill_id, candidate_skill_version_id, baseline_skill_version_id, total, results_json, created_by) VALUES (?,?,?,?,?,?,?,?)', [
+        'skill:' . $sk['skey'], 'skill', $skillId, $versionId, $active ? (int) $active['id'] : null, count($cases),
+        json_encode(['cases' => $cases, 'items' => []]), $adminId,
+    ]);
+    return ['ok' => true, 'id' => $id, 'total' => count($cases)];
+}
+
+/** براند حقيقي تخصصه الـ Skill دي (عشان الحالات تبقى من نفس المجال) — وإلا البراند التجريبي */
+function ce_lab_skill_brand(array $skill): int
+{
+    foreach (db_all('SELECT user_id, dna_json FROM ce_brand_dna ORDER BY updated_at DESC LIMIT 300') as $r) {
+        $dna = json_decode((string) $r['dna_json'], true) ?: [];
+        $choice = (string) ($dna['brand']['skill'] ?? '');
+        if ($choice === $skill['skey'] || ($choice === '' && ($d = ce_skill_detect((string) ($dna['brand']['sector'] ?? ''))) && $d['skey'] === $skill['skey'])) return (int) $r['user_id'];
+    }
+    return 0;
+}
+
+/** حالات للـ Skill: الأفكار + الكتابة + الناقد (للناقد بنحفظ رد الإعداد الحالي كمتوقع) */
+function ce_lab_skill_seed(int $skillId, ?int $adminId): array
+{
+    $sk = db_one('SELECT * FROM ce_skills WHERE id = ?', [$skillId]);
+    if (!$sk) return ['ok' => false, 'error' => 'الـ Skill مش موجودة'];
+    $active = db_one('SELECT id FROM ce_skill_versions WHERE skill_id = ? AND is_active = 1 LIMIT 1', [$skillId]);
+    $base = $active ? ce_skill_version_load((int) $active['id']) : null;
+    $uid = ce_lab_skill_brand(['skey' => $sk['skey']]);
+    $brand = $uid ? ('براند #' . $uid) : 'البراند التجريبي';
+    $ids = [];
+    foreach (['ce_ideation' => 'post', 'ce_writer' => 'carousel', 'ce_critic' => 'post'] as $stage => $format) {
+        $in = ce_lab_input($stage, $uid, $format);
+        $expected = null;
+        if ($stage === 'ce_critic') {
+            $r = ce_lab_call($stage, ce_lab_system($stage, null, $in['vars']) . ce_skill_block($stage, $base), $in['user'], $in['images']);
+            if (!$r['ok']) return ['ok' => false, 'error' => 'الموديل مارجّعش رد عشان نحفظه كمتوقع: ' . $r['error']];
+            $expected = $r['data'];
+        }
+        $r = ce_lab_case_save($stage, ['name' => $sk['name'] . ' — ' . CE_PROMPT_STAGES[$stage] . ' (' . $brand . ')', 'user' => $in['user'], 'vars' => $in['vars'], 'images' => $in['images'],
+                                       'meta' => $in['meta'], 'min_score' => $stage === 'ce_critic' ? 50 : 60, 'expected' => $expected, 'skill_id' => $skillId], $adminId);
+        if (!$r['ok']) return $r;
+        $ids[] = $r['id'];
+    }
+    return ['ok' => true, 'ids' => $ids, 'brand_uid' => $uid];
 }

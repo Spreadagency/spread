@@ -303,7 +303,8 @@ function ce_design_job(array $job, array &$state): array
     $content = db_one('SELECT body_json FROM ce_contents WHERE slot_id = ?', [(int) $slotId]);
     $body = json_decode((string) ($content['body_json'] ?? ''), true) ?: [];
     $label = 'التصميم ' . ($state['i'] + 1) . ' من ' . $n;
-    $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id']];
+    $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id'],
+              'skill' => ce_skill_for_campaign($c, ce_dna_get($uid) ?? [])];
 
     // شريحة نص على خلفية البراند: الرسم بس
     if ($d['kind'] === 'text') $state['phase'] = 'render';
@@ -317,7 +318,8 @@ function ce_design_job(array $job, array &$state): array
         $state['cost_usd'] += $r['cost_usd'];
         $prompt = $r['ok'] ? trim((string) ($r['data']['prompt'] ?? '')) : '';
         if ($prompt === '') $prompt = ce_design_prompt_fallback($ctx, $body) . ($state['hint'] !== '' ? ' Fix: ' . $state['hint'] : '');
-        [$p, $neg] = ce_design_prompt_final($prompt, (string) ($r['data']['negative'] ?? ''), $zone, $d['aspect']);
+        $skillNeg = implode(', ', ce_skill_items($aiCtx['skill'], 'visual_avoid'));   // «ممنوع في الصورة» من الـ Skill
+        [$p, $neg] = ce_design_prompt_final($prompt, (string) ($r['data']['negative'] ?? '') . ($skillNeg !== '' ? ', ' . $skillNeg : ''), $zone, $d['aspect']);
         db_run('UPDATE ce_designs SET prompt = ?, negative = ? WHERE id = ?', [$p, $neg, (int) $d['id']]);
         $state['refs'] = count(ce_design_refs($ctx, $body));
         $state['phase'] = 'image';

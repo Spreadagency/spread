@@ -97,7 +97,10 @@ function ce_dna_user_save(int $uid, array $in): array
     $clean = ce_dna_clean($uid, $in + $cur);
     $edited = ce_dna_edited($uid);
     foreach (CE_DNA_KEYS as $k) {
-        if (array_key_exists($k, $in) && json_encode($clean[$k] ?? null, JSON_UNESCAPED_UNICODE) !== json_encode($cur[$k] ?? null, JSON_UNESCAPED_UNICODE)) {
+        $a = $clean[$k] ?? null;
+        $b = $cur[$k] ?? null;
+        if ($k === 'brand') { unset($a['skill'], $b['skill']); }   // اختيار التخصص لوحده مايقفلش بيانات البراند عن التحديث
+        if (array_key_exists($k, $in) && json_encode($a, JSON_UNESCAPED_UNICODE) !== json_encode($b, JSON_UNESCAPED_UNICODE)) {
             $edited[] = $k;
         }
     }
@@ -280,7 +283,9 @@ function ce_dna_clean(int $uid, array $in): array
     $b = (array) ($in['brand'] ?? []);
     $cta = (array) ($in['cta'] ?? []);
     return [
-        'brand' => ['name' => $s($b['name'] ?? '', 80), 'sector' => $s($b['sector'] ?? '', 80), 'location' => $s($b['location'] ?? '', 80)],
+        'brand' => ['name' => $s($b['name'] ?? '', 80), 'sector' => $s($b['sector'] ?? '', 80), 'location' => $s($b['location'] ?? '', 80),
+                    // Skill التخصص: فاضي = تلقائي من المجال · none = عام · مفتاح Skill شغالة
+                    'skill' => ($sk = ce_skill_key_clean((string) ($b['skill'] ?? ''))) === 'none' || isset(ce_skill_active_list()[$sk]) ? $sk : ''],
         'positioning' => $s($in['positioning'] ?? '', 260),
         'usp' => $l($in['usp'] ?? [], 4, 100),
         'proof_assets' => $l($in['proof_assets'] ?? [], 5, 100),
@@ -417,7 +422,8 @@ function ce_dna_job(array $job, array &$state): array
         $state['cost_usd'] = 0.0;
         if ($src !== '' || $state['dna']['services'] || $state['dna']['personas']) {
             $user = ce_dna_user($state['dna'], $src);
-            $r = ce_ai_json('ce_brand_dna', ce_dna_system_prompt(), $user, ['user_id' => $uid, 'ref_type' => 'ce_job', 'ref_id' => (int) $job['id']], 1200, 0.3);
+            $skill = ce_skill_for_dna(['brand' => ['skill' => (string) (ce_dna_get($uid)['brand']['skill'] ?? ''), 'sector' => (string) ($state['dna']['brand']['sector'] ?? '')]]);
+            $r = ce_ai_json('ce_brand_dna', ce_dna_system_prompt(), $user, ['user_id' => $uid, 'ref_type' => 'ce_job', 'ref_id' => (int) $job['id'], 'skill' => $skill], 1200, 0.3);
             $state['cost_usd'] = $r['cost_usd'];
             $state['ai'] = $r['ok'] ? 'ok' : $r['error'];
             if ($r['ok']) {
@@ -436,6 +442,7 @@ function ce_dna_job(array $job, array &$state): array
     $edited = ce_dna_edited($uid);
     $dna = $state['dna'];
     if ($cur) foreach ($edited as $k) if (array_key_exists($k, $cur)) $dna[$k] = $cur[$k];
+    $dna['brand']['skill'] = (string) ($cur['brand']['skill'] ?? '');   // اختيار العميل للتخصص بيفضل
     $saved = ce_dna_save($uid, $dna, ($state['ai'] ?? '') === 'ok' ? 'ai' : 'rules', (int) $job['id'], (string) ($state['hash'] ?? ''), $edited);
     return ['done' => true, 'result' => ['tokens' => $saved['tokens'], 'ai' => $state['ai'] ?? 'skipped'],
             'used_credits' => ce_usd_to_credits((float) ($state['cost_usd'] ?? 0))];
@@ -461,6 +468,9 @@ function ce_dna_options(int $uid): array
         'priorities' => CE_DNA_PRIORITIES, 'formality' => CE_DNA_FORMALITY, 'platforms' => CE_DNA_PLATFORMS, 'seasons' => CE_DNA_SEASONS,
         'dialects' => array_combine(CE_DNA_DIALECTS, array_map('bk_dialect_label', CE_DNA_DIALECTS)),
         'max_tokens' => max(400, ce_setting_int('ce_dna_max_tokens', 1200)),
+        // Skills التخصصات الشغالة + اللي اتعرف تلقائي من مجال البراند
+        'skills' => array_values(array_map(fn($s) => ['key' => $s['skey'], 'name' => $s['name']], ce_skill_active_list())),
+        'skill_detected' => ($sd = ce_skill_detect((string) ((ce_dna_get($uid) ?? [])['brand']['sector'] ?? ''))) ? $sd['name'] : null,
         'characters' => array_map(fn($c) => ['id' => (int) $c['id'], 'name' => $c['name'], 'type' => $c['type'],
             'images' => array_map(fn($i) => ['id' => (int) $i['id'], 'url' => url((string) $i['image_path'])], (array) ($c['images'] ?? []))], bk_characters($uid, true)),
     ];

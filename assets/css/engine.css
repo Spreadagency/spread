@@ -158,3 +158,9 @@
   .ce-slot-g { grid-template-columns: 1fr 1fr; }
   .ce-dim { grid-template-columns: 90px 1fr 30px; }
 }
+
+/* أسئلة المجال (Skill التخصص) */
+.ce-skillq { margin-top: 16px; display: grid; gap: 10px; }
+.ce-skillq h3 { margin: 0; font-size: 15px; }
+.ce-skillq-i { display: grid; gap: 4px; font-size: 13.5px; }
+.ce-skillq-i span { color: var(--bk-ink-2, #4A5468); }

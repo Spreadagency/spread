@@ -23,7 +23,7 @@
     tabs: { prompt: 'البرومبت والنسخ', play: 'الـ Playground', cases: 'حالات الاختبار', runs: 'اختبارات الرجوع' },
     runLabel: { running: 'شغال', passed: 'عدّى', warn: 'تحذير', failed: 'فشل', error: 'خطأ' },
     edBody: '', edNotes: '', edFrom: 'النسخة الشغالة', diffX: 0, diffY: 0, diff: null,
-    pg: { uid: 0, format: 'post', src: 'active', models: [], user: '', images: [], meta: {}, vars: {}, results: [], pipeline: false },
+    pg: { uid: 0, format: 'post', src: 'active', models: [], user: '', images: [], meta: {}, vars: {}, results: [], pipeline: false, skill: 'auto', brandSkill: null },
     pipe: [], pipeAt: 0, run: null, ackWarn: false,
 
     say: function (m, t) { var self = this; this.toast.m = m || ''; this.toast.t = t || 'ok'; clearTimeout(this._tt); this._tt = setTimeout(function () { self.toast.m = ''; }, 3500); },
@@ -33,8 +33,12 @@
       var r = await get({ a: 'state' });
       if (!r.ok) { this.say(r.error, 'bad'); return; }
       this.st = r;
+      if (!this.st.skills) this.st.skills = [];
       var h = (location.hash || '').replace('#', '');
       await this.openStage(r.stages.some(function (s) { return s.key === h; }) ? h : r.stages[0].key);
+      // جاي من صفحة الـ Skills: «جرّبها في الـ Playground»
+      var sv = new URLSearchParams(location.search).get('skill_version');
+      if (sv && /^\d+$/.test(sv)) { this.pg.skill = sv; this.tab = 'play'; this.stage === 'ce_writer' || await this.openStage('ce_writer'); this.loadInput(); }
     },
     openStage: async function (k) {
       // sd مابيبقاش null (الواجهة بتقرا منه وهي بتتحدّث) — بيتبدّل لما المرحلة الجديدة توصل
@@ -119,7 +123,18 @@
       var r = await post('input', { stage: this.stage, uid: this.pg.uid, format: this.pg.format, prev: this.pipePrev() });
       this.busy = false;
       if (!r.ok) { this.say(r.error, 'bad'); return; }
-      this.pg.user = r.user; this.pg.images = r.images || []; this.pg.meta = r.meta || {}; this.pg.vars = r.vars || {};
+      this.pg.user = r.user; this.pg.images = r.images || []; this.pg.meta = r.meta || {}; this.pg.vars = r.vars || {}; this.pg.brandSkill = r.skill || null;
+    },
+    /* Skill التخصص: auto = بتاعة البراند · none = من غير · رقم = نسخة معيّنة */
+    skillVid: function () {
+      if (this.pg.skill === 'none') return 0;
+      if (this.pg.skill === 'auto') return this.pg.brandSkill ? this.pg.brandSkill.version_id : 0;
+      return +this.pg.skill || 0;
+    },
+    skillIdOf: function (vid) {
+      var hit = 0;
+      (this.st.skills || []).forEach(function (s) { s.versions.forEach(function (v) { if (v.id === vid) hit = s.id; }); });
+      return hit;
     },
     srcPayload: function () {
       if (this.pg.src === 'draft') return { draft: this.edBody };
@@ -128,7 +143,7 @@
     },
     runPlay: async function () {
       this.busy = true; this.pg.results = [];
-      var r = await post('run', Object.assign({ stage: this.stage, user: this.pg.user, images: this.pg.images, meta: this.pg.meta, vars: this.pg.vars, models: this.pg.models }, this.srcPayload()));
+      var r = await post('run', Object.assign({ stage: this.stage, user: this.pg.user, images: this.pg.images, meta: this.pg.meta, vars: this.pg.vars, models: this.pg.models, skill_version_id: this.skillVid() }, this.srcPayload()));
       this.busy = false;
       if (!r.ok) { this.say(r.error, 'bad'); return; }
       this.pg.results = r.results.map(function (x) { x.critic = null; return x; });
@@ -155,10 +170,12 @@
       var min = prompt('أقل درجة مقبولة (0-100):', res.critic ? Math.max(0, Math.floor(res.critic.score - 10)) : 60);
       if (min === null) return;
       this.busy = true;
-      var r = await post('case_save', { stage: this.stage, name: name, user: this.pg.user, vars: this.pg.vars, images: this.pg.images, meta: this.pg.meta, min_score: +min || 0, expected: res.data });
+      // لو مختار نسخة Skill بعينها ← الحالة بتبقى من حالات الـ Skill دي (بتتختبر مع نسخها)
+      var skillId = /^\d+$/.test(String(this.pg.skill)) ? this.skillIdOf(+this.pg.skill) : 0;
+      var r = await post('case_save', { stage: this.stage, name: name, user: this.pg.user, vars: this.pg.vars, images: this.pg.images, meta: this.pg.meta, min_score: +min || 0, expected: res.data, skill_id: skillId });
       this.busy = false;
       if (!r.ok) { this.say(r.error, 'bad'); return; }
-      this.say('اتحفظت كحالة اختبار ✓');
+      this.say(skillId ? 'اتحفظت كحالة اختبار للـ Skill ✓' : 'اتحفظت كحالة اختبار ✓');
       await this.reloadStage(false);
     },
     promoteDraft: async function () {
@@ -189,7 +206,8 @@
       this.busy = true;
       var inp = await post('input', { stage: p.stage, uid: this.pg.uid, format: this.pg.format, prev: prev });
       if (!inp.ok) { this.busy = false; this.say(inp.error, 'bad'); return; }
-      var r = await post('run', { stage: p.stage, user: inp.user, images: inp.images, meta: inp.meta, vars: inp.vars, models: [] });
+      if (inp.skill) this.pg.brandSkill = inp.skill;
+      var r = await post('run', { stage: p.stage, user: inp.user, images: inp.images, meta: inp.meta, vars: inp.vars, models: [], skill_version_id: this.skillVid() });
       this.busy = false;
       if (!r.ok || !r.results[0].ok) { this.say((r.results && r.results[0].error) || r.error || 'فشل', 'bad'); return; }
       p.out = r.results[0].data; p.outText = JSON.stringify(p.out, null, 2); p.score = r.results[0].check.valid ? '✓ الشكل' : '⚠';

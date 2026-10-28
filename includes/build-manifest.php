@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-28',
-  'generated' => '2026-10-28 11:02',
+  'generated' => '2026-10-28 14:39',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -204,6 +204,17 @@ return array (
     195 => 'assets/js/ce-lab.js',
     196 => 'sql/2026_ce_lab.sql',
     197 => 'sql/2026_ce_lab_rollback.sql',
+    198 => 'includes/ce-skills.php',
+    199 => 'admin/ce-skills.php',
+    200 => 'sql/2026_ce_skills.sql',
+    201 => 'sql/2026_ce_skills_rollback.sql',
+    202 => 'includes/ce-skills/_template.md',
+    203 => 'includes/ce-skills/dental.md',
+    204 => 'includes/ce-skills/restaurant.md',
+    205 => 'includes/ce-skills/real-estate.md',
+    206 => 'includes/ce-skills/gym.md',
+    207 => 'includes/ce-skills/beauty.md',
+    208 => 'docs/CONTENT_ENGINE_GUIDE.md',
   ),
   'files' => 
   array (
@@ -314,18 +325,23 @@ return array (
     ),
     'admin/ce-lab-api.php' => 
     array (
-      'h' => '891078851e4e2c3835eb3b6765c5d85c',
-      's' => 10365,
+      'h' => 'e1a4b0a888e1fe2fb2c7e90dc95bc2ec',
+      's' => 11679,
     ),
     'admin/ce-lab.php' => 
     array (
-      'h' => '03dab36891b3456cf61a10a2b2633baf',
-      's' => 20394,
+      'h' => 'cb24843ee39b5c62288e0b82d92df08a',
+      's' => 21099,
     ),
     'admin/ce-settings.php' => 
     array (
       'h' => 'f58148f0d6df1a762fe8a38e910c3924',
       's' => 56147,
+    ),
+    'admin/ce-skills.php' => 
+    array (
+      'h' => '4ab2dac6ef971ac3db2ece74d9e13bfd',
+      's' => 27624,
     ),
     'admin/ce-template-preview.php' => 
     array (
@@ -564,8 +580,8 @@ return array (
     ),
     'assets/css/admin-v2.css' => 
     array (
-      'h' => '95fe968459956fd8b1358490d8f6f018',
-      's' => 45804,
+      'h' => '6d105e2f4a0595d6ea849f6b4823079c',
+      's' => 46958,
     ),
     'assets/css/brand-kit.css' => 
     array (
@@ -579,8 +595,8 @@ return array (
     ),
     'assets/css/engine.css' => 
     array (
-      'h' => 'd31e4c8a7fad1af2223ec3ded8827456',
-      's' => 11928,
+      'h' => 'ef11b5155984a14df1457118557f4cf4',
+      's' => 12201,
     ),
     'assets/css/main.css' => 
     array (
@@ -669,13 +685,13 @@ return array (
     ),
     'assets/js/ce-lab.js' => 
     array (
-      'h' => 'c56556355c2c4f0ff0d784398d27f4cd',
-      's' => 17295,
+      'h' => '5ea3efa8c8740fe9a4f5fda9df2bdb81',
+      's' => 18718,
     ),
     'assets/js/engine.js' => 
     array (
-      'h' => 'df1fe5986c24ecedf75ebdf9eeab9b0d',
-      's' => 25453,
+      'h' => 'c3316c1a36d84747c95ac629f1f711a7',
+      's' => 26384,
     ),
     'assets/js/main.js' => 
     array (
@@ -747,15 +763,20 @@ return array (
       'h' => '6a5bd8558c9468d90a3ef3e9137b5777',
       's' => 18902,
     ),
+    'docs/CONTENT_ENGINE_GUIDE.md' => 
+    array (
+      'h' => '8379332bd68ba51a5bcef5a600822844',
+      's' => 10506,
+    ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
-      'h' => 'f523fe5213e95400655ba29208d8d841',
-      's' => 29383,
+      'h' => 'ae37c8440aae52fd9d0260bb0c54bd46',
+      's' => 33805,
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '8cc0497310729ed1e9d58fcbc4403f59',
-      's' => 17542,
+      'h' => 'a0a21ab4e351bc43f7834252ea1d957f',
+      's' => 19271,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -794,8 +815,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => 'e425d99199b7d7e4035fa8930cfffa03',
-      's' => 15138,
+      'h' => '1ee16f51c132b6fc7dd2b9636c061c44',
+      's' => 15270,
     ),
     'includes/ai-center.php' => 
     array (
@@ -859,28 +880,28 @@ return array (
     ),
     'includes/ce-campaign.php' => 
     array (
-      'h' => '2233f6650f8f531100efe046f2d76f13',
-      's' => 20215,
+      'h' => '775bf37ddcac37cab64701ed084d60da',
+      's' => 20990,
     ),
     'includes/ce-design.php' => 
     array (
-      'h' => '8f26d428eee3070e9f12d7cf045f98b0',
-      's' => 38434,
+      'h' => 'c1100ad9292b8e6be4f35f24b02f13df',
+      's' => 38695,
     ),
     'includes/ce-dna.php' => 
     array (
-      'h' => 'b7f5dd8b3bcc5f705081fc36065cbbc4',
-      's' => 27593,
+      'h' => '0172a16697d1b55daaff837264c0d3b0',
+      's' => 28778,
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => '1ddbff433150b254c97af98b6a923a79',
-      's' => 22246,
+      'h' => '47d74b17b783a1092eb38333f1b696ac',
+      's' => 22547,
     ),
     'includes/ce-lab.php' => 
     array (
-      'h' => '29ac8381a3f3a3dbb8de0fc30121f69f',
-      's' => 33366,
+      'h' => 'fbb13a9af02907a08ec764d1fb0d620f',
+      's' => 41355,
     ),
     'includes/ce-overlay.php' => 
     array (
@@ -889,18 +910,53 @@ return array (
     ),
     'includes/ce-plan.php' => 
     array (
-      'h' => '71e46a930aa68596cdbd5a0e334e89e7',
-      's' => 47779,
+      'h' => '8a58c3cc661336506d483a3e0b3be24a',
+      's' => 48352,
     ),
     'includes/ce-prompts.php' => 
     array (
       'h' => '32372941908ba7c6a1787cb5cd0c73df',
       's' => 20011,
     ),
+    'includes/ce-skills.php' => 
+    array (
+      'h' => '85731da2b6e9d7409364c85bf35aa6eb',
+      's' => 20966,
+    ),
+    'includes/ce-skills/_template.md' => 
+    array (
+      'h' => '648ebb821a2e49ef06b1894352995e6f',
+      's' => 2917,
+    ),
+    'includes/ce-skills/beauty.md' => 
+    array (
+      'h' => '2631fd3b78795c24c51425bff26ba1bb',
+      's' => 3410,
+    ),
+    'includes/ce-skills/dental.md' => 
+    array (
+      'h' => 'a2a75b561c66d58a964eb9018d49fe14',
+      's' => 6975,
+    ),
+    'includes/ce-skills/gym.md' => 
+    array (
+      'h' => '118c2fe2ed954f274ee2a8e440713533',
+      's' => 2869,
+    ),
+    'includes/ce-skills/real-estate.md' => 
+    array (
+      'h' => '24fb743e852a22e4a5c16801e2ad6a0c',
+      's' => 3372,
+    ),
+    'includes/ce-skills/restaurant.md' => 
+    array (
+      'h' => '3daf88dbdc9c992e5c778521833d512a',
+      's' => 3557,
+    ),
     'includes/ce-write.php' => 
     array (
-      'h' => 'b597a4c033e9d0dddc8d1503dbef0009',
-      's' => 45182,
+      'h' => 'c41344682f1d51ebf4902f99036e5c34',
+      's' => 45299,
     ),
     'includes/config.sample.php' => 
     array (
@@ -989,8 +1045,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => 'b9dfc491b6f7d31d2976a01a4512cccd',
-      's' => 14534,
+      'h' => '48a7635a7c34b2ded9cef90dcfe4ed8d',
+      's' => 14698,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1484,8 +1540,8 @@ return array (
     ),
     'public/engine.php' => 
     array (
-      'h' => '29c3f8bff59dcf9914ec1a29963b8891',
-      's' => 45724,
+      'h' => '6dc78344ade68c4f1e207f9995c25982',
+      's' => 47096,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1771,6 +1827,16 @@ return array (
     array (
       'h' => 'd35a73bf9a75e77fa6c51b16f444f79c',
       's' => 1589,
+    ),
+    'sql/2026_ce_skills.sql' => 
+    array (
+      'h' => 'b8c925ac6fd485d6c24418371334d4ce',
+      's' => 4250,
+    ),
+    'sql/2026_ce_skills_rollback.sql' => 
+    array (
+      'h' => '17ed15e0a269a5d4a640087ba5974839',
+      's' => 1191,
     ),
     'sql/2026_google_auth.sql' => 
     array (

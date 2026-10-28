@@ -265,12 +265,12 @@ function ce_content_check(array $body, string $format, array $ctx, array $brief)
     return [$body, $err];
 }
 
-/** مخالفات بالكود: كلمات ممنوعة · وعود مضمونة · استثناءات الحملة */
+/** مخالفات بالكود: كلمات ممنوعة · وعود مضمونة · ممنوعات الـ Skill · استثناءات الحملة */
 function ce_content_flags(array $body, array $ctx, array $brief): array
 {
     $text = ce_text_norm(ce_content_text($body));
     $flags = [];
-    foreach (array_merge($ctx['dna']['tone']['dont_words'] ?? [], CE_FORBIDDEN_CLAIMS) as $w) {
+    foreach (array_merge($ctx['dna']['tone']['dont_words'] ?? [], CE_FORBIDDEN_CLAIMS, ce_skill_items($ctx['skill'] ?? null, 'forbidden')) as $w) {
         $n = ce_text_norm((string) $w);
         if ($n !== '' && mb_strlen($n) >= 3 && str_contains($text, $n)) $flags[] = 'فيه كلمة/وعد ممنوع: «' . $w . '»';
     }
@@ -355,7 +355,7 @@ function ce_write_job(array $job, array &$state): array
     $brief = $ctx['brief'];
     $rules = ce_qa_rules();
     $state += ['mode' => 'all', 'queue' => [], 'i' => 0, 'phase' => 'ideate', 'iround' => 1, 'qround' => 0, 'wretry' => 0, 'cost_usd' => 0.0, 'done_pieces' => 0];
-    $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id']];
+    $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id'], 'skill' => $ctx['skill'] ?? null];
     $n = count($state['queue']);
     $prog = function (float $sub) use ($state, $n) { return (int) max(1, min(98, round(100 * ($state['i'] + $sub) / max(1, $n + ($state['mode'] === 'all' ? 0.5 : 0))))); };
 

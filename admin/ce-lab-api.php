@@ -13,6 +13,8 @@
  *   POST a=case_save {stage, name, user, vars, images, meta, min_score, expected} · a=case_seed {stage} · a=case_delete {id} · a=case_toggle {id}
  *   POST a=regression_start {stage, version_id | model} · a=regression_step {id}
  *   POST a=model_apply {stage, model, ack}
+ *   POST a=skill_regression_start {skill_id, version_id} · a=skill_seed {skill_id}   (Skills التخصصات — H2)
+ *   a=run بياخد كمان skill_version_id (اختياري)
  * الـ POST: الحقل csrf + الحقل p (JSON بـ base64 — عشان جدار الحماية مايوقفش نصوص البرومبتات).
  * كل نداءات الـ AI هنا sandbox: مفيش كتابة في بيانات عملاء ولا خصم كريدت.
  */
@@ -54,7 +56,7 @@ switch ($a) {
             $stages[] = ['key' => $k, 'label' => $l, 'production' => in_array($k, CE_PROMPT_PRODUCTION, true), 'active_version' => $act ? (int) $act['version'] : 0,
                          'cases' => (int) (db_one('SELECT COUNT(*) n FROM ce_golden_cases WHERE stage = ? AND is_active = 1', [$k])['n'] ?? 0)];
         }
-        $out(['stages' => $stages, 'brands' => ce_lab_brands(), 'pipeline' => CE_LAB_PIPELINE, 'max_drop' => ce_setting_float('ce_regression_max_drop', 3)]);
+        $out(['stages' => $stages, 'brands' => ce_lab_brands(), 'pipeline' => CE_LAB_PIPELINE, 'max_drop' => ce_setting_float('ce_regression_max_drop', 3), 'skills' => ce_lab_skill_options()]);
 
     case 'stage':
         $needStage();
@@ -101,6 +103,10 @@ switch ($a) {
         $vars = (array) ($in['vars'] ?? []) + ce_prompt_vars($stage);
         $sys = isset($in['draft']) && is_string($in['draft']) && trim($in['draft']) !== '' ? ce_prompt_render($in['draft'], $vars)
             : ce_lab_system($stage, isset($in['version']) && $in['version'] !== null && $in['version'] !== '' ? (int) $in['version'] : null, $vars);
+        // Skill (اختياري): نسخة معيّنة — جزء المرحلة دي بيتضاف في آخر البرومبت زي المحرك بالظبط
+        $skill = !empty($in['skill_version_id']) ? ce_skill_version_load((int) $in['skill_version_id']) : null;
+        if (!empty($in['skill_version_id']) && !$skill) $fail('نسخة الـ Skill مش موجودة');
+        $sys .= ce_skill_block($stage, $skill);
         $images = array_values(array_filter((array) ($in['images'] ?? []), fn($u) => is_string($u) && str_starts_with($u, 'data:image/')));
         $allowed = array_column(ce_lab_models($stage), 'key');
         $models = array_slice(array_values(array_unique(array_filter((array) ($in['models'] ?? []), fn($m) => in_array($m, $allowed, true)))), 0, 3) ?: [null];
@@ -165,6 +171,19 @@ switch ($a) {
         @set_time_limit(300);
         $r = ce_lab_regression_step((int) ($in['id'] ?? 0));
         if (!$r['ok']) $fail($r['error'], 404);
+        $out($r);
+
+    case 'skill_regression_start':
+        $r = ce_lab_skill_regression_start((int) ($in['skill_id'] ?? 0), (int) ($in['version_id'] ?? 0), $aid);
+        if (!$r['ok']) $fail($r['error'], 422, ['code' => $r['code'] ?? null]);
+        admin_log('ce_skill_regression_start', 'ce_regression_run', $r['id'], 'skill ' . (int) ($in['skill_id'] ?? 0));
+        $out($r);
+
+    case 'skill_seed':
+        @set_time_limit(180);
+        $r = ce_lab_skill_seed((int) ($in['skill_id'] ?? 0), $aid);
+        if (!$r['ok']) $fail($r['error'], 422);
+        admin_log('ce_skill_seed', 'ce_skill', (int) ($in['skill_id'] ?? 0), count($r['ids']) . ' حالات');
         $out($r);
 
     case 'model_apply':

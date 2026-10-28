@@ -19,7 +19,8 @@
  */
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/credits.php';
-require_once __DIR__ . '/ce-prompts.php';   // برومبتات المراحل (نسخ الأدمن أو اللي في الكود)
+require_once __DIR__ . '/ce-prompts.php';
+require_once __DIR__ . '/ce-skills.php';    // Skills التخصصات (ملفات MD)
 
 /* ═══════════════════ الجاهزية ═══════════════════ */
 
@@ -375,6 +376,11 @@ function ce_ai_json(string $task, string $system, string $user, array $ctx = [],
     if (!function_exists('ai_gw_enabled') || !ai_gw_enabled()) {
         $out['error'] = 'gateway_off';
         return $out;
+    }
+    // Skill التخصص (H2): الأقسام اللي تخص المرحلة دي بتتضاف في آخر برومبت النظام
+    if (array_key_exists('skill', $ctx)) {
+        $system .= ce_skill_block($task, is_array($ctx['skill']) ? $ctx['skill'] : null);
+        unset($ctx['skill']);
     }
     $r = ai_run($task, [
         // صور داخلة للموديل (مراجعة الصورة): data URI أو رابط — والـ gateway بيختار مزود بيدعم الرؤية
