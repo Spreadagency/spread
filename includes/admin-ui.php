@@ -92,6 +92,7 @@ function admin_nav(): array
         // محرك المحتوى الجديد ومراقبته: مجموعة لوحدها
         'CONTENT ENGINE' => [
             ['ce-settings', 'محرك المحتوى', 'Content Engine', 'spark', 'admin/ce-settings.php', 'ai_settings', ['ce-settings']],
+            ['ce-lab', 'البرومبتات والـ Playground', 'Prompts & Playground', 'flask', 'admin/ce-lab.php', 'ai_settings', ['ce-lab']],
             // مركز الجودة: زرار واحد — الصفحات الخمسة (التقرير · التقييمات · البلاغات · سجل الـ MCP · الإعدادات) تبويبات جوّاه
             ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
             ['mcp-setup', 'إعدادات الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],

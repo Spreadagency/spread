@@ -145,44 +145,68 @@ function ce_slot_text(array $slot, array $ctx): string
 
 function ce_ideation_system(): string
 {
-    return "أنت مبدع محتوى سوشيال للسوق المصري. رجّع JSON بس.\n"
-        . "TASK: 3 أفكار للخانة دي، كل فكرة من دافع (trigger) مختلف من: curiosity · reassurance · identity · proof · humor.\n"
-        . "كل فكرة: {\"trigger\":\"…\", \"title\":\"…\", \"hook\":\"≤ 12 كلمة، عامية مصرية بأسلوب كلام\", \"core_insight\":\"…\", \"why_this_persona_cares\":\"…\", \"format_fit\":\"…\", \"risk\":\"…\"}\n"
-        . "ابعد عن أي حاجة قريبة في المعنى من القايمة المستخدمة قبل كده. التزم بملف الهوية والقيود.\n"
-        . "OUTPUT: {\"ideas\":[3 ideas]}";
+    return ce_prompt_sys('ce_ideation');
 }
 
 function ce_selection_system(): string
 {
-    return "أنت ناقد محتوى صارم. قيّم كل فكرة من 0 لـ 100: قوة الـ Hook · مناسبة العميل والخانة · الأصالة · قابلية التنفيذ · خدمة الهدف.\n"
-        . "رجّع JSON بس: {\"scores\":[{\"idx\":1,\"score\":0,\"note\":\"سطر\"}, …]}";
+    return ce_prompt_sys('ce_selection');
 }
 
 function ce_writer_system(array $ctx): string
 {
-    $d = $ctx['dna'];
-    $tone = (CE_DNA_FORMALITY[$d['tone']['formality'] ?? 'balanced'] ?? '') . ' · ' . bk_dialect_label((string) ($d['tone']['dialect'] ?? 'egyptian')) . (!empty($d['tone']['emoji']) ? ' · إيموجي خفيف' : ' · من غير إيموجي');
-    return "ROLE: كاتب محتوى عامية مصرية لـ «" . ($d['brand']['sector'] ?? '') . "». الصوت: $tone. رجّع JSON بس.\n"
-        . "حسب الشكل:\n"
-        . "- post: {\"hooks\":[3 بدايات مختلفة], \"body\":\"سطور قصيرة، فكرة واحدة\", \"cta\":\"…\", \"hashtags\":[…], \"design_brief\":{…}}\n"
-        . "- carousel: {\"slides\":[{\"n\":1,\"text\":\"…\"}, … من 5 لـ 8 — الأولى Hook والأخيرة CTA، كل شريحة فكرة واحدة ≤ 20 كلمة], \"caption\":\"…\", \"cta\":\"…\", \"design_brief\":{…}}\n"
-        . "- reel: {\"scenes\":[{\"time\":\"0-2s\",\"visual\":\"…\",\"on_screen_text\":\"…\",\"voiceover\":\"…\"}, … ≤ 45 ثانية والـ Hook في أول ثانيتين], \"caption\":\"…\", \"cta\":\"…\", \"design_brief\":{…}}\n"
-        . "design_brief دايمًا: {\"layout\",\"focal_subject\",\"characters_refs\":[],\"colors_hex\":[],\"headline\":\"≤ 7 كلمات\",\"subline\",\"text_safe_zone\",\"mood\",\"lighting\",\"camera_angle\",\"aspect_ratio\"}\n"
-        . "ممنوع: " . implode('، ', array_merge($d['tone']['dont_words'] ?? [], ['نتايج مضمونة', 'إحصائيات مش حقيقية'])) . ".";
+    return ce_prompt_sys('ce_writer', ce_prompt_vars('ce_writer', $ctx));
 }
 
 function ce_critic_system(): string
 {
-    $r = ce_qa_rules();
-    $w = ce_qa_weights();
-    $rubric = [];
-    foreach ($w as $k => $v) $rubric[] = "$k (" . CE_QA_LABELS[$k] . ") = $v";
-    return "ROLE: مراجع محتوى صارم. أنت ماكتبتش المحتوى ده. من غير مجاملة.\n"
-        . "RUBRIC (الوزن): " . implode(' · ', $rubric) . "\n"
-        . "ANCHORS: 60 = عام ينفع لأي حد · 80 = محدد وواضح وفيه نقص بسيط · 95 = بيوقف السكرول ومستحيل يكون لبراند تاني ومفيهوش حشو.\n"
-        . "لكل معيار: evidence (اقتباس حرفي من المحتوى) · score · fix (مطلوب لو < 80 — تعليمات محددة).\n"
-        . "وكمان: compliance_flags[] · brand_voice_match (0-100) · verdict: PASS (الإجمالي ≥ {$r['pass_total']} ومفيش معيار < {$r['min_criterion']}) | REVISE | REJECT.\n"
-        . "OUTPUT JSON: {\"criteria\":{\"hook\":{\"evidence\":\"\",\"score\":0,\"fix\":\"\"}, …كل المعايير}, \"compliance_flags\":[], \"brand_voice_match\":0, \"verdict\":\"\"}";
+    return ce_prompt_sys('ce_critic');
+}
+
+/* ═══════════════════ رسائل المستخدم (نفسها في المحرك والـ Playground) ═══════════════════ */
+
+function ce_ideation_user(array $ctx, array $slot, array $used, string $note = ''): string
+{
+    return ce_dna_prefix((int) $ctx['uid']) . "\n\nCE:ideation SLOT_N=" . ($slot['position'] + 1) . "\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\nSLOT: " . ce_slot_text($slot, $ctx) . "\n"
+        . 'ALREADY USED HOOKS/IDEAS: ' . json_encode(array_slice($used, 0, 60), JSON_UNESCAPED_UNICODE)
+        . ($note !== '' ? "\nالأفكار اللي فاتت كانت ضعيفة: " . $note : '');
+}
+
+/** $cands: [['trigger_type','title','hook','core_insight'], …] */
+function ce_selection_user(array $ctx, array $slot, array $cands): string
+{
+    $list = [];
+    foreach (array_values($cands) as $k => $i) $list[] = ($k + 1) . '. [' . ($i['trigger_type'] ?? ($i['trigger'] ?? '-')) . '] ' . ($i['title'] ?? '') . ' — Hook: ' . ($i['hook'] ?? '') . ' — ' . ($i['core_insight'] ?? '');
+    return ce_dna_prefix((int) $ctx['uid']) . "\n\nCE:selection\nSLOT: " . ce_slot_text($slot, $ctx) . "\n\nالأفكار:\n" . implode("\n", $list);
+}
+
+/** $idea: title · hook · core_insight · why · risk — $revision: [fixes[], current_body_json] · $werr: أخطاء الشكل من الرد اللي فات */
+function ce_writer_user(array $ctx, array $slot, array $idea, array $golden = [], ?array $revision = null, array $werr = []): string
+{
+    $chan = CE_CHANNELS[$ctx['brief']['channel'] ?? ''][0] ?? 'واتساب';
+    $user = ce_dna_prefix((int) $ctx['uid']) . "\n\nCE:writer FORMAT=" . $slot['format']
+        . "\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\n<slot>" . ce_slot_text($slot, $ctx) . "</slot>\n"
+        . '<idea>' . json_encode(['title' => $idea['title'] ?? '', 'hook' => $idea['hook'] ?? '', 'insight' => $idea['core_insight'] ?? '', 'why' => $idea['why'] ?? '', 'risk' => $idea['risk'] ?? ''], JSON_UNESCAPED_UNICODE) . "</idea>\n"
+        . 'الشكل: ' . $slot['format'] . ' · الـ CTA: ' . $slot['cta_level'] . ' على ' . $chan . (!empty($ctx['dna']['cta']['text']) ? ' (الـ CTA الأساسي: ' . $ctx['dna']['cta']['text'] . ')' : '')
+        . ($golden ? "\nأمثلة بنفس المستوى (قلّد الجودة مش المحتوى):\n- " . implode("\n- ", $golden) : '');
+    if ($revision) {
+        $user .= "\n\nREVISION: Fix ONLY these criteria. Keep everything else unchanged:\n- " . implode("\n- ", $revision[0])
+            . "\n\nالنسخة الحالية:\n" . (string) $revision[1];
+    }
+    if ($werr) $user .= "\n\nالرد اللي فات كان فيه أخطاء — صلّحها: " . implode(' · ', $werr);
+    return $user;
+}
+
+function ce_critic_user(array $ctx, array $slot, array $body, array $codeFlags = []): string
+{
+    return ce_dna_prefix((int) $ctx['uid']) . "\n\nCE:critic\n<slot>" . ce_slot_text($slot, $ctx) . "</slot>\n<content>" . json_encode($body, JSON_UNESCAPED_UNICODE) . '</content>'
+        . ($codeFlags ? "\nمخالفات لقاها الكود: " . implode(' · ', $codeFlags) : '');
+}
+
+/** $lines: سطر لكل قطعة (المرحلة · الشكل · الخدمة · الـ Hook · الـ CTA · الجودة) */
+function ce_final_qa_user(array $ctx, array $lines): string
+{
+    return ce_dna_prefix((int) $ctx['uid']) . "\n\nCE:final_qa\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\n\nالمحتوى النهائي:\n" . implode("\n", $lines);
 }
 
 /* ═══════════════════ التحقق من شكل المحتوى ═══════════════════ */
@@ -333,7 +357,6 @@ function ce_write_job(array $job, array &$state): array
     $state += ['mode' => 'all', 'queue' => [], 'i' => 0, 'phase' => 'ideate', 'iround' => 1, 'qround' => 0, 'wretry' => 0, 'cost_usd' => 0.0, 'done_pieces' => 0];
     $aiCtx = ['user_id' => $uid, 'ref_type' => 'ce_campaign', 'ref_id' => (int) $c['id'], 'campaign_id' => (int) $c['id']];
     $n = count($state['queue']);
-    $prefix = ce_dna_prefix($uid);
     $prog = function (float $sub) use ($state, $n) { return (int) max(1, min(98, round(100 * ($state['i'] + $sub) / max(1, $n + ($state['mode'] === 'all' ? 0.5 : 0))))); };
 
     $finish = function () use (&$state) {
@@ -354,7 +377,7 @@ function ce_write_job(array $job, array &$state): array
                     . mb_substr((string) ($x['hook'] ?? ($b['hooks'][0] ?? '')), 0, 100) . ' · CTA: ' . mb_substr((string) ($b['cta'] ?? ''), 0, 80) . ' · QA ' . ($x['qa_score'] ?? '-');
             }
             $v = ce_plan_validate($slots, $ctx);
-            $r = ce_ai_json('ce_final_qa', ce_plan_critic_system() . "\nوكمان: \"notes\":[أهم 3 ملاحظات للعميل].", $prefix . "\n\nCE:final_qa\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\n\nالمحتوى النهائي:\n" . implode("\n", $lines), $aiCtx, 1500, 0.1);
+            $r = ce_ai_json('ce_final_qa', ce_prompt_sys('ce_final_qa'), ce_final_qa_user($ctx, $lines), $aiCtx, 1500, 0.1);
             $state['cost_usd'] += $r['cost_usd'];
             $comb = ce_plan_combine($v['code'], $r['ok'] ? ($r['data']['scores'] ?? null) : null);
             $notes = [];
@@ -382,7 +405,6 @@ function ce_write_job(array $job, array &$state): array
     db_run('INSERT INTO ce_contents (campaign_id, slot_id, user_id, format, status) VALUES (?,?,?,?, "writing")
             ON DUPLICATE KEY UPDATE status = IF(status IN ("pass","manual") AND ? = 0, status, "writing"), format = VALUES(format)',
         [(int) $c['id'], $slotId, $uid, $slot['format'], $state['phase'] === 'ideate' ? 1 : 0]);
-    $slotTxt = ce_slot_text($slot, $ctx);
 
     // لو العميل اختار فكرة بنفسه (تبديل الفكرة) ← على الكتابة على طول
     if ($state['phase'] === 'ideate' && !empty($state['forced_idea'])) {
@@ -394,9 +416,7 @@ function ce_write_job(array $job, array &$state): array
     // ─── 1) الأفكار ───
     if ($state['phase'] === 'ideate') {
         $used = ce_used_hooks($uid, (int) $c['id'], $slotId);
-        $user = $prefix . "\n\nCE:ideation SLOT_N=" . ($slot['position'] + 1) . "\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\nSLOT: $slotTxt\n"
-            . 'ALREADY USED HOOKS/IDEAS: ' . json_encode(array_slice($used, 0, 60), JSON_UNESCAPED_UNICODE)
-            . (!empty($state['idea_note']) ? "\nالأفكار اللي فاتت كانت ضعيفة: " . $state['idea_note'] : '');
+        $user = ce_ideation_user($ctx, $slot, $used, (string) ($state['idea_note'] ?? ''));
         $r = ce_ai_json('ce_ideation', ce_ideation_system(), $user, $aiCtx, 1800, 0.9);
         $state['cost_usd'] += $r['cost_usd'];
         $ideas = $r['ok'] ? (array) ($r['data']['ideas'] ?? (array_is_list($r['data']) ? $r['data'] : [])) : [];
@@ -437,9 +457,7 @@ function ce_write_job(array $job, array &$state): array
     if ($state['phase'] === 'select') {
         $cands = db_all('SELECT * FROM ce_ideas WHERE slot_id = ? AND round = ? AND is_dup = 0 ORDER BY id', [$slotId, $state['iround']])
             ?: db_all('SELECT * FROM ce_ideas WHERE slot_id = ? AND round = ? ORDER BY id', [$slotId, $state['iround']]);
-        $list = [];
-        foreach ($cands as $k => $i) $list[] = ($k + 1) . '. [' . ($i['trigger_type'] ?? '-') . '] ' . $i['title'] . ' — Hook: ' . $i['hook'] . ' — ' . $i['core_insight'];
-        $r = ce_ai_json('ce_selection', ce_selection_system(), $prefix . "\n\nCE:selection\nSLOT: $slotTxt\n\nالأفكار:\n" . implode("\n", $list), $aiCtx, 600, 0.1);
+        $r = ce_ai_json('ce_selection', ce_selection_system(), ce_selection_user($ctx, $slot, $cands), $aiCtx, 600, 0.1);
         $state['cost_usd'] += $r['cost_usd'];
         $best = null;
         foreach ((array) ($r['data']['scores'] ?? []) as $sc) {
@@ -473,17 +491,8 @@ function ce_write_job(array $job, array &$state): array
             $g = db_one('SELECT generated_text FROM contents WHERE id = ? AND user_id = ?', [(int) $gid, $uid]);
             if ($g && trim((string) $g['generated_text']) !== '') $golden[] = mb_substr((string) $g['generated_text'], 0, 500);
         }
-        $chan = CE_CHANNELS[$brief['channel'] ?? ''][0] ?? 'واتساب';
-        $user = $prefix . "\n\nCE:writer FORMAT=" . $slot['format']
-            . "\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\n<slot>$slotTxt</slot>\n"
-            . '<idea>' . json_encode(['title' => $idea['title'], 'hook' => $idea['hook'], 'insight' => $idea['core_insight'], 'why' => $idea['why'], 'risk' => $idea['risk']], JSON_UNESCAPED_UNICODE) . "</idea>\n"
-            . 'الشكل: ' . $slot['format'] . ' · الـ CTA: ' . $slot['cta_level'] . ' على ' . $chan . ($ctx['dna']['cta']['text'] ? ' (الـ CTA الأساسي: ' . $ctx['dna']['cta']['text'] . ')' : '')
-            . ($golden ? "\nأمثلة بنفس المستوى (قلّد الجودة مش المحتوى):\n- " . implode("\n- ", $golden) : '');
-        if ($state['qround'] > 0 && !empty($state['last_qa'])) {
-            $user .= "\n\nREVISION: Fix ONLY these criteria. Keep everything else unchanged:\n- " . implode("\n- ", ce_qa_fixes($state['last_qa']))
-                . "\n\nالنسخة الحالية:\n" . (string) $content['body_json'];
-        }
-        if (!empty($state['werr'])) $user .= "\n\nالرد اللي فات كان فيه أخطاء — صلّحها: " . implode(' · ', $state['werr']);
+        $revision = $state['qround'] > 0 && !empty($state['last_qa']) ? [ce_qa_fixes($state['last_qa']), (string) $content['body_json']] : null;
+        $user = ce_writer_user($ctx, $slot, $idea, $golden, $revision, (array) ($state['werr'] ?? []));
         $r = ce_ai_json('ce_writer', ce_writer_system($ctx), $user, $aiCtx, $slot['format'] === 'carousel' ? 2600 : 2000, 0.7);
         $state['cost_usd'] += $r['cost_usd'];
         if (!$r['ok']) {
@@ -515,8 +524,7 @@ function ce_write_job(array $job, array &$state): array
     $body = json_decode((string) $content['body_json'], true) ?: [];
     $codeFlags = ce_content_flags($body, $ctx, $brief);
     $target = ce_critic_target($state['writer_provider'] ?? null);
-    $critUser = $prefix . "\n\nCE:critic\n<slot>$slotTxt</slot>\n<content>" . json_encode($body, JSON_UNESCAPED_UNICODE) . '</content>'
-        . ($codeFlags ? "\nمخالفات لقاها الكود: " . implode(' · ', $codeFlags) : '');
+    $critUser = ce_critic_user($ctx, $slot, $body, $codeFlags);
     $r = ce_ai_json('ce_critic', ce_critic_system(), $critUser, $aiCtx + ($target ? ['only' => $target] : []), 2200, 0.1);
     $state['cost_usd'] += $r['cost_usd'];
     if (!$r['ok'] && $target && $r['error'] !== 'gateway_off') {

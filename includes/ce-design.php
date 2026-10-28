@@ -99,12 +99,7 @@ function ce_design_row(int $slotId, int $frame): ?array
 
 function ce_design_prompt_system(): string
 {
-    return "ROLE: Prompt engineer for photorealistic social-media visuals for brands in Egypt. Output JSON only.\n"
-        . "BUILD the image prompt in this order: [Subject + action] + [Scene, Egyptian context: people, places, details] + [Composition: keep the text-safe zone clean and empty]\n"
-        . "+ [Lighting + camera angle] + [Palette accents from the brand colors] + [Style] + [Character consistency via the given references].\n"
-        . "NEVER ask for any text, letters, numbers, logos or watermarks inside the image — Arabic text is added later by us.\n"
-        . "NEGATIVE: any text, letters, logos, watermarks, distorted hands/teeth, unrealistic medical results.\n"
-        . "OUTPUT: {\"prompt\":\"English, 60-120 words\", \"negative\":\"comma list\"}";
+    return ce_prompt_sys('ce_design_prompt');
 }
 
 function ce_design_prompt_user(array $ctx, array $slot, array $body, array $frame, string $zone, string $hint): string
@@ -146,10 +141,14 @@ function ce_design_prompt_fallback(array $ctx, array $body): string
 
 function ce_vision_system(): string
 {
-    return "You are a strict visual QA reviewer for social-media designs. Check the image against the design brief. JSON only.\n"
-        . "Return: {\"palette_match\":0-100, \"text_zone_clear\":true|false, \"artifacts\":[\"short issue\"…], \"idea_match\":0-100, \"has_text\":true|false, \"verdict\":\"PASS|REGENERATE\", \"regenerate_hint\":\"one line\"}\n"
-        . "text_zone_clear = the text-safe zone is calm and empty enough to put a headline on. has_text = the image contains any letters/words/logos. "
-        . "artifacts = distorted hands/faces/teeth, melted objects, garbled shapes, unrealistic medical results.";
+    return ce_prompt_sys('ce_vision_qa');
+}
+
+/** رسالة مراجعة الصورة (نفسها في المحرك والـ Playground) — الصورة نفسها بتتبعت جنبها */
+function ce_vision_user(array $designBrief, array $colors, string $prompt): string
+{
+    return "CE:vision_qa\n<design_brief>" . json_encode($designBrief, JSON_UNESCAPED_UNICODE) . "</design_brief>\n"
+        . 'Brand colors: ' . implode(' ', $colors) . "\nImage prompt used: " . mb_substr($prompt, 0, 900);
 }
 
 /** الحكم في الكود: الألوان والفكرة فوق الحد + المساحة فاضية + مفيش نص + عيب واحد بالكتير */
@@ -357,8 +356,7 @@ function ce_design_job(array $job, array &$state): array
 
     if ($state['phase'] === 'vision') {
         $uri = ce_design_preview_uri((string) $d['image_path']);
-        $user = "CE:vision_qa\n<design_brief>" . json_encode($body['design_brief'] ?? [], JSON_UNESCAPED_UNICODE) . "</design_brief>\n"
-            . 'Brand colors: ' . implode(' ', (array) (ce_dna_get($uid)['visual']['colors_hex'] ?? [])) . "\nImage prompt used: " . mb_substr((string) $d['prompt'], 0, 900);
+        $user = ce_vision_user((array) ($body['design_brief'] ?? []), (array) (ce_dna_get($uid)['visual']['colors_hex'] ?? []), (string) $d['prompt']);
         $r = $uri ? ce_ai_json('ce_vision_qa', ce_vision_system(), $user, $aiCtx, 600, 0.1, [$uri]) : ['ok' => false, 'error' => 'no_image', 'cost_usd' => 0];
         $state['cost_usd'] += $r['cost_usd'];
         if (!$r['ok']) {

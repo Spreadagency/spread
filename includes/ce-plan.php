@@ -472,14 +472,7 @@ function ce_plan_brief_text(array $ctx): string
 
 function ce_plan_matrix_system(): string
 {
-    return "ROLE: Senior content strategist for brands in Egypt. Output Arabic text values, JSON only.\n"
-        . "TASK: Build a content matrix (a plan of slots). Do NOT write ideas or captions yet.\n"
-        . "Each slot: {\"order\":n, \"funnel_stage\":\"tofu|mofu|bofu\", \"pillar\":\"<pillar key>\", \"service_id\":<id>, \"persona_id\":<id>, \"format\":\"post|carousel|reel\", \"angle\":\"<angle key>\", \"cta_level\":\"soft|medium|hard\", \"objective\":\"سطر واحد\"}\n"
-        . "RULES:\n- Funnel mix as given (±5%). Funnel order: tofu → mofu → bofu.\n- No two adjacent slots share pillar OR angle.\n"
-        . "- Every selected service ≥ the minimum slots given; every persona ≥ 1.\n- Format counts EXACTLY as given.\n- Hard CTAs only in the final 30% of the campaign.\n"
-        . "- Respect compliance and exclusions absolutely. Locked slots must be returned unchanged at their order.\n"
-        . "SELF-CHECK: score balance, non_repetition, coverage, sequence, cta, goal_fit (0-100); if any < 80 revise first.\n"
-        . "OUTPUT: JSON only: {\"slots\":[...], \"self_scores\":{...}}";
+    return ce_prompt_sys('ce_matrix');
 }
 
 function ce_plan_matrix_user(array $ctx, array $locked, array $fixes): string
@@ -513,14 +506,15 @@ function ce_plan_matrix_user(array $ctx, array $locked, array $fixes): string
 
 function ce_plan_critic_system(): string
 {
-    $w = ce_plan_weights();
-    return "أنت ناقد خطط محتوى صارم. قيّم الخطة على 6 معايير من 0 لـ 100 ورجّع JSON بس.\n"
-        . "المعايير والأوزان: balance (توازن المراحل والأعمدة والأشكال) {$w['balance']} · non_repetition (مفيش تكرار في الزوايا والأفكار) {$w['non_repetition']} · "
-        . "coverage (كل الخدمات والعملاء المختارين) {$w['coverage']} · sequence (الرحلة من الوعي للقرار منطقية) {$w['sequence']} · "
-        . "cta (الدعوة لاتخاذ إجراء في مكانها ومناسبة للقناة) {$w['cta']} · goal_fit (الخطة بتخدم هدف الحملة) {$w['goal_fit']}.\n"
-        . "{\"scores\":{\"balance\":0,\"non_repetition\":0,\"coverage\":0,\"sequence\":0,\"cta\":0,\"goal_fit\":0},"
-        . " \"fixes\":[{\"slot\":<رقم الخانة>, \"issue\":\"المشكلة\", \"fix\":\"التعديل المطلوب\"}], \"summary\":\"سطرين\"}\n"
-        . "اكتب إصلاحات محددة وقابلة للتنفيذ بس (≤ 8). مفيش أي نص برّه الـ JSON.";
+    return ce_prompt_sys('ce_plan_critic');
+}
+
+/** رسالة ناقد الخطة (نفسها في المحرك والـ Playground) */
+function ce_plan_critic_user(array $ctx, array $slots, array $issues = []): string
+{
+    return ce_dna_prefix((int) $ctx['uid']) . "\n\nCE:plan_critic\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\n\nنسب المراحل المطلوبة: " . json_encode($ctx['mix'])
+        . "\n\nالخطة:\n" . ce_plan_slots_brief($slots, $ctx)
+        . ($issues ? "\n\nمخالفات لقاها الكود:\n- " . implode("\n- ", array_column($issues, 'msg')) : '');
 }
 
 /* ═══════════════════ التخزين ═══════════════════ */
@@ -629,9 +623,7 @@ function ce_plan_job(array $job, array &$state): array
     $v = ce_plan_validate($slots, $ctx);
     $critic = null;
     $run = null;
-    $userMsg = ce_dna_prefix($uid) . "\n\nCE:plan_critic\n<campaign>\n" . ce_plan_brief_text($ctx) . "\n</campaign>\n\nنسب المراحل المطلوبة: " . json_encode($ctx['mix'])
-        . "\n\nالخطة:\n" . ce_plan_slots_brief($slots, $ctx)
-        . ($v['issues'] ? "\n\nمخالفات لقاها الكود:\n- " . implode("\n- ", array_column($v['issues'], 'msg')) : '');
+    $userMsg = ce_plan_critic_user($ctx, $slots, $v['issues']);
     $r = ce_ai_json('ce_plan_critic', ce_plan_critic_system(), $userMsg, $aiCtx, 1500, 0.1);
     $state['cost_usd'] += $r['cost_usd'];
     if ($r['ok'] && isset($r['data']['scores']) && is_array($r['data']['scores'])) { $critic = $r['data']; $run = $r['run_id']; }

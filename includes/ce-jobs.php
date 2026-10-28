@@ -19,6 +19,7 @@
  */
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/credits.php';
+require_once __DIR__ . '/ce-prompts.php';   // برومبتات المراحل (نسخ الأدمن أو اللي في الكود)
 
 /* ═══════════════════ الجاهزية ═══════════════════ */
 

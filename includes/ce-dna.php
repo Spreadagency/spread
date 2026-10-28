@@ -33,8 +33,35 @@ function ce_dna_row(int $uid): ?array
 
 function ce_dna_get(int $uid): ?array
 {
+    if ($uid === 0) return ce_demo_dna();   // البراند التجريبي (الـ Playground)
     $r = ce_dna_row($uid);
     return $r ? (json_decode((string) $r['dna_json'], true) ?: null) : null;
+}
+
+/** براند تجريبي جاهز للـ Playground واختبار الرجوع (مش بيتخزن ومش مربوط بأي عميل) */
+function ce_demo_dna(): array
+{
+    return [
+        'brand' => ['name' => 'عيادة ابتسامة (تجريبي)', 'sector' => 'عيادة أسنان', 'location' => 'المنصورة'],
+        'positioning' => 'عيادة أسنان عائلية في المنصورة بتطمّن الخايف من الألم بمواعيد بالليل',
+        'usp' => ['مواعيد لحد 12 بالليل', 'دكتور خبرة 15 سنة', 'تعقيم كامل قدام المريض'],
+        'proof_assets' => ['أكتر من 2000 حالة تبييض', 'تقييم 4.9 على جوجل'],
+        'services' => [
+            ['id' => 9001, 'name' => 'تبييض الأسنان', 'priority' => 'high', 'season' => 'الصيف', 'objections' => ['بيضر المينا؟']],
+            ['id' => 9002, 'name' => 'تقويم الأسنان', 'priority' => 'medium', 'season' => 'طول السنة', 'objections' => ['غالي', 'بياخد وقت']],
+            ['id' => 9003, 'name' => 'زراعة الأسنان', 'priority' => 'medium', 'season' => 'طول السنة', 'objections' => ['بتوجع؟']],
+        ],
+        'personas' => [
+            ['id' => 9101, 'name' => 'أم مشغولة', 'pain' => ['مفيش وقت', 'الخوف من الألم'], 'fears' => ['الألم'], 'desires' => ['خدمة سريعة'], 'platform' => 'facebook'],
+            ['id' => 9102, 'name' => 'شاب بيهتم بشكله', 'pain' => ['لون الأسنان'], 'fears' => ['النتيجة مش مضمونة'], 'desires' => ['ابتسامة حلوة'], 'platform' => 'instagram'],
+        ],
+        'tone' => ['dialect' => 'egyptian', 'formality' => 'friendly', 'emoji' => false, 'do_words' => [], 'dont_words' => ['رخيص', 'نتيجة مضمونة 100%']],
+        'visual' => ['colors_hex' => ['#0C87EF', '#2EE3CC', '#FFB300', '#F7FAFD'], 'fonts' => ['Cairo', 'Tajawal'], 'photo_style' => 'صور حقيقية مضيئة بألوان هادية', 'avoid' => ['دم أو أدوات مخيفة'], 'characters' => []],
+        'cta' => ['type' => 'whatsapp', 'text' => 'احجز كشفك على واتساب'],
+        'compliance' => ['مفيش وعود بنتيجة مضمونة', 'مفيش صور قبل وبعد من غير موافقة'],
+        'golden_example_ids' => [],
+        'winning_patterns' => ['سؤال شائع وإجابته', 'كواليس يوم في العيادة', 'نصيحة سريعة'],
+    ];
 }
 
 /** حفظ نسخة جديدة (النسخة اللي قبلها بتتحفظ في prev_json للرجوع) */
@@ -320,16 +347,14 @@ function ce_dna_prefix(int $uid): string
 
 function ce_dna_system_prompt(): string
 {
-    return "أنت استراتيجي براند. هتاخد بيانات هوية نشاط (منظمة + نصوص طويلة) وترجّع JSON بس، مختصر جدًا، بالعربي، بنفس لهجة البراند.\n"
-        . "المفاتيح المطلوبة بالظبط:\n"
-        . "{\"positioning\": \"جملة واحدة (≤ 25 كلمة): البراند ده لمين وبيحل إيه وبيختلف في إيه\",\n"
-        . " \"usp\": [\"≤ 4 نقط تميّز حقيقية من البيانات\"],\n"
-        . " \"proof_assets\": [\"≤ 5 إثباتات موجودة فعلًا: سنين خبرة، شهادات، أرقام، آراء عملاء — ماتألفش أي رقم\"],\n"
-        . " \"compliance\": [\"≤ 5 قيود لازم المحتوى يلتزم بيها (قوانين الإعلان في المجال، وعود ممنوعة)\"],\n"
-        . " \"winning_patterns\": [\"≤ 5 أنماط محتوى نجحت أو مناسبة\"],\n"
-        . " \"persona_fears\": {\"<id العميل>\": [\"≤ 3 مخاوف\"]},\n"
-        . " \"service_objections\": {\"<id الخدمة>\": [\"≤ 3 اعتراضات\"]}}\n"
-        . "قواعد: ماتخترعش معلومات مش موجودة · سيب القايمة فاضية لو مفيش بيانات · مفيش أي نص برّه الـ JSON.";
+    // النص في مدير البرومبتات (ce-prompts.php) — نسخة الأدمن الشغالة أو اللي في الكود
+    return ce_prompt_sys('ce_brand_dna');
+}
+
+/** رسالة بناء الـ DNA (نفسها في المحرك والـ Playground) */
+function ce_dna_user(array $dna, string $sources): string
+{
+    return "CE:brand_dna\nالبيانات المنظّمة:\n" . json_encode($dna, JSON_UNESCAPED_UNICODE) . "\n\nالنصوص:\n" . ($sources ?: '(مفيش)');
 }
 
 /** المصادر الطويلة اللي بتتلخّص (مابتدخلش البرومبتات بعد كده) */
@@ -391,7 +416,7 @@ function ce_dna_job(array $job, array &$state): array
         $src = ce_dna_sources_text($uid);
         $state['cost_usd'] = 0.0;
         if ($src !== '' || $state['dna']['services'] || $state['dna']['personas']) {
-            $user = "CE:brand_dna\nالبيانات المنظّمة:\n" . json_encode($state['dna'], JSON_UNESCAPED_UNICODE) . "\n\nالنصوص:\n" . ($src ?: '(مفيش)');
+            $user = ce_dna_user($state['dna'], $src);
             $r = ce_ai_json('ce_brand_dna', ce_dna_system_prompt(), $user, ['user_id' => $uid, 'ref_type' => 'ce_job', 'ref_id' => (int) $job['id']], 1200, 0.3);
             $state['cost_usd'] = $r['cost_usd'];
             $state['ai'] = $r['ok'] ? 'ok' : $r['error'];

@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-28',
-  'generated' => '2026-10-28 10:43',
+  'generated' => '2026-10-28 11:02',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -197,6 +197,13 @@ return array (
     188 => 'assets/fonts/OFL.txt',
     189 => 'sql/2026_ce_design_v2.sql',
     190 => 'sql/2026_ce_design_v2_rollback.sql',
+    191 => 'includes/ce-prompts.php',
+    192 => 'includes/ce-lab.php',
+    193 => 'admin/ce-lab.php',
+    194 => 'admin/ce-lab-api.php',
+    195 => 'assets/js/ce-lab.js',
+    196 => 'sql/2026_ce_lab.sql',
+    197 => 'sql/2026_ce_lab_rollback.sql',
   ),
   'files' => 
   array (
@@ -304,6 +311,16 @@ return array (
     array (
       'h' => 'c9eb494f37a742ed7cd443b105c0fe74',
       's' => 21890,
+    ),
+    'admin/ce-lab-api.php' => 
+    array (
+      'h' => '891078851e4e2c3835eb3b6765c5d85c',
+      's' => 10365,
+    ),
+    'admin/ce-lab.php' => 
+    array (
+      'h' => '03dab36891b3456cf61a10a2b2633baf',
+      's' => 20394,
     ),
     'admin/ce-settings.php' => 
     array (
@@ -547,8 +564,8 @@ return array (
     ),
     'assets/css/admin-v2.css' => 
     array (
-      'h' => '7c490fdeffbe2ba720a7b0aff82b3290',
-      's' => 39000,
+      'h' => '95fe968459956fd8b1358490d8f6f018',
+      's' => 45804,
     ),
     'assets/css/brand-kit.css' => 
     array (
@@ -650,6 +667,11 @@ return array (
       'h' => '5e4a739409ea9d7ddc6d5e0e33c03bde',
       's' => 39698,
     ),
+    'assets/js/ce-lab.js' => 
+    array (
+      'h' => 'c56556355c2c4f0ff0d784398d27f4cd',
+      's' => 17295,
+    ),
     'assets/js/engine.js' => 
     array (
       'h' => 'df1fe5986c24ecedf75ebdf9eeab9b0d',
@@ -727,13 +749,13 @@ return array (
     ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
-      'h' => 'ea06727de173d7fe25f3b889691fc28d',
-      's' => 22612,
+      'h' => 'f523fe5213e95400655ba29208d8d841',
+      's' => 29383,
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '3332bdbc65958f75f484451729694793',
-      's' => 15425,
+      'h' => '8cc0497310729ed1e9d58fcbc4403f59',
+      's' => 17542,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -772,8 +794,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '4dca198ebc2aa618978e4db5753311bb',
-      's' => 14990,
+      'h' => 'e425d99199b7d7e4035fa8930cfffa03',
+      's' => 15138,
     ),
     'includes/ai-center.php' => 
     array (
@@ -842,18 +864,23 @@ return array (
     ),
     'includes/ce-design.php' => 
     array (
-      'h' => '62cb883041204d44a87d71c000261747',
-      's' => 39450,
+      'h' => '8f26d428eee3070e9f12d7cf045f98b0',
+      's' => 38434,
     ),
     'includes/ce-dna.php' => 
     array (
-      'h' => 'f025670b37807e8a839d6e5dc2c2fc0c',
-      's' => 25901,
+      'h' => 'b7f5dd8b3bcc5f705081fc36065cbbc4',
+      's' => 27593,
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => 'e1d679f226896ceb69a7e3821ee0b665',
-      's' => 22115,
+      'h' => '1ddbff433150b254c97af98b6a923a79',
+      's' => 22246,
+    ),
+    'includes/ce-lab.php' => 
+    array (
+      'h' => '29ac8381a3f3a3dbb8de0fc30121f69f',
+      's' => 33366,
     ),
     'includes/ce-overlay.php' => 
     array (
@@ -862,13 +889,18 @@ return array (
     ),
     'includes/ce-plan.php' => 
     array (
-      'h' => '295298863a74413f939ba4d4dbe8157b',
-      's' => 49760,
+      'h' => '71e46a930aa68596cdbd5a0e334e89e7',
+      's' => 47779,
+    ),
+    'includes/ce-prompts.php' => 
+    array (
+      'h' => '32372941908ba7c6a1787cb5cd0c73df',
+      's' => 20011,
     ),
     'includes/ce-write.php' => 
     array (
-      'h' => '34f3faf16e8580aa6ae42c8d54f8723c',
-      's' => 47108,
+      'h' => 'b597a4c033e9d0dddc8d1503dbef0009',
+      's' => 45182,
     ),
     'includes/config.sample.php' => 
     array (
@@ -957,8 +989,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '6a634a6e86ec1ea482d4cd809dabc9a9',
-      's' => 14364,
+      'h' => 'b9dfc491b6f7d31d2976a01a4512cccd',
+      's' => 14534,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1709,6 +1741,16 @@ return array (
     array (
       'h' => 'deb8ce73d43a23b4e21a32614017a43e',
       's' => 3899,
+    ),
+    'sql/2026_ce_lab.sql' => 
+    array (
+      'h' => '3f8e00306066c7179c573246c9943f6e',
+      's' => 3882,
+    ),
+    'sql/2026_ce_lab_rollback.sql' => 
+    array (
+      'h' => '58967aa0943738c12a70948b4654385e',
+      's' => 844,
     ),
     'sql/2026_ce_models.sql' => 
     array (
