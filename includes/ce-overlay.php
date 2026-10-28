@@ -101,6 +101,38 @@ function ce_fonts(): array
     return $cache = $out;
 }
 
+/**
+ * عائلات الخطوط اللي البراند يقدر يختار منها (اللي معاها حروف عربي بس) — أي خط يترفع بيظهر هنا أوتوماتيك
+ * @return array [['family' => 'Cairo', 'weights' => [400, 700], 'url' => رابط الملف للمعاينة في المتصفح, 'builtin' => bool], …]
+ */
+function ce_font_families(): array
+{
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $out = [];
+    $root = dirname(__DIR__);
+    $storage = defined('STORAGE_PATH') ? STORAGE_PATH : $root . '/storage';
+    foreach (ce_fonts() as $key => $f) {
+        $fam = preg_replace('/[-_ ]?(\d{3}|Regular|Bold|ExtraBold|Black|Light|Medium|SemiBold)$/i', '', $key);
+        if ($fam === '' || !ce_font_has_arabic($f['path'])) continue;
+        if (!isset($out[$fam])) {
+            $out[$fam] = ['family' => $fam, 'weights' => [], 'url' => null, 'builtin' => $f['builtin'], 'preview_weight' => 0];
+        }
+        $out[$fam]['weights'][] = $f['weight'];
+        // ملف المعاينة: أتقل وزن ≤ 700 (العنوان)
+        if ($f['weight'] <= 700 && $f['weight'] >= $out[$fam]['preview_weight']) {
+            $rel = str_starts_with($f['path'], $root . '/assets/') ? substr($f['path'], strlen($root) + 1) : null;
+            $up = str_starts_with($f['path'], $storage . '/') ? substr($f['path'], strlen($storage) + 1) : null;
+            $out[$fam]['url'] = $rel !== null ? (function_exists('url') ? url($rel) : '/' . $rel) : ($up !== null && function_exists('upload_url') ? upload_url($up) : null);
+            $out[$fam]['preview_weight'] = $f['weight'];
+        }
+    }
+    foreach ($out as &$o) { sort($o['weights']); unset($o['preview_weight']); }
+    unset($o);
+    ksort($out);
+    return $cache = array_values($out);
+}
+
 /** مسار الخط: لو خط البراند (من الهوية) متاح بنفس التقل بيكسب — غير كده خط القالب — غير كده Cairo */
 function ce_font_path(string $key, array $brandFonts = []): string
 {
@@ -125,7 +157,7 @@ function ce_font_has_arabic(string $path): bool
     if (!is_file($path) || !function_exists('imagettfbbox')) return false;
     $probe = function (string $ch) use ($path): string {
         $im = imagecreatetruecolor(50, 50);
-        imagettftext($im, 28, 0, 6, 40, imagecolorallocate($im, 255, 255, 255), $path, $ch);
+        @imagettftext($im, 28, 0, 6, 40, imagecolorallocate($im, 255, 255, 255), $path, $ch);   // ملف مش خط ← تحذير بس، والنتيجة «مفيش حروف»
         ob_start(); imagepng($im); $h = md5((string) ob_get_clean());
         imagedestroy($im);
         return $h;
@@ -383,8 +415,10 @@ function ce_overlay_render(array $o): array
     $shadow = imagecolorallocatealpha($im, 0, 0, 0, 95);
 
     // النص: العنوان (≤ 3 سطور) + السطر التاني (≤ 2)
-    $fh = ce_font_path($st['font_h'], (array) ($o['fonts'] ?? []));
-    $fs = ce_font_path($st['font_s'], []);
+    // خطوط البراند: الأول للعنوان · التاني للسطر التاني (ولو مفيش تاني: الأول بتقل أخف) — والعميل يقدر يغيّر خط العنوان لتصميم واحد
+    $bf = array_values(array_filter((array) ($o['fonts'] ?? []), 'is_string'));
+    $fh = ce_font_path($st['font_h'], !empty($o['font_h']) ? [(string) $o['font_h']] : array_slice($bf, 0, 1));
+    $fs = ce_font_path($st['font_s'], $bf ? [$bf[1] ?? $bf[0]] : []);
     if ($fh === '' || !is_file($fh)) return ['ok' => false, 'error' => 'مفيش خط عربي متاح'];
     if ($fs === '' || !is_file($fs)) $fs = $fh;
     $boxW = ($x2 - $x1) - 2 * $pad;

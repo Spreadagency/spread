@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-27',
-  'generated' => '2026-10-27 14:39',
+  'date' => '2026-10-28',
+  'generated' => '2026-10-28 10:43',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -195,6 +195,8 @@ return array (
     186 => 'assets/fonts/Tajawal-700.ttf',
     187 => 'assets/fonts/Tajawal-800.ttf',
     188 => 'assets/fonts/OFL.txt',
+    189 => 'sql/2026_ce_design_v2.sql',
+    190 => 'sql/2026_ce_design_v2_rollback.sql',
   ),
   'files' => 
   array (
@@ -305,13 +307,13 @@ return array (
     ),
     'admin/ce-settings.php' => 
     array (
-      'h' => 'ba19bf7f2380f29ce5a271fa21201cb6',
-      's' => 53811,
+      'h' => 'f58148f0d6df1a762fe8a38e910c3924',
+      's' => 56147,
     ),
     'admin/ce-template-preview.php' => 
     array (
-      'h' => '6c7f610ef11960ea7a2e01a86043c538',
-      's' => 2022,
+      'h' => '8408fd670c2ab6ac3647d79f02e41565',
+      's' => 2655,
     ),
     'admin/content-history.php' => 
     array (
@@ -550,8 +552,8 @@ return array (
     ),
     'assets/css/brand-kit.css' => 
     array (
-      'h' => '39a0b8f248f0ad7f203f24aead1eb412',
-      's' => 23292,
+      'h' => '3da0a44d83d09a3c6060a9b35848f674',
+      's' => 23922,
     ),
     'assets/css/campaign-v2.css' => 
     array (
@@ -560,8 +562,8 @@ return array (
     ),
     'assets/css/engine.css' => 
     array (
-      'h' => 'f669ac3f37118440d60a30c188bee915',
-      's' => 11704,
+      'h' => 'd31e4c8a7fad1af2223ec3ded8827456',
+      's' => 11928,
     ),
     'assets/css/main.css' => 
     array (
@@ -645,13 +647,13 @@ return array (
     ),
     'assets/js/brand-kit.js' => 
     array (
-      'h' => '285d4c1fd259dc03c92db1a3a8bbd3e3',
-      's' => 38338,
+      'h' => '5e4a739409ea9d7ddc6d5e0e33c03bde',
+      's' => 39698,
     ),
     'assets/js/engine.js' => 
     array (
-      'h' => '9a77e4ec6e5bbe53b16780d3d07c02bf',
-      's' => 25249,
+      'h' => 'df1fe5986c24ecedf75ebdf9eeab9b0d',
+      's' => 25453,
     ),
     'assets/js/main.js' => 
     array (
@@ -825,8 +827,8 @@ return array (
     ),
     'includes/brand-kit.php' => 
     array (
-      'h' => '3dd7a523d568a54e8859b1096df8a770',
-      's' => 130187,
+      'h' => '4923afb7dafa28f10aea5f2b7ffc5c63',
+      's' => 130798,
     ),
     'includes/campaign-flow.php' => 
     array (
@@ -835,18 +837,18 @@ return array (
     ),
     'includes/ce-campaign.php' => 
     array (
-      'h' => '511abc98bcdd0eb97079c1e30dd7bacd',
-      's' => 19736,
+      'h' => '2233f6650f8f531100efe046f2d76f13',
+      's' => 20215,
     ),
     'includes/ce-design.php' => 
     array (
-      'h' => '0eba3ee9008528f68d7a3aab70607d33',
-      's' => 36819,
+      'h' => '62cb883041204d44a87d71c000261747',
+      's' => 39450,
     ),
     'includes/ce-dna.php' => 
     array (
-      'h' => 'c2dc483a3ba9e64fc092c391c20724d5',
-      's' => 25628,
+      'h' => 'f025670b37807e8a839d6e5dc2c2fc0c',
+      's' => 25901,
     ),
     'includes/ce-jobs.php' => 
     array (
@@ -855,8 +857,8 @@ return array (
     ),
     'includes/ce-overlay.php' => 
     array (
-      'h' => '83f8eb3da88ec21dd414d6f9889e0fd1',
-      's' => 25271,
+      'h' => '9450392e3000e90b046ad3cd4941e3ae',
+      's' => 27550,
     ),
     'includes/ce-plan.php' => 
     array (
@@ -955,8 +957,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '13cc7f0e685f0e12d62cb2945505b81a',
-      's' => 14155,
+      'h' => '6a634a6e86ec1ea482d4cd809dabc9a9',
+      's' => 14364,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1235,8 +1237,8 @@ return array (
     ),
     'public/api/brand-kit.php' => 
     array (
-      'h' => 'ad038b6afbaf6b8f20b05d5045162cd0',
-      's' => 96467,
+      'h' => '61be544fbb3074e9e6e0e6e768c27432',
+      's' => 96797,
     ),
     'public/api/brand.php' => 
     array (
@@ -1260,8 +1262,8 @@ return array (
     ),
     'public/api/engine.php' => 
     array (
-      'h' => 'f3a4728579d9c797286969e5e2a2a4ac',
-      's' => 12311,
+      'h' => '58984a269480a03a5df1c2a8268be25c',
+      's' => 12407,
     ),
     'public/api/inbox.php' => 
     array (
@@ -1370,8 +1372,8 @@ return array (
     ),
     'public/brand-kit.php' => 
     array (
-      'h' => '82568edcae40be6856d01bfd34723d85',
-      's' => 71519,
+      'h' => '64a7397bc9896aa126ca5efba22c1423',
+      's' => 72394,
     ),
     'public/brand-profile.php' => 
     array (
@@ -1450,8 +1452,8 @@ return array (
     ),
     'public/engine.php' => 
     array (
-      'h' => '6c0e74586ca55ebca68f36fbe8f93202',
-      's' => 44849,
+      'h' => '29c3f8bff59dcf9914ec1a29963b8891',
+      's' => 45724,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1670,13 +1672,23 @@ return array (
     ),
     'sql/2026_ce_design.sql' => 
     array (
-      'h' => 'c819fc96a3749c72aa4b4c211a1cfb90',
-      's' => 5626,
+      'h' => 'f4ab6618e08f8a20530c9da4208a68f6',
+      's' => 5716,
     ),
     'sql/2026_ce_design_rollback.sql' => 
     array (
       'h' => 'c4bbe63654eaeb6ebbea81e46d542fde',
       's' => 968,
+    ),
+    'sql/2026_ce_design_v2.sql' => 
+    array (
+      'h' => '343b8e8fd07ae7781ed5f3d98e98ff0e',
+      's' => 1609,
+    ),
+    'sql/2026_ce_design_v2_rollback.sql' => 
+    array (
+      'h' => 'e602cf492296222240e799afdab747e2',
+      's' => 449,
     ),
     'sql/2026_ce_engine.sql' => 
     array (

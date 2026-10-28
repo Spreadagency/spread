@@ -284,3 +284,12 @@ label.bk-btn { cursor: pointer; }
 .bk-mix div { display: grid; grid-template-columns: 70px 1fr 40px; gap: 8px; align-items: center; font-size: 13px; }
 .bk-mix i { height: 8px; border-radius: 99px; background: #EEF3F8; overflow: hidden; display: block; }
 .bk-mix s { display: block; height: 100%; background: linear-gradient(90deg, #13A89E, #0C87EF); text-decoration: none; }
+
+/* خطوط التصميمات (لحد 3) */
+.bk-fonts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.bk-font { display: grid; gap: 4px; padding: 10px; border: 1.5px solid var(--bk-line); border-radius: 14px; background: #fff; cursor: pointer; text-align: center; font: inherit; }
+.bk-font.on { border-color: var(--bk-pri); background: #F4F9FF; box-shadow: 0 0 0 3px rgba(12, 135, 239, .12); }
+.bk-font-s { font-size: 20px; line-height: 1.6; color: #0B1526; }
+.bk-font small { color: var(--bk-mute); font-size: 12px; }
+.bk-font small b { color: var(--bk-pri); }
+

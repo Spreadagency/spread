@@ -134,6 +134,8 @@
 .ce-go .ce-est-row { margin: 8px 0 2px; }
 
 /* ─── التصميم (المرحلة G) ─── */
+.ce-check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; font-size: 13.5px; cursor: pointer; }
+.ce-check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--bk-pri); flex-shrink: 0; }
 .ce-designs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 10px 0 4px; }
 .ce-dsg { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .ce-dsg-img { display: block; width: 100%; padding: 0; border: 1.5px solid var(--bk-line); border-radius: 14px; overflow: hidden; background: var(--bk-soft); cursor: zoom-in; position: relative; }

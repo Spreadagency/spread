@@ -198,9 +198,15 @@ t('هدف العرض من غير قيمة ← مرفوض', isset($e2['offer']));
 t('بريف سليم · الخدمة الغريبة اتشالت · مدة غلط ← 30', !$e3 && $b3['service_ids'] === [$svc[0]] && $b3['days'] === 30, json_encode($e3, JSON_UNESCAPED_UNICODE));
 $est = ce_estimate($b3);
 $w = array_values(array_filter($est['stages'], fn($s) => $s['key'] === 'ce_writer'))[0];
-// الصور (المرحلة G): بوست = صورة · كاروسيل = أول شريحة · ريلز = غلاف ← 4 + 2 + 1
-t('التقدير: 7 قطع · الكاتب × 1.4 · 7 صور', $est['pieces'] === 7 && abs($w['count'] - 9.8) < 0.01
-    && array_values(array_filter($est['stages'], fn($s) => $s['key'] === 'ce_design_prompt'))[0]['count'] == 7 && $est['images']['count'] === 7, json_encode($w));
+// الصور (المرحلة G): بوست = صورة · كاروسيل = كل الشرايح (6 في المتوسط) · ريلز = غلاف لو العميل اختاره ← 4 + 12 (+1)
+$saveCar = get_setting('ce_carousel_ai_images', null);
+set_setting('ce_carousel_ai_images', '0');
+$est = ce_estimate($b3);
+$estR = ce_estimate(['reel_cover' => 1] + $b3);
+if ($saveCar !== null) set_setting('ce_carousel_ai_images', (string) $saveCar);
+t('التقدير: 7 قطع · الكاتب × 1.4 · 16 صورة (+ غلاف الريلز لو اختاره = 17)', $est['pieces'] === 7 && abs($w['count'] - 9.8) < 0.01
+    && array_values(array_filter($est['stages'], fn($s) => $s['key'] === 'ce_design_prompt'))[0]['count'] == 16 && $est['images']['count'] === 16 && $estR['images']['count'] === 17,
+    json_encode([$est['images']['count'], $estR['images']['count']]));
 t('التقدير من الافتراضي لو مفيش سجل', in_array($w['source'], ['default', 'history'], true) && $est['credits'] >= 7);
 $hist = [];
 for ($i = 0; $i < 5; $i++) $hist[] = (int) db_insert('INSERT INTO ai_runs (run_key, task, status, tokens_in, tokens_out, sandbox) VALUES (?, "ce_vision_qa", "ok", 1000, 100, 0)', [bin2hex(random_bytes(8))]);

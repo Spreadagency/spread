@@ -59,6 +59,7 @@ function ce_wizard_options(int $uid): array
         'exclusions' => array_values(array_unique(array_merge(CE_EXCLUSIONS, $dna['tone']['dont_words'] ?? []))),
         'max_pieces' => max(1, ce_setting_int('ce_max_pieces', 60)),
         'default_channel' => isset(CE_CHANNELS[$dna['cta']['type'] ?? '']) ? $dna['cta']['type'] : 'whatsapp',
+        'reel_cover_default' => ce_setting_int('ce_reel_cover', 0) === 1,
     ];
 }
 
@@ -129,6 +130,8 @@ function ce_brief_clean(int $uid, array $in): array
         'goal' => $goal, 'goal_other' => $goalOther, 'all_services' => $allSvc, 'service_ids' => $services, 'persona_ids' => $personas,
         'character_id' => $character, 'formats' => $formats, 'days' => $days, 'offer' => $offer, 'channel' => $channel,
         'boldness' => $bold, 'exclusions' => $excl,
+        // غلاف الريلز (صورة 9:16 بالعنوان) — اختيار العميل
+        'reel_cover' => $formats['reel'] > 0 && !empty($in['reel_cover']) ? 1 : 0,
     ], $err];
 }
 
@@ -213,9 +216,10 @@ function ce_estimate(array $brief): array
     $car = (int) ($f['carousel'] ?? 0);
     $reel = (int) ($f['reel'] ?? 0);
     $pieces = $post + $car + $reel;
-    // الصور: بوست = صورة · كاروسيل = أول شريحة بصورة AI (الباقي نص على خلفية البراند) · ريلز = غلاف
-    $carAi = max(1, ce_setting_int('ce_carousel_ai_images', 1));
-    $images = $post + $car * $carAi + ($reel * (ce_setting_int('ce_reel_cover', 1) ? 1 : 0));
+    // الصور: بوست = صورة · كاروسيل = كل الشرايح بصورة AI (6 في المتوسط) أو أول N · ريلز = غلاف لو العميل اختاره
+    $carAi = ce_setting_int('ce_carousel_ai_images', 0) ?: 6;
+    $reelCover = array_key_exists('reel_cover', $brief) ? !empty($brief['reel_cover']) : ce_setting_int('ce_reel_cover', 0) === 1;
+    $images = $post + $car * $carAi + ($reelCover ? $reel : 0);
     $visual = $images;                    // برومبت التصميم + مراجعة الصورة لكل صورة
     $rf = max(1.0, ce_setting_float('ce_revision_factor', 1.4));
     $def = ce_token_defaults();
@@ -253,8 +257,8 @@ function ce_estimate(array $brief): array
     $credits = max(ce_usd_to_credits($usd), $pieces * max(0, ce_setting_int('ce_min_credits_piece', 1)));
     $assume = [
         'الكاتب والناقد × ' . $rf . ' (إعادة كتابة محتملة)',
-        'الكاروسيل: ' . $carAi . ' شريحة بصورة AI والباقي نص على خلفية البراند',
-        ce_setting_int('ce_reel_cover', 1) ? 'الريلز: سكريبت + غلاف 9:16' : 'الريلز: سكريبت من غير غلاف',
+        ce_setting_int('ce_carousel_ai_images', 0) ? 'الكاروسيل: أول ' . $carAi . ' شرايح بصورة AI والباقي نص على خلفية البراند' : 'الكاروسيل: كل الشرايح بصورة AI (6 في المتوسط)',
+        $reelCover ? 'الريلز: سكريبت + غلاف 9:16' : 'الريلز: سكريبت من غير غلاف',
     ];
     if ($unpriced) $assume[] = $unpriced . ' مرحلة موديلها مش متسعّر — اتحسبت بالسعر الاحتياطي';
     if ($images && !$img['priced']) $assume[] = 'موديل الصور مش متسعّر — اتحسب بالسعر الاحتياطي';

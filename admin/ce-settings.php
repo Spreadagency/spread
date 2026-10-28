@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
     if ($a === 'save_design') {
         $errs = [];
         foreach (['ce_vision_max_regen' => [0, 4, 'إعادات الصورة'], 'ce_vision_min_idea' => [0, 100, 'أقل مطابقة للفكرة'], 'ce_vision_min_palette' => [0, 100, 'أقل مطابقة للألوان'],
-                  'ce_carousel_ai_images' => [1, 10, 'شرايح الكاروسيل بصورة AI'], 'ce_min_credits_image' => [0, 50, 'أقل كريدت للصورة']] as $k => [$min, $max, $label]) {
+                  'ce_carousel_ai_images' => [0, 10, 'شرايح الكاروسيل بصورة AI'], 'ce_min_credits_image' => [0, 50, 'أقل كريدت للصورة']] as $k => [$min, $max, $label]) {
             $v = trim((string) ($_POST[$k] ?? ''));
             if (!is_numeric($v) || (float) $v < $min || (float) $v > $max) { $errs[] = "$label: من $min لـ $max"; continue; }
             set_setting($k, (string) (int) $v);
@@ -152,8 +152,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
             flash_set('danger', 'الملف ده مش خط حقيقي');
             redirect('admin/ce-settings.php?tab=design');
         }
-        $key = preg_replace('/[^A-Za-z0-9_\-]/', '', pathinfo((string) $f['name'], PATHINFO_FILENAME)) ?: 'font' . time();
-        if (isset(ce_fonts()[$key])) $key .= '-' . bin2hex(random_bytes(2));
+        // اسم العائلة (إنجليزي) + التقل ← Family-700.ttf — والعائلة بتظهر للعملاء في «خطوط التصميمات» في الهوية
+        $fam = preg_replace('/[^A-Za-z0-9]/', '', (string) ($_POST['family'] ?? '')) ?: preg_replace('/[^A-Za-z0-9]/', '', preg_replace('/[-_ ]?(\d{3}|Regular|Bold|ExtraBold|Black|Light|Medium|SemiBold)$/i', '', pathinfo((string) $f['name'], PATHINFO_FILENAME)));
+        $w = in_array((int) ($_POST['weight'] ?? 0), [300, 400, 500, 600, 700, 800, 900], true) ? (int) $_POST['weight'] : 400;
+        if ($fam === '') { flash_set('danger', 'اكتب اسم الخط بالإنجليزي'); redirect('admin/ce-settings.php?tab=design#fonts'); }
+        $key = mb_substr($fam, 0, 40) . '-' . $w;
+        $existing = ce_fonts()[$key] ?? null;
+        if ($existing && $existing['builtin']) { flash_set('danger', 'الخط «' . $key . '» موجود مع المنصة — غيّر الاسم'); redirect('admin/ce-settings.php?tab=design#fonts'); }
         $dir = STORAGE_PATH . '/uploads/ce-fonts';
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
         $dest = $dir . '/' . $key . '.' . $ext;
@@ -164,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
             redirect('admin/ce-settings.php?tab=design');
         }
         admin_log('ce_font_upload', 'ce_font', null, $key);
-        flash_set('success', 'الخط «' . $key . '» اتضاف ✓ — اختاره من أي قالب');
+        flash_set('success', 'الخط «' . $key . '» اتضاف ✓ — بيظهر للعملاء في «خطوط التصميمات» في الهوية، وتقدر تختاره في أي قالب');
         redirect('admin/ce-settings.php?tab=design#fonts');
     }
     if ($a === 'delete_font') {
@@ -406,10 +411,10 @@ $secret = (string) get_setting('cron_secret', '');
                     <label class="ce-f"><span>إعادة الصورة لو ماعدّتش</span><input class="form-control" name="ce_vision_max_regen" value="<?= (int) $dr['max_regen'] ?>" inputmode="numeric"><small>من 0 لـ 4 · الافتراضي 2</small></label>
                     <label class="ce-f"><span>أقل مطابقة للفكرة</span><input class="form-control" name="ce_vision_min_idea" value="<?= (int) $dr['min_idea'] ?>" inputmode="numeric"><small>الافتراضي 70</small></label>
                     <label class="ce-f"><span>أقل مطابقة لألوان البراند</span><input class="form-control" name="ce_vision_min_palette" value="<?= (int) $dr['min_palette'] ?>" inputmode="numeric"><small>الافتراضي 60</small></label>
-                    <label class="ce-f"><span>شرايح الكاروسيل بصورة AI</span><input class="form-control" name="ce_carousel_ai_images" value="<?= (int) $dr['carousel_ai'] ?>" inputmode="numeric"><small>الباقي نص على خلفية البراند · الافتراضي 1</small></label>
+                    <label class="ce-f"><span>شرايح الكاروسيل بصورة AI</span><input class="form-control" name="ce_carousel_ai_images" value="<?= (int) $dr['carousel_ai'] ?>" inputmode="numeric"><small>0 = كل الشرايح (الافتراضي) · رقم = أول N والباقي نص على خلفية البراند</small></label>
                     <label class="ce-f"><span>أقل كريدت للصورة</span><input class="form-control" name="ce_min_credits_image" value="<?= (int) $dr['min_credits'] ?>" inputmode="numeric"><small>الافتراضي 1</small></label>
                 </div>
-                <label class="st-sw ce-sw"><input type="checkbox" name="ce_reel_cover" value="1" <?= $dr['reel_cover'] ? 'checked' : '' ?>><span><b>غلاف للريلز (9:16)</b><small>صورة بعنوان الريلز — من غيرها الريلز سكريبت بس</small></span></label>
+                <label class="st-sw ce-sw"><input type="checkbox" name="ce_reel_cover" value="1" <?= $dr['reel_cover'] ? 'checked' : '' ?>><span><b>غلاف الريلز متعلّم من الأول في الـ Wizard</b><small>العميل هو اللي بيختار يعمل غلاف 9:16 لكل ريلز أو لأ — ده بس الاختيار المبدئي</small></span></label>
                 <p class="a2-muted" style="margin:8px 0 0">الموديل مابيكتبش أي نص جوه الصورة. المراجعة بتشوف: الألوان · المكان الفاضي للنص · العيوب (إيدين · أسنان · وشوش) · فيه كلام في الصورة · مطابقة الفكرة. موديل الصورة والمراجعة من «الموديلات ← خريطة المراحل» (ce_image · ce_vision_qa).</p>
                 <button class="btn" style="margin-top:12px">حفظ</button>
             </form>
@@ -456,16 +461,22 @@ $secret = (string) get_setting('cron_secret', '');
 
             <div class="card" id="fonts">
                 <div class="a2-h"><h3>الخطوط</h3></div>
-                <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>الخط</th><th>المصدر</th><th>الحروف العربية</th><th></th></tr></thead><tbody>
+                <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>الخط</th><th>المصدر</th><th>الحروف العربية</th><th>معاينة</th><th></th></tr></thead><tbody>
                     <?php foreach ($fonts as $k => $f): ?>
                         <tr><td><b><?= e($f['label']) ?></b> <small class="a2-muted" dir="ltr"><?= e($k) ?></small></td><td><?= $f['builtin'] ? 'مع المنصة (OFL)' : 'مرفوع' ?></td>
                             <td><?= ce_font_has_arabic($f['path']) ? '<span class="chip chip-mint">كاملة</span>' : '<span class="chip chip-coral">ناقصة</span>' ?></td>
+                            <td><img src="<?= e(url('admin/ce-template-preview.php?font=' . urlencode($k))) ?>" alt="" style="height:34px;display:block"></td>
                             <td><?php if (!$f['builtin']): ?><form method="post" style="margin:0"><?= csrf_field() ?><input type="hidden" name="action" value="delete_font"><input type="hidden" name="key" value="<?= e($k) ?>"><button class="btn sm ghost" data-confirm="تشيل الخط ده؟">شيل</button></form><?php endif; ?></td></tr>
                     <?php endforeach; ?>
                 </tbody></table></div>
-                <form method="post" enctype="multipart/form-data" class="ce-upl"><?= csrf_field() ?><input type="hidden" name="action" value="upload_font">
-                    <input type="file" name="font" accept=".ttf,.otf" required class="form-control"><button class="btn">رفع خط</button></form>
-                <p class="a2-muted" style="margin:8px 0 0">TTF أو OTF لحد 3 ميجا. لو خط البراند (من الهوية) اسمه زي خط مرفوع، بيتستخدم في العنوان أوتوماتيك. لازم الخط يكون فيه أشكال الحروف الموصولة — بنتأكد قبل ما نقبله.</p>
+                <div class="a2-h" style="margin-top:16px"><h3>إضافة خط</h3></div>
+                <form method="post" enctype="multipart/form-data" class="ce-fgrid ce-fgrid-sm"><?= csrf_field() ?><input type="hidden" name="action" value="upload_font">
+                    <label class="ce-f"><span>اسم الخط (إنجليزي)</span><input class="form-control" name="family" dir="ltr" placeholder="Almarai" maxlength="40" required pattern="[A-Za-z0-9 ]+"></label>
+                    <label class="ce-f"><span>التقل</span><select class="form-control" name="weight"><option value="400">عادي (400)</option><option value="700">عريض (700)</option><option value="800">عريض جدًا (800)</option><option value="300">خفيف (300)</option><option value="500">متوسط (500)</option><option value="600">نص عريض (600)</option><option value="900">أعرض (900)</option></select></label>
+                    <label class="ce-f ce-f-wide"><span>الملف (TTF أو OTF لحد 3 ميجا)</span><input type="file" name="font" accept=".ttf,.otf" required class="form-control"></label>
+                    <div class="ce-f" style="justify-content:flex-end"><button class="btn">رفع الخط</button></div>
+                </form>
+                <p class="a2-muted" style="margin:8px 0 0">ارفع كل تقل لوحده بنفس الاسم (مثلًا Almarai عادي + Almarai عريض). أي خط هنا بيظهر للعملاء في <b>هويتك ← الشكل ← خطوط التصميمات</b> ويختاروا لحد 3: الأول للعنوان والتاني للسطر التاني. لازم الخط يكون فيه الحروف العربية الموصولة — بنتأكد قبل ما نقبله.</p>
             </div>
             <?php endif; ?>
 

@@ -62,6 +62,6 @@ INSERT IGNORE INTO `settings` (`setting_key`, `setting_value`) VALUES
 ('ce_vision_max_regen', '2'),         -- إعادة توليد الصورة لو ماعدّتش المراجعة
 ('ce_vision_min_idea', '70'),         -- أقل درجة لمطابقة الفكرة
 ('ce_vision_min_palette', '60'),      -- أقل درجة لألوان البراند
-('ce_carousel_ai_images', '1'),       -- كام شريحة في الكاروسيل بصورة AI (الباقي نص على خلفية البراند)
-('ce_reel_cover', '1'),               -- غلاف للريلز (9:16)
+('ce_carousel_ai_images', '0'),       -- كام شريحة في الكاروسيل بصورة AI (0 = كلها · غير كده الباقي نص على خلفية البراند)
+('ce_reel_cover', '0'),               -- غلاف الريلز: الافتراضي في الـ Wizard (العميل بيختار)
 ('ce_min_credits_image', '1');        -- أقل كريدت للصورة الواحدة

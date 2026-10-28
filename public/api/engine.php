@@ -161,7 +161,7 @@ switch ($action) {
 
     case 'design_start':
     case 'design_redo':
-        $r = $action === 'design_start' ? ce_design_start($uid, api_int('id'))
+        $r = $action === 'design_start' ? ce_design_start($uid, api_int('id'), array_key_exists('reel_cover', api_input()) ? !empty(api_input()['reel_cover']) : null)
             : ce_design_redo($uid, api_int('id'), api_int('slot_id'), api_int('frame'));
         if (!$r['ok']) api_fail($r['error'] ?? 'مقدرناش نبدأ', $r['code'] ?? 'error', ($r['code'] ?? '') === 'credits' ? 402 : (($r['code'] ?? '') === 'not_found' ? 404 : 409));
         api_ok(['job' => ce_job_public($r['job']), 'existing' => !empty($r['existing']), 'balance' => credits_balance($uid)]);
@@ -174,7 +174,7 @@ switch ($action) {
             if (!ce_design_ready() || !ce_design_accept($uid, (int) $c['id'], api_int('slot_id'), api_int('frame'))) api_fail('التصميم ده مش محتاج مراجعة', 'state', 409);
         } else {
             $in = api_input();
-            $r = ce_design_text($uid, (int) $c['id'], api_int('slot_id'), api_int('frame'), array_intersect_key($in, array_flip(['headline', 'subline', 'template_id'])));
+            $r = ce_design_text($uid, (int) $c['id'], api_int('slot_id'), api_int('frame'), array_intersect_key($in, array_flip(['headline', 'subline', 'template_id', 'font'])));
             if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 422);
         }
         api_ok(['design' => ce_design_view($uid, $c)]);

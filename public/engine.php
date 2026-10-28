@@ -208,6 +208,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <input :id="'f-' + k" type="range" min="0" max="30" v-model.number="w.b.formats[k]"><b>{{ w.b.formats[k] }}</b>
                     </div>
                     <p class="bk-mute">الإجمالي: {{ pieces() }} قطعة (أقصى عدد {{ w.opts.max_pieces }})</p>
+                    <label class="ce-check" v-if="w.b.formats.reel > 0"><input type="checkbox" v-model="w.b.reel_cover"> <span>اعمل غلاف لكل ريلز (صورة 9:16 بالعنوان) <small class="bk-mute">— بيتحسب صورة لكل ريلز</small></span></label>
                     <h3>مدة الحملة</h3>
                     <div class="bk-chips"><button v-for="dd in w.opts.days" class="bk-chip" :class="{ on: w.b.days === dd }" @click="w.b.days = dd">{{ dd }} يوم</button></div>
                 </section>
@@ -398,10 +399,11 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <div class="ce-job-row"><span>{{ dz.job.label }}</span><button class="bk-link" @click="cancelDesignJob()">إلغاء</button></div>
                         <small class="bk-mute" v-if="!worker">خلّي الصفحة مفتوحة لحد ما يخلص</small></div>
                 </section>
-                <section class="bk-card ce-go" v-else-if="dz && dz.ready && wc.status === 'done' && dz.pending > 0 && !(wr.job && wr.job.active)">
+                <section class="bk-card ce-go" v-else-if="dz && dz.ready && wc.status === 'done' && (dz.pending + dz.reels) > 0 && !(wr.job && wr.job.active)">
                     <h2>🎨 صمّم المحتوى</h2>
                     <p class="bk-mute">لكل قطعة صورة من غير أي كلام جوّاها ← مراجعة للصورة (الألوان · مكان النص · العيوب · الفكرة) ولو ماعدّتش بنعيدها ← وبعدين بنحط العنوان بخط البراند في المكان الفاضي. شرايح الكاروسيل بعد الأولى: نص على خلفية بألوانك.</p>
-                    <div class="ce-est-row"><span>{{ dz.pending }} تصميم · محجوز من رصيدك</span><b>~{{ fmt(dz.credits) }} كريدت</b></div>
+                    <label class="ce-check" v-if="dz.reels"><input type="checkbox" v-model="dz.reel_cover"> <span>غلاف للريلز ({{ dz.reels }}) — صورة 9:16 بعنوان الريلز</span></label>
+                    <div class="ce-est-row"><span>{{ dz.pending + (dz.reel_cover ? dz.reels : 0) }} تصميم · محجوز من رصيدك</span><b>~{{ fmt(dz.reel_cover ? dz.credits_reels : dz.credits) }} كريدت</b></div>
                     <small class="bk-mute">بيتحسب الفعلي بس في الآخر، والباقي بيرجع لرصيدك · رصيدك {{ fmt(balance) }}</small>
                     <div class="bk-row"><button class="bk-btn pri" :disabled="busy" @click="startDesign()">صمّم ✨</button></div>
                 </section>
@@ -449,6 +451,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                                 <label>العنوان<input class="bk-in" v-model="dEdit.headline" maxlength="90"></label>
                                 <label>السطر التاني<input class="bk-in" v-model="dEdit.subline" maxlength="140"></label>
                                 <label>القالب<select class="bk-in" v-model.number="dEdit.template_id"><option v-for="t in tplsFor(s.format)" :value="t.id">{{ t.name }}</option></select></label>
+                                <label v-if="dz.brand_fonts && dz.brand_fonts.length > 1">خط العنوان<select class="bk-in" v-model="dEdit.font"><option value="">حسب ترتيب خطوط البراند</option><option v-for="f in dz.brand_fonts" :value="f">{{ f }}</option></select></label>
                                 <div class="bk-row"><button class="bk-btn sm pri" :disabled="busy" @click="saveDesignText()">ارسم تاني</button><button class="bk-btn sm ghost" @click="dEdit.slot = 0">إلغاء</button></div>
                                 <small class="bk-mute">من غير كريدت — نفس الصورة بالنص الجديد.</small>
                             </div>

@@ -86,6 +86,8 @@ function bkapi_state(int $uid): array
         'analyze_cost' => max(0, (int) get_setting('brand_analyze_cost', 1)),
         'labels' => ['formats' => bk_format_labels(), 'hooks' => bk_hook_types()],
         'files' => (int) (db_one('SELECT COUNT(*) n FROM brand_sources s JOIN brand_profiles b ON b.id = s.brand_profile_id WHERE b.user_id = ?', [$uid])['n'] ?? 0),
+        // خطوط التصميمات المتاحة (اللي الأدمن بيرفعها بتظهر هنا أوتوماتيك)
+        'design_fonts' => (function () { require_once __DIR__ . '/../../includes/ce-overlay.php'; return array_map(fn($f) => ['family' => $f['family'], 'url' => $f['url']], ce_font_families()); })(),
     ];
 }
 

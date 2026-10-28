@@ -110,7 +110,9 @@
         k.design_style.avoid_t = (k.design_style.avoid || []).join('\n');
         k.forbidden_topics = (k.forbidden_topics || []).join('\n');
         ['primary', 'secondary', 'accent', 'neutral'].forEach(function (c) { if (!k.colors[c]) k.colors[c] = ''; });
+        if (!Array.isArray(k.typography.design_fonts)) k.typography.design_fonts = [];
         this.ed = k;
+        this.loadFontFaces(state.design_fonts || []);
         this.fm = clone(state.formats).map(function (f) { f.is_enabled = +f.is_enabled === 1; f.settings = f.settings && !Array.isArray(f.settings) ? f.settings : {}; return f; });
       },
       load: async function () {
@@ -212,6 +214,22 @@
         ['primary', 'secondary', 'accent', 'neutral'].forEach(function (k, i) { if (c[i]) e[k] = c[i].toUpperCase(); });
         e.preset_id = p.id;
       },
+      /* ─── خطوط التصميمات: لحد 3 — الأول للعنوان والتاني للسطر التاني ─── */
+      loadFontFaces: function (list) {
+        if (!list.length || document.getElementById('bk-ce-fonts')) return;
+        var css = list.filter(function (f) { return f.url; }).map(function (f) {
+          return "@font-face{font-family:'bkf-" + f.family.replace(/[^A-Za-z0-9_-]/g, '') + "';src:url('" + f.url + "');font-display:swap}";
+        }).join('');
+        var st = document.createElement('style'); st.id = 'bk-ce-fonts'; st.textContent = css; document.head.appendChild(st);
+      },
+      fontFace: function (fam) { return "'bkf-" + String(fam).replace(/[^A-Za-z0-9_-]/g, '') + "', sans-serif"; },
+      toggleFont: function (fam) {
+        var l = this.ed.typography.design_fonts, i = l.indexOf(fam);
+        if (i >= 0) { l.splice(i, 1); return; }
+        if (l.length >= 3) { this.say('اختار لحد 3 خطوط — شيل واحد الأول', 'warning'); return; }
+        l.push(fam);
+      },
+      fontRole: function (fam) { return ['العنوان', 'السطر التاني', 'اختيار تالت'][this.ed.typography.design_fonts.indexOf(fam)] || ''; },
       saveLook: async function () {
         var e = this.ed;
         if (!(await this.saveSec('colors', e.colors, ''))) return;

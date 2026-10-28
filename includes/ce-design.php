@@ -42,8 +42,10 @@ function ce_design_rules(): array
         'max_regen' => max(0, min(4, ce_setting_int('ce_vision_max_regen', 2))),
         'min_idea' => max(0, min(100, ce_setting_float('ce_vision_min_idea', 70))),
         'min_palette' => max(0, min(100, ce_setting_float('ce_vision_min_palette', 60))),
-        'carousel_ai' => max(1, min(10, ce_setting_int('ce_carousel_ai_images', 1))),
-        'reel_cover' => ce_setting_int('ce_reel_cover', 1) === 1,
+        // 0 = كل شرايح الكاروسيل بصورة AI (الافتراضي) · رقم = أول N شريحة والباقي نص على خلفية البراند
+        'carousel_ai' => max(0, min(10, ce_setting_int('ce_carousel_ai_images', 0))),
+        // غلاف الريلز اختيار العميل — ده الافتراضي في الـ Wizard بس
+        'reel_cover' => ce_setting_int('ce_reel_cover', 0) === 1,
         'min_credits' => max(0, ce_setting_int('ce_min_credits_image', 1)),
     ];
 }
@@ -59,9 +61,9 @@ function ce_words(string $s, int $n): string
 
 /**
  * الإطارات اللي محتاجة تصميم لخانة اتكتبت: [['frame', 'kind' (ai|text), 'aspect', 'headline', 'subline'], …]
- * بوست = صورة · كاروسيل = شريحة لكل نص (أول N بصورة AI) · ريلز = غلاف (لو مفعّل)
+ * بوست = صورة · كاروسيل = شريحة لكل نص (كلها بصورة AI أو أول N) · ريلز = غلاف (لو العميل اختاره)
  */
-function ce_design_frames(string $format, array $body): array
+function ce_design_frames(string $format, array $body, bool $reelCover = false): array
 {
     $r = ce_design_rules();
     $db = (array) ($body['design_brief'] ?? []);
@@ -76,14 +78,14 @@ function ce_design_frames(string $format, array $body): array
             $n = $i + 1;
             $t = trim((string) (is_array($sl) ? ($sl['text'] ?? '') : $sl));
             if ($t === '') continue;
-            $out[] = ['frame' => $n, 'kind' => $n <= $r['carousel_ai'] ? 'ai' : 'text', 'aspect' => $aspect,
+            $out[] = ['frame' => $n, 'kind' => !$r['carousel_ai'] || $n <= $r['carousel_ai'] ? 'ai' : 'text', 'aspect' => $aspect,
                       'headline' => $n === 1 && $head !== '' ? $head : mb_substr($t, 0, 120),
                       'subline' => $n === 1 ? $sub : ($n === count($slides) ? $cta : '')];
         }
         return $out;
     }
     if ($format === 'reel') {
-        return $r['reel_cover'] ? [['frame' => 1, 'kind' => 'ai', 'aspect' => $aspect, 'headline' => $head, 'subline' => $sub]] : [];
+        return $reelCover ? [['frame' => 1, 'kind' => 'ai', 'aspect' => $aspect, 'headline' => $head, 'subline' => $sub]] : [];
     }
     return [['frame' => 1, 'kind' => 'ai', 'aspect' => $aspect, 'headline' => $head, 'subline' => $sub ?: $cta]];
 }
@@ -229,6 +231,21 @@ function ce_design_refs(array $ctx, array $body): array
     return $out;
 }
 
+/** خطوط البراند الحالية (من الهوية مباشرة — حتى لو ملف الـ DNA قديم) — لحد 3 */
+function ce_brand_fonts(int $uid): array
+{
+    $kit = function_exists('bk_get') ? (bk_get($uid)['data']['typography']['design_fonts'] ?? []) : [];
+    $f = array_values(array_filter(array_map('strval', (array) $kit)));
+    return array_slice($f ?: (array) (ce_dna_get($uid)['visual']['fonts'] ?? []), 0, 3);
+}
+
+/** الحملة فيها غلاف ريلز؟ (اختيار العميل في الـ Wizard — أو الافتراضي من الأدمن) */
+function ce_reel_cover_wanted(array $c): bool
+{
+    $b = json_decode((string) ($c['brief_json'] ?? ''), true) ?: [];
+    return array_key_exists('reel_cover', $b) ? !empty($b['reel_cover']) : ce_design_rules()['reel_cover'];
+}
+
 /** الرسم النهائي لإطار (نص + شعار + علامة مائية) — بيتنادى بعد الصورة وبعد أي تعديل نص */
 function ce_design_render(array $d, int $uid): array
 {
@@ -245,7 +262,7 @@ function ce_design_render(array $d, int $uid): array
     $r = ce_overlay_render([
         'base' => $d['kind'] === 'ai' && $d['image_path'] ? STORAGE_PATH . '/' . $d['image_path'] : null,
         'aspect' => $d['aspect'], 'headline' => (string) $d['headline'], 'subline' => (string) $d['subline'], 'zone' => $zone,
-        'template' => $tpl['style'], 'colors' => $dna['visual']['colors_hex'] ?? [], 'fonts' => $dna['visual']['fonts'] ?? [],
+        'template' => $tpl['style'], 'colors' => $dna['visual']['colors_hex'] ?? [], 'fonts' => ce_brand_fonts($uid), 'font_h' => $d['font_family'] ?? null,
         'logo' => $logo, 'out' => STORAGE_PATH . '/' . $rel,
     ]);
     if (!$r['ok']) return $r;
@@ -419,7 +436,7 @@ function ce_design_hold_credits(array $c, int $aiFrames): int
 }
 
 /** الإطارات اللي لسه محتاجة تصميم في الحملة (بتتعمل/تتحدّث في ce_designs) */
-function ce_design_prepare(int $uid, array $c): array
+function ce_design_prepare(int $uid, array $c, bool $reelCover = false): array
 {
     $queue = [];
     $ai = 0;
@@ -427,10 +444,10 @@ function ce_design_prepare(int $uid, array $c): array
         $x = db_one('SELECT status, body_json FROM ce_contents WHERE slot_id = ?', [$s['id']]);
         if (!$x || !in_array($x['status'], ['pass', 'manual'], true)) continue;
         $body = json_decode((string) $x['body_json'], true) ?: [];
-        $frames = ce_design_frames($s['format'], $body);
+        $frames = ce_design_frames($s['format'], $body, $reelCover);
         $keep = array_column($frames, 'frame');
         // شرايح اتشالت من الكاروسيل بعد إعادة الكتابة
-        if ($keep) db_run('DELETE FROM ce_designs WHERE slot_id = ? AND frame NOT IN (' . implode(',', array_map('intval', $keep)) . ')', [$s['id']]);
+        if ($keep && $s['format'] === 'carousel') db_run('DELETE FROM ce_designs WHERE slot_id = ? AND frame NOT IN (' . implode(',', array_map('intval', $keep)) . ')', [$s['id']]);
         foreach ($frames as $f) {
             $d = ce_design_row($s['id'], $f['frame']);
             if ($d && $d['final_path'] && in_array($d['status'], ['pass', 'manual'], true)) continue;
@@ -448,7 +465,7 @@ function ce_design_prepare(int $uid, array $c): array
 }
 
 /** ابدأ تصميم الحملة (بعد الكتابة) — اللي اتصمم قبل كده بيفضل */
-function ce_design_start(int $uid, int $cid): array
+function ce_design_start(int $uid, int $cid, ?bool $reelCover = null): array
 {
     if (!ce_design_ready()) return ['ok' => false, 'code' => 'not_ready', 'error' => 'التصميم لسه مش متركّب — محتاج ترحيل 2026_ce_design'];
     $c = ce_campaign_get($cid, $uid);
@@ -456,7 +473,14 @@ function ce_design_start(int $uid, int $cid): array
     $active = ce_job_active_for($uid, 'campaign_design', 'ce_campaign', $cid);
     if ($active) return ['ok' => true, 'job' => $active, 'existing' => true];
     if ($c['status'] !== 'done' || ce_job_active_for($uid, 'campaign_write', 'ce_campaign', $cid)) return ['ok' => false, 'code' => 'state', 'error' => 'استنى لما الكتابة تخلص'];
-    [$queue, $ai] = ce_design_prepare($uid, $c);
+    if ($reelCover !== null) {
+        // اختيار العميل لغلاف الريلز بيتحفظ في البريف (للمرة الجاية والتقرير)
+        $b = json_decode((string) $c['brief_json'], true) ?: [];
+        $b['reel_cover'] = $reelCover ? 1 : 0;
+        db_run('UPDATE ce_campaigns SET brief_json = ? WHERE id = ?', [json_encode($b, JSON_UNESCAPED_UNICODE), $cid]);
+        $c['brief_json'] = json_encode($b);
+    }
+    [$queue, $ai] = ce_design_prepare($uid, $c, ce_reel_cover_wanted($c));
     if (!$queue) return ['ok' => false, 'code' => 'nothing', 'error' => 'كل التصميمات جاهزة'];
     return ce_job_create($uid, 'campaign_design', ['queue' => $queue], [
         'ref_type' => 'ce_campaign', 'ref_id' => $cid, 'credits' => ce_design_hold_credits($c, $ai),
@@ -499,7 +523,10 @@ function ce_design_text(int $uid, int $cid, int $slotId, int $frame, array $in):
         $ok = array_filter(ce_templates(true, (string) ($slot['format'] ?? 'post')), fn($t) => $t['id'] === $tid);
         if (!$ok) return ['ok' => false, 'code' => 'input', 'error' => 'القالب ده مش متاح'];
     }
-    db_run('UPDATE ce_designs SET headline = ?, subline = ?, template_id = ? WHERE id = ?', [$head, $sub, $tid ?: null, (int) $d['id']]);
+    // خط العنوان للتصميم ده: من خطوط البراند بس ('' = حسب الترتيب)
+    $font = array_key_exists('font', $in) ? (string) $in['font'] : (string) ($d['font_family'] ?? '');
+    if ($font !== '' && !in_array($font, ce_brand_fonts($uid), true)) return ['ok' => false, 'code' => 'input', 'error' => 'الخط ده مش من خطوط البراند'];
+    db_run('UPDATE ce_designs SET headline = ?, subline = ?, template_id = ?, font_family = ? WHERE id = ?', [$head, $sub, $tid ?: null, $font !== '' ? $font : null, (int) $d['id']]);
     $r = ce_design_render(ce_design_row($slotId, $frame), $uid);
     return $r['ok'] ? ['ok' => true] : ['ok' => false, 'code' => 'render', 'error' => $r['error'] ?? 'مقدرناش نرسم'];
 }
@@ -522,21 +549,23 @@ function ce_design_view(int $uid, array $c): array
         $rows[(int) $d['slot_id']][] = [
             'frame' => (int) $d['frame'], 'kind' => $d['kind'], 'status' => $d['status'], 'aspect' => $d['aspect'],
             'url' => $d['final_path'] ? upload_url($d['final_path']) . '?v=' . substr(md5((string) $d['final_path']), 0, 8) : null,
-            'headline' => $d['headline'], 'subline' => $d['subline'], 'template_id' => $d['template_id'] ? (int) $d['template_id'] : null,
+            'headline' => $d['headline'], 'subline' => $d['subline'], 'template_id' => $d['template_id'] ? (int) $d['template_id'] : null, 'font' => $d['font_family'] ?? null,
             'qa' => json_decode((string) $d['qa_json'], true) ?: null, 'qa_score' => $d['qa_score'] !== null ? (float) $d['qa_score'] : null, 'attempts' => (int) $d['attempts'],
         ];
     }
     $job = db_one('SELECT * FROM ce_jobs WHERE kind = "campaign_design" AND ref_type = "ce_campaign" AND ref_id = ? ORDER BY id DESC LIMIT 1', [$cid]);
     $pending = 0;
     $ai = 0;
+    $reels = 0;
     if ($c['status'] === 'done') {
         foreach (ce_plan_slots_load($cid) as $s) {
             $x = db_one('SELECT status, body_json FROM ce_contents WHERE slot_id = ?', [$s['id']]);
             if (!$x || !in_array($x['status'], ['pass', 'manual'], true)) continue;
-            foreach (ce_design_frames($s['format'], json_decode((string) $x['body_json'], true) ?: []) as $f) {
+            foreach (ce_design_frames($s['format'], json_decode((string) $x['body_json'], true) ?: [], true) as $f) {
                 $have = null;
                 foreach ($rows[$s['id']] ?? [] as $r) if ($r['frame'] === $f['frame']) $have = $r;
                 if ($have && $have['url'] && in_array($have['status'], ['pass', 'manual'], true)) continue;
+                if ($s['format'] === 'reel') { $reels++; continue; }
                 $pending++;
                 if ($f['kind'] === 'ai') $ai++;
             }
@@ -547,5 +576,8 @@ function ce_design_view(int $uid, array $c): array
     return [
         'ready' => true, 'by_slot' => $rows, 'job' => $job ? ce_job_public($job) : null, 'templates' => $tpls, 'rules' => ce_design_rules(),
         'pending' => $pending, 'credits' => $pending ? ce_design_hold_credits($c, $ai) : 0,
+        // أغلفة الريلز اختيارية: عددها والكريدت لو العميل اختارها
+        'reels' => $reels, 'credits_reels' => $reels ? ce_design_hold_credits($c, $ai + $reels) : 0, 'reel_cover' => ce_reel_cover_wanted($c),
+        'brand_fonts' => ce_brand_fonts($uid),
     ];
 }

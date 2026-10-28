@@ -11,6 +11,21 @@ require_admin();
 require_admin_can('ai_settings');
 session_release();
 
+// معاينة خط: سطر نص صغير بالخط ده
+if (isset($_GET['font'])) {
+    $f = ce_fonts()[(string) $_GET['font']] ?? null;
+    if (!$f) { http_response_code(404); exit; }
+    $im = imagecreatetruecolor(360, 60);
+    imagefill($im, 0, 0, imagecolorallocate($im, 255, 255, 255));
+    $vis = ce_ar_visual('ابتسامتك تستاهل 2026');
+    $w = ce_text_width($vis, $f['path'], 22);
+    imagettftext($im, 22, 0, max(4, 356 - $w), 42, imagecolorallocate($im, 11, 21, 38), $f['path'], $vis);
+    header('Content-Type: image/png');
+    header('Cache-Control: private, max-age=600');
+    imagepng($im);
+    exit;
+}
+
 $aspect = isset(CE_CANVAS[$_GET['aspect'] ?? '']) ? $_GET['aspect'] : '1:1';
 $zone = in_array($_GET['zone'] ?? '', ['top', 'bottom', 'left', 'right', 'center'], true) ? $_GET['zone'] : 'bottom';
 $tpl = null;

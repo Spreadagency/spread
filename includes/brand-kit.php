@@ -331,7 +331,7 @@ function bk_defaults(): array
         'personality'  => [],
         'logo'         => ['position' => 'bottom-right', 'variants' => ['light' => '', 'dark' => '', 'icon' => '']],
         'colors'       => ['primary' => '', 'secondary' => '', 'accent' => '', 'neutral' => '', 'ratio' => '60-30-10', 'preset_id' => null],
-        'typography'   => ['ar' => 'Cairo', 'en' => 'Inter'],
+        'typography'   => ['ar' => 'Cairo', 'en' => 'Inter', 'design_fonts' => []],
         'design_style' => ['preset_id' => null, 'icons' => 'thin_line', 'notes' => '', 'avoid' => [], 'use_inspirations' => true],
         'visuals'      => ['preset_id' => null, 'kind' => '', 'light' => '', 'people' => '', 'places' => [], 'brand_color_in_photos' => 'subtle', 'avoid' => []],
         'voice'        => ['preset_id' => null, 'formal_friendly' => 60, 'serious_fun' => 40, 'scientific_simple' => 70, 'dialect' => 'egyptian', 'emoji' => true,
@@ -471,7 +471,16 @@ function bk_clean_section(string $section, $value)
                     'ratio' => in_array($v['ratio'] ?? '', ['60-30-10', '70-20-10', '50-30-20'], true) ? $v['ratio'] : '60-30-10',
                     'preset_id' => !empty($v['preset_id']) ? (int) $v['preset_id'] : null];
         case 'typography':
-            return ['ar' => $str($v['ar'] ?? 'Cairo', 40) ?: 'Cairo', 'en' => $str($v['en'] ?? 'Inter', 40) ?: 'Inter'];
+            // خطوط التصميمات (لحد 3): من الخطوط المتاحة على المنصة بس — الأول للعنوان والتاني للسطر التاني
+            require_once __DIR__ . '/ce-overlay.php';
+            $fams = array_column(ce_font_families(), 'family');
+            $df = [];
+            foreach ((array) ($v['design_fonts'] ?? []) as $f) {
+                $f = (string) $f;
+                if (in_array($f, $fams, true) && !in_array($f, $df, true)) $df[] = $f;
+                if (count($df) >= 3) break;
+            }
+            return ['ar' => $str($v['ar'] ?? 'Cairo', 40) ?: 'Cairo', 'en' => $str($v['en'] ?? 'Inter', 40) ?: 'Inter', 'design_fonts' => $df];
         case 'design_style':
             return ['preset_id' => !empty($v['preset_id']) ? (int) $v['preset_id'] : null,
                     'icons' => in_array($v['icons'] ?? '', ['thin_line', 'filled', 'hand_drawn', 'none'], true) ? $v['icons'] : 'thin_line',

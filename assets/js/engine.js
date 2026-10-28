@@ -12,14 +12,14 @@
       return { goal: '', goal_other: '', all_services: false, service_ids: [], persona_ids: [], character_id: 0,
         formats: { post: 6, carousel: 2, reel: 0 }, days: 30,
         offer: { type: '', value: 0, what: '', days: 0, condition: '', condition_other: '' },
-        channel: ch || 'whatsapp', boldness: 'medium', exclusions: [] };
+        channel: ch || 'whatsapp', boldness: 'medium', exclusions: [], reel_cover: false };
     };
     var pollTimer = null;
 
     var app = {
       loading: true, busy: false, view: 'home', toast: null, worker: false,
       st: {}, opts: {}, job: null, campaigns: [], balance: 0, d: null, brandKitUrl: root.dataset.brandkit,
-      p: null, dirty: false, dragFrom: -1, dragOver: -1, wr: null, wc: null, openQa: {}, dz: null, dEdit: { slot: 0, frame: 0, headline: '', subline: '', template_id: 0 }, dZoom: null,
+      p: null, dirty: false, dragFrom: -1, dragOver: -1, wr: null, wc: null, openQa: {}, dz: null, dEdit: { slot: 0, frame: 0, headline: '', subline: '', template_id: 0, font: '' }, dZoom: null,
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
       statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
@@ -110,6 +110,7 @@
         var r = await A.get('engine', { action: 'wizard' });
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.w = { step: 'goal', b: blankBrief(r.options.default_channel), opts: r.options, est: null, estBusy: false, err: '', id: 0, saved: false };
+        this.w.b.reel_cover = !!r.options.reel_cover_default;
         this.balance = r.balance;
         this.view = 'wizard';
         window.scrollTo(0, 0);
@@ -120,6 +121,7 @@
         var o = await A.get('engine', { action: 'wizard' });
         if (!o.ok) { this.say(o.error, 'danger'); return; }
         var b = Object.assign(blankBrief(o.options.default_channel), clone(c.brief || {}));
+        b.reel_cover = !!b.reel_cover;
         if (!b.offer) b.offer = blankBrief().offer;
         this.w = { step: 'summary', b: b, opts: o.options, est: null, estBusy: false, err: '', id: c.id, saved: c.status === 'ready' };
         this.balance = o.balance;
@@ -319,7 +321,7 @@
       dTone: function (d) { return ({ pass: 'ok', manual: 'warn', failed: 'bad' })[d.status] || ''; },
       startDesign: async function () {
         this.busy = true;
-        var r = await A.post('engine', 'design_start', { id: this.wc.id });
+        var r = await A.post('engine', 'design_start', { id: this.wc.id, reel_cover: this.dz.reel_cover ? 1 : 0 });
         this.busy = false;
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.balance = r.balance;
@@ -342,12 +344,12 @@
       },
       editDesign: function (s, d) {
         // كائن ثابت (مش null) — الحقول المربوطة بـ v-model مابتقراش من null وهي بتتشال
-        Object.assign(this.dEdit, { slot: s.id, frame: d.frame, headline: d.headline || '', subline: d.subline || '', template_id: d.template_id || ((this.tplsFor(s.format)[0] || {}).id || 0) });
+        Object.assign(this.dEdit, { slot: s.id, frame: d.frame, headline: d.headline || '', subline: d.subline || '', template_id: d.template_id || ((this.tplsFor(s.format)[0] || {}).id || 0), font: d.font || '' });
       },
       saveDesignText: async function () {
         var e = this.dEdit;
         this.busy = true;
-        var r = await A.post('engine', 'design_text', { id: this.wc.id, slot_id: e.slot, frame: e.frame, headline: e.headline, subline: e.subline, template_id: e.template_id });
+        var r = await A.post('engine', 'design_text', { id: this.wc.id, slot_id: e.slot, frame: e.frame, headline: e.headline, subline: e.subline, template_id: e.template_id, font: e.font });
         this.busy = false;
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.dz = r.design; this.dEdit.slot = 0;

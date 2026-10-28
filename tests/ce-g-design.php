@@ -72,8 +72,8 @@ function px($im, int $x, int $y): array
 db_run('DELETE FROM rate_limits');
 $saved = [];
 foreach (['ce_carousel_ai_images', 'ce_reel_cover', 'ce_vision_max_regen'] as $k) $saved[$k] = get_setting($k, null);
-set_setting('ce_carousel_ai_images', '1');
-set_setting('ce_reel_cover', '1');
+set_setting('ce_carousel_ai_images', '0');   // الافتراضي: كل شرايح الكاروسيل بصورة
+set_setting('ce_reel_cover', '0');           // غلاف الريلز اختيار العميل
 set_setting('ce_vision_max_regen', '2');
 
 /* ─── 1) تشكيل العربي ─── */
@@ -135,8 +135,8 @@ $per = [];
 foreach (['أم مشغولة', 'شاب'] as $n) $per[] = (int) db_insert('INSERT INTO brand_personas (user_id, name, pains, desires, objections, is_active, source) VALUES (?,?,?,?,?,1,"user")',
     [$uid, $n, json_encode(['الوقت']), json_encode(['سرعة']), json_encode(['السعر'])]);
 run_job((int) ce_dna_build($uid)['job']['id']);
-$written = function (array $formats, array $excl = []) use ($uid, $per): int {
-    $r = ce_campaign_save($uid, ['goal' => 'awareness', 'all_services' => 1, 'persona_ids' => $per, 'formats' => $formats, 'channel' => 'whatsapp', 'boldness' => 'medium', 'exclusions' => $excl]);
+$written = function (array $formats, array $excl = [], array $extra = []) use ($uid, $per): int {
+    $r = ce_campaign_save($uid, ['goal' => 'awareness', 'all_services' => 1, 'persona_ids' => $per, 'formats' => $formats, 'channel' => 'whatsapp', 'boldness' => 'medium', 'exclusions' => $excl] + $extra);
     $cid = (int) $r['campaign']['id'];
     run_job((int) ce_plan_start($uid, $cid)['job']['id'], 20);
     if (!ce_plan_approve($uid, $cid)['ok']) db_run('UPDATE ce_campaigns SET status = "plan_ok" WHERE id = ? AND status = "review"', [$cid]);
@@ -146,15 +146,16 @@ $written = function (array $formats, array $excl = []) use ($uid, $per): int {
 
 /* ─── 4) الحملة كاملة ─── */
 echo "تصميم الحملة\n";
-$cid = $written(['post' => 1, 'carousel' => 1, 'reel' => 1]);
+$cid = $written(['post' => 1, 'carousel' => 1, 'reel' => 1], [], ['reel_cover' => 1]);
 $c = ce_campaign_get($cid, $uid);
 $v = ce_design_view($uid, $c);
-t('قبل التصميم: الإطارات المستنية (بوست + شرايح الكاروسيل + غلاف الريلز) والحجز المتوقع', $c['status'] === 'done' && $v['pending'] >= 7 && $v['credits'] >= 3, json_encode(['st' => $c['status'], 'p' => $v['pending'], 'cr' => $v['credits']]));
+t('قبل التصميم: الإطارات المستنية (بوست + شرايح الكاروسيل) + غلاف الريلز لوحده (اختيار العميل) والحجز المتوقع', $c['status'] === 'done' && $v['pending'] >= 6 && $v['reels'] === 1 && $v['reel_cover'] && $v['credits_reels'] > $v['credits'],
+    json_encode(['st' => $c['status'], 'p' => $v['pending'], 'r' => $v['reels'], 'cr' => $v['credits'], 'crr' => $v['credits_reels']]));
 $bal = credits_balance($uid);
 $ds = ce_design_start($uid, $cid);
 $ds2 = ce_design_start($uid, $cid);
-t('صمّم ← حجز + شغلانة · الضغط مرتين = نفس الشغلانة', $ds['ok'] && !empty($ds2['existing']) && (int) $ds2['job']['id'] === (int) $ds['job']['id'] && credits_balance($uid) === $bal - $v['credits'],
-    json_encode([$ds['error'] ?? null, credits_balance($uid), $bal, $v['credits']], JSON_UNESCAPED_UNICODE));
+t('صمّم ← حجز (بغلاف الريلز اللي اختاره) + شغلانة · الضغط مرتين = نفس الشغلانة', $ds['ok'] && !empty($ds2['existing']) && (int) $ds2['job']['id'] === (int) $ds['job']['id'] && credits_balance($uid) === $bal - $v['credits_reels'],
+    json_encode([$ds['error'] ?? null, credits_balance($uid), $bal, $v['credits_reels']], JSON_UNESCAPED_UNICODE));
 $j = run_job((int) $ds['job']['id']);
 $rows = db_all('SELECT d.*, s.format FROM ce_designs d JOIN ce_slots s ON s.id = d.slot_id WHERE d.campaign_id = ? ORDER BY d.slot_id, d.frame', [$cid]);
 $byF = [];
@@ -164,7 +165,11 @@ t('المقاسات: بوست 1:1 · كاروسيل 4:5 · ريلز 9:16', ($byF
 $sz = fn($d) => @getimagesize(STORAGE_PATH . '/' . $d['final_path']);
 t('الصور النهائية بالمقاس الصح (1080×1080 · 1080×1350 · 1080×1920)', ($sz($byF['post'][0])[1] ?? 0) === 1080 && ($sz($byF['carousel'][0])[1] ?? 0) === 1350 && ($sz($byF['reel'][0])[1] ?? 0) === 1920);
 $car = $byF['carousel'] ?? [];
-t('الكاروسيل: أول شريحة صورة AI والباقي نص على خلفية البراند', $car && $car[0]['kind'] === 'ai' && count(array_filter($car, fn($d) => $d['kind'] === 'text')) === count($car) - 1 && !$car[1]['image_path']);
+t('الكاروسيل: كل الشرايح بصورة AI', $car && count($car) >= 5 && !array_filter($car, fn($d) => $d['kind'] !== 'ai' || !$d['image_path']));
+set_setting('ce_carousel_ai_images', '1');
+$fr = ce_design_frames('carousel', ['slides' => [['text' => 'أ'], ['text' => 'ب'], ['text' => 'ج']], 'design_brief' => []]);
+t('الأدمن يقدر يخلّي أول شريحة بس بصورة والباقي نص', array_column($fr, 'kind') === ['ai', 'text', 'text']);
+set_setting('ce_carousel_ai_images', '0');
 $p0 = $byF['post'][0];
 t('البرومبت فيه المساحة الفاضية ومنع أي نص · والممنوعات دايمًا موجودة', str_contains($p0['prompt'], 'clean, calm and empty') && str_contains($p0['prompt'], 'no text') && str_contains($p0['negative'], 'logos') && str_contains($p0['negative'], 'distorted teeth'));
 $qa = json_decode((string) $p0['qa_json'], true);
@@ -198,7 +203,28 @@ run_job((int) $rd['job']['id'], 20);
 $p2 = ce_design_row((int) $p0['slot_id'], 1);
 t('الصورة اتغيرت والنص اللي العميل كتبه فضل', $p2['status'] === 'pass' && $p2['image_path'] !== $p1['image_path'] && $p2['headline'] === 'عنوان جديد خالص' && (int) $p2['attempts'] === 2);
 t('الصورة القديمة اتمسحت من السيرفر', !is_file(STORAGE_PATH . '/' . $p1['image_path']));
-t('شريحة النص: «صورة جديدة» مرفوض', !ce_design_redo($uid, $cid, (int) $car[1]['slot_id'], 2)['ok']);
+
+echo "غلاف الريلز اختياري\n";
+$cv = $written(['post' => 1, 'reel' => 1]);
+$vv = ce_design_view($uid, ce_campaign_get($cid2 = $cv, $uid));
+t('من غير اختيار ← الغلاف مش في الحجز', $vv['reels'] === 1 && !$vv['reel_cover'] && $vv['pending'] === 1);
+run_job((int) ce_design_start($uid, $cv)['job']['id']);
+$reelSlot = (int) db_one('SELECT id FROM ce_slots WHERE campaign_id = ? AND format = "reel"', [$cv])['id'];
+t('اتصمم البوست بس — الريلز من غير غلاف', !ce_design_row($reelSlot, 1) && (int) db_one('SELECT COUNT(*) n FROM ce_designs WHERE campaign_id = ?', [$cv])['n'] === 1);
+$rc = ce_design_start($uid, $cv, true);
+t('العميل اختار الغلاف بعدين ← شغلانة للغلاف بس', $rc['ok'] && count(json_decode((string) db_one('SELECT state_json FROM ce_jobs WHERE id = ?', [(int) $rc['job']['id']])['state_json'], true)['queue']) === 1);
+run_job((int) $rc['job']['id']);
+$rr = ce_design_row($reelSlot, 1);
+t('غلاف الريلز 9:16 اتعمل', $rr && $rr['status'] === 'pass' && $rr['aspect'] === '9:16' && (getimagesize(STORAGE_PATH . '/' . $rr['final_path'])[1] ?? 0) === 1920);
+
+echo "خطوط البراند\n";
+bk_save_section($uid, 'typography', ['ar' => 'Cairo', 'en' => 'Inter', 'design_fonts' => ['Tajawal', 'Cairo', 'NotAFont', 'Tajawal']], 'user', 'test');
+t('الهوية بتحفظ لحد 3 من خطوط المنصة بس (الغريب والمكرر بيتشالوا)', ce_brand_fonts($uid) === ['Tajawal', 'Cairo'], json_encode(ce_brand_fonts($uid)));
+t('ملف الهوية المختصر بياخد خطوط التصميمات', ce_dna_trim(ce_dna_clean($uid, ce_dna_from_kit($uid)))['visual']['fonts'] === ['Tajawal', 'Cairo']);
+t('خطوط المنصة للاختيار فيها Cairo و Tajawal برابط معاينة', count(array_filter(ce_font_families(), fn($f) => in_array($f['family'], ['Cairo', 'Tajawal'], true) && $f['url'])) === 2);
+$okF = ce_design_text($uid, $cid, (int) $p0['slot_id'], 1, ['headline' => 'عنوان بخط تاني', 'font' => 'Cairo']);
+t('خط العنوان لتصميم واحد من خطوط البراند ← بيترسم', $okF['ok'] && ce_design_row((int) $p0['slot_id'], 1)['font_family'] === 'Cairo');
+t('خط مش من خطوط البراند ← مرفوض', !ce_design_text($uid, $cid, (int) $p0['slot_id'], 1, ['headline' => 'x', 'font' => 'Arial'])['ok']);
 
 /* ─── 7) الصورة ماعدّتش المراجعة ─── */
 echo "إعادة الصورة\n";

@@ -197,7 +197,8 @@ function ce_dna_from_kit(int $uid): array
         ],
         'visual' => [
             'colors_hex' => $colors,
-            'fonts' => array_values(array_filter([(string) ($d['typography']['ar'] ?? ''), (string) ($d['typography']['en'] ?? '')])),
+            // خطوط التصميمات اللي البراند اختارها (لحد 3) — غير كده الخط العربي والإنجليزي من الهوية
+            'fonts' => array_values(array_filter(array_map('strval', (array) ($d['typography']['design_fonts'] ?? [])))) ?: array_values(array_filter([(string) ($d['typography']['ar'] ?? ''), (string) ($d['typography']['en'] ?? '')])),
             'photo_style' => $str(implode(' · ', $photo), 160),
             'avoid' => $list($d['design_style']['avoid'] ?? [], 5, 60),
             'characters' => $chars,

@@ -486,6 +486,12 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             </div>
                             <div class="bk-regen"><span class="bk-mute">عدّل بكلمة:</span><button class="bk-chip ai" :disabled="busy" @click="regen('design_style', 'simpler')">أبسط</button><button class="bk-chip ai" :disabled="busy" @click="regen('design_style', 'fancier')">أفخم</button><button class="bk-chip ai" :disabled="busy" @click="regen('design_style', 'alternatives')">اقتراحات تانية</button><input class="bk-in" v-model="regenText.design_style" placeholder="أو اكتب اللي عايزه… واضغط Enter" @keyup.enter="regen('design_style', regenText.design_style)"></div>
                             <div v-if="prop.design_style" class="bk-prop"><b>اقتراح:</b> {{ prop.design_style && prop.design_style.notes }}<button class="bk-btn sm pri" @click="useProp('design_style')">استخدمه</button></div>
+                            <div class="bk-lbl">خطوط التصميمات <small class="bk-mute">— اختار لحد 3 · الأول للعنوان والتاني للسطر التاني</small></div>
+                            <div class="bk-fonts" v-if="s.design_fonts && s.design_fonts.length">
+                                <button v-for="f in s.design_fonts" type="button" class="bk-font" :class="{on: ed.typography.design_fonts.indexOf(f.family) >= 0}" @click="toggleFont(f.family)" :aria-pressed="ed.typography.design_fonts.indexOf(f.family) >= 0">
+                                    <span class="bk-font-s" :style="{ fontFamily: fontFace(f.family) }">ابتسامتك تستاهل</span>
+                                    <small>{{ f.family }}<b v-if="fontRole(f.family)"> · {{ fontRole(f.family) }}</b></small></button>
+                            </div>
                             <details class="bk-adv"><summary>إعدادات متقدمة</summary>
                                 <div class="bk-two">
                                     <label class="bk-f">الخط العربي<select class="bk-in" v-model="ed.typography.ar"><option v-for="f in fontsAr">{{ f }}</option></select></label>
