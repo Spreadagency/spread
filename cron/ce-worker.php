@@ -37,3 +37,12 @@ if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) die("Another worker is running\n
 try { set_setting('ce_worker_last_run', date('Y-m-d H:i:s')); } catch (\Throwable $e) {}
 $n = ce_worker_tick(50);
 echo date('Y-m-d H:i:s') . " — ran $n step(s)\n";
+
+// حلقة التعلّم: تقرير الشهر اللي فات (مرة واحدة أول ما الشهر يبدأ)
+try {
+    require_once __DIR__ . '/../includes/ce-learning.php';
+    $lr = ce_learning_maybe_monthly();
+    if ($lr) echo 'learning report ' . $lr['period'] . ': global n=' . ($lr['global']['n'] ?? 0) . ' · skills ' . $lr['skills'] . ' · brands ' . $lr['users'] . "\n";
+} catch (\Throwable $e) {
+    error_log('ce learning: ' . $e->getMessage());
+}

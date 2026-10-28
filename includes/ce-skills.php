@@ -150,6 +150,8 @@ function ce_skill_parse(string $md): array
             preg_match_all('/^\s*(?:[-*•]|\d+[.)])\s+(.+)$/mu', $s['text'], $mm);
             $s['items'] = array_values(array_unique(array_filter(array_map(fn($x) => mb_substr(trim($x), 0, 200), $mm[1]))));
             if (!$s['items']) $out['warnings'][] = 'قسم «' . $s['title'] . '» مفيهوش بنود (- بند) — الكود مش هيقدر يتشيّك عليه';
+            // موديلات الصور بتفهم الإنجليزي أحسن — تنبيه بس
+            if ($k === 'visual_avoid' && array_filter($s['items'], fn($x) => preg_match('/\p{Arabic}/u', $x))) $out['warnings'][] = '«ممنوع في الصورة» فيه بنود بالعربي — اكتبها بالإنجليزي عشان موديل الصور يفهمها أحسن';
         }
         if (mb_strlen($s['text']) > CE_SKILL_SECTION_CHARS) $out['warnings'][] = 'قسم «' . $s['title'] . '» طويل — هيتقص لـ ' . CE_SKILL_SECTION_CHARS . ' حرف جوه البرومبت';
     }

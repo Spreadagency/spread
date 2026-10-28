@@ -401,7 +401,8 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <div class="ce-ring" :class="{ ok: wr.final.score >= 80 }"><b>{{ Math.round(wr.final.score) }}</b><small>من 100</small></div>
                         <div><h2>تقرير الحملة</h2>
                             <p class="bk-mute">{{ wr.final.pass }} عدّت الجودة<span v-if="wr.final.manual"> · {{ wr.final.manual }} محتاجة مراجعتك</span><span v-if="wr.final.failed"> · {{ wr.final.failed }} ماتكتبتش</span><span v-if="wr.final.avg_qa"> · متوسط الجودة {{ wr.final.avg_qa }}</span></p>
-                            <small class="bk-mute">{{ wr.final.summary }}</small></div>
+                            <small class="bk-mute">{{ wr.final.summary }}</small>
+                            <p v-if="wr.perf_sum" class="ce-perf-sum">📈 نتايج {{ wr.perf_sum.n }} قطعة بعد النشر · متوسط التفاعل <b>{{ wr.perf_sum.avg_rate }}%</b></p></div>
                     </div>
                     <div class="ce-dims"><div v-for="(v, d) in wr.final.dims" class="ce-dim">
                         <span>{{ (p && p.labels && p.labels.dims[d]) || dimLabel[d] || d }}</span><div class="ce-bar"><i :class="{ low: v < 80 }" :style="{ width: v + '%' }"></i></div><b>{{ Math.round(v) }}</b></div></div>
@@ -479,6 +480,17 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <span>{{ wr.qa_labels[k] }} <small class="bk-mute">×{{ wr.qa_weights[k] }}</small></span><div class="ce-bar"><i :class="{ low: c.score < wr.rules.min_criterion }" :style="{ width: c.score + '%' }"></i></div><b>{{ Math.round(c.score) }}</b></div></div>
                         <div v-if="s.content.qa.compliance_flags && s.content.qa.compliance_flags.length" class="ce-issues"><div v-for="f in s.content.qa.compliance_flags" class="hard">⛔ {{ f }}</div></div>
                         <div v-for="(c, k) in s.content.qa.criteria" v-show="c.fix" class="ce-est-row"><span>{{ wr.qa_labels[k] }}</span><span>{{ c.fix }}</span></div>
+                    </details>
+
+                    <details v-if="wr.perf_ready && s.content && s.content.id && (s.content.status === 'pass' || s.content.status === 'manual')" class="ce-perf" @toggle="perfOpen(s, $event)">
+                        <summary>📈 النتايج بعد النشر <b v-if="s.content.perf">· تفاعل {{ s.content.perf.eng_rate }}%</b><small v-else class="bk-mute"> — دخّلها عشان المحرك يتعلّم إيه اللي بينجح معاك</small></summary>
+                        <div class="ce-perf-f" v-if="pEdit.slot === s.id">
+                            <label>المنصة<select class="bk-in" v-model="pEdit.platform"><option v-for="(l, k) in wr.perf_platforms" :value="k">{{ l }}</option></select></label>
+                            <label>اتنشر يوم<input type="date" class="bk-in" v-model="pEdit.published_at"></label>
+                            <label v-for="f in perfFields" :key="f.k">{{ f.l }}<input type="number" min="0" inputmode="numeric" class="bk-in" v-model.number="pEdit[f.k]"></label>
+                            <div class="bk-row"><button class="bk-btn sm pri" :disabled="busy" @click="savePerf(s)">احفظ النتايج</button></div>
+                            <small class="bk-mute">الأرقام من Insights الصفحة بعد 3–7 أيام من النشر. الوصول أو المشاهدات لازم.</small>
+                        </div>
                     </details>
 
                     <details v-if="s.ideas.length" class="ce-ideas"><summary>💡 الأفكار ({{ s.ideas.length }})</summary>

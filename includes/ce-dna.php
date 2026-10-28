@@ -17,7 +17,7 @@ require_once __DIR__ . '/brand-kit.php';
 
 ce_job_register('brand_dna', 'ce_dna_job', 'بناء الـ Brand DNA');
 
-const CE_DNA_KEYS = ['brand', 'positioning', 'usp', 'proof_assets', 'services', 'personas', 'tone', 'visual', 'cta', 'compliance', 'golden_example_ids', 'winning_patterns'];
+const CE_DNA_KEYS = ['brand', 'positioning', 'usp', 'proof_assets', 'services', 'personas', 'tone', 'visual', 'cta', 'compliance', 'golden_example_ids', 'winning_patterns', 'golden_ce_ids'];
 const CE_DNA_PRIORITIES = ['high' => 'أولوية عالية', 'medium' => 'متوسطة', 'low' => 'قليلة'];
 const CE_DNA_FORMALITY = ['formal' => 'رسمي', 'balanced' => 'متوازن', 'friendly' => 'ودود وقريب'];
 const CE_DNA_PLATFORMS = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام', 'tiktok' => 'تيك توك', 'whatsapp' => 'واتساب', 'linkedin' => 'لينكدإن'];
@@ -237,6 +237,7 @@ function ce_dna_from_kit(int $uid): array
         'compliance' => $list($d['forbidden_topics'] ?? [], 5, 100),
         'golden_example_ids' => $golden,
         'winning_patterns' => array_slice(array_values(array_unique($patterns)), 0, 5),
+        'golden_ce_ids' => [],
     ];
 }
 
@@ -305,6 +306,8 @@ function ce_dna_clean(int $uid, array $in): array
         'cta' => ['type' => $s($cta['type'] ?? 'whatsapp', 20), 'text' => $s($cta['text'] ?? '', 120)],
         'compliance' => $l($in['compliance'] ?? [], 6, 120),
         'golden_example_ids' => array_slice(array_values(array_unique(array_map('intval', (array) ($in['golden_example_ids'] ?? [])))), 0, 5),
+        // أحسن قطع المحرك الجديد بالنتايج الحقيقية (حلقة التعلّم) — أمثلة للكاتب
+        'golden_ce_ids' => array_slice(array_values(array_unique(array_filter(array_map('intval', (array) ($in['golden_ce_ids'] ?? []))))), 0, 5),
         'winning_patterns' => $l($in['winning_patterns'] ?? [], 5, 100),
     ];
 }
@@ -443,6 +446,11 @@ function ce_dna_job(array $job, array &$state): array
     $dna = $state['dna'];
     if ($cur) foreach ($edited as $k) if (array_key_exists($k, $cur)) $dna[$k] = $cur[$k];
     $dna['brand']['skill'] = (string) ($cur['brand']['skill'] ?? '');   // اختيار العميل للتخصص بيفضل
+    // اللي حلقة التعلّم ضافته بيفضل: أحسن القطع + الأنماط الناجحة
+    $dna['golden_ce_ids'] = array_values((array) ($cur['golden_ce_ids'] ?? []));
+    if (function_exists('ce_learning_learned_patterns') && ($learned = ce_learning_learned_patterns($uid)) && !in_array('winning_patterns', $edited, true)) {
+        $dna['winning_patterns'] = array_slice(array_values(array_unique(array_merge($learned, (array) $dna['winning_patterns']))), 0, 5);
+    }
     $saved = ce_dna_save($uid, $dna, ($state['ai'] ?? '') === 'ok' ? 'ai' : 'rules', (int) $job['id'], (string) ($state['hash'] ?? ''), $edited);
     return ['done' => true, 'result' => ['tokens' => $saved['tokens'], 'ai' => $state['ai'] ?? 'skipped'],
             'used_credits' => ce_usd_to_credits((float) ($state['cost_usd'] ?? 0))];

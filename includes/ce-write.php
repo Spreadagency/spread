@@ -486,8 +486,9 @@ function ce_write_job(array $job, array &$state): array
 
     // ─── 3) الكتابة (أو التحسين) ───
     if ($state['phase'] === 'write') {
-        $golden = [];
-        foreach (array_slice($ctx['dna']['golden_example_ids'] ?? [], 0, 2) as $gid) {
+        // الأمثلة: أحسن قطع المحرك بالنتايج الحقيقية (حلقة التعلّم) الأول، وبعدها أمثلة الهوية القديمة
+        $golden = ce_learning_golden_texts($uid, (array) ($ctx['dna']['golden_ce_ids'] ?? []));
+        foreach (array_slice($ctx['dna']['golden_example_ids'] ?? [], 0, max(0, 2 - count($golden))) as $gid) {
             $g = db_one('SELECT generated_text FROM contents WHERE id = ? AND user_id = ?', [(int) $gid, $uid]);
             if ($g && trim((string) $g['generated_text']) !== '') $golden[] = mb_substr((string) $g['generated_text'], 0, 500);
         }
@@ -665,8 +666,9 @@ function ce_write_view(int $uid, array $c): array
             'similarity' => $i['similarity'] !== null ? (float) $i['similarity'] : null, 'selected' => (bool) $i['selected'], 'round' => (int) $i['round']];
     }
     $contents = [];
+    $perf = ce_perf_for_campaign($cid);   // نتايج بعد النشر (حلقة التعلّم)
     foreach (db_all('SELECT * FROM ce_contents WHERE campaign_id = ?', [$cid]) as $x) {
-        $contents[(int) $x['slot_id']] = ['status' => $x['status'], 'body' => json_decode((string) $x['body_json'], true) ?: null, 'version' => (int) $x['version'],
+        $contents[(int) $x['slot_id']] = ['id' => (int) $x['id'], 'perf' => $perf[(int) $x['id']] ?? null, 'status' => $x['status'], 'body' => json_decode((string) $x['body_json'], true) ?: null, 'version' => (int) $x['version'],
             'qa' => json_decode((string) $x['qa_json'], true) ?: null, 'qa_score' => $x['qa_score'] !== null ? (float) $x['qa_score'] : null, 'rounds' => (int) $x['rounds'], 'idea_id' => $x['idea_id'] ? (int) $x['idea_id'] : null];
     }
     $job = db_one('SELECT * FROM ce_jobs WHERE kind = "campaign_write" AND ref_type = "ce_campaign" AND ref_id = ? ORDER BY id DESC LIMIT 1', [$cid]);
@@ -679,5 +681,9 @@ function ce_write_view(int $uid, array $c): array
         'final' => json_decode((string) ($c['final_qa_json'] ?? ''), true) ?: null,
         'qa_labels' => CE_QA_LABELS, 'qa_weights' => ce_qa_weights(), 'triggers' => CE_TRIGGERS, 'rules' => ce_qa_rules(),
         'write_credits' => $c['status'] === 'plan_ok' ? ce_write_hold_credits($c) : null,
+        'perf_ready' => ce_learning_ready(), 'perf_platforms' => CE_PERF_PLATFORMS,
+        'perf_sum' => $perf ? ['n' => count($perf), 'avg_rate' => round(array_sum(array_column($perf, 'eng_rate')) / count($perf), 2)] : null,
     ];
 }
+
+require_once __DIR__ . '/ce-learning.php';   // حلقة التعلّم (أمثلة الكاتب من أحسن القطع)

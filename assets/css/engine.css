@@ -164,3 +164,11 @@
 .ce-skillq h3 { margin: 0; font-size: 15px; }
 .ce-skillq-i { display: grid; gap: 4px; font-size: 13.5px; }
 .ce-skillq-i span { color: var(--bk-ink-2, #4A5468); }
+
+/* نتايج بعد النشر (حلقة التعلّم) */
+.ce-perf summary { cursor: pointer; }
+.ce-perf-f { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.ce-perf-f label { display: grid; gap: 4px; font-size: 13px; }
+.ce-perf-f .bk-row, .ce-perf-f small { grid-column: 1 / -1; }
+.ce-perf-sum { margin: 8px 0 0; font-size: 14px; }
+.ce-perf-f label { align-content: end; }

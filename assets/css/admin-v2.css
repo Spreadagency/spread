@@ -634,3 +634,20 @@ tr.lab-on td { background: #F4FBF9; }
 .ce-adm .ce-skill-run { margin-top: 14px; }
 .ce-adm .a2-tbl tr.on td { background: #F2F8FF; }
 @media (max-width: 860px) { .ce-adm .ce-fgrid[style] { grid-template-columns: minmax(0, 1fr) !important; } }
+
+/* ─── الاستخدام والتعلّم (I) ─── */
+.ce-adm .ce-ins-filter { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.ce-adm .ce-kpis .ce-f small { display: block; color: #6B7689; font-size: 11.5px; margin-top: 2px; }
+.ce-adm .ce-bars { display: flex; align-items: flex-end; gap: 3px; height: 140px; padding: 6px 0; border-bottom: 1px solid #DCE6F0; }
+.ce-adm .ce-bars i { flex: 1 1 0; min-width: 3px; background: #0C87EF; border-radius: 3px 3px 0 0; opacity: .85; }
+.ce-adm .ce-bars i:hover { opacity: 1; }
+.ce-adm .ce-scatter { margin: 10px 0; }
+.ce-adm .ce-scatter svg { width: 100%; max-width: 560px; height: auto; direction: ltr; }
+.ce-adm .ce-scatter circle { fill: #0C87EF; fill-opacity: .7; }
+.ce-adm .ce-scatter .ax { stroke: #B8C4D4; }
+.ce-adm .ce-scatter text { font-size: 10px; fill: #6B7689; }
+.ce-adm .ce-ins-post { border: 1px solid #DCE6F0; border-radius: 10px; padding: 8px 12px; margin: 6px 0; }
+.ce-adm .ce-ins-post p { margin: 4px 0 0; }
+.ce-adm .ce-ins-post.weak { border-style: dashed; }
+.ce-adm .ce-ins-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #EEF2F7; }
+.ce-adm .ce-ins-row form { margin: 0; }

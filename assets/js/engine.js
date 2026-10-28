@@ -28,6 +28,10 @@
       loading: true, busy: false, view: 'home', toast: null, worker: false,
       st: {}, opts: {}, job: null, campaigns: [], balance: 0, d: null, brandKitUrl: root.dataset.brandkit,
       p: null, dirty: false, dragFrom: -1, dragOver: -1, wr: null, wc: null, openQa: {}, dz: null, dEdit: { slot: 0, frame: 0, headline: '', subline: '', template_id: 0, font: '' }, dZoom: null,
+      // نتايج بعد النشر (حلقة التعلّم) — object ثابت عشان v-model
+      pEdit: { slot: 0, platform: 'facebook', published_at: '', reach: 0, impressions: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, messages: 0 },
+      perfFields: [{ k: 'reach', l: 'الوصول (Reach)' }, { k: 'impressions', l: 'المشاهدات' }, { k: 'likes', l: 'لايك وريأكت' }, { k: 'comments', l: 'كومنتات' },
+        { k: 'shares', l: 'مشاركات' }, { k: 'saves', l: 'حفظ' }, { k: 'clicks', l: 'ضغطات على اللينك' }, { k: 'messages', l: 'رسايل / مكالمات / حجوزات' }],
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
       statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
@@ -382,6 +386,23 @@
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.balance = r.balance;
         await this.openWrite(this.wc.id);
+      },
+      perfOpen: function (s, ev) {
+        if (!ev.target.open) return;
+        var p = s.content.perf || {}, e = this.pEdit;
+        var today = new Date().toISOString().slice(0, 10), d = s.date && s.date <= today ? s.date : '';
+        e.slot = s.id; e.platform = p.platform || 'facebook'; e.published_at = p.published_at || d;
+        this.perfFields.forEach(function (f) { e[f.k] = p[f.k] || 0; });
+      },
+      savePerf: async function (s) {
+        var e = this.pEdit, perf = { platform: e.platform, published_at: e.published_at };
+        this.perfFields.forEach(function (f) { perf[f.k] = +e[f.k] || 0; });
+        this.busy = true;
+        var r = await A.post('engine', 'perf_save', { id: this.wc.id, content_id: s.content.id, perf: perf });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.wr = r.write;
+        this.say('اتحفظت ✓ — معدل التفاعل ' + r.perf.eng_rate + '%');
       },
       acceptContent: async function (s) {
         var r = await A.post('engine', 'content_accept', { id: this.wc.id, slot_id: s.id });

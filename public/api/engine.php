@@ -28,6 +28,7 @@
  *   POST action=design_redo {id, slot_id, frame}  صورة جديدة لتصميم واحد
  *   POST action=design_text {id, slot_id, frame, headline, subline, template_id}  تعديل النص/القالب ← رسم تاني من غير كريدت
  *   POST action=design_accept {id, slot_id, frame}  اعتمد تصميم «محتاج مراجعة» زي ما هو
+ *   POST action=perf_save {id, content_id, perf{platform, published_at, reach, impressions, likes, comments, shares, saves, clicks, messages}}  نتايج بعد النشر (المرحلة I)
  *
  * المحرك متاح بس للعملاء اللي الأدمن فتحه لهم (الميزات ← content_engine).
  */
@@ -153,6 +154,16 @@ switch ($action) {
         if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
         if (!ce_write_ready() || !ce_content_accept($uid, (int) $c['id'], api_int('slot_id'))) api_fail('الخانة دي مش محتاجة مراجعة', 'state', 409);
         api_ok(['write' => ce_write_view($uid, $c)]);
+
+    case 'perf_save':
+        // نتايج قطعة بعد النشر (الوصول · التفاعل · الرسايل) — حلقة التعلّم (المرحلة I)
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        $cid = api_int('content_id');
+        if (!db_one('SELECT id FROM ce_contents WHERE id = ? AND campaign_id = ? AND user_id = ?', [$cid, (int) $c['id'], $uid])) api_fail('القطعة مش موجودة', 'not_found', 404);
+        $r = ce_perf_save($uid, $cid, (array) (api_input()['perf'] ?? []));
+        if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'input', ($r['code'] ?? '') === 'not_found' ? 404 : 422);
+        api_ok(['perf' => $r['perf'], 'write' => ce_write_view($uid, $c)]);
 
     case 'design':
         $c = ce_campaign_get(api_int('id'), $uid);
