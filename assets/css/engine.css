@@ -172,3 +172,16 @@
 .ce-perf-f .bk-row, .ce-perf-f small { grid-column: 1 / -1; }
 .ce-perf-sum { margin: 8px 0 0; font-size: 14px; }
 .ce-perf-f label { align-content: end; }
+
+/* Meta Insights */
+.ce-meta { margin: 10px 0; display: grid; gap: 8px; }
+.ce-meta-pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ce-meta-pick .bk-in { flex: 1 1 220px; }
+.ce-meta-posts { display: grid; gap: 6px; max-height: 360px; overflow: auto; }
+.ce-meta-post { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border: 1px solid var(--bk-line, #E2E8F0); border-radius: 10px; cursor: pointer; font-size: 13px; }
+.ce-meta-post img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; }
+.ce-meta-post.off { opacity: .5; cursor: not-allowed; }
+.ce-meta-post span { min-width: 0; overflow-wrap: anywhere; }
+.ce-meta-warn { color: #9A5B00; background: #FFF4E0; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+.ce-perf-nums { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.ce-contents { display: contents; }

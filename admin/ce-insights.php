@@ -36,6 +36,23 @@ if ($lready && $_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('success', 'اتحفظ ✓');
         redirect('admin/ce-insights.php?tab=learning&period=' . $p);
     }
+    if ($act === 'meta_settings') {
+        set_setting('ce_meta_auto_match', !empty($_POST['auto']) ? '1' : '0');
+        set_setting('ce_meta_match_min', (string) max(0.5, min(0.99, round((float) ($_POST['match_min'] ?? 0.75), 2))));
+        set_setting('ce_meta_sync_days', (string) max(3, min(90, (int) ($_POST['days'] ?? 30))));
+        set_setting('ce_meta_sync_hours', (string) max(1, min(72, (int) ($_POST['hours'] ?? 12))));
+        admin_log('ce_meta_settings', 'settings', null);
+        flash_set('success', 'اتحفظ ✓');
+        redirect('admin/ce-insights.php?tab=results');
+    }
+    if ($act === 'meta_now') {
+        @set_time_limit(300);
+        $m = ce_meta_auto_match(50);
+        $sy = ce_meta_sync_due(100);
+        admin_log('ce_meta_sync_now', 'ce_performance', null, json_encode([$m, $sy]));
+        flash_set('success', 'ربط تلقائي: ' . $m['linked'] . ' قطعة · اتحدّث: ' . $sy['synced'] . ' بوست');
+        redirect('admin/ce-insights.php?tab=results');
+    }
     if ($act === 'skill_draft') {
         $r = ce_learning_skill_draft((int) ($_POST['report_id'] ?? 0), $aid);
         if (!$r['ok']) { flash_set('danger', $r['error']); redirect('admin/ce-insights.php?tab=learning&period=' . $p); }
@@ -283,6 +300,32 @@ $corrTone = fn($v) => $v === null ? 'chip-line' : ((float) $v >= 0.35 ? 'chip-mi
     $rows = db_all('SELECT p.*, c.qa_score, c.format, k.title, u.name uname, u.email FROM ce_performance p JOIN ce_contents c ON c.id = p.content_id
                     JOIN ce_campaigns k ON k.id = p.campaign_id LEFT JOIN users u ON u.id = p.user_id ORDER BY COALESCE(p.updated_at, p.created_at) DESC LIMIT 100');
 ?>
+        <?php if (ce_meta_ready()): $ms = ce_meta_stats(); ?>
+        <div class="ce-fgrid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+            <section class="card">
+                <div class="a2-h"><h3>Meta Insights</h3><span class="a2-grow"></span>
+                    <form method="post"><?= csrf_field() ?><input type="hidden" name="act" value="meta_now"><button class="btn sm">اربط واسحب دلوقتي</button></form></div>
+                <div class="ce-kpis">
+                    <div class="ce-f"><span>قطع مربوطة ببوست</span><b><?= (int) ($ms['linked'] ?? 0) ?></b><small>منهم تلقائي <?= (int) ($ms['auto'] ?? 0) ?></small></div>
+                    <div class="ce-f"><span>اتحدّثت آخر 24 ساعة</span><b><?= (int) ($ms['synced_24h'] ?? 0) ?></b><small>الـ worker بيسحب كل 10 دقايق</small></div>
+                    <div class="ce-f"><span>تفاعل بس (من غير وصول)</span><b><?= (int) ($ms['partial'] ?? 0) ?></b><small>الصفحة محتاجة صلاحية Insights</small></div>
+                    <div class="ce-f"><span>أخطاء / صفحات انتهت</span><b><?= (int) ($ms['bad'] ?? 0) ?></b><small>العميل يربط الصفحة تاني</small></div>
+                </div>
+                <p class="a2-muted">الصلاحيات المطلوبة من تطبيق Meta: <code>read_insights</code> و<code>instagram_manage_insights</code> (اتضافوا لزرار الربط). الصفحات اللي اتربطت قبل كده لازم تتربط تاني عشان توافق عليهم — ولو التطبيق Live لازم الصلاحيتين يعدّوا App Review.</p>
+            </section>
+            <section class="card">
+                <div class="a2-h"><h3>إعدادات السحب</h3></div>
+                <form method="post"><?= csrf_field() ?><input type="hidden" name="act" value="meta_settings">
+                    <label class="ce-check"><input type="hidden" name="auto" value="0"><input type="checkbox" name="auto" value="1" <?= ce_setting_int('ce_meta_auto_match', 1) === 1 ? 'checked' : '' ?>> <span>ربط تلقائي لو نص البوست شبه القطعة</span></label>
+                    <label class="ce-f"><span>أقل تشابه للربط التلقائي (0.5–0.99)</span><input class="form-control" type="number" step="0.01" min="0.5" max="0.99" name="match_min" value="<?= e((string) ce_setting_float('ce_meta_match_min', 0.75)) ?>"></label>
+                    <label class="ce-f"><span>نسحب لحد كام يوم بعد النشر</span><input class="form-control" type="number" min="3" max="90" name="days" value="<?= ce_setting_int('ce_meta_sync_days', 30) ?>"></label>
+                    <label class="ce-f"><span>نحدّث البوست كل كام ساعة</span><input class="form-control" type="number" min="1" max="72" name="hours" value="<?= ce_setting_int('ce_meta_sync_hours', 12) ?>"></label>
+                    <button class="btn sm">احفظ</button>
+                </form>
+            </section>
+        </div>
+        <?php endif; ?>
+
         <section class="card">
             <div class="a2-h"><h3>آخر 100 نتيجة</h3><span class="a2-grow"></span><small class="a2-muted">العميل بيدخّلها من «📈 النتايج بعد النشر» تحت كل قطعة · المعدل = (لايك + 2×كومنت + 3×مشاركة + 3×حفظ + 2×ضغطة + 5×رسالة) ÷ الوصول</small></div>
             <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>العميل</th><th>الحملة</th><th>الشكل</th><th>الجودة</th><th>الوصول</th><th>التفاعل</th><th>رسايل</th><th>المنصة</th><th>النشر</th><th>المصدر</th></tr></thead><tbody>
@@ -290,7 +333,9 @@ $corrTone = fn($v) => $v === null ? 'chip-line' : ((float) $v >= 0.35 ? 'chip-mi
                 <tr><td><?= e((string) ($r['uname'] ?: $r['email'])) ?></td><td>#<?= (int) $r['campaign_id'] ?> <?= e(mb_strimwidth((string) $r['title'], 0, 30, '…')) ?></td>
                     <td><?= e(CE_FORMATS[$r['format']] ?? $r['format']) ?></td><td class="num"><?= e((string) $r['qa_score']) ?></td><td class="num"><?= $num($r['reach']) ?></td>
                     <td class="num"><b><?= e((string) $r['eng_rate']) ?>%</b></td><td class="num"><?= $num($r['messages']) ?></td><td><?= e(CE_PERF_PLATFORMS[$r['platform']] ?? $r['platform']) ?></td>
-                    <td class="num"><?= e((string) ($r['published_at'] ?? '—')) ?></td><td><?= e(['manual' => 'يدوي', 'meta' => 'Meta', 'import' => 'استيراد'][$r['source']] ?? $r['source']) ?></td></tr>
+                    <td class="num"><?= e((string) ($r['published_at'] ?? '—')) ?></td><td><?= e(['manual' => 'يدوي', 'meta' => 'Meta', 'import' => 'استيراد'][$r['source']] ?? $r['source']) ?><?php if (!empty($r['provider_post_id'])): ?>
+                        <span class="chip <?= ['ok' => 'chip-mint', 'partial' => 'chip-amber', 'error' => 'chip-coral', 'expired' => 'chip-coral'][$r['sync_status']] ?? 'chip-line' ?>" title="<?= e((string) ($r['sync_error'] ?? '')) ?>"><?= e(['ok' => 'متزامن', 'partial' => 'تفاعل بس', 'error' => 'خطأ', 'expired' => 'الصفحة انتهت', 'pending' => 'مستني'][$r['sync_status']] ?? '—') ?></span>
+                        <?php if ($r['permalink']): ?><a href="<?= e((string) $r['permalink']) ?>" target="_blank" rel="noopener">↗</a><?php endif; ?><?php endif; ?></td></tr>
             <?php endforeach; ?>
             <?php if (!$rows): ?><tr><td colspan="10" class="a2-muted">مفيش نتايج لسه.</td></tr><?php endif; ?>
             </tbody></table></div>

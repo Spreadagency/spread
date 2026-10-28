@@ -32,6 +32,9 @@
       pEdit: { slot: 0, platform: 'facebook', published_at: '', reach: 0, impressions: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, messages: 0 },
       perfFields: [{ k: 'reach', l: 'الوصول (Reach)' }, { k: 'impressions', l: 'المشاهدات' }, { k: 'likes', l: 'لايك وريأكت' }, { k: 'comments', l: 'كومنتات' },
         { k: 'shares', l: 'مشاركات' }, { k: 'saves', l: 'حفظ' }, { k: 'clicks', l: 'ضغطات على اللينك' }, { k: 'messages', l: 'رسايل / مكالمات / حجوزات' }],
+      perfFieldsLinked: [{ k: 'messages', l: 'رسايل / مكالمات / حجوزات جت من البوست' }],
+      // Meta Insights: اختيار البوست — object ثابت
+      mPick: { slot: 0, target: '', posts: [], post: '' },
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
       statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
@@ -403,6 +406,45 @@
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.wr = r.write;
         this.say('اتحفظت ✓ — معدل التفاعل ' + r.perf.eng_rate + '%');
+      },
+      isLinked: function (s) { return !!(s.content && s.content.perf && s.content.perf.linked); },
+      metaTargets: function () {
+        var out = [];
+        ((this.wr && this.wr.meta && this.wr.meta.connections) || []).forEach(function (c) {
+          c.targets.forEach(function (t) { out.push({ key: c.id + ':' + t.platform, label: t.label }); });
+        });
+        return out;
+      },
+      metaPosts: async function (s) {
+        var ts = this.metaTargets();
+        if (!this.mPick.target && ts.length) this.mPick.target = ts[0].key;
+        var parts = this.mPick.target.split(':');
+        this.busy = true;
+        var r = await A.post('engine', 'meta_posts', { id: this.wc.id, content_id: s.content.id, connection_id: +parts[0], platform: parts[1] });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.mPick.slot = s.id; this.mPick.posts = r.posts;
+        var best = r.posts.filter(function (p) { return !p.taken; })[0];
+        this.mPick.post = best && best.similarity >= 0.5 ? best.id : '';
+        if (!r.posts.length) this.say('مفيش بوستات على الحساب ده', 'warning');
+      },
+      metaLink: async function (s) {
+        var parts = this.mPick.target.split(':');
+        this.busy = true;
+        var r = await A.post('engine', 'meta_link', { id: this.wc.id, content_id: s.content.id, connection_id: +parts[0], platform: parts[1], post_id: this.mPick.post });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.wr = r.write; this.mPick.slot = 0; this.mPick.posts = []; this.mPick.post = '';
+        this.say('اتربطت ✓ — الأرقام اتسحبت من Meta');
+      },
+      metaAct: async function (s, action) {
+        if (action === 'meta_unlink' && !confirm('نفك الربط بالبوست؟ الأرقام اللي اتسحبت هتفضل.')) return;
+        this.busy = true;
+        var r = await A.post('engine', action, { id: this.wc.id, content_id: s.content.id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, r.code === 'rate' ? 'warning' : 'danger'); return; }
+        this.wr = r.write;
+        this.say(action === 'meta_sync' ? 'اتحدّثت ✓' : 'اتفك الربط');
       },
       acceptContent: async function (s) {
         var r = await A.post('engine', 'content_accept', { id: this.wc.id, slot_id: s.id });

@@ -682,6 +682,8 @@ function ce_write_view(int $uid, array $c): array
         'qa_labels' => CE_QA_LABELS, 'qa_weights' => ce_qa_weights(), 'triggers' => CE_TRIGGERS, 'rules' => ce_qa_rules(),
         'write_credits' => $c['status'] === 'plan_ok' ? ce_write_hold_credits($c) : null,
         'perf_ready' => ce_learning_ready(), 'perf_platforms' => CE_PERF_PLATFORMS,
+        // Meta Insights: صفحات العميل المربوطة (الأرقام بتتسحب لوحدها بعد ربط القطعة بالبوست)
+        'meta' => ['ready' => ce_meta_ready(), 'connections' => ce_meta_connections($uid), 'accounts_url' => url('social-accounts.php')],
         'perf_sum' => $perf ? ['n' => count($perf), 'avg_rate' => round(array_sum(array_column($perf, 'eng_rate')) / count($perf), 2)] : null,
     ];
 }

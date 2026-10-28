@@ -484,12 +484,39 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
 
                     <details v-if="wr.perf_ready && s.content && s.content.id && (s.content.status === 'pass' || s.content.status === 'manual')" class="ce-perf" @toggle="perfOpen(s, $event)">
                         <summary>📈 النتايج بعد النشر <b v-if="s.content.perf">· تفاعل {{ s.content.perf.eng_rate }}%</b><small v-else class="bk-mute"> — دخّلها عشان المحرك يتعلّم إيه اللي بينجح معاك</small></summary>
+                        <div v-if="wr.meta && wr.meta.ready" class="ce-meta">
+                            <div v-if="isLinked(s)" class="ce-meta">
+                                <div class="ce-meta-on">🔗 مربوطة بـ <a :href="s.content.perf.permalink" target="_blank" rel="noopener">البوست على {{ s.content.perf.platform === 'instagram' ? 'إنستجرام' : 'فيسبوك' }}</a>
+                                    <small class="bk-mute">· {{ s.content.perf.link_mode === 'auto' ? 'اتربطت تلقائي' : 'ربط يدوي' }} · {{ s.content.perf.synced_at ? 'آخر تحديث ' + s.content.perf.synced_at.slice(0, 16) : 'بنسحب الأرقام…' }}</small></div>
+                                <div class="ce-perf-nums"><span>الوصول <b>{{ s.content.perf.reach }}</b></span><span>المشاهدات <b>{{ s.content.perf.impressions }}</b></span><span>تفاعل <b>{{ s.content.perf.likes }}</b></span>
+                                    <span>كومنت <b>{{ s.content.perf.comments }}</b></span><span>مشاركة <b>{{ s.content.perf.shares }}</b></span><span v-if="s.content.perf.saves">حفظ <b>{{ s.content.perf.saves }}</b></span><span v-if="s.content.perf.clicks">ضغطات <b>{{ s.content.perf.clicks }}</b></span></div>
+                                <div v-if="s.content.perf.sync_error" class="ce-meta-warn">⚠ {{ s.content.perf.sync_error }} <a :href="wr.meta.accounts_url">حسابات السوشيال</a></div>
+                                <div class="bk-row"><button class="bk-btn sm" :disabled="busy" @click="metaAct(s, 'meta_sync')">حدّث الأرقام دلوقتي</button>
+                                    <button class="bk-btn sm ghost" :disabled="busy" @click="metaAct(s, 'meta_unlink')">فك الربط</button></div>
+                                <small class="bk-mute">الأرقام بتتسحب لوحدها كل كام ساعة لحد 30 يوم من النشر. «الرسايل/الحجوزات» بس بتدخّلها إنت تحت.</small>
+                            </div>
+                            <div v-else-if="wr.meta.connections.length" class="ce-meta">
+                                <div class="ce-meta-pick">
+                                    <select class="bk-in" v-model="mPick.target" aria-label="الصفحة"><option v-for="t in metaTargets()" :key="t.key" :value="t.key">{{ t.label }}</option></select>
+                                    <button class="bk-btn sm pri" :disabled="busy" @click="metaPosts(s)">اختار البوست اللي نزل</button>
+                                </div>
+                                <div v-if="mPick.slot === s.id && mPick.posts.length" class="ce-meta-posts">
+                                    <label v-for="p in mPick.posts" :key="p.id" class="ce-meta-post" :class="{ off: p.taken }"><input type="radio" name="mpost" :value="p.id" v-model="mPick.post" :disabled="p.taken">
+                                        <img v-if="p.picture" :src="p.picture" alt="" loading="lazy"><span><small class="bk-mute">{{ p.created }}</small> <b v-if="p.similarity >= 0.5" class="ce-badge">شبهها {{ Math.round(p.similarity * 100) }}%</b><b v-if="p.taken" class="ce-badge">مربوط بقطعة تانية</b><br>{{ p.text || '(من غير نص)' }}</span></label>
+                                    <button class="bk-btn sm pri" :disabled="busy || !mPick.post" @click="metaLink(s)">اربط واسحب الأرقام</button>
+                                </div>
+                                <small class="bk-mute">نشرت القطعة دي على صفحتك؟ اربطها بالبوست والأرقام هتتسحب لوحدها. وكمان بنربط تلقائي لو النص زي ما هو.</small>
+                            </div>
+                            <p v-else class="bk-mute">🔗 <a :href="wr.meta.accounts_url">اربط صفحتك على فيسبوك/إنستجرام</a> والأرقام هتتسحب لوحدها بدل ما تكتبها.</p>
+                        </div>
                         <div class="ce-perf-f" v-if="pEdit.slot === s.id">
-                            <label>المنصة<select class="bk-in" v-model="pEdit.platform"><option v-for="(l, k) in wr.perf_platforms" :value="k">{{ l }}</option></select></label>
-                            <label>اتنشر يوم<input type="date" class="bk-in" v-model="pEdit.published_at"></label>
-                            <label v-for="f in perfFields" :key="f.k">{{ f.l }}<input type="number" min="0" inputmode="numeric" class="bk-in" v-model.number="pEdit[f.k]"></label>
-                            <div class="bk-row"><button class="bk-btn sm pri" :disabled="busy" @click="savePerf(s)">احفظ النتايج</button></div>
-                            <small class="bk-mute">الأرقام من Insights الصفحة بعد 3–7 أيام من النشر. الوصول أو المشاهدات لازم.</small>
+                            <div v-if="!isLinked(s)" class="ce-contents">
+                                <label>المنصة<select class="bk-in" v-model="pEdit.platform"><option v-for="(l, k) in wr.perf_platforms" :value="k">{{ l }}</option></select></label>
+                                <label>اتنشر يوم<input type="date" class="bk-in" v-model="pEdit.published_at"></label>
+                            </div>
+                            <label v-for="f in (isLinked(s) ? perfFieldsLinked : perfFields)" :key="f.k">{{ f.l }}<input type="number" min="0" inputmode="numeric" class="bk-in" v-model.number="pEdit[f.k]"></label>
+                            <div class="bk-row"><button class="bk-btn sm pri" :disabled="busy" @click="savePerf(s)">احفظ {{ isLinked(s) ? 'الرسايل' : 'النتايج' }}</button></div>
+                            <small class="bk-mute" v-if="!isLinked(s)">أو دخّلها بإيدك من Insights الصفحة بعد 3–7 أيام من النشر. الوصول أو المشاهدات لازم.</small>
                         </div>
                     </details>
 

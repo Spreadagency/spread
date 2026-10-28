@@ -28,6 +28,8 @@
  *   POST action=design_redo {id, slot_id, frame}  صورة جديدة لتصميم واحد
  *   POST action=design_text {id, slot_id, frame, headline, subline, template_id}  تعديل النص/القالب ← رسم تاني من غير كريدت
  *   POST action=design_accept {id, slot_id, frame}  اعتمد تصميم «محتاج مراجعة» زي ما هو
+ *   POST action=meta_posts {id, content_id, connection_id, platform}  آخر بوستات الصفحة + التشابه مع نص القطعة
+ *   POST action=meta_link {id, content_id, connection_id, platform, post_id} · meta_sync {id, content_id} · meta_unlink {id, content_id}   (Meta Insights)
  *   POST action=perf_save {id, content_id, perf{platform, published_at, reach, impressions, likes, comments, shares, saves, clicks, messages}}  نتايج بعد النشر (المرحلة I)
  *
  * المحرك متاح بس للعملاء اللي الأدمن فتحه لهم (الميزات ← content_engine).
@@ -164,6 +166,36 @@ switch ($action) {
         $r = ce_perf_save($uid, $cid, (array) (api_input()['perf'] ?? []));
         if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'input', ($r['code'] ?? '') === 'not_found' ? 404 : 422);
         api_ok(['perf' => $r['perf'], 'write' => ce_write_view($uid, $c)]);
+
+    case 'meta_posts':
+    case 'meta_link':
+    case 'meta_sync':
+    case 'meta_unlink':
+        // ربط قطعة بالبوست اللي نزل على فيسبوك/إنستجرام ← الأرقام بتتسحب من Meta Insights
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        $cid = api_int('content_id');
+        if (!db_one('SELECT id FROM ce_contents WHERE id = ? AND campaign_id = ? AND user_id = ?', [$cid, (int) $c['id'], $uid])) api_fail('القطعة مش موجودة', 'not_found', 404);
+        if (!ce_meta_ready()) api_fail('الربط بـ Meta مش متاح لسه', 'not_ready', 409);
+        $in = api_input();
+        $platform = ($in['platform'] ?? '') === 'instagram' ? 'instagram' : 'facebook';
+        if ($action === 'meta_posts') {
+            $r = ce_meta_candidates($uid, $cid, api_int('connection_id'), $platform);
+            if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'meta', ($r['code'] ?? '') === 'not_found' ? 404 : 422);
+            api_ok(['posts' => $r['posts']]);
+        }
+        if ($action === 'meta_link') {
+            $r = ce_meta_link($uid, $cid, api_int('connection_id'), $platform, (string) ($in['post_id'] ?? ''));
+            if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'meta', ($r['code'] ?? '') === 'not_found' ? 404 : 422);
+        } elseif ($action === 'meta_sync') {
+            $row = db_one('SELECT * FROM ce_performance WHERE content_id = ? AND user_id = ? AND provider_post_id IS NOT NULL', [$cid, $uid]);
+            if (!$row) api_fail('القطعة مش مربوطة ببوست', 'state', 409);
+            if ($row['synced_at'] && strtotime((string) $row['synced_at']) > time() - 600) api_fail('اتحدّثت من شوية — جرّب بعد 10 دقايق', 'rate', 429);
+            ce_meta_sync_row($row);
+        } else {
+            ce_meta_unlink($uid, $cid);
+        }
+        api_ok(['write' => ce_write_view($uid, $c)]);
 
     case 'design':
         $c = ce_campaign_get(api_int('id'), $uid);

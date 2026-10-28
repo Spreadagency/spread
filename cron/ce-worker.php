@@ -42,6 +42,9 @@ echo date('Y-m-d H:i:s') . " — ran $n step(s)\n";
 try {
     require_once __DIR__ . '/../includes/ce-learning.php';
     $lr = ce_learning_maybe_monthly();
+    // Meta Insights: سحب الأرقام كل 10 دقايق + ربط تلقائي كل 6 ساعات
+    $mt = ce_meta_tick();
+    if ($mt) echo 'meta insights: ' . json_encode($mt) . "\n";
     if ($lr) echo 'learning report ' . $lr['period'] . ': global n=' . ($lr['global']['n'] ?? 0) . ' · skills ' . $lr['skills'] . ' · brands ' . $lr['users'] . "\n";
 } catch (\Throwable $e) {
     error_log('ce learning: ' . $e->getMessage());

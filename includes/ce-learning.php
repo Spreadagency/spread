@@ -61,10 +61,19 @@ function ce_perf_save(int $uid, int $contentId, array $in, string $source = 'man
         $row[$f] = (int) $v;
         $any += $row[$f];
     }
-    if ($any === 0) return ['ok' => false, 'code' => 'input', 'error' => 'دخّل رقم واحد على الأقل'];
-    if ($row['reach'] === 0 && $row['impressions'] === 0) return ['ok' => false, 'code' => 'input', 'error' => 'دخّل الوصول (Reach) أو المشاهدات — من غيرهم مانقدرش نحسب المعدل'];
-    if ($row['reach'] > 0 && $row['likes'] + $row['comments'] + $row['shares'] > $row['reach'] * 5) return ['ok' => false, 'code' => 'input', 'error' => 'التفاعل أكبر من الوصول بكتير — راجع الأرقام'];
+    $isLinked = (bool) db_one('SELECT id FROM ce_performance WHERE content_id = ? AND provider_post_id IS NOT NULL', [$contentId]);
+    if (!$isLinked && $any === 0) return ['ok' => false, 'code' => 'input', 'error' => 'دخّل رقم واحد على الأقل'];
+    if (!$isLinked && $row['reach'] === 0 && $row['impressions'] === 0) return ['ok' => false, 'code' => 'input', 'error' => 'دخّل الوصول (Reach) أو المشاهدات — من غيرهم مانقدرش نحسب المعدل'];
+    if (!$isLinked && $row['reach'] > 0 && $row['likes'] + $row['comments'] + $row['shares'] > $row['reach'] * 5) return ['ok' => false, 'code' => 'input', 'error' => 'التفاعل أكبر من الوصول بكتير — راجع الأرقام'];
     $row['eng_rate'] = ce_perf_rate($row);
+    // مربوطة بـ Meta: الأرقام بتتسحب لوحدها — العميل بيعدّل «الرسايل/الحجوزات» بس (مش في Insights)
+    $linked = db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]);
+    if ($linked && !empty($linked['provider_post_id'])) {
+        $v = array_intersect_key($linked, array_flip(CE_PERF_FIELDS));
+        $v['messages'] = $row['messages'];
+        db_run('UPDATE ce_performance SET messages = ?, eng_rate = ? WHERE id = ?', [$row['messages'], ce_perf_rate($v), (int) $linked['id']]);
+        return ['ok' => true, 'perf' => ce_perf_public(db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]))];
+    }
     $cols = array_merge(['user_id', 'campaign_id', 'content_id', 'source', 'entered_by_admin'], array_keys($row));
     $vals = array_merge([(int) $c['user_id'], (int) $c['campaign_id'], $contentId, in_array($source, ['manual', 'meta', 'import'], true) ? $source : 'manual', $adminId], array_values($row));
     $upd = implode(', ', array_map(fn($k) => "`$k` = VALUES(`$k`)", array_merge(array_keys($row), ['source', 'entered_by_admin'])));
@@ -76,6 +85,10 @@ function ce_perf_public(?array $p): ?array
 {
     if (!$p) return null;
     $out = ['platform' => $p['platform'], 'published_at' => $p['published_at'], 'eng_rate' => (float) $p['eng_rate'], 'source' => $p['source'], 'updated_at' => $p['updated_at'] ?: $p['created_at']];
+    // الربط بـ Meta Insights
+    $out['linked'] = !empty($p['provider_post_id']);
+    if ($out['linked']) $out += ['permalink' => $p['permalink'], 'link_mode' => $p['link_mode'], 'synced_at' => $p['synced_at'], 'sync_status' => $p['sync_status'],
+                                 'sync_error' => $p['sync_error'], 'connection_id' => (int) $p['connection_id']];
     foreach (CE_PERF_FIELDS as $f) $out[$f] = (int) $p[$f];
     return $out;
 }
@@ -439,3 +452,5 @@ function ce_revise_rates(string $from, string $to): array
     $out['manual'] = ['label' => 'قطع وصلت «محتاجة مراجعتك»', 'n' => (int) $m['n'], 'revise' => (int) $m['bad'], 'rate' => $pct((int) $m['bad'], (int) $m['n'])];
     return $out;
 }
+
+require_once __DIR__ . '/ce-meta.php';   // ربط النتايج بـ Meta Insights
