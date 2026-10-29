@@ -14,7 +14,11 @@
 require_once __DIR__ . '/ce-write.php';
 
 const CE_PERF_FIELDS = ['reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'clicks', 'messages'];
-const CE_PERF_PLATFORMS = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام', 'tiktok' => 'تيك توك', 'other' => 'تاني'];
+const CE_PERF_PLATFORMS = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام', 'both' => 'فيسبوك + إنستجرام', 'tiktok' => 'تيك توك', 'other' => 'تاني'];
+/** أرقام كل بوست مربوط (ce_perf_posts) — الرسايل مش منهم (من العميل للقطعة كلها) */
+const CE_PERF_POST_FIELDS = ['reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'clicks'];
+/** حالة المزامنة للقطعة = أسوأ حالة في بوستاتها */
+const CE_SYNC_RANK = ['ok' => 1, 'pending' => 2, 'partial' => 3, 'error' => 4, 'expired' => 5];
 /** وزن كل تفاعل في المعدل (الرسايل والحفظ والمشاركة أغلى من اللايك) */
 const CE_PERF_WEIGHTS = ['likes' => 1, 'comments' => 2, 'shares' => 3, 'saves' => 3, 'clicks' => 2, 'messages' => 5];
 const CE_PERF_MAX = 2000000000;
@@ -67,11 +71,10 @@ function ce_perf_save(int $uid, int $contentId, array $in, string $source = 'man
     if (!$isLinked && $row['reach'] > 0 && $row['likes'] + $row['comments'] + $row['shares'] > $row['reach'] * 5) return ['ok' => false, 'code' => 'input', 'error' => 'التفاعل أكبر من الوصول بكتير — راجع الأرقام'];
     $row['eng_rate'] = ce_perf_rate($row);
     // مربوطة بـ Meta: الأرقام بتتسحب لوحدها — العميل بيعدّل «الرسايل/الحجوزات» بس (مش في Insights)
-    $linked = db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]);
-    if ($linked && !empty($linked['provider_post_id'])) {
-        $v = array_intersect_key($linked, array_flip(CE_PERF_FIELDS));
-        $v['messages'] = $row['messages'];
-        db_run('UPDATE ce_performance SET messages = ?, eng_rate = ? WHERE id = ?', [$row['messages'], ce_perf_rate($v), (int) $linked['id']]);
+    if ($isLinked) {
+        db_run('UPDATE ce_performance SET messages = ? WHERE content_id = ?', [$row['messages'], $contentId]);
+        if (ce_perf_posts_ready()) ce_perf_recompute($contentId);
+        else db_run('UPDATE ce_performance SET eng_rate = ? WHERE content_id = ?', [ce_perf_rate(db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]) ?: []), $contentId]);
         return ['ok' => true, 'perf' => ce_perf_public(db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]))];
     }
     $cols = array_merge(['user_id', 'campaign_id', 'content_id', 'source', 'entered_by_admin'], array_keys($row));
@@ -81,14 +84,20 @@ function ce_perf_save(int $uid, int $contentId, array $in, string $source = 'man
     return ['ok' => true, 'perf' => ce_perf_public(db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]))];
 }
 
-function ce_perf_public(?array $p): ?array
+function ce_perf_public(?array $p, ?array $posts = null): ?array
 {
     if (!$p) return null;
     $out = ['platform' => $p['platform'], 'published_at' => $p['published_at'], 'eng_rate' => (float) $p['eng_rate'], 'source' => $p['source'], 'updated_at' => $p['updated_at'] ?: $p['created_at']];
-    // الربط بـ Meta Insights
+    // الربط بـ Meta Insights — الأرقام فوق مجموع كل البوستات (فيسبوك + إنستجرام)
     $out['linked'] = !empty($p['provider_post_id']);
-    if ($out['linked']) $out += ['permalink' => $p['permalink'], 'link_mode' => $p['link_mode'], 'synced_at' => $p['synced_at'], 'sync_status' => $p['sync_status'],
-                                 'sync_error' => $p['sync_error'], 'connection_id' => (int) $p['connection_id']];
+    if ($out['linked']) {
+        $out += ['permalink' => $p['permalink'], 'link_mode' => $p['link_mode'], 'synced_at' => $p['synced_at'], 'sync_status' => $p['sync_status'],
+                 'sync_error' => $p['sync_error'], 'connection_id' => (int) $p['connection_id']];
+        $posts ??= ce_perf_posts((int) $p['content_id']);
+        $out['posts'] = array_map(fn($x) => ['platform' => $x['platform'], 'platform_label' => CE_PERF_PLATFORMS[$x['platform']] ?? $x['platform'], 'permalink' => $x['permalink'],
+            'link_mode' => $x['link_mode'], 'synced_at' => $x['synced_at'], 'sync_status' => $x['sync_status'], 'sync_error' => $x['sync_error'], 'connection_id' => (int) $x['connection_id']]
+            + array_map('intval', array_intersect_key($x, array_flip(CE_PERF_POST_FIELDS))), $posts);
+    }
     foreach (CE_PERF_FIELDS as $f) $out[$f] = (int) $p[$f];
     return $out;
 }
@@ -97,9 +106,76 @@ function ce_perf_public(?array $p): ?array
 function ce_perf_for_campaign(int $cid): array
 {
     if (!ce_learning_ready()) return [];
+    $posts = [];
+    if (ce_perf_posts_ready()) {
+        foreach (db_all('SELECT pp.* FROM ce_perf_posts pp JOIN ce_contents c ON c.id = pp.content_id WHERE c.campaign_id = ? ORDER BY pp.platform = "facebook" DESC, pp.id', [$cid]) as $x) $posts[(int) $x['content_id']][] = $x;
+    }
     $out = [];
-    foreach (db_all('SELECT * FROM ce_performance WHERE campaign_id = ?', [$cid]) as $p) $out[(int) $p['content_id']] = ce_perf_public($p);
+    foreach (db_all('SELECT * FROM ce_performance WHERE campaign_id = ?', [$cid]) as $p) $out[(int) $p['content_id']] = ce_perf_public($p, $posts[(int) $p['content_id']] ?? []);
     return $out;
+}
+
+/* ═══════════════════ بوستات القطعة (فيسبوك + إنستجرام) ═══════════════════ */
+
+function ce_perf_posts_ready(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        db_one('SELECT id FROM ce_perf_posts LIMIT 1');
+        return $ok = true;
+    } catch (\Throwable $e) {
+        return $ok = false;
+    }
+}
+
+/** بوستات القطعة المربوطة (فيسبوك الأول) */
+function ce_perf_posts(int $contentId): array
+{
+    return ce_perf_posts_ready() ? db_all('SELECT * FROM ce_perf_posts WHERE content_id = ? ORDER BY platform = "facebook" DESC, id', [$contentId]) : [];
+}
+
+/**
+ * نتيجة القطعة = مجموع أرقام بوستاتها على المنصتين + الرسايل اللي دخّلها العميل
+ * وأول بوست (فيسبوك أولى) بيتحط في أعمدة الربط بتاعة ce_performance عشان كل اللي بيقرا منها يفضل شغال.
+ * مفيش بوستات خلاص ← الصف بيرجع «إدخال يدوي» بآخر أرقام
+ */
+function ce_perf_recompute(int $contentId): void
+{
+    $posts = ce_perf_posts($contentId);
+    if (!$posts) {
+        db_run('UPDATE ce_performance SET source = "manual", connection_id = NULL, provider_post_id = NULL, permalink = NULL, link_mode = NULL, synced_at = NULL, sync_status = NULL, sync_error = NULL
+                WHERE content_id = ? AND provider_post_id IS NOT NULL', [$contentId]);
+        return;
+    }
+    $c = db_one('SELECT user_id, campaign_id FROM ce_contents WHERE id = ?', [$contentId]);
+    if (!$c) return;
+    $v = array_fill_keys(CE_PERF_POST_FIELDS, 0);
+    $status = 'ok';
+    $err = null;
+    $synced = null;
+    $pub = null;
+    foreach ($posts as $x) {
+        foreach (CE_PERF_POST_FIELDS as $k) $v[$k] = min(CE_PERF_MAX, $v[$k] + max(0, (int) $x[$k]));
+        $st = (string) ($x['sync_status'] ?: 'pending');
+        if ((CE_SYNC_RANK[$st] ?? 0) > (CE_SYNC_RANK[$status] ?? 0)) $status = $st;
+        if ($x['sync_error'] && $err === null) $err = (count($posts) > 1 ? (CE_PERF_PLATFORMS[$x['platform']] ?? $x['platform']) . ': ' : '') . $x['sync_error'];
+        if ($x['synced_at'] && (!$synced || $x['synced_at'] > $synced)) $synced = $x['synced_at'];
+        if ($x['published_at'] && (!$pub || $x['published_at'] < $pub)) $pub = $x['published_at'];
+    }
+    $cur = db_one('SELECT messages FROM ce_performance WHERE content_id = ?', [$contentId]);
+    $v['messages'] = (int) ($cur['messages'] ?? 0);
+    $first = $posts[0];
+    db_run('INSERT INTO ce_performance (user_id, campaign_id, content_id, platform, published_at, reach, impressions, likes, comments, shares, saves, clicks, eng_rate, source,
+              connection_id, provider_post_id, permalink, link_mode, synced_at, sync_status, sync_error)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,"meta",?,?,?,?,?,?,?)
+            ON DUPLICATE KEY UPDATE platform = VALUES(platform), published_at = COALESCE(VALUES(published_at), published_at), reach = VALUES(reach), impressions = VALUES(impressions),
+              likes = VALUES(likes), comments = VALUES(comments), shares = VALUES(shares), saves = VALUES(saves), clicks = VALUES(clicks), eng_rate = VALUES(eng_rate), source = "meta",
+              connection_id = VALUES(connection_id), provider_post_id = VALUES(provider_post_id), permalink = VALUES(permalink), link_mode = VALUES(link_mode),
+              synced_at = VALUES(synced_at), sync_status = VALUES(sync_status), sync_error = VALUES(sync_error)',
+        [(int) $c['user_id'], (int) $c['campaign_id'], $contentId, count($posts) > 1 ? 'both' : $first['platform'], $pub,
+         $v['reach'], $v['impressions'], $v['likes'], $v['comments'], $v['shares'], $v['saves'], $v['clicks'], ce_perf_rate($v),
+         (int) $first['connection_id'], (string) $first['provider_post_id'], $first['permalink'], (string) $first['link_mode'], $synced, $status, $err !== null ? mb_substr($err, 0, 300) : null]);
 }
 
 /* ═══════════════════ الإحصاء ═══════════════════ */

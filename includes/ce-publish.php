@@ -9,6 +9,8 @@
  * بعد النشر: القطعة بتتربط ببوستها في ce_performance والأرقام بتتسحب من Meta Insights لوحدها (ce-meta.php).
  * حصة النشر في الباقة (publishes) بتتحسب مرة واحدة للقطعة — ref_id بالسالب عشان مايتلخبطش مع منشورات الموقع القديمة.
  * الريلز مابتتنشرش من هنا (محتاجة تصوير).
+ * مفيش نشر من غير تصميم: البوست محتاج صورته النهائية والكاروسيل كل شرايحه — على فيسبوك وإنستجرام.
+ * القطعة اللي نزلت على المنصتين بتتربط بالبوستين، ونتيجتها مجموعهم.
  */
 require_once __DIR__ . '/ce-learning.php';   // + ce-meta.php + social.php
 require_once __DIR__ . '/uploader.php';
@@ -71,9 +73,24 @@ function ce_publish_problem(array $content, array $conn, string $platform): ?str
     if ($conn['status'] !== 'active') return 'الصفحة مش مربوطة — اربطها تاني';
     if ($platform === 'instagram' && empty($conn['ig_user_id'])) return 'الصفحة دي مش مربوط بيها حساب إنستجرام بيزنس';
     $imgs = ce_publish_images((int) $content['slot_id']);
-    if ($platform === 'instagram' && !$imgs) return 'إنستجرام محتاج التصميم — صمّم القطعة الأول';
+    if (!$imgs) return $content['format'] === 'carousel' ? 'الكاروسيل محتاج كل الشرايح متصممة' : 'صمّم القطعة الأول — مفيش نشر من غير تصميم';
     if ($content['format'] === 'carousel' && count($imgs) < 2) return 'الكاروسيل محتاج كل الشرايح متصممة';
     return null;
+}
+
+/** قطع الحملة الخلصانة اللي لسه تصميمها مش جاهز (للواجهة) — content_id ← true */
+function ce_publish_needs_design(int $uid, int $campaignId): array
+{
+    $ok = [];
+    foreach (db_all('SELECT slot_id, COUNT(*) n, SUM(final_path IS NOT NULL AND status IN ("pass", "manual")) done FROM ce_designs WHERE campaign_id = ? AND user_id = ? GROUP BY slot_id', [$campaignId, $uid]) as $d) {
+        $ok[(int) $d['slot_id']] = (int) $d['n'] > 0 && (int) $d['done'] === (int) $d['n'] ? (int) $d['n'] : 0;
+    }
+    $out = [];
+    foreach (db_all('SELECT id, slot_id, format FROM ce_contents WHERE campaign_id = ? AND user_id = ? AND status IN ("pass", "manual") AND format <> "reel"', [$campaignId, $uid]) as $c) {
+        $n = $ok[(int) $c['slot_id']] ?? 0;
+        if ($n < ($c['format'] === 'carousel' ? 2 : 1)) $out[(int) $c['id']] = true;
+    }
+    return $out;
 }
 
 /** معاد الخانة في الخطة بالساعة الافتراضية للنشر */
@@ -181,16 +198,10 @@ function ce_publish_for_campaign(int $uid, int $campaignId): array
     return $out;
 }
 
-/** بعد النشر: القطعة بتتربط ببوستها (لو مش مربوطة) — والأرقام بتتسحب في المزامنة الجاية */
+/** بعد النشر: القطعة بتتربط ببوستها على المنصة دي (فيسبوك وإنستجرام بيتجمعوا) — والأرقام بتتسحب في المزامنة الجاية */
 function ce_publish_attach(array $row, string $postId, ?string $permalink): void
 {
-    $cur = db_one('SELECT * FROM ce_performance WHERE content_id = ?', [(int) $row['content_id']]);
-    if ($cur && !empty($cur['provider_post_id'])) return;   // مربوطة قبل كده (فيسبوك أولى لو نزلت على الاتنين)
-    db_run('INSERT INTO ce_performance (user_id, campaign_id, content_id, platform, published_at, source, connection_id, provider_post_id, permalink, link_mode, sync_status)
-            VALUES (?,?,?,?,CURDATE(),"meta",?,?,?,"publish","pending")
-            ON DUPLICATE KEY UPDATE platform = VALUES(platform), published_at = VALUES(published_at), source = "meta", connection_id = VALUES(connection_id),
-              provider_post_id = VALUES(provider_post_id), permalink = VALUES(permalink), link_mode = "publish", synced_at = NULL, sync_status = "pending", sync_error = NULL',
-        [(int) $row['user_id'], (int) $row['campaign_id'], (int) $row['content_id'], $row['platform'], (int) $row['connection_id'], $postId, $permalink ? mb_substr($permalink, 0, 500) : null]);
+    ce_meta_attach_post((int) $row['user_id'], (int) $row['content_id'], (string) $row['platform'], (int) $row['connection_id'], $postId, $permalink, date('Y-m-d'), 'publish');
 }
 
 /** نشر صف واحد (بعد ما اتحجز) */

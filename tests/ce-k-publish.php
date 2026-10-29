@@ -119,6 +119,20 @@ t('صور التصميم بروابط كاملة (البوست صورة · ال�
 $cr = db_one('SELECT * FROM social_connections WHERE id = ?', [$conn]);
 t('الريلز مابتتنشرش من هنا', str_contains((string) ce_publish_problem($reel, $cr, 'facebook'), 'الريلز'));
 t('إنستجرام من غير حساب مربوط ← السبب واضح', str_contains((string) ce_publish_problem($p0, ['ig_user_id' => null] + $cr, 'instagram'), 'إنستجرام'));
+// مفيش نشر من غير تصميم — حتى على فيسبوك
+$dz = db_all('SELECT id, status FROM ce_designs WHERE slot_id = ?', [(int) $p1['slot_id']]);
+db_run('UPDATE ce_designs SET status = "failed" WHERE slot_id = ?', [(int) $p1['slot_id']]);
+$noD = ce_publish_queue_add($uid, $camp, [(int) $p1['id']], $conn, ['facebook', 'instagram'], 'now');
+t('بوست من غير تصميم ← مابيتنشرش على فيسبوك ولا إنستجرام', $noD['queued'] === 0 && count($noD['skipped']) === 2 && str_contains($noD['skipped'][0]['reason'] ?? '', 'صمّم') && !$q((int) $p1['id'], 'facebook'), json_encode($noD, JSON_UNESCAPED_UNICODE));
+t('الشاشة بتعرف إن القطعة محتاجة تصميم', isset(ce_publish_needs_design($uid, $camp)[(int) $p1['id']]) && !isset(ce_publish_needs_design($uid, $camp)[(int) $p0['id']]) && !isset(ce_publish_needs_design($uid, $camp)[(int) $reel['id']]));
+db_run('DELETE FROM ce_designs WHERE slot_id = ?', [(int) $p1['slot_id']]);
+t('بوست مالوش تصميم خالص ← نفس الحاجة', str_contains((string) ce_publish_problem($p1, $cr, 'facebook'), 'صمّم') && isset(ce_publish_needs_design($uid, $camp)[(int) $p1['id']]));
+run_job((int) ce_design_start($uid, $camp, false)['job']['id'], 400);
+t('بعد التصميم ← جاهزة', ce_publish_problem($p1, $cr, 'facebook') === null && !isset(ce_publish_needs_design($uid, $camp)[(int) $p1['id']]), json_encode([ce_publish_problem($p1, $cr, 'facebook'), $dz], JSON_UNESCAPED_UNICODE));
+$cf = db_one('SELECT id FROM ce_designs WHERE slot_id = ? ORDER BY frame DESC LIMIT 1', [(int) $car['slot_id']]);
+db_run('UPDATE ce_designs SET status = "generating" WHERE id = ?', [(int) $cf['id']]);
+t('كاروسيل شريحة منه ناقصة ← مابيتنشرش', str_contains((string) ce_publish_problem($car, $cr, 'facebook'), 'الشرايح') && isset(ce_publish_needs_design($uid, $camp)[(int) $car['id']]));
+db_run('UPDATE ce_designs SET status = "pass" WHERE id = ?', [(int) $cf['id']]);
 
 /* ─── 2) انشر دلوقتي ─── */
 echo "انشر دلوقتي\n";
@@ -158,7 +172,11 @@ t('المعاد جه ← الاتنين اتنشروا', $tk['published'] === 2 
 t('فيسبوك: كل شريحة اترفعت لوحدها وبوست واحد بيجمعهم', count(array_filter($l, fn($x) => $x['path'] === '1111/photos' && ($x['published'] ?? '') === 'false')) === $n && (bool) array_filter($l, fn($x) => $x['path'] === '1111/feed' && isset($x['attached_media'][$n - 1])), json_encode($paths));
 t('إنستجرام: شريحة شريحة ← كاروسيل ← نشر', count(array_filter($l, fn($x) => $x['path'] === '2222/media' && ($x['is_carousel_item'] ?? '') === 'true')) === $n && (bool) array_filter($l, fn($x) => ($x['media_type'] ?? '') === 'CAROUSEL') && in_array('2222/media_publish', $paths, true));
 t('إنستجرام: لينك البوست', str_contains((string) $q((int) $car['id'], 'instagram')['permalink'], 'instagram.com/p/'));
-t('القطعة اتربطت بفيسبوك (الأولوية) مش إنستجرام', db_one('SELECT platform FROM ce_performance WHERE content_id = ?', [(int) $car['id']])['platform'] === 'facebook');
+t('القطعة اتربطت بالبوستين (فيسبوك + إنستجرام)', (int) db_one('SELECT COUNT(*) n FROM ce_perf_posts WHERE content_id = ? AND link_mode = "publish"', [(int) $car['id']])['n'] === 2 && db_one('SELECT platform FROM ce_performance WHERE content_id = ?', [(int) $car['id']])['platform'] === 'both');
+db_run('UPDATE ce_perf_posts SET synced_at = NULL WHERE content_id = ?', [(int) $car['id']]);
+ce_meta_sync_due(20);
+$pc = db_one('SELECT * FROM ce_performance WHERE content_id = ?', [(int) $car['id']]);
+t('نتيجة الكاروسيل = مجموع المنصتين (وصول فيسبوك 50 + إنستجرام 40)', (int) $pc['reach'] === 90 && (int) $pc['likes'] === 7 && (int) $pc['saves'] === 1 && $pc['sync_status'] === 'ok', json_encode([$pc['reach'], $pc['likes'], $pc['saves'], $pc['sync_status'], $pc['sync_error']], JSON_UNESCAPED_UNICODE));
 
 /* ─── 4) جدول الحملة كلها في معاد الخطة ─── */
 echo "جدول الحملة كلها\n";

@@ -324,6 +324,7 @@ function account_purge(int $uid): void
         'DELETE FROM password_resets WHERE user_id = ?',
         // محرك المحتوى v3 (القيود المالية نفسها في credit_transactions بتفضل)
         'DELETE FROM ce_publish_queue WHERE user_id = ?',
+        'DELETE FROM ce_perf_posts WHERE user_id = ?',
         'DELETE FROM ce_performance WHERE user_id = ?',
         'DELETE FROM ce_learning_reports WHERE scope = "user" AND scope_id = ?',
         'DELETE FROM ce_designs WHERE user_id = ?',

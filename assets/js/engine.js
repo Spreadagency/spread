@@ -454,16 +454,20 @@
         this.say('اتلغى');
       },
       isLinked: function (s) { return !!(s.content && s.content.perf && s.content.perf.linked); },
-      metaTargets: function () {
-        var out = [];
+      // الصفحات/الحسابات اللي ممكن نربط بيها القطعة — المنصة اللي اتربطت خلاص مابتظهرش (بوست واحد لكل منصة)
+      metaTargets: function (s) {
+        var out = [], done = {};
+        ((s && s.content && s.content.perf && s.content.perf.posts) || []).forEach(function (p) { done[p.platform] = 1; });
         ((this.wr && this.wr.meta && this.wr.meta.connections) || []).forEach(function (c) {
-          c.targets.forEach(function (t) { out.push({ key: c.id + ':' + t.platform, label: t.label }); });
+          c.targets.forEach(function (t) { if (!done[t.platform]) out.push({ key: c.id + ':' + t.platform, label: t.label }); });
         });
         return out;
       },
+      noDesign: function (s) { return !!(s.content && this.wr && this.wr.publish && this.wr.publish.needs_design && this.wr.publish.needs_design[s.content.id]); },
       metaPosts: async function (s) {
-        var ts = this.metaTargets();
-        if (!this.mPick.target && ts.length) this.mPick.target = ts[0].key;
+        var ts = this.metaTargets(s);
+        if (!ts.some(function (t) { return t.key === this.mPick.target; }, this)) this.mPick.target = ts.length ? ts[0].key : '';
+        if (!this.mPick.target) return;
         var parts = this.mPick.target.split(':');
         this.busy = true;
         var r = await A.post('engine', 'meta_posts', { id: this.wc.id, content_id: s.content.id, connection_id: +parts[0], platform: parts[1] });
@@ -483,10 +487,10 @@
         this.wr = r.write; this.mPick.slot = 0; this.mPick.posts = []; this.mPick.post = '';
         this.say('اتربطت ✓ — الأرقام اتسحبت من Meta');
       },
-      metaAct: async function (s, action) {
-        if (action === 'meta_unlink' && !confirm('نفك الربط بالبوست؟ الأرقام اللي اتسحبت هتفضل.')) return;
+      metaAct: async function (s, action, platform) {
+        if (action === 'meta_unlink' && !confirm(platform ? 'نفك الربط بالبوست ده؟ أرقامه هتطلع من المجموع.' : 'نفك الربط بالبوستات؟ الأرقام اللي اتسحبت هتفضل.')) return;
         this.busy = true;
-        var r = await A.post('engine', action, { id: this.wc.id, content_id: s.content.id });
+        var r = await A.post('engine', action, platform ? { id: this.wc.id, content_id: s.content.id, platform: platform } : { id: this.wc.id, content_id: s.content.id });
         this.busy = false;
         if (!r.ok) { this.say(r.error, r.code === 'rate' ? 'warning' : 'danger'); return; }
         this.wr = r.write;

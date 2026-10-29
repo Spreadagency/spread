@@ -66,6 +66,7 @@ function run_job(int $id, int $max = 200): ?array
 $stateFile = sys_get_temp_dir() . '/spread-mock-graph.json';
 $setState = fn(array $s) => file_put_contents($stateFile, json_encode($s, JSON_UNESCAPED_UNICODE));
 $perf = fn(int $cid) => db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$cid]);
+$post = fn(int $cid, string $pf = 'facebook') => db_one('SELECT * FROM ce_perf_posts WHERE content_id = ? AND platform = ?', [$cid, $pf]);
 
 // Graph وهمي + توجيه الموقع ليه
 $proc = proc_open([PHP_BINARY, '-S', '127.0.0.1:8093', __DIR__ . '/mock-graph.php'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
@@ -151,18 +152,18 @@ t('العميل بيدخّل الرسايل بس — أرقام Meta مابتت�
 echo "تغييرات Meta والأخطاء\n";
 $state['deprecated'] = true;
 $setState($state);
-ce_meta_sync_row($perf((int) $cs[0]['id']));
+ce_meta_sync_row($post((int) $cs[0]['id']));
 $p0 = $perf((int) $cs[0]['id']);
 t('metric اتلغى عند Meta ← بنجرّب الأسماء الجديدة (views)', $p0['sync_status'] === 'ok' && (int) $p0['impressions'] === 3500 && (int) $p0['reach'] === 2100, json_encode([$p0['sync_status'], $p0['impressions'], $p0['sync_error']]));
 t('الرسايل بتفضل بعد السحب', (int) $p0['messages'] === 7);
 $state['deprecated'] = false;
 $setState($state);
 db_run('UPDATE social_connections SET access_token_enc = ? WHERE id = ?', [social_token_encrypt('tok_noins'), $connId]);
-ce_meta_sync_row($perf((int) $cs[0]['id']));
+ce_meta_sync_row($post((int) $cs[0]['id']));
 $p0 = $perf((int) $cs[0]['id']);
 t('مفيش صلاحية Insights ← التفاعل بس + رسالة «اربط تاني»', $p0['sync_status'] === 'partial' && (int) $p0['likes'] === 100 && (int) $p0['reach'] === 2100 && str_contains((string) $p0['sync_error'], 'Insights'), json_encode([$p0['sync_status'], $p0['sync_error']], JSON_UNESCAPED_UNICODE));
 db_run('UPDATE social_connections SET access_token_enc = ? WHERE id = ?', [social_token_encrypt('tok_expired'), $connId]);
-ce_meta_sync_row($perf((int) $cs[0]['id']));
+ce_meta_sync_row($post((int) $cs[0]['id']));
 t('التوكن انتهى ← الصفحة بتتعلّم «منتهية» والقطعة «اربط تاني»', $perf((int) $cs[0]['id'])['sync_status'] === 'expired' && db_one('SELECT status FROM social_connections WHERE id = ?', [$connId])['status'] === 'expired');
 t('الصفحة المنتهية مش بتظهر للربط', ce_meta_connections($uid) === []);
 db_run('UPDATE social_connections SET access_token_enc = ?, status = "active" WHERE id = ?', [social_token_encrypt('tok_ok'), $connId]);
@@ -180,22 +181,43 @@ t('الربط التلقائي مقفول من الإعدادات ← ولا ح�
 set_setting('ce_meta_auto_match', '1');
 $state['metrics']['1111_3']['reactions'] = 80;
 $setState($state);
-db_run('UPDATE ce_performance SET synced_at = ? WHERE content_id = ?', [date('Y-m-d H:i:s', strtotime('-13 hours')), (int) $cs[1]['id']]);
-db_run('UPDATE ce_performance SET synced_at = NOW() WHERE content_id IN (?, ?)', [(int) $cs[0]['id'], (int) $cs[2]['id']]);
+db_run('UPDATE ce_perf_posts SET synced_at = ? WHERE content_id = ?', [date('Y-m-d H:i:s', strtotime('-13 hours')), (int) $cs[1]['id']]);
+db_run('UPDATE ce_perf_posts SET synced_at = NOW() WHERE content_id IN (?, ?)', [(int) $cs[0]['id'], (int) $cs[2]['id']]);
 $sd = ce_meta_sync_due(20);
 t('المزامنة الدورية: اللي عدّى عليه أكتر من 12 ساعة بس', $sd['synced'] === 1 && (int) $perf((int) $cs[1]['id'])['likes'] === 80, json_encode($sd));
-db_run('UPDATE ce_performance SET synced_at = ?, published_at = ? WHERE content_id = ?', [date('Y-m-d H:i:s', strtotime('-2 days')), date('Y-m-d', strtotime('-40 days')), (int) $cs[1]['id']]);
+db_run('UPDATE ce_perf_posts SET synced_at = ?, published_at = ? WHERE content_id = ?', [date('Y-m-d H:i:s', strtotime('-2 days')), date('Y-m-d', strtotime('-40 days')), (int) $cs[1]['id']]);
 t('بعد 30 يوم من النشر ← بنبطّل نسحب', ce_meta_sync_due(20)['synced'] === 0);
 set_setting('ce_meta_last_sync', '');
 set_setting('ce_meta_last_match', '');
 $t1 = ce_meta_tick();
 t('الـ worker: أول مرة بيربط ويسحب · المرة اللي بعدها مستني', isset($t1['match'], $t1['sync']) && ce_meta_tick() === null);
 
+/* ─── 4ب) نفس القطعة على فيسبوك وإنستجرام ← الأرقام بتتجمع ─── */
+echo "المنصتين مع بعض\n";
+$state['pages']['1111'][] = ['id' => '1111_4', 'message' => $texts[2], 'created_time' => $day . 'T16:00:00+0000'];
+$state['metrics']['1111_4'] = ['post_impressions_unique' => 1000, 'post_impressions' => 1500, 'post_clicks' => 10, 'reactions' => 30, 'comments' => 2, 'shares' => 1];
+$setState($state);
+$am2 = ce_meta_auto_match();
+$p2 = $perf((int) $cs[2]['id']);
+t('القطعة المربوطة بإنستجرام اتربطت بفيسبوك كمان (تلقائي)', $am2['linked'] === 1 && $post((int) $cs[2]['id'], 'facebook')['provider_post_id'] === '1111_4' && $post((int) $cs[2]['id'], 'instagram')['provider_post_id'] === '30001', json_encode($am2));
+t('الأرقام مجموع المنصتين (الوصول · المشاهدات · التفاعل · الحفظ · الضغطات)', $p2['platform'] === 'both' && (int) $p2['reach'] === 1500 && (int) $p2['impressions'] === 2400 && (int) $p2['likes'] === 80 && (int) $p2['comments'] === 6 && (int) $p2['shares'] === 4 && (int) $p2['saves'] === 20 && (int) $p2['clicks'] === 10,
+  json_encode(array_intersect_key($p2, array_flip(['platform', 'reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'clicks']))));
+t('المعدل من المجموع', (float) $p2['eng_rate'] == ce_perf_rate($p2) && (float) $p2['eng_rate'] > 0);
+$pub2 = ce_perf_public($p2);
+t('الشاشة: البوستين بلينكاتهم وأرقام كل منصة', count($pub2['posts']) === 2 && $pub2['posts'][0]['platform'] === 'facebook' && $pub2['posts'][1]['reach'] === 500 && str_contains((string) $pub2['posts'][1]['permalink'], 'instagram.com'));
+t('بوست تاني على نفس المنصة لقطعة تانية ← مرفوض', (ce_meta_link($uid, (int) $cs[3]['id'], $connId, 'instagram', '30001')['code'] ?? '') === 'taken');
+ce_perf_save($uid, (int) $cs[2]['id'], ['messages' => 3]);
+t('الرسايل بتدخل المعدل مع المجموع', (int) $perf((int) $cs[2]['id'])['messages'] === 3 && (float) $perf((int) $cs[2]['id'])['eng_rate'] == ce_perf_rate($perf((int) $cs[2]['id'])));
+ce_meta_unlink($uid, (int) $cs[2]['id'], 'instagram');
+$p2 = $perf((int) $cs[2]['id']);
+t('فك منصة واحدة ← الأرقام بتبقى أرقام فيسبوك بس والقطعة لسه مربوطة', $p2['platform'] === 'facebook' && $p2['provider_post_id'] === '1111_4' && (int) $p2['reach'] === 1000 && (int) $p2['saves'] === 0 && (int) $p2['messages'] === 3 && !$post((int) $cs[2]['id'], 'instagram'));
+t('المزامنة اليدوية بتسحب كل بوستات القطعة', ce_meta_sync_content($uid, (int) $cs[0]['id']) === 1);
+
 /* ─── 5) فك الربط والتعلّم ─── */
 echo "فك الربط والتعلّم\n";
 ce_meta_unlink($uid, (int) $cs[2]['id']);
 $p2 = $perf((int) $cs[2]['id']);
-t('فك الربط: الأرقام بتفضل كإدخال يدوي', $p2 && $p2['provider_post_id'] === null && $p2['source'] === 'manual' && (int) $p2['reach'] === 500);
+t('فك الربط: الأرقام بتفضل كإدخال يدوي', $p2 && $p2['provider_post_id'] === null && $p2['source'] === 'manual' && (int) $p2['reach'] === 1000 && !$post((int) $cs[2]['id']));
 $rep = ce_learning_compute(ce_learning_rows(date('Y-m', strtotime($day)), 'user', $uid));
 t('نتايج Meta بتدخل التقرير الشهري', $rep['n'] >= 2);
 
@@ -203,7 +225,7 @@ t('نتايج Meta بتدخل التقرير الشهري', $rep['n'] >= 2);
 echo "الـ API والصفحات\n";
 $s = login($base, $email);
 [$a1, $j1] = api_post($base, $s, 'meta_posts', ['id' => $cid, 'content_id' => (int) $cs[3]['id'], 'connection_id' => $connId, 'platform' => 'facebook']);
-t('العميل بيجيب بوستات صفحته', $a1 === 200 && count($j1['posts'] ?? []) === 3, $a1 . ' ' . json_encode($j1, JSON_UNESCAPED_UNICODE));
+t('العميل بيجيب بوستات صفحته', $a1 === 200 && count($j1['posts'] ?? []) === 4, $a1 . ' ' . json_encode($j1, JSON_UNESCAPED_UNICODE));
 [$a2, $j2] = api_post($base, $s, 'meta_link', ['id' => $cid, 'content_id' => (int) $cs[3]['id'], 'connection_id' => $connId, 'platform' => 'facebook', 'post_id' => '1111_2']);
 $s3 = array_values(array_filter($j2['write']['slots'] ?? [], fn($x) => ($x['content']['id'] ?? 0) === (int) $cs[3]['id']))[0]['content']['perf'] ?? [];
 t('ربط من الـ API ← الشاشة بترجع بالأرقام والحالة', $a2 === 200 && !empty($s3['linked']) && $s3['sync_status'] === 'ok', $a2 . ' ' . json_encode($s3, JSON_UNESCAPED_UNICODE));
@@ -239,6 +261,6 @@ db_run('DELETE FROM rate_limits');
 @unlink($stateFile);
 proc_terminate($proc);
 }
-t('مسح الحساب بيمسح الربط والصفحة', !db_one('SELECT id FROM ce_performance WHERE user_id = ?', [$uid]) && !db_one('SELECT id FROM social_connections WHERE user_id = ?', [$uid]));
+t('مسح الحساب بيمسح الربط والصفحة', !db_one('SELECT id FROM ce_performance WHERE user_id = ?', [$uid]) && !db_one('SELECT id FROM ce_perf_posts WHERE user_id = ?', [$uid]) && !db_one('SELECT id FROM social_connections WHERE user_id = ?', [$uid]));
 echo "\n$pass ✓ · $fail ✗\n";
 exit($fail ? 1 : 0);

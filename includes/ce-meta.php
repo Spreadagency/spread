@@ -11,6 +11,7 @@
  * Meta بتغيّر أسماء الـ metrics من نسخة لنسخة — بنجرّب أكتر من مجموعة بالترتيب.
  * لو الصفحة مااديتش صلاحية Insights (read_insights / instagram_manage_insights): بنسحب التفاعل بس ونقول للعميل يربط تاني.
  * «الرسايل/الحجوزات» مش في Insights — بتفضل من إدخال العميل.
+ * القطعة ممكن تتربط ببوست على فيسبوك وبوست على إنستجرام مع بعض (ce_perf_posts) — والنتيجة مجموعهم (ce_perf_recompute).
  */
 require_once __DIR__ . '/ce-learning.php';
 require_once __DIR__ . '/social.php';
@@ -36,6 +37,7 @@ function ce_meta_ready(): bool
     try {
         db_one('SELECT provider_post_id FROM ce_performance LIMIT 1');
         db_one('SELECT id FROM social_connections LIMIT 1');
+        if (!ce_perf_posts_ready()) return $ok = false;
         return $ok = true;
     } catch (\Throwable $e) {
         return $ok = false;
@@ -133,7 +135,7 @@ function ce_meta_candidates(int $uid, int $contentId, int $connId, string $platf
     $r = ce_meta_recent_posts($conn, $platform);
     if (!$r['ok']) return ['ok' => false, 'code' => 'meta', 'error' => $r['error']];
     $text = ce_meta_content_text($content);
-    $linked = array_column(db_all('SELECT provider_post_id, content_id FROM ce_performance WHERE provider_post_id IS NOT NULL AND user_id = ?', [$uid]), 'content_id', 'provider_post_id');
+    $linked = array_column(db_all('SELECT provider_post_id, content_id FROM ce_perf_posts WHERE user_id = ?', [$uid]), 'content_id', 'provider_post_id');
     $posts = [];
     foreach ($r['posts'] as $p) {
         $p['similarity'] = ce_meta_similarity($text, $p['text']);
@@ -161,7 +163,7 @@ function ce_meta_link(int $uid, int $contentId, int $connId, string $platform, s
     if (!$conn || $conn['status'] !== 'active') return ['ok' => false, 'code' => 'not_found', 'error' => 'الصفحة مش مربوطة'];
     $acc = ce_meta_account_id($conn, $platform);
     if (!$acc) return ['ok' => false, 'code' => 'input', 'error' => 'الصفحة دي مش مربوط بيها حساب إنستجرام'];
-    $other = db_one('SELECT content_id FROM ce_performance WHERE provider_post_id = ? AND content_id <> ?', [$postId, $contentId]);
+    $other = db_one('SELECT content_id FROM ce_perf_posts WHERE provider_post_id = ? AND content_id <> ?', [$postId, $contentId]);
     if ($other) return ['ok' => false, 'code' => 'taken', 'error' => 'البوست ده مربوط بقطعة تانية'];
     // البوست تبع الحساب ده؟
     if ($platform === 'instagram') {
@@ -178,21 +180,33 @@ function ce_meta_link(int $uid, int $contentId, int $connId, string $platform, s
     if (!$r['ok']) return ['ok' => false, 'code' => 'meta', 'error' => ce_meta_error_text($r)];
     if ($owner !== $acc) return ['ok' => false, 'code' => 'input', 'error' => 'البوست ده مش من الصفحة دي'];
     $published = preg_match('/^\d{4}-\d{2}-\d{2}$/', $published) ? $published : null;
-    db_run('INSERT INTO ce_performance (user_id, campaign_id, content_id, platform, published_at, source, connection_id, provider_post_id, permalink, link_mode, sync_status)
-            VALUES (?,?,?,?,?,"meta",?,?,?,?,"pending")
-            ON DUPLICATE KEY UPDATE platform = VALUES(platform), published_at = COALESCE(VALUES(published_at), published_at), source = "meta", connection_id = VALUES(connection_id),
-              provider_post_id = VALUES(provider_post_id), permalink = VALUES(permalink), link_mode = VALUES(link_mode), synced_at = NULL, sync_status = "pending", sync_error = NULL',
-        [$uid, (int) $content['campaign_id'], $contentId, $platform, $published, $connId, $postId, mb_substr($permalink, 0, 500) ?: null, $mode === 'auto' ? 'auto' : 'manual']);
-    $sync = ce_meta_sync_row(db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]));
+    ce_meta_attach_post($uid, $contentId, $platform, $connId, $postId, $permalink, $published, $mode === 'auto' ? 'auto' : 'manual');
+    $sync = ce_meta_sync_row(db_one('SELECT * FROM ce_perf_posts WHERE content_id = ? AND platform = ?', [$contentId, $platform]));
     return ['ok' => true, 'sync' => $sync, 'perf' => ce_perf_public(db_one('SELECT * FROM ce_performance WHERE content_id = ?', [$contentId]))];
 }
 
-/** فك الربط: الأرقام اللي اتسحبت بتفضل كإدخال يدوي */
-function ce_meta_unlink(int $uid, int $contentId): bool
+/**
+ * القطعة ← بوست على منصة (بوست واحد لكل منصة — الربط الجديد على نفس المنصة بيحل محل القديم)
+ * الأرقام بتبدأ من صفر وبتتسحب في المزامنة · $mode = manual · auto · publish
+ */
+function ce_meta_attach_post(int $uid, int $contentId, string $platform, int $connId, string $postId, ?string $permalink, ?string $published, string $mode): void
+{
+    db_run('INSERT INTO ce_perf_posts (user_id, content_id, platform, connection_id, provider_post_id, permalink, link_mode, published_at, sync_status)
+            VALUES (?,?,?,?,?,?,?,?,"pending")
+            ON DUPLICATE KEY UPDATE connection_id = VALUES(connection_id), provider_post_id = VALUES(provider_post_id), permalink = VALUES(permalink), link_mode = VALUES(link_mode),
+              published_at = COALESCE(VALUES(published_at), published_at), reach = 0, impressions = 0, likes = 0, comments = 0, shares = 0, saves = 0, clicks = 0,
+              synced_at = NULL, sync_status = "pending", sync_error = NULL',
+        [$uid, $contentId, $platform === 'instagram' ? 'instagram' : 'facebook', $connId, $postId, $permalink ? mb_substr($permalink, 0, 500) : null, $mode, $published]);
+    ce_perf_recompute($contentId);
+}
+
+/** فك الربط (منصة واحدة أو الكل): الأرقام اللي اتسحبت بتفضل كإدخال يدوي لما مايفضلش بوستات */
+function ce_meta_unlink(int $uid, int $contentId, ?string $platform = null): bool
 {
     if (!ce_meta_ready()) return false;
-    db_run('UPDATE ce_performance SET source = "manual", connection_id = NULL, provider_post_id = NULL, permalink = NULL, link_mode = NULL, synced_at = NULL, sync_status = NULL, sync_error = NULL
-            WHERE content_id = ? AND user_id = ? AND provider_post_id IS NOT NULL', [$contentId, $uid]);
+    if ($platform !== null) db_run('DELETE FROM ce_perf_posts WHERE content_id = ? AND user_id = ? AND platform = ?', [$contentId, $uid, $platform === 'instagram' ? 'instagram' : 'facebook']);
+    else db_run('DELETE FROM ce_perf_posts WHERE content_id = ? AND user_id = ?', [$contentId, $uid]);
+    if (db_one('SELECT id FROM ce_performance WHERE content_id = ? AND user_id = ?', [$contentId, $uid])) ce_perf_recompute($contentId);
     return true;
 }
 
@@ -253,30 +267,42 @@ function ce_meta_fetch(array $conn, string $platform, string $postId): array
     return ['ok' => true, 'm' => $m, 'partial' => $ins === null, 'error' => $ins === null && $lastErr ? ce_meta_error_text($lastErr) : null];
 }
 
-/** مزامنة صف واحد — الرسايل (من العميل) بتفضل */
+/** مزامنة بوست واحد (صف من ce_perf_posts) ← وبعدها نتيجة القطعة بتتحسب من جديد (مجموع المنصتين) */
 function ce_meta_sync_row(?array $row): array
 {
     if (!$row || empty($row['provider_post_id'])) return ['ok' => false, 'error' => 'مش مربوط'];
+    $set = function (string $st, ?string $err, array $v = []) use ($row) {
+        $cols = '';
+        $vals = [];
+        foreach ($v as $k => $x) { $cols .= "`$k` = ?, "; $vals[] = $x; }
+        db_run('UPDATE ce_perf_posts SET ' . $cols . 'synced_at = NOW(), sync_status = ?, sync_error = ? WHERE id = ?', array_merge($vals, [$st, $err !== null ? mb_substr($err, 0, 300) : null, (int) $row['id']]));
+        ce_perf_recompute((int) $row['content_id']);
+    };
     $conn = db_one('SELECT * FROM social_connections WHERE id = ? AND user_id = ?', [(int) $row['connection_id'], (int) $row['user_id']]);
     if (!$conn || $conn['status'] !== 'active') {
-        db_run('UPDATE ce_performance SET synced_at = NOW(), sync_status = "expired", sync_error = ? WHERE id = ?', ['الصفحة مش مربوطة أو صلاحيتها انتهت — اربطها تاني', (int) $row['id']]);
+        $set('expired', 'الصفحة مش مربوطة أو صلاحيتها انتهت — اربطها تاني');
         return ['ok' => false, 'status' => 'expired'];
     }
     $f = ce_meta_fetch($conn, (string) $row['platform'], (string) $row['provider_post_id']);
     if (!$f['ok']) {
         $st = (int) ($f['code'] ?? 0) === 190 ? 'expired' : 'error';
-        db_run('UPDATE ce_performance SET synced_at = NOW(), sync_status = ?, sync_error = ? WHERE id = ?', [$st, mb_substr((string) $f['error'], 0, 300), (int) $row['id']]);
+        $set($st, (string) $f['error']);
         return ['ok' => false, 'status' => $st, 'error' => $f['error']];
     }
-    $v = $f['m'] + array_intersect_key($row, array_flip(CE_PERF_FIELDS));
-    $v['messages'] = (int) $row['messages'];
-    foreach (CE_PERF_FIELDS as $k) $v[$k] = max(0, min(CE_PERF_MAX, (int) ($v[$k] ?? 0)));
-    $rate = ce_perf_rate($v);
+    $v = $f['m'] + array_intersect_key($row, array_flip(CE_PERF_POST_FIELDS));
+    $out = [];
+    foreach (CE_PERF_POST_FIELDS as $k) $out[$k] = max(0, min(CE_PERF_MAX, (int) ($v[$k] ?? 0)));
     $st = $f['partial'] ? 'partial' : 'ok';
-    db_run('UPDATE ce_performance SET reach = ?, impressions = ?, likes = ?, comments = ?, shares = ?, saves = ?, clicks = ?, eng_rate = ?, synced_at = NOW(), sync_status = ?, sync_error = ? WHERE id = ?',
-        [$v['reach'], $v['impressions'], $v['likes'], $v['comments'], $v['shares'], $v['saves'], $v['clicks'], $rate, $st,
-         $f['partial'] ? mb_substr('الوصول والمشاهدات محتاجين صلاحية Insights — ' . (string) $f['error'], 0, 300) : null, (int) $row['id']]);
-    return ['ok' => true, 'status' => $st, 'eng_rate' => $rate];
+    $set($st, $f['partial'] ? 'الوصول والمشاهدات محتاجين صلاحية Insights — ' . (string) $f['error'] : null, $out);
+    return ['ok' => true, 'status' => $st, 'eng_rate' => (float) (db_one('SELECT eng_rate FROM ce_performance WHERE content_id = ?', [(int) $row['content_id']])['eng_rate'] ?? 0)];
+}
+
+/** مزامنة كل بوستات القطعة */
+function ce_meta_sync_content(int $uid, int $contentId): int
+{
+    $n = 0;
+    foreach (db_all('SELECT * FROM ce_perf_posts WHERE content_id = ? AND user_id = ?', [$contentId, $uid]) as $r) { ce_meta_sync_row($r); $n++; }
+    return $n;
 }
 
 /** البوستات اللي محتاجة تتحدّث (لحد ce_meta_sync_days من النشر · كل ce_meta_sync_hours) */
@@ -285,9 +311,9 @@ function ce_meta_sync_due(int $limit = 20): array
     if (!ce_meta_ready()) return ['synced' => 0];
     $days = max(1, ce_setting_int('ce_meta_sync_days', 30));
     $hours = max(1, ce_setting_int('ce_meta_sync_hours', 12));
-    $rows = db_all('SELECT p.* FROM ce_performance p JOIN social_connections c ON c.id = p.connection_id AND c.status = "active"
-                    WHERE p.provider_post_id IS NOT NULL AND (p.published_at IS NULL OR p.published_at >= ?)
-                      AND (p.synced_at IS NULL OR p.synced_at < ?) ORDER BY p.synced_at IS NOT NULL, p.synced_at LIMIT ' . max(1, min(200, $limit)),
+    $rows = db_all('SELECT p.* FROM ce_perf_posts p JOIN social_connections c ON c.id = p.connection_id AND c.status = "active"
+                    WHERE (p.published_at IS NULL OR p.published_at >= ?) AND (p.synced_at IS NULL OR p.synced_at < ?)
+                    ORDER BY p.synced_at IS NOT NULL, p.synced_at LIMIT ' . max(1, min(200, $limit)),
         [date('Y-m-d', strtotime("-$days days")), date('Y-m-d H:i:s', strtotime("-$hours hours"))]);
     $n = 0;
     foreach ($rows as $r) { ce_meta_sync_row($r); $n++; }
@@ -295,45 +321,53 @@ function ce_meta_sync_due(int $limit = 20): array
 }
 
 /**
- * الربط التلقائي: قطع المحرك (آخر 60 يوم) اللي مالهاش نتايج ← أقرب بوست في صفحات العميل لو التشابه ≥ الحد
- * ومفيش بوست تاني قريب (فرق 0.1 على الأقل) — عشان مانربطش غلط
+ * الربط التلقائي: قطع المحرك (آخر 60 يوم) اللي مالهاش بوست على المنصة دي ← أقرب بوست في صفحات العميل لو التشابه ≥ الحد
+ * ومفيش بوست تاني قريب (فرق 0.1 على الأقل) — عشان مانربطش غلط.
+ * القطعة اللي اتربطت بفيسبوك بتتربط بإنستجرام كمان لو اتنشرت هناك (والأرقام بتتجمع).
+ * القطع اللي العميل دخّل أرقامها بإيده مابنلمسهاش.
  */
 function ce_meta_auto_match(int $maxUsers = 20): array
 {
     $out = ['users' => 0, 'linked' => 0];
     if (!ce_meta_ready() || ce_setting_int('ce_meta_auto_match', 1) !== 1) return $out;
     $min = max(0.5, min(0.99, ce_setting_float('ce_meta_match_min', 0.75)));
+    $since = date('Y-m-d', strtotime('-60 days'));
+    $open = 'c.status IN ("pass", "manual") AND c.created_at >= ? AND (p.id IS NULL OR p.provider_post_id IS NOT NULL)
+             AND (SELECT COUNT(*) FROM ce_perf_posts pp WHERE pp.content_id = c.id) < 2';
     $users = db_all('SELECT DISTINCT c.user_id FROM ce_contents c JOIN social_connections s ON s.user_id = c.user_id AND s.status = "active"
-                     LEFT JOIN ce_performance p ON p.content_id = c.id
-                     WHERE c.status IN ("pass", "manual") AND c.created_at >= ? AND p.id IS NULL LIMIT ' . max(1, $maxUsers), [date('Y-m-d', strtotime('-60 days'))]);
+                     LEFT JOIN ce_performance p ON p.content_id = c.id WHERE ' . $open . ' LIMIT ' . max(1, $maxUsers), [$since]);
     foreach ($users as $u) {
         $uid = (int) $u['user_id'];
         $out['users']++;
-        $contents = db_all('SELECT c.* FROM ce_contents c LEFT JOIN ce_performance p ON p.content_id = c.id
-                            WHERE c.user_id = ? AND c.status IN ("pass", "manual") AND c.created_at >= ? AND p.id IS NULL LIMIT 60', [$uid, date('Y-m-d', strtotime('-60 days'))]);
-        $taken = array_flip(array_column(db_all('SELECT provider_post_id FROM ce_performance WHERE provider_post_id IS NOT NULL AND user_id = ?', [$uid]), 'provider_post_id'));
+        $contents = db_all('SELECT c.* FROM ce_contents c LEFT JOIN ce_performance p ON p.content_id = c.id WHERE c.user_id = ? AND ' . $open . ' LIMIT 60', [$uid, $since]);
+        $has = [];
+        foreach (db_all('SELECT content_id, platform FROM ce_perf_posts WHERE user_id = ?', [$uid]) as $x) $has[(int) $x['content_id']][$x['platform']] = true;
+        $taken = array_flip(array_column(db_all('SELECT provider_post_id FROM ce_perf_posts WHERE user_id = ?', [$uid]), 'provider_post_id'));
         $pool = [];
         foreach (user_connections($uid, 'active') as $conn) {
             foreach (['facebook', 'instagram'] as $pf) {
                 if (!ce_meta_account_id($conn, $pf)) continue;
                 $r = ce_meta_recent_posts($conn, $pf, 50);
                 if (!$r['ok']) continue;
-                foreach ($r['posts'] as $p) if (!isset($taken[$p['id']]) && trim($p['text']) !== '') $pool[] = $p + ['conn' => (int) $conn['id'], 'platform' => $pf];
+                foreach ($r['posts'] as $p) if (!isset($taken[$p['id']]) && trim($p['text']) !== '') $pool[$pf][] = $p + ['conn' => (int) $conn['id'], 'platform' => $pf];
             }
         }
         if (!$pool) continue;
         foreach ($contents as $c) {
             $text = ce_meta_content_text($c);
-            $scores = [];
-            foreach ($pool as $i => $p) if (!isset($taken[$p['id']])) $scores[$i] = ce_meta_similarity($text, $p['text']);
-            if (!$scores) break;
-            arsort($scores);
-            $best = array_key_first($scores);
-            $second = array_values($scores)[1] ?? 0.0;
-            if ($scores[$best] < $min || $scores[$best] - $second < 0.1) continue;
-            $p = $pool[$best];
-            $r = ce_meta_link($uid, (int) $c['id'], $p['conn'], $p['platform'], $p['id'], 'auto');
-            if ($r['ok']) { $out['linked']++; $taken[$p['id']] = true; }
+            foreach ($pool as $pf => $list) {
+                if (!empty($has[(int) $c['id']][$pf])) continue;
+                $scores = [];
+                foreach ($list as $i => $p) if (!isset($taken[$p['id']])) $scores[$i] = ce_meta_similarity($text, $p['text']);
+                if (!$scores) continue;
+                arsort($scores);
+                $best = array_key_first($scores);
+                $second = array_values($scores)[1] ?? 0.0;
+                if ($scores[$best] < $min || $scores[$best] - $second < 0.1) continue;
+                $p = $list[$best];
+                $r = ce_meta_link($uid, (int) $c['id'], $p['conn'], $pf, $p['id'], 'auto');
+                if ($r['ok']) { $out['linked']++; $taken[$p['id']] = true; $has[(int) $c['id']][$pf] = true; }
+            }
         }
     }
     return $out;
@@ -360,6 +394,7 @@ function ce_meta_tick(): ?array
 function ce_meta_stats(): array
 {
     if (!ce_meta_ready()) return [];
-    return db_one('SELECT SUM(provider_post_id IS NOT NULL) linked, SUM(link_mode = "auto") auto, SUM(sync_status = "ok") ok, SUM(sync_status = "partial") partial,
-                          SUM(sync_status IN ("error", "expired")) bad, SUM(synced_at >= ?) synced_24h FROM ce_performance', [date('Y-m-d H:i:s', strtotime('-24 hours'))]) ?: [];
+    return db_one('SELECT COUNT(DISTINCT content_id) linked, COUNT(*) posts, (SELECT COUNT(*) FROM (SELECT content_id FROM ce_perf_posts GROUP BY content_id HAVING COUNT(*) > 1) t) both_n,
+                          SUM(link_mode = "auto") auto, SUM(link_mode = "publish") published, SUM(sync_status = "ok") ok, SUM(sync_status = "partial") partial,
+                          SUM(sync_status IN ("error", "expired")) bad, SUM(synced_at >= ?) synced_24h FROM ce_perf_posts', [date('Y-m-d H:i:s', strtotime('-24 hours'))]) ?: [];
 }

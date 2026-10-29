@@ -184,6 +184,8 @@
 .ce-meta-post span { min-width: 0; overflow-wrap: anywhere; }
 .ce-meta-warn { color: #9A5B00; background: #FFF4E0; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
 .ce-perf-nums { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.ce-perf-split { display: grid; gap: 4px; font-size: 12px; color: var(--bk-mute, #667); }
+.ce-perf-split b { color: inherit; font-weight: 700; margin-inline-end: 4px; }
 .ce-contents { display: contents; }
 
 /* النشر من المحرك */

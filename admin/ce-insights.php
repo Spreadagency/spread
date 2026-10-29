@@ -325,7 +325,7 @@ $corrTone = fn($v) => $v === null ? 'chip-line' : ((float) $v >= 0.35 ? 'chip-mi
                 <div class="a2-h"><h3>Meta Insights</h3><span class="a2-grow"></span>
                     <form method="post"><?= csrf_field() ?><input type="hidden" name="act" value="meta_now"><button class="btn sm">اربط واسحب دلوقتي</button></form></div>
                 <div class="ce-kpis">
-                    <div class="ce-f"><span>قطع مربوطة ببوست</span><b><?= (int) ($ms['linked'] ?? 0) ?></b><small>منهم تلقائي <?= (int) ($ms['auto'] ?? 0) ?></small></div>
+                    <div class="ce-f"><span>قطع مربوطة ببوست</span><b><?= (int) ($ms['linked'] ?? 0) ?></b><small><?= (int) ($ms['posts'] ?? 0) ?> بوست · على المنصتين <?= (int) ($ms['both_n'] ?? 0) ?> · تلقائي <?= (int) ($ms['auto'] ?? 0) ?> · من النشر <?= (int) ($ms['published'] ?? 0) ?></small></div>
                     <div class="ce-f"><span>اتحدّثت آخر 24 ساعة</span><b><?= (int) ($ms['synced_24h'] ?? 0) ?></b><small>الـ worker بيسحب كل 10 دقايق</small></div>
                     <div class="ce-f"><span>تفاعل بس (من غير وصول)</span><b><?= (int) ($ms['partial'] ?? 0) ?></b><small>الصفحة محتاجة صلاحية Insights</small></div>
                     <div class="ce-f"><span>أخطاء / صفحات انتهت</span><b><?= (int) ($ms['bad'] ?? 0) ?></b><small>العميل يربط الصفحة تاني</small></div>

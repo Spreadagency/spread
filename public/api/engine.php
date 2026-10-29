@@ -29,7 +29,7 @@
  *   POST action=design_text {id, slot_id, frame, headline, subline, template_id}  تعديل النص/القالب ← رسم تاني من غير كريدت
  *   POST action=design_accept {id, slot_id, frame}  اعتمد تصميم «محتاج مراجعة» زي ما هو
  *   POST action=meta_posts {id, content_id, connection_id, platform}  آخر بوستات الصفحة + التشابه مع نص القطعة
- *   POST action=meta_link {id, content_id, connection_id, platform, post_id} · meta_sync {id, content_id} · meta_unlink {id, content_id}   (Meta Insights)
+ *   POST action=meta_link {id, content_id, connection_id, platform, post_id} · meta_sync {id, content_id} · meta_unlink {id, content_id, platform?}   (Meta Insights — فيسبوك + إنستجرام بيتجمعوا)
  *   POST action=publish_queue {id, content_ids[] | all, connection_id, platforms[], when: now|slot|at, at}  نشر/جدولة على فيسبوك وإنستجرام
  *   POST action=publish_cancel {id, queue_id} · publish_reschedule {id, queue_id, at}
  *   POST action=perf_save {id, content_id, perf{platform, published_at, reach, impressions, likes, comments, shares, saves, clicks, messages}}  نتايج بعد النشر (المرحلة I)
@@ -193,9 +193,10 @@ switch ($action) {
             $row = db_one('SELECT * FROM ce_performance WHERE content_id = ? AND user_id = ? AND provider_post_id IS NOT NULL', [$cid, $uid]);
             if (!$row) api_fail('القطعة مش مربوطة ببوست', 'state', 409);
             if ($row['synced_at'] && strtotime((string) $row['synced_at']) > time() - 600) api_fail('اتحدّثت من شوية — جرّب بعد 10 دقايق', 'rate', 429);
-            ce_meta_sync_row($row);
+            ce_meta_sync_content($uid, $cid);
         } else {
-            ce_meta_unlink($uid, $cid);
+            // منصة واحدة (لو اتبعتت) أو الكل
+            ce_meta_unlink($uid, $cid, in_array($in['platform'] ?? '', ['facebook', 'instagram'], true) ? $in['platform'] : null);
         }
         api_ok(['write' => ce_write_view($uid, $c)]);
 
