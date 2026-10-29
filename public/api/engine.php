@@ -30,6 +30,8 @@
  *   POST action=design_accept {id, slot_id, frame}  اعتمد تصميم «محتاج مراجعة» زي ما هو
  *   POST action=meta_posts {id, content_id, connection_id, platform}  آخر بوستات الصفحة + التشابه مع نص القطعة
  *   POST action=meta_link {id, content_id, connection_id, platform, post_id} · meta_sync {id, content_id} · meta_unlink {id, content_id}   (Meta Insights)
+ *   POST action=publish_queue {id, content_ids[] | all, connection_id, platforms[], when: now|slot|at, at}  نشر/جدولة على فيسبوك وإنستجرام
+ *   POST action=publish_cancel {id, queue_id} · publish_reschedule {id, queue_id, at}
  *   POST action=perf_save {id, content_id, perf{platform, published_at, reach, impressions, likes, comments, shares, saves, clicks, messages}}  نتايج بعد النشر (المرحلة I)
  *
  * المحرك متاح بس للعملاء اللي الأدمن فتحه لهم (الميزات ← content_engine).
@@ -196,6 +198,33 @@ switch ($action) {
             ce_meta_unlink($uid, $cid);
         }
         api_ok(['write' => ce_write_view($uid, $c)]);
+
+    case 'publish_queue':
+    case 'publish_cancel':
+    case 'publish_reschedule':
+        // النشر والجدولة على فيسبوك/إنستجرام من المحرك
+        $c = ce_campaign_get(api_int('id'), $uid);
+        if (!$c) api_fail('الحملة مش موجودة', 'not_found', 404);
+        if (!ce_publish_ready()) api_fail('النشر من المحرك مش متاح لسه', 'not_ready', 409);
+        $in = api_input();
+        $msg = null;
+        if ($action === 'publish_queue') {
+            if (!rate_limit('ce_publish', 'u' . $uid, 30, 600)) api_fail('محاولات كتير — استنى شوية', 'rate', 429);
+            $ids = !empty($in['all']) ? array_map('intval', array_column(db_all('SELECT id FROM ce_contents WHERE campaign_id = ? AND user_id = ? AND status IN ("pass", "manual")', [(int) $c['id'], $uid]), 'id'))
+                                      : array_map('intval', (array) ($in['content_ids'] ?? []));
+            if (!$ids) api_fail('مفيش قطع جاهزة', 'input', 422);
+            $r = ce_publish_queue_add($uid, (int) $c['id'], $ids, api_int('connection_id'), (array) ($in['platforms'] ?? []), (string) ($in['when'] ?? 'now'), (string) ($in['at'] ?? ''));
+            if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'input', ($r['code'] ?? '') === 'feature' ? 403 : (($r['code'] ?? '') === 'not_found' ? 404 : 422));
+            // «دلوقتي»: ننشر على طول من غير ما نستنى الـ worker
+            if (($in['when'] ?? 'now') === 'now' && $r['queued'] > 0 && $r['queued'] <= 4) ce_publish_tick(4);
+            $msg = ['queued' => $r['queued'], 'skipped' => $r['skipped']];
+        } elseif ($action === 'publish_cancel') {
+            if (!ce_publish_cancel($uid, api_int('queue_id'))) api_fail('مينفعش تلغي ده', 'state', 409);
+        } else {
+            $r = ce_publish_reschedule($uid, api_int('queue_id'), (string) ($in['at'] ?? ''));
+            if (!$r['ok']) api_fail($r['error'], 'input', 422);
+        }
+        api_ok(['result' => $msg, 'write' => ce_write_view($uid, $c)]);
 
     case 'design':
         $c = ce_campaign_get(api_int('id'), $uid);

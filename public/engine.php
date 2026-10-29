@@ -402,6 +402,12 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                         <div><h2>تقرير الحملة</h2>
                             <p class="bk-mute">{{ wr.final.pass }} عدّت الجودة<span v-if="wr.final.manual"> · {{ wr.final.manual }} محتاجة مراجعتك</span><span v-if="wr.final.failed"> · {{ wr.final.failed }} ماتكتبتش</span><span v-if="wr.final.avg_qa"> · متوسط الجودة {{ wr.final.avg_qa }}</span></p>
                             <small class="bk-mute">{{ wr.final.summary }}</small>
+                            <div v-if="wr.publish && wr.publish.ready && wr.publish.allowed && wr.meta && wr.meta.connections.length" class="ce-pub-all">
+                                <b>📅 جدول الحملة كلها على صفحتك</b>
+                                <small class="bk-mute">كل قطعة جاهزة بتتنشر في معادها في الخطة الساعة {{ wr.publish.hour }}:00 — والريلز واللي معادها عدّى بتتساب.</small>
+                                <div class="ce-pub-f"><select class="bk-in" v-model="pub.target" aria-label="فين"><option v-for="t in pubTargets()" :key="t.key" :value="t.key">{{ t.label }}</option></select>
+                                    <button class="bk-btn sm pri" :disabled="busy" @click="pubAll()">جدول الكل</button></div>
+                            </div>
                             <p v-if="wr.perf_sum" class="ce-perf-sum">📈 نتايج {{ wr.perf_sum.n }} قطعة بعد النشر · متوسط التفاعل <b>{{ wr.perf_sum.avg_rate }}%</b></p></div>
                     </div>
                     <div class="ce-dims"><div v-for="(v, d) in wr.final.dims" class="ce-dim">
@@ -480,6 +486,28 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <span>{{ wr.qa_labels[k] }} <small class="bk-mute">×{{ wr.qa_weights[k] }}</small></span><div class="ce-bar"><i :class="{ low: c.score < wr.rules.min_criterion }" :style="{ width: c.score + '%' }"></i></div><b>{{ Math.round(c.score) }}</b></div></div>
                         <div v-if="s.content.qa.compliance_flags && s.content.qa.compliance_flags.length" class="ce-issues"><div v-for="f in s.content.qa.compliance_flags" class="hard">⛔ {{ f }}</div></div>
                         <div v-for="(c, k) in s.content.qa.criteria" v-show="c.fix" class="ce-est-row"><span>{{ wr.qa_labels[k] }}</span><span>{{ c.fix }}</span></div>
+                    </details>
+
+                    <details v-if="wr.publish && wr.publish.ready && s.content && s.content.id && (s.content.status === 'pass' || s.content.status === 'manual')" class="ce-pub">
+                        <summary>📤 النشر <span v-for="q in pubRows(s)" :key="'b' + q.id" class="ce-badge" :class="'pub-' + q.status">{{ q.platform_label }}: {{ q.status_label }}</span></summary>
+                        <div v-for="q in pubRows(s)" :key="'r' + q.id" class="ce-pub-row">
+                            <b>{{ q.platform_label }}</b> <span class="bk-mute">{{ q.page }}</span> · <span>{{ q.status_label }}</span>
+                            <small class="bk-mute" v-if="q.status === 'pending'">· {{ fmtWhen(q.scheduled_at) }}</small>
+                            <small class="bk-mute" v-if="q.status === 'published'">· {{ fmtWhen(q.published_at) }}</small>
+                            <a v-if="q.permalink" :href="q.permalink" target="_blank" rel="noopener">شوف البوست ↗</a>
+                            <button v-if="q.status === 'pending'" class="bk-link" :disabled="busy" @click="pubCancel(q)">إلغاء</button>
+                            <div v-if="q.error && q.status !== 'published'" class="ce-meta-warn">{{ q.error }}</div>
+                        </div>
+                        <p v-if="!wr.publish.allowed" class="bk-mute">النشر المباشر على صفحتك مش مفتوح في باقتك — كلّم الدعم لو عايز تفعّله.</p>
+                        <p v-else-if="!wr.meta.connections.length" class="bk-mute">🔗 <a :href="wr.meta.accounts_url">اربط صفحتك على فيسبوك/إنستجرام</a> عشان تنشر أو تجدول من هنا.</p>
+                        <p v-else-if="s.format === 'reel'" class="bk-mute">الريلز محتاجة تصوير — انشرها من الموبايل وبعدين اربطها من «📈 النتايج».</p>
+                        <div v-else class="ce-pub-f">
+                            <select class="bk-in" v-model="pub.target" aria-label="فين"><option v-for="t in pubTargets()" :key="t.key" :value="t.key">{{ t.label }}</option></select>
+                            <select class="bk-in" v-model="pub.when" aria-label="إمتى"><option value="now">دلوقتي</option><option value="slot">في معادها في الخطة ({{ s.date }} الساعة {{ wr.publish.hour }}:00)</option><option value="at">في معاد تاني</option></select>
+                            <input v-if="pub.when === 'at'" type="datetime-local" class="bk-in" v-model="pub.at" aria-label="المعاد">
+                            <button class="bk-btn sm pri" :disabled="busy" @click="pubGo(s)">{{ pub.when === 'now' ? 'انشر دلوقتي' : 'جدول' }}</button>
+                        </div>
+                        <small class="bk-mute" v-if="wr.publish.allowed && wr.meta.connections.length && s.format !== 'reel'">بعد ما تنزل، الأرقام بتتسحب من Meta لوحدها وتظهر في «📈 النتايج».</small>
                     </details>
 
                     <details v-if="wr.perf_ready && s.content && s.content.id && (s.content.status === 'pass' || s.content.status === 'manual')" class="ce-perf" @toggle="perfOpen(s, $event)">

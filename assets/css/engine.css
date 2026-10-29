@@ -185,3 +185,14 @@
 .ce-meta-warn { color: #9A5B00; background: #FFF4E0; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
 .ce-perf-nums { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
 .ce-contents { display: contents; }
+
+/* النشر من المحرك */
+.ce-pub summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ce-pub .pub-published { background: #DFF6F2; color: #0B6B78; }
+.ce-pub .pub-pending, .ce-pub .pub-processing { background: #E3F1FF; color: #0A5FCF; }
+.ce-pub .pub-failed { background: #FDECEC; color: #C2362E; }
+.ce-pub-row { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--bk-line, #E2E8F0); font-size: 13.5px; }
+.ce-pub-row .ce-meta-warn { flex-basis: 100%; }
+.ce-pub-f { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.ce-pub-f .bk-in { flex: 1 1 200px; }
+.ce-pub-all { margin-top: 10px; display: grid; gap: 4px; }

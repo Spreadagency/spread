@@ -5,12 +5,14 @@
  * الحالة في ملف JSON (المسار في MOCK_GRAPH_STATE أو temp/spread-mock-graph.json):
  *   {"pages": {"<page>": [{"id","message","created_time"}]}, "ig": {"<ig>": [{"id","caption","timestamp"}]},
  *    "metrics": {"<post>": {"name": value…}}, "deprecated": false}
- * التوكنز: tok_expired ← 190 · tok_noins ← insights مرفوضة (code 10) · غير كده عادي
+ * التوكنز: tok_expired ← 190 · tok_noins ← insights مرفوضة (code 10) · tok_failpub ← النشر بيفشل مؤقتًا (code 2) · غير كده عادي
+ * النشر (POST): /{page}/photos · /{page}/feed · /{ig}/media · /{ig}/media_publish ← البوست بيتضاف للحالة (عشان الـ insights) وبيتسجل في <state>.log
  */
 header('Content-Type: application/json');
-$state = json_decode((string) @file_get_contents(getenv('MOCK_GRAPH_STATE') ?: sys_get_temp_dir() . '/spread-mock-graph.json'), true) ?: [];
+$stateFile = getenv('MOCK_GRAPH_STATE') ?: sys_get_temp_dir() . '/spread-mock-graph.json';
+$state = json_decode((string) @file_get_contents($stateFile), true) ?: [];
 $path = trim(preg_replace('#^/v[0-9.]+/#', '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)), '/');
-$tok = (string) ($_GET['access_token'] ?? '');
+$tok = (string) ($_REQUEST['access_token'] ?? '');
 $err = function (int $code, string $msg, int $http = 400) {
     http_response_code($http);
     echo json_encode(['error' => ['message' => $msg, 'type' => 'OAuthException', 'code' => $code]]);
@@ -18,6 +20,49 @@ $err = function (int $code, string $msg, int $http = 400) {
 };
 if ($tok === 'tok_expired') $err(190, 'Error validating access token: Session has expired');
 $parts = explode('/', $path);
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($tok === 'tok_failpub') $err(2, 'An unexpected error has occurred. Please retry your request later.', 500);
+    $acc = $parts[0] ?? '';
+    $edge = $parts[1] ?? '';
+    $save = function (string $kind, string $acc, string $id, string $text) use (&$state, $stateFile) {
+        $now = gmdate('Y-m-d\TH:i:s+0000');
+        if ($kind === 'fb') $state['pages'][$acc][] = ['id' => $id, 'message' => $text, 'created_time' => $now];
+        else $state['ig'][$acc][] = ['id' => $id, 'caption' => $text, 'timestamp' => $now];
+        $state['metrics'][$id] = $kind === 'fb' ? ['post_impressions_unique' => 50, 'post_impressions' => 60, 'post_clicks' => 1, 'reactions' => 3, 'comments' => 0, 'shares' => 0]
+                                                : ['reach' => 40, 'saved' => 1, 'shares' => 0, 'views' => 55, 'like_count' => 4, 'comments_count' => 0];
+        file_put_contents($stateFile, json_encode($state, JSON_UNESCAPED_UNICODE));
+    };
+    file_put_contents($stateFile . '.log', json_encode(['path' => $path] + array_diff_key($_POST, ['access_token' => 1]), JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND);
+    $n = (string) random_int(100000, 999999);
+    if ($edge === 'photos') {
+        if (($_POST['published'] ?? 'true') === 'false') { echo json_encode(['id' => 'PH' . $n]); exit; }
+        $id = $acc . '_' . $n;
+        $save('fb', $acc, $id, (string) ($_POST['caption'] ?? ''));
+        echo json_encode(['id' => 'PH' . $n, 'post_id' => $id]);
+        exit;
+    }
+    if ($edge === 'feed') {
+        $id = $acc . '_' . $n;
+        $save('fb', $acc, $id, (string) ($_POST['message'] ?? ''));
+        echo json_encode(['id' => $id]);
+        exit;
+    }
+    if ($edge === 'media') {
+        $cid = 'C' . $n;
+        $state['containers'][$cid] = (string) ($_POST['caption'] ?? '');
+        file_put_contents($stateFile, json_encode($state, JSON_UNESCAPED_UNICODE));
+        echo json_encode(['id' => $cid]);
+        exit;
+    }
+    if ($edge === 'media_publish') {
+        $id = '7' . $n;
+        $save('ig', $acc, $id, (string) ($state['containers'][$_POST['creation_id'] ?? ''] ?? ''));
+        echo json_encode(['id' => $id]);
+        exit;
+    }
+    $err(100, 'Unsupported post request');
+}
 $id = $parts[0] ?? '';
 $edge = $parts[1] ?? '';
 $m = $state['metrics'][$id] ?? [];

@@ -35,6 +35,8 @@
       perfFieldsLinked: [{ k: 'messages', l: 'رسايل / مكالمات / حجوزات جت من البوست' }],
       // Meta Insights: اختيار البوست — object ثابت
       mPick: { slot: 0, target: '', posts: [], post: '' },
+      // النشر من المحرك — object ثابت
+      pub: { target: '', when: 'slot', at: '' },
       w: { step: 'goal', b: blankBrief(), opts: null, est: null, estBusy: false, err: '', id: 0, saved: false },
       personaFields: [{ k: 'pain', l: 'بيعاني من' }, { k: 'fears', l: 'بيخاف من' }, { k: 'desires', l: 'نفسه في' }],
       statusLabel: { draft: 'مسودة', ready: 'جاهزة للتشغيل', queued: 'في الطابور', planning: 'بنعمل الخطة', review: 'الخطة مستنية مراجعتك', plan_ok: 'الخطة معتمدة', writing: 'بنكتب', done: 'خلصت', cancelled: 'اتلغت' },
@@ -406,6 +408,50 @@
         if (!r.ok) { this.say(r.error, 'danger'); return; }
         this.wr = r.write;
         this.say('اتحفظت ✓ — معدل التفاعل ' + r.perf.eng_rate + '%');
+      },
+      pubRows: function (s) { return (this.wr && this.wr.publish && this.wr.publish.rows && s.content && this.wr.publish.rows[s.content.id]) || []; },
+      pubTargets: function () {
+        var out = [];
+        ((this.wr && this.wr.meta && this.wr.meta.connections) || []).forEach(function (c) {
+          c.targets.forEach(function (t) { out.push({ key: c.id + ':' + t.platform, label: t.label }); });
+          if (c.targets.length > 1) out.push({ key: c.id + ':both', label: 'فيسبوك + إنستجرام — ' + c.name });
+        });
+        if (!this.pub.target && out.length) this.pub.target = out[0].key;
+        return out;
+      },
+      fmtWhen: function (d) { return d ? String(d).slice(0, 16).replace('T', ' ') : ''; },
+      pubSend: async function (data) {
+        var parts = (this.pub.target || '').split(':');
+        if (!parts[0]) { this.say('اختار الصفحة', 'warning'); return; }
+        data.connection_id = +parts[0];
+        data.platforms = parts[1] === 'both' ? ['facebook', 'instagram'] : [parts[1]];
+        this.busy = true;
+        var r = await A.post('engine', 'publish_queue', Object.assign({ id: this.wc.id }, data));
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.wr = r.write;
+        var q = r.result.queued, sk = r.result.skipped || [];
+        var msg = q ? (data.when === 'now' ? 'اتبعت للنشر ✓' : 'اتجدول ✓ (' + q + ')') : 'ماتجدولش حاجة';
+        if (sk.length) msg += ' — اتساب ' + sk.length + ': ' + sk[0].reason;
+        this.say(msg, q ? 'ok' : 'warning');
+      },
+      pubGo: function (s) {
+        if (this.pub.when === 'at' && !this.pub.at) { this.say('اختار المعاد', 'warning'); return; }
+        if (this.pub.when === 'now' && !confirm('ننشرها على صفحتك دلوقتي؟')) return;
+        return this.pubSend({ content_ids: [s.content.id], when: this.pub.when, at: this.pub.at });
+      },
+      pubAll: function () {
+        if (!confirm('نجدول كل قطع الحملة الجاهزة في معادها؟')) return;
+        return this.pubSend({ all: 1, when: 'slot' });
+      },
+      pubCancel: async function (q) {
+        if (!confirm('نلغي النشر ده؟')) return;
+        this.busy = true;
+        var r = await A.post('engine', 'publish_cancel', { id: this.wc.id, queue_id: q.id });
+        this.busy = false;
+        if (!r.ok) { this.say(r.error, 'danger'); return; }
+        this.wr = r.write;
+        this.say('اتلغى');
       },
       isLinked: function (s) { return !!(s.content && s.content.perf && s.content.perf.linked); },
       metaTargets: function () {

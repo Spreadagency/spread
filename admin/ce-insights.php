@@ -10,6 +10,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
 require_once __DIR__ . '/../includes/ce-lab.php';
 require_once __DIR__ . '/../includes/ce-learning.php';
+require_once __DIR__ . '/../includes/ce-publish.php';
 
 require_admin();
 require_admin_can('ai_settings');
@@ -300,6 +301,24 @@ $corrTone = fn($v) => $v === null ? 'chip-line' : ((float) $v >= 0.35 ? 'chip-mi
     $rows = db_all('SELECT p.*, c.qa_score, c.format, k.title, u.name uname, u.email FROM ce_performance p JOIN ce_contents c ON c.id = p.content_id
                     JOIN ce_campaigns k ON k.id = p.campaign_id LEFT JOIN users u ON u.id = p.user_id ORDER BY COALESCE(p.updated_at, p.created_at) DESC LIMIT 100');
 ?>
+        <?php if (function_exists('ce_publish_ready') && ce_publish_ready()): $ps = ce_publish_stats(); ?>
+        <section class="card">
+            <div class="a2-h"><h3>النشر من المحرك</h3><span class="a2-grow"></span><small class="a2-muted">الـ worker بينشر اللي معاده جه كل دقيقة</small></div>
+            <div class="ce-kpis">
+                <div class="ce-f"><span>مستني معاده</span><b><?= (int) ($ps['pending'] ?? 0) ?></b></div>
+                <div class="ce-f"><span>اتنشر النهارده</span><b><?= (int) ($ps['today'] ?? 0) ?></b><small>الإجمالي <?= (int) ($ps['published'] ?? 0) ?></small></div>
+                <div class="ce-f"><span>فشل</span><b><?= (int) ($ps['failed'] ?? 0) ?></b></div>
+            </div>
+            <?php if (!empty($ps['recent_failures'])): ?>
+            <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>العميل</th><th>المنصة</th><th>المعاد</th><th>السبب</th></tr></thead><tbody>
+            <?php foreach ($ps['recent_failures'] as $f): ?>
+                <tr><td><?= e((string) ($f['uname'] ?? ('#' . $f['user_id']))) ?></td><td><?= e(CE_PUB_PLATFORMS[$f['platform']] ?? $f['platform']) ?></td><td class="num"><?= e(substr((string) $f['scheduled_at'], 0, 16)) ?></td><td><?= e(mb_strimwidth((string) $f['error'], 0, 120, '…')) ?></td></tr>
+            <?php endforeach; ?>
+            </tbody></table></div>
+            <?php endif; ?>
+        </section>
+        <?php endif; ?>
+
         <?php if (ce_meta_ready()): $ms = ce_meta_stats(); ?>
         <div class="ce-fgrid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
             <section class="card">

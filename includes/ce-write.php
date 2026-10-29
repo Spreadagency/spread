@@ -684,8 +684,13 @@ function ce_write_view(int $uid, array $c): array
         'perf_ready' => ce_learning_ready(), 'perf_platforms' => CE_PERF_PLATFORMS,
         // Meta Insights: صفحات العميل المربوطة (الأرقام بتتسحب لوحدها بعد ربط القطعة بالبوست)
         'meta' => ['ready' => ce_meta_ready(), 'connections' => ce_meta_connections($uid), 'accounts_url' => url('social-accounts.php')],
+        // النشر من المحرك: الطابور لكل قطعة + هل النشر المباشر مفتوح للعميل
+        'publish' => function_exists('ce_publish_ready') && ce_publish_ready()
+            ? ['ready' => true, 'allowed' => ce_publish_allowed($uid), 'rows' => (object) ce_publish_for_campaign($uid, $cid), 'hour' => function_exists('default_publish_hour') ? default_publish_hour() : 19]
+            : ['ready' => false, 'allowed' => false, 'rows' => (object) [], 'hour' => 19],
         'perf_sum' => $perf ? ['n' => count($perf), 'avg_rate' => round(array_sum(array_column($perf, 'eng_rate')) / count($perf), 2)] : null,
     ];
 }
 
 require_once __DIR__ . '/ce-learning.php';   // حلقة التعلّم (أمثلة الكاتب من أحسن القطع)
+require_once __DIR__ . '/ce-publish.php';    // النشر والجدولة من المحرك

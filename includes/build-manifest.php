@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-28',
-  'generated' => '2026-10-28 15:44',
+  'date' => '2026-10-29',
+  'generated' => '2026-10-29 11:15',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -224,6 +224,9 @@ return array (
     215 => 'sql/2026_ce_meta_insights_rollback.sql',
     216 => 'public/social/connect.php',
     217 => 'public/social/callback.php',
+    218 => 'includes/ce-publish.php',
+    219 => 'sql/2026_ce_publish.sql',
+    220 => 'sql/2026_ce_publish_rollback.sql',
   ),
   'files' => 
   array (
@@ -334,8 +337,8 @@ return array (
     ),
     'admin/ce-insights.php' => 
     array (
-      'h' => '49666569914652de422a0b470c11f0dc',
-      's' => 31671,
+      'h' => '19775834248f6cf9a276653fd4566098',
+      's' => 33249,
     ),
     'admin/ce-lab-api.php' => 
     array (
@@ -609,8 +612,8 @@ return array (
     ),
     'assets/css/engine.css' => 
     array (
-      'h' => '5ad44d4e13e04b1ba71cb2d216fcc671',
-      's' => 13543,
+      'h' => '00e6a99845db219a733f1bfb4ae022ac',
+      's' => 14297,
     ),
     'assets/css/main.css' => 
     array (
@@ -704,8 +707,8 @@ return array (
     ),
     'assets/js/engine.js' => 
     array (
-      'h' => 'c31948d91c2b0f941a1cd5c1ad66bd4f',
-      's' => 30526,
+      'h' => '31d2181b288b3e36abaec2d150434265',
+      's' => 33176,
     ),
     'assets/js/main.js' => 
     array (
@@ -754,8 +757,8 @@ return array (
     ),
     'cron/ce-worker.php' => 
     array (
-      'h' => 'df9940902ad591eb681a4c2ab1c06405',
-      's' => 2378,
+      'h' => '1eb7c375e6609b72f400eefd0300b2fd',
+      's' => 2627,
     ),
     'cron/daily_notifications.php' => 
     array (
@@ -779,18 +782,18 @@ return array (
     ),
     'docs/CONTENT_ENGINE_GUIDE.md' => 
     array (
-      'h' => '7a94e84af76ff4b83db9e4fbaa164384',
-      's' => 11938,
+      'h' => 'f723d304c739cc713fa8548f417c33ac',
+      's' => 12216,
     ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
-      'h' => '621c5e7f82a18dc39699ecf59d9cb2db',
-      's' => 41453,
+      'h' => 'e27ad50c8c5b2a904d4f271da19deaba',
+      's' => 44746,
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '02f391c00656f874c6cb1b182cf739db',
-      's' => 22917,
+      'h' => 'a28a6f607e4e33ce99d084aaa0bf6311',
+      's' => 24496,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -814,8 +817,8 @@ return array (
     ),
     'includes/account.php' => 
     array (
-      'h' => 'beb45a2f97fc8853d503286fbc38c0a1',
-      's' => 21272,
+      'h' => '48516000735220bc7fe6c6d646daa1cc',
+      's' => 21330,
     ),
     'includes/admin-auth.php' => 
     array (
@@ -942,6 +945,11 @@ return array (
       'h' => '32372941908ba7c6a1787cb5cd0c73df',
       's' => 20011,
     ),
+    'includes/ce-publish.php' => 
+    array (
+      'h' => '469073bdeec4ef095696f8557ff691c2',
+      's' => 18711,
+    ),
     'includes/ce-skills.php' => 
     array (
       'h' => '3e17453afab2265a3fab36f52d6236bc',
@@ -979,8 +987,8 @@ return array (
     ),
     'includes/ce-write.php' => 
     array (
-      'h' => 'c3770f7d0228534cda6d0fb6a220f4d2',
-      's' => 46385,
+      'h' => 'fd0e1feaf56c8acfc3169c4730205ee2',
+      's' => 46986,
     ),
     'includes/config.sample.php' => 
     array (
@@ -1069,8 +1077,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '3a5618ed6c5afb5bcec07cfe6ec2b6aa',
-      's' => 15045,
+      'h' => 'd75c848d77f873b9e7d2e0f72e81675b',
+      's' => 15208,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1374,8 +1382,8 @@ return array (
     ),
     'public/api/engine.php' => 
     array (
-      'h' => '4dca5ffe5b62c72113386f1ab14d9f5c',
-      's' => 15708,
+      'h' => '6d906eee21a0332323596e787294ac0e',
+      's' => 18062,
     ),
     'public/api/inbox.php' => 
     array (
@@ -1564,8 +1572,8 @@ return array (
     ),
     'public/engine.php' => 
     array (
-      'h' => 'c21b9f00b5181afe78c2928f8a4c26c8',
-      's' => 53017,
+      'h' => '594731be2762d1b538972b1a1013af4e',
+      's' => 56966,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1871,6 +1879,16 @@ return array (
     array (
       'h' => 'd35a73bf9a75e77fa6c51b16f444f79c',
       's' => 1589,
+    ),
+    'sql/2026_ce_publish.sql' => 
+    array (
+      'h' => '1e9b7c0b27428cbda8972b8d9f3821e1',
+      's' => 1987,
+    ),
+    'sql/2026_ce_publish_rollback.sql' => 
+    array (
+      'h' => '43244f069638f463f47af004a7a3efd3',
+      's' => 718,
     ),
     'sql/2026_ce_skills.sql' => 
     array (

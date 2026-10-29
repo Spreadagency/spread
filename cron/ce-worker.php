@@ -42,6 +42,10 @@ echo date('Y-m-d H:i:s') . " — ran $n step(s)\n";
 try {
     require_once __DIR__ . '/../includes/ce-learning.php';
     $lr = ce_learning_maybe_monthly();
+    // النشر من المحرك: اللي معاده جه بيتنشر (كل دقيقة)
+    require_once __DIR__ . '/../includes/ce-publish.php';
+    $pb = ce_publish_tick(5);
+    if (array_sum($pb)) echo 'publish: ' . json_encode($pb) . "\n";
     // Meta Insights: سحب الأرقام كل 10 دقايق + ربط تلقائي كل 6 ساعات
     $mt = ce_meta_tick();
     if ($mt) echo 'meta insights: ' . json_encode($mt) . "\n";
