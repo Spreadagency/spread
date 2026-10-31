@@ -299,7 +299,7 @@ include __DIR__ . '/../templates/admin-header.php';
 <script>
 // تقدير الكريدت اللي الحصص محتاجاه (حصة × تكلفة العملية) — علشان الكريدت والحصص يمشوا مع بعض
 (function () {
-    var cost = <?= json_encode(['posts' => cost_for('content_generation_cost'), 'designs' => cost_for('content_design_cost'), 'publishes' => 0,
+    var cost = <?= json_encode(['posts' => cost_for('content_generation_cost'), 'designs' => design_credit_cost(), 'publishes' => 0,
         'research' => (int) get_setting('research_cost_medium', 4), 'videos' => cost_for('content_generation_cost')]) ?>;
     var box = document.getElementById('a2-qsum'), cr = document.querySelector('input[name=credits]');
     if (!box) return;

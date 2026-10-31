@@ -425,6 +425,31 @@ function ce_json_decode(string $t): ?array
     return null;
 }
 
+/* ═══ الحساب الثابت (الباقات الجديدة) ═══
+ * الكتابة بسعر ثابت لكل قطعة من «تسعير الخدمات» (حسب الشكل) بدل تكلفة الـ AI الفعلية — والتكلفة الفعلية بتفضل في ai_runs للأدمن.
+ * التصميم من حصة الباقة (مش كريدت). ce_billing_mode = actual ← الطريقة القديمة (التكلفة الفعلية × الهامش).
+ */
+function ce_billing_fixed(): bool
+{
+    return (string) get_setting('ce_billing_mode', 'fixed') !== 'actual';
+}
+
+/** الخطة: بناء الخطة (ce_plan_cost) · إعادة التقييم بس (campaign_plan_eval_cost) */
+function ce_price_plan(bool $gateOnly = false): int
+{
+    if ($gateOnly) return max(0, (int) get_setting('campaign_plan_eval_cost', 1));
+    $v = get_setting('ce_plan_cost', '');
+    return max(0, (int) ($v === '' || $v === null ? get_setting('plan_ideas_cost', 2) : $v));
+}
+
+/** سعر كتابة خانات (حسب شكل كل خانة) */
+function ce_price_slots(array $slots): int
+{
+    $n = 0;
+    foreach ($slots as $s) $n += cost_for_format((string) ($s['format'] ?? 'post'));
+    return $n;
+}
+
 /**
  * قاعدة الأدمن: الكريدت = التكلفة بالدولار × سعر الدولار × (1 + الهامش%) ÷ قيمة الكريدت بالجنيه
  * (الإعدادات: ce_margin_pct · ce_egp_per_credit · سعر الدولار من fx_rates)

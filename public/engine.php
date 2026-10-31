@@ -280,7 +280,7 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                             <div><b>{{ w.est.pieces }}</b><span>قطعة · {{ w.est.images }} صورة</span></div></div>
                         <details><summary>تفاصيل كل مرحلة</summary>
                             <div v-for="s in w.est.stages" class="ce-est-row"><span>{{ s.label }}</span><span>{{ fmt(s.tokens) }} توكن</span></div></details>
-                        <p class="bk-mute">رصيدك {{ balance }} كريدت. الكريدت بيتحجز لما الحملة تبدأ، واللي مايتصرفش بيرجعلك تلقائي.</p>
+                        <p class="bk-mute">رصيدك {{ balance }} كريدت. الكريدت بيتحجز لما الحملة تبدأ، واللي مايتصرفش بيرجعلك تلقائي. الصور ({{ w.est.images }}) بتتحسب من حصة التصميمات في باقتك.</p>
                         <p v-if="balance < w.est.credits" class="ce-err">رصيدك مش كفاية للحملة دي — قلّل العدد أو اشحن.</p>
                     </div>
                     <div v-if="w.saved" class="ce-ok">✓ اتحفظ البريف. دوس «ابدأ الحملة» علشان نبني الخطة ونراجعها.</div>
@@ -426,8 +426,10 @@ $__ver = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../' . $f) ?
                     <h2>🎨 صمّم المحتوى</h2>
                     <p class="bk-mute">لكل قطعة صورة من غير أي كلام جوّاها ← مراجعة للصورة (الألوان · مكان النص · العيوب · الفكرة) ولو ماعدّتش بنعيدها ← وبعدين بنحط العنوان بخط البراند في المكان الفاضي. شرايح الكاروسيل بعد الأولى: نص على خلفية بألوانك.</p>
                     <label class="ce-check" v-if="dz.reels"><input type="checkbox" v-model="dz.reel_cover"> <span>غلاف للريلز ({{ dz.reels }}) — صورة 9:16 بعنوان الريلز</span></label>
-                    <div class="ce-est-row"><span>{{ dz.pending + (dz.reel_cover ? dz.reels : 0) }} تصميم · محجوز من رصيدك</span><b>~{{ fmt(dz.reel_cover ? dz.credits_reels : dz.credits) }} كريدت</b></div>
-                    <small class="bk-mute">بيتحسب الفعلي بس في الآخر، والباقي بيرجع لرصيدك · رصيدك {{ fmt(balance) }}</small>
+                    <div class="ce-est-row"><span>{{ dz.pending + (dz.reel_cover ? dz.reels : 0) }} تصميم من حصة باقتك</span><b>{{ dz.designs_left === null ? 'باقتك مفتوحة' : 'فاضل ' + dz.designs_left }}</b></div>
+                    <div v-if="(dz.reel_cover ? dz.credits_reels : dz.credits) > 0" class="ce-est-row"><span>محجوز من رصيدك</span><b>~{{ fmt(dz.reel_cover ? dz.credits_reels : dz.credits) }} كريدت</b></div>
+                    <p v-if="dz.designs_left !== null && dz.designs_left < dz.pending + (dz.reel_cover ? dz.reels : 0)" class="ce-err">حصة التصميمات مش كفاية — رقّي باقتك أو اشتري تصميمات.</p>
+                    <small class="bk-mute">الإعادات اللي بنعملها لما الصورة ماتعدّيش المراجعة مابتتحسبش عليك · «صورة جديدة» بطلبك = تصميم من الحصة</small>
                     <div class="bk-row"><button class="bk-btn pri" :disabled="busy" @click="startDesign()">صمّم ✨</button></div>
                 </section>
                 <div v-if="dz && dz.job && dz.job.status === 'failed'" class="ce-err">{{ dz.job.error }}</div>

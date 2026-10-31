@@ -497,6 +497,36 @@ function cost_for(string $action): int
     return (int) get_setting($action, $defaults[$action] ?? 1);
 }
 
+/**
+ * سعر كتابة قطعة حسب شكلها (الباقات الجديدة: الكتابة بالكريدت) — لو الأدمن ماحددش سعر للشكل ← سعر المنشور
+ * post · carousel · story · video (سكريبت) · reel (= سكريبت فيديو)
+ */
+function cost_for_format(string $format): int
+{
+    $key = ['carousel' => 'carousel_generation_cost', 'story' => 'story_generation_cost', 'video' => 'video_script_cost', 'reel' => 'video_script_cost'][$format] ?? null;
+    $v = $key !== null ? get_setting($key, '') : '';
+    return $v === '' || $v === null ? cost_for('content_generation_cost') : max(0, (int) $v);
+}
+
+/** التصميم بيتحسب من حصة الباقة — والكريدت عليه بس لو الأدمن فتح «التصميم بالكريدت كمان» */
+function design_credit_cost(): int
+{
+    return (string) get_setting('designs_charge_credits', '0') === '1' ? cost_for('content_design_cost') : 0;
+}
+
+/** نص سعر التصميم للعميل: «2 كريدت» أو «من حصة التصميمات» */
+function design_cost_text(string $unit = 'كريدت'): string
+{
+    $c = design_credit_cost();
+    return $c > 0 ? $c . ' ' . $unit : 'من حصة التصميمات';
+}
+
+/** كريدت النشر المباشر على فيسبوك/إنستجرام (مرة لكل منشور) */
+function publish_credit_cost(): int
+{
+    return max(0, (int) get_setting('publish_cost', 1));
+}
+
 // 8-ب: الحصص الشهرية والاستهلاك بالنسبة %
 require_once __DIR__ . '/plans.php';
 require_once __DIR__ . '/settings-registry.php';

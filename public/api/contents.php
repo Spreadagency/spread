@@ -294,7 +294,7 @@ switch ($action) {
             'rev'      => (string) $row['updated_at'],
             'published'=> $row['st'] === 'published',
             'date'     => date('Y/m/d', strtotime($row['created_at'])),
-            'costs'    => ['ai_edit' => cost_for('ai_edit_cost'), 'design' => cost_for('content_design_cost'),
+            'costs'    => ['ai_edit' => cost_for('ai_edit_cost'), 'design' => design_credit_cost(),
                            'balance' => credits_balance($uid)],
             'designs'  => array_map(fn($d) => ['id' => (int) $d['id'], 'url' => lib_cover_url($d['image_path']), 'ratio' => (string) ($d['ratio'] ?? ''),
                                                'ago' => function_exists('ui_time_ago') ? ui_time_ago($d['created_at']) : '',

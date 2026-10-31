@@ -269,6 +269,8 @@ function ce_estimate(array $brief): array
     $usd += $imgUsd;
 
     $credits = max(ce_usd_to_credits($usd), $pieces * max(0, ce_setting_int('ce_min_credits_piece', 1)));
+    // الحساب الثابت: الخطة + سعر كل قطعة حسب شكلها — والصور من حصة التصميمات
+    if (ce_billing_fixed()) $credits = ce_price_plan() + $post * cost_for_format('post') + $car * cost_for_format('carousel') + $reel * cost_for_format('reel');
     $assume = [
         'الكاتب والناقد × ' . $rf . ' (إعادة كتابة محتملة)',
         ce_setting_int('ce_carousel_ai_images', 0) ? 'الكاروسيل: أول ' . $carAi . ' شرايح بصورة AI والباقي نص على خلفية البراند' : 'الكاروسيل: كل الشرايح بصورة AI (6 في المتوسط)',

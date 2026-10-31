@@ -577,6 +577,13 @@ function ce_write_job(array $job, array &$state): array
 /** الإلغاء في النص: القطع اللي خلصت بتتحسب (بالحد الأدنى أو التكلفة الفعلية) والباقي بيرجع */
 function ce_write_cancel_cost(array $state): int
 {
+    if (ce_billing_fixed()) {
+        // الثابت: القطع اللي خلصت بس (إعادة كتابة خانة = سعر إعادة التوليد)
+        if (($state['mode'] ?? 'all') === 'slot') return (int) ($state['done_pieces'] ?? 0) > 0 ? max(0, cost_for('content_regeneration_cost')) : 0;
+        $ids = array_map('intval', array_slice((array) ($state['queue'] ?? []), 0, max(0, (int) ($state['i'] ?? 0))));
+        if (!$ids) return 0;
+        return ce_price_slots(db_all('SELECT s.format FROM ce_slots s JOIN ce_contents c ON c.slot_id = s.id AND c.status IN ("pass", "manual") WHERE s.id IN (' . implode(',', $ids) . ')'));
+    }
     $min = max(0, ce_setting_int('ce_min_credits_piece', 1));
     return max($min * (int) ($state['done_pieces'] ?? 0), ce_usd_to_credits((float) ($state['cost_usd'] ?? 0)));
 }
@@ -584,6 +591,7 @@ function ce_write_cancel_cost(array $state): int
 /** كريدت الكتابة: الأفكار + الاختيار + الكتابة + الجودة (× معامل التحسين) + المراجعة النهائية — مش أقل من الحد الأدنى للقطعة */
 function ce_write_hold_credits(array $c, ?int $pieces = null): int
 {
+    if (ce_billing_fixed()) return $pieces === null ? ce_price_slots(ce_plan_slots_load((int) $c['id'])) : $pieces * max(0, cost_for('content_regeneration_cost'));
     $e = json_decode((string) ($c['estimate_json'] ?? ''), true) ?: [];
     $all = max(1, (int) ($e['pieces'] ?? 1));
     $pieces = $pieces ?? $all;

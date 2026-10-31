@@ -646,7 +646,8 @@ function ce_plan_job(array $job, array &$state): array
         ce_plan_store((int) $c['id'], $uid, $best['slots']);
         db_run('UPDATE ce_campaigns SET status = "review", plan_score = ?, plan_passed = ? WHERE id = ?', [$best['score'], $best['passed'] ? 1 : 0, (int) $c['id']]);
         $min = max(0, ce_setting_int('ce_plan_min_credits', 1));
-        return ['done' => true, 'used_credits' => max($min, ce_usd_to_credits((float) $state['cost_usd'])),
+        $used = ce_billing_fixed() ? ce_price_plan(($state['mode'] ?? '') === 'gate_only') : max($min, ce_usd_to_credits((float) $state['cost_usd']));
+        return ['done' => true, 'used_credits' => $used,
                 'result' => ['score' => $best['score'], 'passed' => $best['passed'], 'rounds' => $state['round']]];
     }
 
@@ -669,6 +670,7 @@ function ce_plan_job(array $job, array &$state): array
 /** كريدت الخطة اللي بيتحجز: (الخطة + المراجعة) × عدد الجولات الممكنة — والفرق بيرجع بعدها */
 function ce_plan_hold_credits(array $c, bool $gateOnly = false): int
 {
+    if (ce_billing_fixed()) return ce_price_plan($gateOnly);
     $e = json_decode((string) ($c['estimate_json'] ?? ''), true) ?: [];
     $usd = 0.0;
     foreach ((array) ($e['stages'] ?? []) as $s) {

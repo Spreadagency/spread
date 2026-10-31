@@ -58,7 +58,7 @@ switch ($action) {
         $note = api_str('note', 300);
         if (!rate_limit('quick_post', 'u' . $uid, 20, 600)) api_fail('كتبت منشورات كتير بسرعة — استنى شوية', 'rate_limit', 429);
         if ($g = plan_gate($uid, $fmt === 'video' ? 'videos' : 'posts')) api_fail($g, 'quota', 402, ['upgrade' => plan_upgrade_link()]);
-        $cost = cost_for('content_generation_cost');
+        $cost = cost_for_format($fmt);   // سعر الكتابة حسب الشكل (منشور · كاروسيل · ستوري · سكريبت فيديو)
         if ($cost > 0 && (credits_balance($uid) < $cost || !credits_consume($uid, $cost, 'منشور سريع', 'content', null))) api_fail(credits_short_msg($cost), 'credits', 402);
 
         // بريف البوست من الهوية (الخدمة · الشكل · الموضوع) — الباقي من الـ Brand Kit

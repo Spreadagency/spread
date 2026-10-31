@@ -28,7 +28,7 @@ if (function_exists('ui_v2_enabled') && ui_v2_enabled()) {
     exit;
 }
 $brand = user_brand();
-$designCost = cost_for('content_design_cost');
+$designCost = design_credit_cost();
 $ideaCost = (int) get_setting('studio_idea_cost', 1);
 $balance = user_credits();
 
@@ -150,7 +150,7 @@ include __DIR__ . '/../templates/header.php';
                         <?php endif; ?>
                     </div>
                     <div class="studio-cta">
-                        <button class="btn full" id="st-generate" onclick="generateStudio()">✨ توليد التصميم<span class="cr"> (<?= $designCost ?> ◇)</span></button>
+                        <button class="btn full" id="st-generate" onclick="generateStudio()">✨ توليد التصميم<span class="cr"> (<?= e(design_cost_text('◇')) ?>)</span></button>
                         <div id="st-status" class="field-help" style="display:none;margin-top:8px"></div>
                     </div>
                 </div>
@@ -267,7 +267,7 @@ async function generateStudio() {
     } catch (e) {
         alert('خطأ في الاتصال — جرب تاني');
     }
-    btn.disabled = false; btn.textContent = '✨ توليد التصميم' + (window.SPREAD_CR !== false ? ' (<?= $designCost ?> ◇)' : '');
+    btn.disabled = false; btn.textContent = '✨ توليد التصميم' + (window.SPREAD_CR !== false ? ' (<?= e(design_cost_text('◇')) ?>)' : '');
 }
 </script>
 

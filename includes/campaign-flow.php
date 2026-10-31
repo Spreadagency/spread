@@ -858,7 +858,7 @@ function campaign_board_payload(array $c, int $uid): array
             'balance' => credits_balance($uid),
             'content' => cost_for('content_generation_cost'),
             'regen'   => cost_for('content_regeneration_cost'),
-            'design'  => cost_for('content_design_cost'),
+            'design'  => design_credit_cost(),
             'eval'    => (int) get_setting('campaign_eval_cost', 0),
             'ideas'   => array_combine(range(1, CAMP_MAX_IDEAS), array_map('idea_credits_for', range(1, CAMP_MAX_IDEAS))),
             'plan_eval' => max(0, (int) get_setting('campaign_plan_eval_cost', '1')),

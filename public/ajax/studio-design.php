@@ -214,7 +214,7 @@ if ($mode === 'free' && $freePrompt === '') {
 if ($__g = plan_gate((int) $user['id'], 'designs')) {
     json_response(['ok' => false, 'error' => $__g, 'code' => 'quota']);
 }
-$cost = cost_for('content_design_cost');
+$cost = design_credit_cost();
 if (!credits_consume((int) $user['id'], $cost, 'تصميم من الاستوديو (' . $mode . ')', 'studio', null)) {
     json_response(['ok' => false, 'error' => credits_short_msg($cost)]);
 }

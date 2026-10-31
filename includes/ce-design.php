@@ -290,6 +290,8 @@ function ce_design_job(array $job, array &$state): array
     $n = count($state['queue']);
     $prog = fn(float $sub) => (int) max(1, min(98, round(100 * ($state['i'] + $sub) / max(1, $n))));
     if ($state['i'] >= $n) {
+        // «صورة جديدة» اتعملت ← تصميم من الحصة (ref بالسالب + رقم مميز عشان كل إعادة تتحسب لوحدها)
+        if (!empty($state['redo']) && $state['done'] > 0 && function_exists('plan_event')) plan_event($uid, 'designs', -((int) $state['redo'] * 1000 + (int) ($job['id'] % 1000)));
         return ['done' => true, 'result' => ['designs' => $state['done'], 'images' => $state['images']], 'used_credits' => ce_design_cancel_cost($state)];
     }
     [$slotId, $frameNo] = $state['queue'][$state['i']];
@@ -409,6 +411,7 @@ function ce_design_job(array $job, array &$state): array
 /** الإلغاء في النص: الصور اللي اتولّدت بتتحسب والباقي بيرجع */
 function ce_design_cancel_cost(array $state): int
 {
+    if (ce_billing_fixed()) return 0;   // التصميم من حصة الباقة
     return max(ce_design_rules()['min_credits'] * (int) ($state['images'] ?? 0), ce_usd_to_credits((float) ($state['cost_usd'] ?? 0)));
 }
 
@@ -417,6 +420,7 @@ function ce_design_cancel_cost(array $state): int
 /** كريدت التصميم: (برومبت + صورة + مراجعة) لكل صورة AI × (1 + احتمال الإعادة) — مش أقل من الحد الأدنى للصورة */
 function ce_design_hold_credits(array $c, int $aiFrames): int
 {
+    if (ce_billing_fixed()) return 0;   // التصميم من حصة الباقة
     if ($aiFrames <= 0) return 0;
     $e = json_decode((string) ($c['estimate_json'] ?? ''), true) ?: [];
     $per = 0.0;
@@ -464,6 +468,14 @@ function ce_design_prepare(int $uid, array $c, bool $reelCover = false): array
     return [$queue, $ai];
 }
 
+/** الباقي من حصة التصميمات (null = الباقة مالهاش حد) */
+function ce_designs_left(int $uid): ?int
+{
+    if (!function_exists('plan_usage')) return null;
+    foreach (plan_usage($uid)['units'] as $u) if ($u['key'] === 'designs') return $u['open'] ? null : (int) $u['left'];
+    return null;
+}
+
 /** ابدأ تصميم الحملة (بعد الكتابة) — اللي اتصمم قبل كده بيفضل */
 function ce_design_start(int $uid, int $cid, ?bool $reelCover = null): array
 {
@@ -482,6 +494,11 @@ function ce_design_start(int $uid, int $cid, ?bool $reelCover = null): array
     }
     [$queue, $ai] = ce_design_prepare($uid, $c, ce_reel_cover_wanted($c));
     if (!$queue) return ['ok' => false, 'code' => 'nothing', 'error' => 'كل التصميمات جاهزة'];
+    // حصة التصميمات: الحملة كلها لازم تكفيها (عشان ماتقفش في النص)
+    if (function_exists('plan_gate') && ($g = plan_gate($uid, 'designs', count($queue)))) {
+        db_run('UPDATE ce_designs SET status = "failed" WHERE campaign_id = ? AND status = "pending"', [$cid]);
+        return ['ok' => false, 'code' => 'quota', 'error' => $g];
+    }
     return ce_job_create($uid, 'campaign_design', ['queue' => $queue], [
         'ref_type' => 'ce_campaign', 'ref_id' => $cid, 'credits' => ce_design_hold_credits($c, $ai),
         'idem_key' => 'design:' . $cid . ':' . bin2hex(random_bytes(6)), 'note' => 'تصميم الحملة: ' . mb_substr((string) $c['title'], 0, 80), 'max_attempts' => 4,
@@ -498,7 +515,9 @@ function ce_design_redo(int $uid, int $cid, int $slotId, int $frame): array
     if (!$d) return ['ok' => false, 'code' => 'not_found', 'error' => 'التصميم مش موجود'];
     if ($d['kind'] !== 'ai') return ['ok' => false, 'code' => 'state', 'error' => 'الشريحة دي نص على خلفية البراند — عدّل نصها أو قالبها'];
     if (ce_job_active_for($uid, 'campaign_design', 'ce_campaign', $cid)) return ['ok' => false, 'code' => 'busy', 'error' => 'فيه تصميم شغال على الحملة دي — استنى لما يخلص'];
-    $r = ce_job_create($uid, 'campaign_design', ['queue' => [[$slotId, $frame]]], [
+    // «صورة جديدة» بطلب العميل = تصميم من الحصة (بيتسجل لما الصورة تخلص)
+    if (function_exists('plan_gate') && ($g = plan_gate($uid, 'designs'))) return ['ok' => false, 'code' => 'quota', 'error' => $g];
+    $r = ce_job_create($uid, 'campaign_design', ['queue' => [[$slotId, $frame]], 'redo' => (int) $d['id']], [
         'ref_type' => 'ce_campaign', 'ref_id' => $cid, 'credits' => ce_design_hold_credits($c, 1),
         'idem_key' => 'dredo:' . $d['id'] . ':' . bin2hex(random_bytes(4)), 'note' => 'صورة جديدة لتصميم', 'max_attempts' => 3,
     ]);
@@ -576,6 +595,8 @@ function ce_design_view(int $uid, array $c): array
     return [
         'ready' => true, 'by_slot' => $rows, 'job' => $job ? ce_job_public($job) : null, 'templates' => $tpls, 'rules' => ce_design_rules(),
         'pending' => $pending, 'credits' => $pending ? ce_design_hold_credits($c, $ai) : 0,
+        // حصة التصميمات: الباقي من الباقة (null = مفتوح)
+        'designs_left' => ce_designs_left($uid),
         // أغلفة الريلز اختيارية: عددها والكريدت لو العميل اختارها
         'reels' => $reels, 'credits_reels' => $reels ? ce_design_hold_credits($c, $ai + $reels) : 0, 'reel_cover' => ce_reel_cover_wanted($c),
         'brand_fonts' => ce_brand_fonts($uid),

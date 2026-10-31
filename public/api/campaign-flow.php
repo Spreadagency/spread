@@ -289,7 +289,7 @@ switch ($action) {
         $__unitNew = $fmt === 'video' ? 'videos' : 'posts';
         $__unitOld = $old ? ((string) ($old['format'] ?? 'post') === 'video' ? 'videos' : 'posts') : null;
         if ((!$old || $__unitOld !== $__unitNew) && ($__g = plan_gate($uid, $__unitNew))) api_fail($__g, 'quota', 402, ['upgrade' => plan_upgrade_link()]);
-        $cost = $old ? cost_for('content_regeneration_cost') : cost_for('content_generation_cost');
+        $cost = $old ? cost_for('content_regeneration_cost') : cost_for_format($fmt);
         cf_charge($uid, $cost, ($old ? 'إعادة كتابة' : 'محتوى') . ' فكرة: ' . mb_substr($i['title'], 0, 60), 'campaign_idea', (int) $i['id']);
 
         $formatChanged = $old && ($old['format'] !== $fmt || ($fmt === 'carousel' && (int) $old['slides_count'] !== $slides));

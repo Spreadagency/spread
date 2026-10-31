@@ -17,6 +17,10 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/account.php';
 require_once __DIR__ . '/../includes/ce-design.php';
+// الاختبار ده بيتأكد من حساب التكلفة الفعلية (ce_billing_mode = actual) — الحساب الثابت ليه اختباره في tests/pk1-billing.php
+$__billMode = get_setting('ce_billing_mode', null);
+set_setting('ce_billing_mode', 'actual');
+register_shutdown_function(function () use ($__billMode) { $__billMode === null ? db_run('DELETE FROM settings WHERE setting_key = "ce_billing_mode"') : set_setting('ce_billing_mode', (string) $__billMode); });
 if (!ce_ready() || !ce_write_ready() || !ce_design_ready()) exit("شغّل ترحيلات المحرك لحد 2026_ce_design الأول\n");
 
 $pass = 0; $fail = 0;

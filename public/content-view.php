@@ -26,7 +26,7 @@ require_once __DIR__ . '/../includes/social.php';
 // اتصالات النشر بتاعة العميل (لو الميزة مفعّلة له)
 $socialOn = feature_allows((int) $user['id']);
 $myConnections = $socialOn ? user_connections((int) $user['id'], 'active') : [];
-$designCost = cost_for('content_design_cost');
+$designCost = design_credit_cost();
 $aiEditCost = cost_for('ai_edit_cost');
 $__locked = in_array((string) ($content['publish_status'] ?? ''), ['published', 'scheduled', 'processing'], true) || !empty($content['published_at']);
 $__selDesign = (int) ($content['selected_image_id'] ?? 0) ?: (int) ($designs[0]['id'] ?? 0);
@@ -180,7 +180,7 @@ include __DIR__ . '/../templates/header.php';
                 <div class="card mt-20" id="design">
                     <div class="card-head">
                         <h3>🎨 التصميمات</h3>
-                        <button class="btn sm" id="design-btn" onclick="generateDesign()">＋ توليد تصميم (<?= $designCost ?> كريدت)</button>
+                        <button class="btn sm" id="design-btn" onclick="generateDesign()">＋ توليد تصميم (<?= e(design_cost_text()) ?>)</button>
                     </div>
                     <!-- Phase 3: فكرة التصميم -->
                     <div class="field" style="margin-bottom:12px">
@@ -268,7 +268,7 @@ include __DIR__ . '/../templates/header.php';
                             <textarea id="cv-dinstr" class="textarea" rows="2" maxlength="600" placeholder="مثلًا: كبّر اللوجو وخلّي الخلفية أفتح"></textarea>
                             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
                                 <button type="button" class="btn" id="cv-dedit-btn" onclick="cvDesignEdit()">تعديل التصميم ✨</button>
-                                <small class="text-mute"><span class="cr"><?= $designCost ?> كريدت · </span>النسخة الجديدة هتبقى الغلاف، والقديمة بتفضل موجودة</small>
+                                <small class="text-mute"><span class="cr"><?= e(design_cost_text()) ?> · </span>النسخة الجديدة هتبقى الغلاف، والقديمة بتفضل موجودة</small>
                             </div>
                         </div>
                         <div class="cv-dpane" data-pane="pick" style="display:none">

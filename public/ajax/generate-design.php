@@ -119,7 +119,7 @@ if ($format === 'carousel') {
 if ($__g = plan_gate((int) $user['id'], 'designs', $__need)) {
     json_response(['ok' => false, 'error' => $__g, 'code' => 'quota']);
 }
-$cost = cost_for('content_design_cost');
+$cost = design_credit_cost();
 if (!credits_consume((int) $user['id'], $cost, 'توليد تصميم للمحتوى #' . $contentId . ($slideNo ? ' — شريحة ' . $slideNo : ''), 'design', $contentId)) {
     json_response(['ok' => false, 'error' => credits_short_msg($cost)]);
 }

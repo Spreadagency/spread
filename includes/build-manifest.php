@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-10-29',
-  'generated' => '2026-10-29 12:05',
+  'date' => '2026-10-31',
+  'generated' => '2026-10-31 09:13',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -229,6 +229,7 @@ return array (
     220 => 'sql/2026_ce_publish_rollback.sql',
     221 => 'sql/2026_ce_perf_posts.sql',
     222 => 'sql/2026_ce_perf_posts_rollback.sql',
+    223 => 'docs/PACKAGES_PLAN.md',
   ),
   'files' => 
   array (
@@ -469,8 +470,8 @@ return array (
     ),
     'admin/packages.php' => 
     array (
-      'h' => '8414db84831ab818a5f454abb9972b7e',
-      's' => 20863,
+      'h' => '2e378d244c74ea189a7459e89586faae',
+      's' => 20852,
     ),
     'admin/payment-methods.php' => 
     array (
@@ -494,8 +495,8 @@ return array (
     ),
     'admin/pricing.php' => 
     array (
-      'h' => '32064554954286c636d451ab54f4110e',
-      's' => 9887,
+      'h' => 'f5610a7d20fe814e6b8ea8d1aa28651c',
+      's' => 12472,
     ),
     'admin/prompt-view.php' => 
     array (
@@ -802,6 +803,11 @@ return array (
       'h' => '29393934e21f51761da88fe05ceb86a3',
       's' => 21658,
     ),
+    'docs/PACKAGES_PLAN.md' => 
+    array (
+      'h' => '09c1466f66c8f6efe54200bc36bec957',
+      's' => 15566,
+    ),
     'docs/prompts-v1.md' => 
     array (
       'h' => '85059ceabb4763f3bdcdc0ba52f02d2e',
@@ -894,18 +900,18 @@ return array (
     ),
     'includes/campaign-flow.php' => 
     array (
-      'h' => '90b93e12bb6a87695caff3196c3a83ec',
-      's' => 55285,
+      'h' => '7c39d225e8e53ac0726e2a6f6c2a3de7',
+      's' => 55274,
     ),
     'includes/ce-campaign.php' => 
     array (
-      'h' => '775bf37ddcac37cab64701ed084d60da',
-      's' => 20990,
+      'h' => '078b470f41edeceaab73189858a15ee1',
+      's' => 21285,
     ),
     'includes/ce-design.php' => 
     array (
-      'h' => 'c1100ad9292b8e6be4f35f24b02f13df',
-      's' => 38695,
+      'h' => '53a0439c37ae475633a75c9d398ca868',
+      's' => 40350,
     ),
     'includes/ce-dna.php' => 
     array (
@@ -914,8 +920,8 @@ return array (
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => '47d74b17b783a1092eb38333f1b696ac',
-      's' => 22547,
+      'h' => 'bafe7f2e93562abfca4c6e43d042fc51',
+      's' => 23755,
     ),
     'includes/ce-lab.php' => 
     array (
@@ -939,8 +945,8 @@ return array (
     ),
     'includes/ce-plan.php' => 
     array (
-      'h' => '8a58c3cc661336506d483a3e0b3be24a',
-      's' => 48352,
+      'h' => '5ecb41964d5f65a9e62d8301e56917f1',
+      's' => 48513,
     ),
     'includes/ce-prompts.php' => 
     array (
@@ -989,8 +995,8 @@ return array (
     ),
     'includes/ce-write.php' => 
     array (
-      'h' => '30156ceeae1fda4aed700facccd87013',
-      's' => 47096,
+      'h' => 'b304ecf31ee220afd0d40d8717163a87',
+      's' => 47911,
     ),
     'includes/config.sample.php' => 
     array (
@@ -1004,8 +1010,8 @@ return array (
     ),
     'includes/credits.php' => 
     array (
-      'h' => 'b743a7bca2098d1f1a206fec6cb54601',
-      's' => 25415,
+      'h' => 'ec38d6231a32f07505d0ffd00d91f4c5',
+      's' => 26871,
     ),
     'includes/crypto.php' => 
     array (
@@ -1109,8 +1115,8 @@ return array (
     ),
     'includes/plans.php' => 
     array (
-      'h' => '840dedeed40d6374e00d46ecea26a213',
-      's' => 24823,
+      'h' => 'b066d806fe0b4a5d27010ea9ea94e443',
+      's' => 28085,
     ),
     'includes/promo.php' => 
     array (
@@ -1274,8 +1280,8 @@ return array (
     ),
     'public/ajax/generate-design.php' => 
     array (
-      'h' => '204eb315862794f835fbb9955a831295',
-      's' => 24600,
+      'h' => '1d5c9335a8e07d76f15382fa3eac2dbf',
+      's' => 24589,
     ),
     'public/ajax/generate-logo.php' => 
     array (
@@ -1324,8 +1330,8 @@ return array (
     ),
     'public/ajax/studio-design.php' => 
     array (
-      'h' => '3175222c254a642d6f93046a30c42ab9',
-      's' => 21340,
+      'h' => '0a102e2cb21609fe88d75cbd7e676bea',
+      's' => 21329,
     ),
     'public/ajax/studio-select.php' => 
     array (
@@ -1369,8 +1375,8 @@ return array (
     ),
     'public/api/campaign-flow.php' => 
     array (
-      'h' => 'cee5b532c67609a50586526edb02de32',
-      's' => 44949,
+      'h' => '65da9e610d1de468b1118a0b5ffa2abc',
+      's' => 44935,
     ),
     'public/api/campaigns.php' => 
     array (
@@ -1379,8 +1385,8 @@ return array (
     ),
     'public/api/contents.php' => 
     array (
-      'h' => 'b0434e898d994eb184906a9e934db10c',
-      's' => 36515,
+      'h' => '5525c5ff23463c1f8567ce433728a49c',
+      's' => 36504,
     ),
     'public/api/engine.php' => 
     array (
@@ -1404,8 +1410,8 @@ return array (
     ),
     'public/api/quick-post.php' => 
     array (
-      'h' => '890016870be56a985e5cbc82851f3356',
-      's' => 9714,
+      'h' => 'e22fc29d59dfa9cf7300e0f15f5b22dd',
+      's' => 9817,
     ),
     'public/api/research.php' => 
     array (
@@ -1419,8 +1425,8 @@ return array (
     ),
     'public/api/studio.php' => 
     array (
-      'h' => 'acb7077755580ed17f8adfba953d0b41',
-      's' => 31255,
+      'h' => '451dc3a69c2fc5a641742100c5212fc1',
+      's' => 31244,
     ),
     'public/api/v1/_init.php' => 
     array (
@@ -1549,8 +1555,8 @@ return array (
     ),
     'public/content-view.php' => 
     array (
-      'h' => '23379044df033924b6bd8dfa860db36b',
-      's' => 61398,
+      'h' => '22b0683b4bba5682c3865f086792bce5',
+      's' => 61385,
     ),
     'public/create-content.php' => 
     array (
@@ -1569,13 +1575,13 @@ return array (
     ),
     'public/design-studio.php' => 
     array (
-      'h' => '5373071c11506c4e231c0c13f087862a',
-      's' => 15467,
+      'h' => '3a16dd5741138873a479b52f4802afd5',
+      's' => 15478,
     ),
     'public/engine.php' => 
     array (
-      'h' => '46d6fb28cbff5e3234f0e0679ee352ae',
-      's' => 58435,
+      'h' => '8f335ce6426895f1ca4729f84d031241',
+      's' => 59073,
     ),
     'public/forgot-password.php' => 
     array (
@@ -1584,8 +1590,8 @@ return array (
     ),
     'public/help.php' => 
     array (
-      'h' => '95b11c27e03e65be60e2c906b89e2a95',
-      's' => 11945,
+      'h' => '2c2d35c135fb27e5fa53aa0b8b98390e',
+      's' => 11956,
     ),
     'public/index.php' => 
     array (

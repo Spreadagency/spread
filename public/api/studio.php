@@ -127,7 +127,7 @@ switch ($action) {
             'brand'   => ['name' => (string) ($brand['business_name'] ?? ''), 'logo' => !empty($brand['logo_path']) ? upload_url($brand['logo_path']) : null,
                           'health' => $health, 'adds' => $adds],
             'month'   => $month,
-            'costs'   => ['design' => cost_for('content_design_cost'), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
+            'costs'   => ['design' => design_credit_cost(), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
                           'balance' => credits_balance($uid)],
             'ratios'  => array_map(fn($k, $m) => ['key' => $k, 'label' => $m['label'], 'hint' => $m['hint']],
                                    array_keys(design_ratios()), array_values(design_ratios())),

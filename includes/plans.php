@@ -30,15 +30,15 @@ function plans_setting(string $k, $d)
     return ($v === null || $v === '') ? $d : $v;
 }
 
-/** وحدات الحصص: key => [emoji, label, en] */
+/**
+ * وحدات الحصص: key => [emoji, label, en]
+ * الباقات الجديدة: الكتابة كلها (منشورات · سكريبتات فيديو · ستوري …) والنشر بالكريدت — الحصص بقت التصميمات والأبحاث بس
+ */
 function plan_units(): array
 {
     return [
-        'posts'     => ['📝', 'منشورات', 'Posts'],
         'designs'   => ['🎨', 'تصميمات', 'Designs'],
-        'publishes' => ['📤', 'نشر', 'Publishing'],
         'research'  => ['🔬', 'أبحاث', 'Research'],
-        'videos'    => ['🎬', 'سكريبتات فيديو', 'Video scripts'],
     ];
 }
 
@@ -125,9 +125,18 @@ function plan_used(int $uid, string $unit, string $from, string $to): int
                     return 0;
                 }
             case 'designs':
-                $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ? AND credits_used > 0', [$uid, $from, $to])['n'] ?? 0);
+                // تصميمات الموقع: اللي اتولّدت بالـ AI (اتخصم عليها كريدت قديمًا أو متعلّم عليها الموديل) — المرفوع والمنسوخ من الاستوديو مابيتحسبش
+                $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?
+                                    AND (credits_used > 0 OR (provider IS NOT NULL AND COALESCE(model, "") <> "upload"))', [$uid, $from, $to])['n'] ?? 0);
                 try {
                     $n += (int) (db_one('SELECT COUNT(*) n FROM studio_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?', [$uid, $from, $to])['n'] ?? 0);
+                } catch (\Throwable $e) {}
+                // محرك المحتوى: كل تصميم نهائي (الإعادات الداخلية بعد مراجعة الصورة مابتتحسبش) + «صورة جديدة» بطلب العميل
+                try {
+                    $n += (int) (db_one('SELECT COUNT(*) n FROM ce_designs WHERE user_id = ? AND created_at >= ? AND created_at < ? AND status IN ("pass", "manual")', [$uid, $from, $to])['n'] ?? 0);
+                } catch (\Throwable $e) {}
+                try {
+                    $n += (int) (db_one('SELECT COUNT(*) n FROM usage_events WHERE user_id = ? AND unit = "designs" AND created_at >= ? AND created_at < ?', [$uid, $from, $to])['n'] ?? 0);
                 } catch (\Throwable $e) {}
                 return $n;
             case 'research':
@@ -204,6 +213,11 @@ function plan_usage(int $uid, bool $fresh = false): array
  */
 function plan_gate(int $uid, string $unit, int $n = 1): ?string
 {
+    // النشر بقى بالكريدت (مش حصة): الرصيد لازم يكفي سعر النشر
+    if ($unit === 'publishes') {
+        $cost = function_exists('publish_credit_cost') ? publish_credit_cost() * max(1, $n) : 0;
+        return $cost > 0 && function_exists('credits_balance') && credits_balance($uid) < $cost ? credits_short_msg($cost, 'النشر') : null;
+    }
     if ((string) plans_setting('quotas_enforced', '1') !== '1' || !plans_ready()) return null;
     $plan = plan_active($uid);
     $lim = plan_limits($uid, $plan);
@@ -278,12 +292,32 @@ function plan_counted(int $uid, string $unit, int $refId): bool
     }
 }
 
-/** تسجيل حدث استهلاك (مرة واحدة لكل عنصر) — للنشر */
+/** رجوع كريدت النشر: آخر خصم للمنشور ده لو مالوش استرداد بعده */
+function publish_credit_refund(int $uid, int $refId): void
+{
+    try {
+        $c = db_one('SELECT id, amount, created_at FROM credit_transactions WHERE user_id = ? AND action_type = "consume" AND reference_type = "publish" AND reference_id = ? ORDER BY id DESC LIMIT 1', [$uid, $refId]);
+        if (!$c) return;
+        if (db_one('SELECT id FROM credit_transactions WHERE user_id = ? AND action_type = "add" AND reference_type = "refund" AND reference_id = ? AND notes LIKE "استرداد نشر%" AND id > ?', [$uid, $refId, (int) $c['id']])) return;
+        credits_add($uid, (int) $c['amount'], 'استرداد نشر: اتلغى أو ماتنشرش', null, 'refund', $refId);
+    } catch (\Throwable $e) {
+        error_log('[publish_refund] ' . $e->getMessage());
+    }
+}
+
+/**
+ * تسجيل حدث استهلاك (مرة واحدة لكل عنصر) — للنشر وتصميمات المحرك اللي بطلب العميل
+ * النشر: أول مرة المنشور بيتسجل ← بيتخصم كريدت النشر (المنشور الواحد مرة واحدة مهما اتنشر على كام منصة)
+ */
 function plan_event(int $uid, string $unit, int $refId): void
 {
     if (!plans_ready()) return;
     try {
-        db_run('INSERT INTO usage_events (user_id, unit, ref_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE created_at = IF(created_at < DATE_SUB(NOW(), INTERVAL 1 DAY), NOW(), created_at)', [$uid, $unit, $refId]);
+        $st = db()->prepare('INSERT INTO usage_events (user_id, unit, ref_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE created_at = IF(created_at < DATE_SUB(NOW(), INTERVAL 1 DAY), NOW(), created_at)');
+        $st->execute([$uid, $unit, $refId]);
+        if ($unit === 'publishes' && $st->rowCount() === 1 && function_exists('publish_credit_cost') && ($cost = publish_credit_cost()) > 0) {
+            if (!credits_consume($uid, $cost, 'نشر منشور', 'publish', $refId)) error_log('[plan_event] publish charge failed u' . $uid . ' ref ' . $refId);
+        }
     } catch (\Throwable $e) {}
 }
 
@@ -292,8 +326,11 @@ function plan_event_release(int $uid, string $unit, int $refId): void
 {
     if (!plans_ready()) return;
     try {
-        if ($unit === 'publishes' && db_one('SELECT id FROM contents WHERE id = ? AND published_at IS NOT NULL', [$refId])) return;
-        db_run('DELETE FROM usage_events WHERE user_id = ? AND unit = ? AND ref_id = ?', [$uid, $unit, $refId]);
+        if ($unit === 'publishes' && $refId > 0 && db_one('SELECT id FROM contents WHERE id = ? AND published_at IS NOT NULL', [$refId])) return;
+        $st = db()->prepare('DELETE FROM usage_events WHERE user_id = ? AND unit = ? AND ref_id = ?');
+        $st->execute([$uid, $unit, $refId]);
+        // النشر اتلغى أو فشل ← كريدت النشر بيرجع (لو كان اتخصم ولسه مارجعش)
+        if ($unit === 'publishes' && $st->rowCount() > 0) publish_credit_refund($uid, $refId);
     } catch (\Throwable $e) {}
 }
 
