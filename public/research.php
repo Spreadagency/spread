@@ -17,6 +17,11 @@ $uid = (int) $user['id'];
 if (!function_exists('ui_v2_enabled') || !ui_v2_enabled() || get_setting('research_enabled', '1') !== '1') {
     redirect('dashboard.php');
 }
+// البحث مش في باقة العميل ← صفحة الباقات
+if (function_exists('pkg_research_allowed') && !pkg_research_allowed($uid)) {
+    flash_set('info', 'البحث العميق مش في باقتك — رقّي باقتك علشان تفتحه');
+    redirect('packages.php');
+}
 require_once __DIR__ . '/../includes/ui-v2.php';
 
 $brand = brand_for_user($uid);

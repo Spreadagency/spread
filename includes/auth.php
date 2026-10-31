@@ -155,12 +155,17 @@ function register_user(string $name, string $email, string $password): array
         [$name, $email, password_hash($password, PASSWORD_BCRYPT), 'user', 'active']
     );
 
-    // Create credit wallet with starter credits
-    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, STARTER_CREDITS]);
-    db_run(
-        'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, ?, ?, ?, ?)',
-        [$userId, 'add', STARTER_CREDITS, 'signup', 'كريدت ترحيبي عند التسجيل']
-    );
+    // Create credit wallet with starter credits (لو الأدمن اختار «باقة التسجيل» ← الكريدت والحصص بييجوا منها)
+    require_once __DIR__ . '/credits.php';
+    $starter = function_exists('pkg_signup_starter') ? pkg_signup_starter() : STARTER_CREDITS;
+    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, $starter]);
+    if ($starter > 0) {
+        db_run(
+            'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, ?, ?, ?, ?)',
+            [$userId, 'add', $starter, 'signup', 'كريدت ترحيبي عند التسجيل']
+        );
+    }
+    if (function_exists('pkg_signup_grant')) pkg_signup_grant((int) $userId);
 
     // Create empty brand profile
     db_run(

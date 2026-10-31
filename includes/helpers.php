@@ -456,6 +456,8 @@ function menu_visible(string $key): bool
     if ($hidden === null) {
         $hidden = array_filter(array_map('trim', explode(',', (string) (function_exists('get_setting') ? get_setting('menu_hidden', '') : ''))));
     }
+    // البحث بيختفي لو مش في باقة العميل
+    if ($key === 'research' && !empty($_SESSION['user_id']) && function_exists('pkg_research_allowed') && !pkg_research_allowed((int) $_SESSION['user_id'])) return false;
     return !in_array($key, $hidden, true);
 }
 

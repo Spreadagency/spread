@@ -64,10 +64,10 @@ function plan_quotas_decode(?string $json): array
  * الدورة الحالية للعميل.
  * لو مفيش دورة مسجّلة (عملاء قبل 8-ب / رصيد مجاني): دورة من آخر شحن لحد انتهاء الصلاحية ومن غير حصص.
  */
-function plan_active(int $uid): array
+function plan_active(int $uid, bool $fresh = false): array
 {
     static $cache = [];
-    if (isset($cache[$uid])) return $cache[$uid];
+    if (!$fresh && isset($cache[$uid])) return $cache[$uid];
     if (plans_ready()) {
         try {
             $r = db_one('SELECT * FROM user_plans WHERE user_id = ? AND status = "active" AND ends_at > NOW() ORDER BY id DESC LIMIT 1', [$uid]);
@@ -76,6 +76,9 @@ function plan_active(int $uid): array
                     'id' => (int) $r['id'], 'name' => (string) $r['name'], 'package_id' => $r['package_id'] ? (int) $r['package_id'] : null,
                     'source' => (string) $r['source'], 'starts' => (string) $r['starts_at'], 'ends' => (string) $r['ends_at'],
                     'allowance' => (int) $r['credits_allowance'], 'quotas' => plan_quotas_decode($r['quotas_json']), 'synthetic' => false,
+                    // الباقات الجديدة (لقطة وقت الاشتراك)
+                    'weekly_credits' => (int) ($r['weekly_credits'] ?? 0), 'weekly_designs' => (int) ($r['weekly_designs'] ?? 0),
+                    'quality_tier' => (string) ($r['quality_tier'] ?? 'standard'), 'allow_research' => (int) ($r['allow_research'] ?? 1),
                 ];
             }
         } catch (\Throwable $e) {
@@ -218,7 +221,15 @@ function plan_gate(int $uid, string $unit, int $n = 1): ?string
         $cost = function_exists('publish_credit_cost') ? publish_credit_cost() * max(1, $n) : 0;
         return $cost > 0 && function_exists('credits_balance') && credits_balance($uid) < $cost ? credits_short_msg($cost, 'النشر') : null;
     }
+    // البحث مش في الباقة ← مقفول (حتى لو الحصص مش متطبقة)
+    if ($unit === 'research' && function_exists('pkg_research_allowed') && !pkg_research_allowed($uid)) {
+        return 'البحث العميق مش في باقتك — رقّي باقتك علشان تفتحه.';
+    }
     if ((string) plans_setting('quotas_enforced', '1') !== '1' || !plans_ready()) return null;
+    // الحد الأسبوعي للتصميمات (الباقات الطويلة) — تراكمي
+    if ($unit === 'designs' && function_exists('pkg_weekly_designs') && ($wk = pkg_weekly_designs($uid)) && $wk['used'] + $n > $wk['allow']) {
+        return 'وصلت لحد التصميمات في الأسبوع ده (فاضل ' . $wk['left'] . ') — بيزيد ' . $wk['weekly'] . ' يوم ' . (function_exists('fmt_date') ? fmt_date($wk['next']) : $wk['next']) . '، أو اشتري تصميمات زيادة.';
+    }
     $plan = plan_active($uid);
     $lim = plan_limits($uid, $plan);
     $l = $lim[$unit] ?? null;
@@ -250,6 +261,8 @@ function plan_gate(int $uid, string $unit, int $n = 1): ?string
 /** رسالة «مش كفاية» حسب طريقة العرض */
 function credits_short_msg(int $need = 0, string $what = ''): string
 {
+    // الخصم اتمنع بسبب الحد الأسبوعي (مش الرصيد)
+    if (!empty($GLOBALS['credits_block_msg'])) return (string) $GLOBALS['credits_block_msg'];
     if (credits_show_numbers()) {
         return 'رصيدك مش كفاية' . ($what !== '' ? ' — ' . $what : '') . ($need > 0 ? ' — محتاج ' . $need . ' كريدت' : '');
     }
@@ -338,19 +351,29 @@ function plan_event_release(int $uid, string $unit, int $refId): void
  * بداية دورة جديدة (شراء/تفعيل باقة). الدورة القديمة بتتقفل كـ replaced.
  * @return int|null id الدورة
  */
-function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, string $source = 'paid', ?int $by = null, ?string $note = null): ?int
+function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, string $source = 'paid', ?int $by = null, ?string $note = null, array $opts = []): ?int
 {
     if (!plans_ready()) return null;
     try {
         $pkg = $packageId ? db_one('SELECT * FROM credit_packages WHERE id = ?', [$packageId]) : null;
         $days = max(1, (int) ($days ?: ($pkg['validity_days'] ?? plans_setting('default_credit_validity_days', 30))));
         $name = $pkg ? (string) $pkg['name'] : 'باقة مخصصة';
+        // حصص المدة اللي اتشترت (لو فيه) بدل حصص الباقة الأساسية
+        $quotas = $opts['quotas_json'] ?? ($pkg['quotas_json'] ?? null);
         db_run('UPDATE user_plans SET status = "replaced" WHERE user_id = ? AND status = "active"', [$uid]);
         $id = db_insert(
             'INSERT INTO user_plans (user_id, package_id, name, source, starts_at, ends_at, credits_allowance, quotas_json, note, created_by)
              VALUES (?,?,?,?, NOW(), DATE_ADD(NOW(), INTERVAL ? DAY), ?, ?, ?, ?)',
-            [$uid, $packageId, $name, $source, $days, $credits, $pkg['quotas_json'] ?? null, $note ? mb_substr($note, 0, 255) : null, $by]
+            [$uid, $packageId, $name, $source, $days, $credits, $quotas, $note ? mb_substr($note, 0, 255) : null, $by]
         );
+        // الباقات الجديدة: الحد الأسبوعي · مستوى الجودة · البحث · المدة
+        if ($id && function_exists('pkg_v2_ready') && pkg_v2_ready()) {
+            db_run('UPDATE user_plans SET weekly_credits = ?, weekly_designs = ?, quality_tier = ?, allow_research = ?, price_id = ? WHERE id = ?', [
+                (int) ($pkg['weekly_credits'] ?? 0), (int) ($pkg['weekly_designs'] ?? 0), (string) ($pkg['quality_tier'] ?? 'standard'),
+                (int) ($pkg['allow_research'] ?? 1), isset($opts['price_id']) ? (int) $opts['price_id'] : null, $id]);
+        }
+        plan_active($uid, true);   // الدورة الجديدة تبان في نفس الطلب
+        if (function_exists('plan_usage')) plan_usage($uid, true);
         return $id ?: null;
     } catch (\Throwable $e) {
         error_log('[plans] start ' . $e->getMessage());

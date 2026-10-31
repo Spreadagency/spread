@@ -71,6 +71,9 @@ include __DIR__ . '/../templates/header.php';
                 $feats = billing_features($p);
                 $isCur = $curPkg === (int) $p['id'];
                 $isPend = in_array((string) $p['id'], array_map('strval', $pendingPkgs), true);
+                // المدد (شهري · 3 شهور · سنة …) — الكارت بيبدأ بأول مدة والعميل بيبدّل
+                $vars = function_exists('pkg_prices') ? array_values(array_filter(array_map(fn($x) => pkg_variant($p, (int) $x['id']), pkg_prices((int) $p['id'])))) : [];
+                if ($vars) $p = $vars[0];
                 $q = function_exists('plan_quotas_decode') ? array_filter(plan_quotas_decode($p['quotas_json'] ?? null)) : [];
             ?>
             <article class="card bl-plan<?= !empty($p['is_featured']) ? ' featured' : '' ?><?= $isCur ? ' current' : '' ?>" id="pkg-<?= (int) $p['id'] ?>">
@@ -80,10 +83,20 @@ include __DIR__ . '/../templates/header.php';
                     <?php elseif ($isPend): ?><em class="bl-tag warn">طلبك بيتراجع</em>
                     <?php elseif (!empty($p['badge'])): ?><em class="bl-tag"><?= e($p['badge']) ?></em><?php endif; ?>
                 </div>
-                <div class="bl-price"><b><?= number_format((float) $p['price_egp'], 0) ?></b> <span>جنيه</span></div>
+                <?php if (count($vars) > 1): ?>
+                <div class="bl-durs" role="radiogroup" aria-label="المدة">
+                    <?php foreach ($vars as $vi => $v): ?>
+                        <button type="button" class="bl-dur<?= $vi ? '' : ' on' ?>" role="radio" aria-checked="<?= $vi ? 'false' : 'true' ?>"
+                            data-price="<?= e(number_format((float) $v['price_egp'], 0)) ?>" data-compare="<?= $v['compare_egp'] ? e(number_format((float) $v['compare_egp'], 0)) : '' ?>"
+                            data-credits="<?= (int) $v['credits'] ?>" data-days="<?= e(pkg_duration_text((int) $v['validity_days'])) ?>" data-designs="<?= (int) (plan_quotas_decode($v['quotas_json'])['designs'] ?? 0) ?>" data-research="<?= (int) (plan_quotas_decode($v['quotas_json'])['research'] ?? 0) ?>"
+                            data-href="<?= e(url('checkout.php?package=' . (int) $v['id'] . '&price=' . (int) $v['price_id'] . $promoQ)) ?>" onclick="blDur(this)"><?= e($v['duration_label']) ?></button>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+                <div class="bl-price"><s class="sub bl-was" <?= empty($p['compare_egp']) ? 'hidden' : '' ?>><?= !empty($p['compare_egp']) ? number_format((float) $p['compare_egp'], 0) : '' ?></s> <b class="bl-p"><?= number_format((float) $p['price_egp'], 0) ?></b> <span>جنيه</span></div>
                 <div class="bl-meta">
-                    <?php if ($crShow): ?><span>◇ <b><?= (int) $p['credits'] ?></b> كريدت</span><?php endif; ?>
-                    <span>⏳ <b><?= (int) ($p['validity_days'] ?? 30) ?></b> يوم</span>
+                    <?php if ($crShow): ?><span>◇ <b class="bl-c"><?= (int) $p['credits'] ?></b> كريدت</span><?php endif; ?>
+                    <span>⏳ <b class="bl-d"><?= e(function_exists('pkg_duration_text') ? pkg_duration_text((int) ($p['validity_days'] ?? 30)) : (int) ($p['validity_days'] ?? 30) . ' يوم') ?></b></span>
                 </div>
                 <?php if ((int) ($p['bonus_credits'] ?? 0) > 0 || !empty($p['bonus_note'])): ?>
                     <div class="bl-bonus">🎁 <?= (int) ($p['bonus_credits'] ?? 0) > 0 ? '+' . (int) $p['bonus_credits'] . ' كريدت هدية' : '' ?><?= !empty($p['bonus_note']) ? ((int) ($p['bonus_credits'] ?? 0) > 0 ? ' · ' : '') . e($p['bonus_note']) : '' ?></div>
@@ -91,7 +104,10 @@ include __DIR__ . '/../templates/header.php';
                 <?php if (!empty($p['description'])): ?><p class="sub bl-desc"><?= e($p['description']) ?></p><?php endif; ?>
                 <?php if ($q || $feats): ?>
                 <ul class="bl-feats">
-                    <?php foreach ($q as $k => $n): ?><li><?= plan_units()[$k][0] ?? '•' ?> <b><?= (int) $n ?></b> <?= e(plan_units()[$k][1] ?? $k) ?></li><?php endforeach; ?>
+                    <?php foreach ($q as $k => $n): ?><li><?= plan_units()[$k][0] ?? '•' ?> <b class="<?= $k === 'designs' ? 'bl-ds' : ($k === 'research' ? 'bl-rs' : '') ?>"><?= (int) $n ?></b> <?= e(plan_units()[$k][1] ?? $k) ?></li><?php endforeach; ?>
+                    <?php if (function_exists('pkg_tiers') && isset($p['quality_tier'])): ?><li>⭐ جودة <?= e(pkg_tiers()[$p['quality_tier']] ?? 'عادي') ?></li><?php endif; ?>
+                    <?php if (isset($p['allow_research']) && !(int) $p['allow_research']): ?><li class="sub">من غير بحث عميق</li><?php endif; ?>
+                    <?php if ((int) ($p['weekly_credits'] ?? 0) > 0): ?><li>⏱ لحد <?= (int) $p['weekly_credits'] ?> كريدت في الأسبوع (اللي مايتصرفش بيفضل)</li><?php endif; ?>
                     <?php foreach (array_slice($feats, 0, 10) as $f): ?><li>✓ <?= e($f) ?></li><?php endforeach; ?>
                 </ul>
                 <?php endif; ?>
@@ -99,7 +115,7 @@ include __DIR__ . '/../templates/header.php';
                     <?php if ($isPend): ?>
                         <a href="<?= url('payments.php') ?>" class="btn ghost full">تابع طلبك</a>
                     <?php elseif ($hasMethods): ?>
-                        <a href="<?= url('checkout.php?package=' . (int) $p['id'] . $promoQ) ?>" class="btn full"><?= $isCur ? 'جدّد الباقة' : 'اشترك دلوقتي' ?></a>
+                        <a href="<?= url('checkout.php?package=' . (int) $p['id'] . (!empty($p['price_id']) ? '&price=' . (int) $p['price_id'] : '') . $promoQ) ?>" class="btn full bl-go"><?= $isCur ? 'جدّد الباقة' : 'اشترك دلوقتي' ?></a>
                     <?php elseif ($paymobReady): ?>
                         <a href="<?= url('credits.php#pkg-' . (int) $p['id']) ?>" class="btn full">ادفع أونلاين</a>
                     <?php else: ?>
@@ -111,6 +127,35 @@ include __DIR__ . '/../templates/header.php';
         </div>
         <p class="sub bl-how">① اختار الباقة ← ② حوّل المبلغ (إنستاباي / فودافون كاش) ← ③ ارفع صورة الإيصال ← ④ بنراجع ونفعّل الباقة، وبيوصلك إشعار.</p>
         <?php endif; ?>
+
+        <?php $__addons = function_exists('addon_packs') ? addon_packs() : []; if ($__addons && $hasMethods): $__blocked = addon_blocked($uid); ?>
+        <section class="bl-addons" id="addons">
+            <h2>➕ زوّد باقتك</h2>
+            <p class="sub"><?= $__blocked ? e($__blocked) : 'تصميمات زيادة لحد آخر باقتك · كريدت مساعد صالح شهر استخدام (لو الباقة خلصت بيقف ويكمل مع الجديدة)' ?></p>
+            <div class="bl-plans">
+                <?php foreach ($__addons as $a): ?>
+                <article class="card bl-plan">
+                    <b class="bl-plan-name"><?= e(addon_label($a)) ?></b>
+                    <div class="bl-price"><b><?= number_format((float) $a['price_egp'], 0) ?></b> <span>جنيه</span></div>
+                    <?php if (!empty($a['description'])): ?><p class="sub bl-desc"><?= e($a['description']) ?></p><?php endif; ?>
+                    <div class="bl-plan-act"><?php if ($__blocked): ?><button class="btn ghost full" disabled>محتاج باقة شغالة</button>
+                        <?php else: ?><a href="<?= url('checkout.php?addon=' . (int) $a['id']) ?>" class="btn full ghost">اشتري</a><?php endif; ?></div>
+                </article>
+                <?php endforeach; ?>
+            </div>
+        </section>
+        <?php endif; ?>
+<script>
+// تبديل المدة في كارت الباقة: السعر والكريدت والمدة واللينك
+function blDur(b) {
+    const card = b.closest('.bl-plan');
+    card.querySelectorAll('.bl-dur').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b ? 'true' : 'false'); });
+    const set = (sel, v) => { const el = card.querySelector(sel); if (el) el.textContent = v; };
+    set('.bl-p', b.dataset.price); set('.bl-c', b.dataset.credits); set('.bl-d', b.dataset.days); set('.bl-ds', b.dataset.designs); set('.bl-rs', b.dataset.research);
+    const was = card.querySelector('.bl-was'); if (was) { was.textContent = b.dataset.compare; was.hidden = !b.dataset.compare; }
+    const go = card.querySelector('.bl-go'); if (go) go.href = b.dataset.href;
+}
+</script>
     </main>
 </div>
 <?php include __DIR__ . '/../templates/footer.php'; ?>

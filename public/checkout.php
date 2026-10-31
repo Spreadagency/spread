@@ -12,12 +12,25 @@ require_login();
 $user = current_user();
 $uid = (int) $user['id'];
 
-$pkg = billing_package((int) ($_GET['package'] ?? 0));
-if (!$pkg) {
-    flash_set('warning', 'اختار باقة الأول');
-    redirect('packages.php');
+// إضافة (تصميمات زيادة / كريدت مساعد) ولا باقة بمدة
+$addon = !empty($_GET['addon']) && function_exists('addon_pack') ? addon_pack((int) $_GET['addon']) : null;
+if ($addon) {
+    if ($why = addon_blocked($uid)) {
+        flash_set('warning', $why);
+        redirect('packages.php');
+    }
+    $pkg = ['id' => 0, 'name' => addon_label($addon), 'price_egp' => (float) $addon['price_egp'], 'credits' => $addon['kind'] === 'credits' ? (int) $addon['amount'] : 0,
+            'validity_days' => (int) $addon['validity_days'], 'bonus_credits' => 0, 'price_id' => null, 'duration_label' => ''];
+    $dup = billing_ready() ? db_one('SELECT id FROM payment_requests WHERE user_id = ? AND addon_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, (int) $addon['id']]) : null;
+} else {
+    $pkg = billing_package((int) ($_GET['package'] ?? 0));
+    if ($pkg && function_exists('pkg_variant')) $pkg = pkg_variant($pkg, (int) ($_GET['price'] ?? 0) ?: null);
+    if (!$pkg) {
+        flash_set('warning', 'اختار باقة الأول');
+        redirect('packages.php');
+    }
+    $dup = billing_ready() ? db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]) : null;
 }
-$dup = billing_ready() ? db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]) : null;
 if ($dup) {
     flash_set('info', 'عندك طلب لنفس الباقة لسه بيتراجع — تابعه من هنا');
     redirect('payments.php?id=' . (int) $dup['id']);
@@ -52,14 +65,15 @@ include __DIR__ . '/../templates/header.php';
                 <section class="card bl-co-sec">
                     <h3>① الباقة</h3>
                     <div class="bl-co-plan">
-                        <div><b><?= e($pkg['name']) ?></b>
-                            <small class="sub"><?= $crShow ? (int) $pkg['credits'] . ' كريدت · ' : '' ?><?= (int) ($pkg['validity_days'] ?? 30) ?> يوم<?= $pkgBonus ? ' · 🎁 +' . $pkgBonus . ' كريدت هدية' : '' ?></small></div>
+                        <div><b><?= e($pkg['name']) ?><?= !empty($pkg['price_id']) ? ' — ' . e($pkg['duration_label']) : '' ?></b>
+                            <?php if ($addon): ?><small class="sub"><?= $addon['kind'] === 'credits' ? 'صالح ' . (int) $addon['validity_days'] . ' يوم استخدام مع باقتك (بيقف لو الباقة خلصت ويكمل مع الجديدة)' : 'لحد آخر باقتك الحالية' ?></small>
+                            <?php else: ?><small class="sub"><?= $crShow ? (int) $pkg['credits'] . ' كريدت · ' : '' ?><?= e(function_exists('pkg_duration_text') ? pkg_duration_text((int) ($pkg['validity_days'] ?? 30)) : (int) ($pkg['validity_days'] ?? 30) . ' يوم') ?><?= $pkgBonus ? ' · 🎁 +' . $pkgBonus . ' كريدت هدية' : '' ?></small><?php endif; ?></div>
                         <b class="bl-co-price"><?= number_format($price, 0) ?> <small>جنيه</small></b>
                     </div>
                 </section>
 
                 <!-- ② كود الخصم -->
-                <section class="card bl-co-sec">
+                <section class="card bl-co-sec" <?= $addon ? 'hidden' : '' ?>>
                     <h3>② كود الخصم <small class="sub">(اختياري)</small></h3>
                     <div class="bl-promo">
                         <input class="input" id="co-code" dir="ltr" maxlength="40" placeholder="SPREAD50" value="<?= e($initCode) ?>" autocomplete="off" style="text-transform:uppercase">
@@ -144,7 +158,7 @@ include __DIR__ . '/../templates/header.php';
 </div>
 
 <script>
-const CO = { pkg: <?= (int) $pkg['id'] ?>, price: <?= json_encode($price) ?>, bonus: <?= $pkgBonus ?>, days: <?= (int) ($pkg['validity_days'] ?? 30) ?>, code: '', final: <?= json_encode($price) ?> };
+const CO = { pkg: <?= (int) $pkg['id'] ?>, priceId: <?= (int) ($pkg['price_id'] ?? 0) ?>, addon: <?= (int) ($addon['id'] ?? 0) ?>, price: <?= json_encode($price) ?>, bonus: <?= $pkgBonus ?>, days: <?= (int) ($pkg['validity_days'] ?? 30) ?>, code: '', final: <?= json_encode($price) ?> };
 const csrf = () => document.querySelector('meta[name="csrf-token"]').content;
 const fmt = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج';
 
@@ -154,7 +168,7 @@ async function coApply() {
     if (!code) { coReset(); msg.textContent = ''; return; }
     btn.disabled = true; btn.textContent = '…';
     const method = (document.querySelector('input[name=method]:checked') || {}).value || '';
-    const r = await SpreadAPI.post('billing', 'quote', { package_id: CO.pkg, code: code, method: method });
+    const r = await SpreadAPI.post('billing', 'quote', { package_id: CO.pkg, price_id: CO.priceId, code: code, method: method });
     btn.disabled = false; btn.textContent = 'تطبيق';
     if (!r.ok) {
         coReset();
@@ -216,7 +230,7 @@ async function coSubmit(e) {
     const btn = document.getElementById('co-submit');
     btn.disabled = true; btn.textContent = 'بنبعت الطلب…';
     const fd = new FormData();
-    fd.append('action', 'submit'); fd.append('package_id', CO.pkg); fd.append('method', free ? '' : method);
+    fd.append('action', 'submit'); fd.append('package_id', CO.pkg); fd.append('price_id', CO.priceId); fd.append('addon_id', CO.addon); fd.append('method', free ? '' : method);
     fd.append('promo_code', CO.code); fd.append('transaction_ref', document.getElementById('co-ref').value.trim());
     fd.append('transferred_at', document.getElementById('co-at').value); fd.append('note', document.getElementById('co-note').value.trim());
     fd.append('phone', phone);

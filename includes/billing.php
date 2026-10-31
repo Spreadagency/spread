@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/promo.php';
+require_once __DIR__ . '/credits.php';   // + plans.php + packages.php (المدد والإضافات)
 
 const BILLING_PROOF_MAX = 6 * 1024 * 1024;
 
@@ -183,11 +184,27 @@ function billing_create_request(array $user, array $in, ?array $proofFile): arra
 {
     if (!billing_ready()) return ['ok' => false, 'error' => 'الدفع مش متاح دلوقتي — كلّم الدعم'];
     $uid = (int) $user['id'];
-    $pkg = billing_package((int) ($in['package_id'] ?? 0));
-    if (!$pkg) return ['ok' => false, 'error' => 'الباقة دي مش متاحة'];
+    // إضافة (تصميمات زيادة / كريدت مساعد) بدل باقة — مع باقة شغالة بس، ومن غير كود خصم
+    $addon = !empty($in['addon_id']) && function_exists('addon_pack') ? addon_pack((int) $in['addon_id']) : null;
+    if (!empty($in['addon_id']) && !$addon) return ['ok' => false, 'error' => 'الإضافة دي مش متاحة'];
+    if ($addon) {
+        if ($why = addon_blocked($uid)) return ['ok' => false, 'error' => $why];
+        if (trim((string) ($in['promo_code'] ?? '')) !== '') return ['ok' => false, 'error' => 'أكواد الخصم بتشتغل على الباقات بس'];
+        $pkg = ['id' => null, 'name' => 'إضافة: ' . addon_label($addon), 'price_egp' => (float) $addon['price_egp'], 'credits' => $addon['kind'] === 'credits' ? (int) $addon['amount'] : 0,
+                'validity_days' => (int) $addon['validity_days'], 'bonus_credits' => 0, 'price_id' => null, 'quotas_json' => null, 'duration_label' => ''];
+        $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND addon_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, (int) $addon['id']]);
+    } else {
+        $pkg = billing_package((int) ($in['package_id'] ?? 0));
+        if (!$pkg) return ['ok' => false, 'error' => 'الباقة دي مش متاحة'];
+        // المدة (شهري · 3 شهور · سنة …) ← السعر والكريدت والحصص بتاعتها
+        if (function_exists('pkg_variant')) {
+            $pkg = pkg_variant($pkg, !empty($in['price_id']) ? (int) $in['price_id'] : null);
+            if (!$pkg) return ['ok' => false, 'error' => 'المدة دي مش متاحة'];
+        }
+        $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]);
+    }
 
     // طلب معلّق لنفس الباقة؟ مايتكررش
-    $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]);
     if ($dup) return ['ok' => false, 'error' => 'عندك طلب لنفس الباقة لسه بيتراجع (#' . $dup['id'] . ') — استنى نتيجته أو ألغيه', 'existing' => (int) $dup['id']];
 
     // الكود: بيتحسب من السيرفر من الأول (مش من أرقام الواجهة)
@@ -230,7 +247,7 @@ function billing_create_request(array $user, array $in, ?array $proofFile): arra
                                        contact_name, contact_email, contact_phone, user_note, status)
          VALUES (?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?, "pending")',
         [
-            $uid, (int) $pkg['id'], (string) $pkg['name'], (int) $pkg['credits'], $bonusPkg + (int) ($quote['bonus_credits'] ?? 0),
+            $uid, $pkg['id'] !== null ? (int) $pkg['id'] : null, (string) $pkg['name'] . (!empty($pkg['price_id']) ? ' — ' . $pkg['duration_label'] : ''), (int) $pkg['credits'], $bonusPkg + (int) ($quote['bonus_credits'] ?? 0),
             max(1, (int) ($pkg['validity_days'] ?? 30)), (int) ($quote['extra_days'] ?? 0), $original, (float) ($quote['discount'] ?? 0), $final,
             $free ? 'promo' : (string) $method['mkey'], $free ? 'مجانًا بكود العرض' : (string) $method['label'],
             mb_substr(trim((string) ($in['transaction_ref'] ?? '')), 0, 120) ?: null, $proof, $atSql,
@@ -240,6 +257,11 @@ function billing_create_request(array $user, array $in, ?array $proofFile): arra
             mb_substr(trim((string) ($in['note'] ?? '')), 0, 1000) ?: null,
         ]
     );
+    // المدة أو الإضافة اللي اتطلبت + حصص المدة
+    if (function_exists('pkg_v2_ready') && pkg_v2_ready()) {
+        db_run('UPDATE payment_requests SET price_id = ?, addon_id = ?, quotas_json = ? WHERE id = ?',
+            [$pkg['price_id'] ?? null, $addon ? (int) $addon['id'] : null, $pkg['quotas_json'] ?? null, $id]);
+    }
     // رقم الموبايل بيتحفظ في الحساب لو فاضي
     if (empty($user['phone'])) {
         try { db_run('UPDATE users SET phone = ? WHERE id = ? AND (phone IS NULL OR phone = "")', [mb_substr($phone, 0, 30), $uid]); } catch (\Throwable $e) {}
@@ -349,6 +371,21 @@ function billing_approve(int $id, int $adminId, string $note = ''): array
     $days = max(1, (int) $r['validity_days'] + (int) $r['extra_days']);
     $label = 'باقة «' . $r['plan_name'] . '» — طلب دفع #' . $id;
 
+    // إضافة (تصميمات زيادة / كريدت مساعد) ← مابتبدأش دورة جديدة
+    if (!empty($r['addon_id']) && function_exists('addon_apply')) {
+        $ar = addon_apply($r, $adminId);
+        if (!$ar['ok']) {
+            db_run('UPDATE payment_requests SET status = ? WHERE id = ?', [$r['status'], $id]);
+            billing_event($id, 'system', null, 'note', 'approved', $r['status'], 'فشل تطبيق الإضافة — الطلب رجع للمراجعة');
+            return ['ok' => false, 'error' => $ar['error'] ?? 'تعذّر تطبيق الإضافة'];
+        }
+        billing_event($id, 'system', null, 'credits_added', null, null, $r['plan_name']);
+        if ((float) $r['final_amount'] > 0) { try { db_run('UPDATE users SET has_purchased = 1 WHERE id = ?', [$uid]); } catch (\Throwable $e) {} }
+        notify_user($uid, 'payment_approved', 'اتضافت «' . $r['plan_name'] . '» ✓', 'اتأكدنا من الدفع والإضافة شغالة مع باقتك.', 'credits.php', 'ok');
+        if (function_exists('admin_log')) admin_log('payment_approve', 'payment_request', $id, json_encode(['user' => $uid, 'addon' => (int) $r['addon_id'], 'egp' => (float) $r['final_amount']], JSON_UNESCAPED_UNICODE));
+        return ['ok' => true, 'plan_id' => null];
+    }
+
     // ② + ③ + ⑥ الكريدت في المحفظة (اللدجر + دفعة بإيراد حقيقي) — idem_key يمنع الإضافة مرتين
     $okAdd = credits_add($uid, (int) $r['credits'], 'تفعيل ' . $label, $adminId, 'payment_request', $id, $days,
         (float) $r['final_amount'] > 0 ? ['source' => 'paid', 'amount_egp' => (float) $r['final_amount'], 'idem_key' => 'pr:' . $id]
@@ -368,7 +405,8 @@ function billing_approve(int $id, int $adminId, string $note = ''): array
 
     // ④ + ⑤ + ⑦ دورة الباقة (بداية · نهاية · حصص) = سجل الاشتراك
     $planId = function_exists('plan_start')
-        ? plan_start($uid, $r['package_id'] ? (int) $r['package_id'] : null, (int) $r['credits'] + (int) $r['bonus_credits'], $days, 'paid', $adminId, 'طلب دفع #' . $id)
+        ? plan_start($uid, $r['package_id'] ? (int) $r['package_id'] : null, (int) $r['credits'] + (int) $r['bonus_credits'], $days, 'paid', $adminId, 'طلب دفع #' . $id,
+                     ['quotas_json' => $r['quotas_json'] ?? null, 'price_id' => $r['price_id'] ?? null])
         : null;
     if ($planId) {
         db_run('UPDATE payment_requests SET user_plan_id = ? WHERE id = ?', [$planId, $id]);

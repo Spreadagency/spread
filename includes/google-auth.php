@@ -251,11 +251,16 @@ function google_find_or_create_user(array $g): array
     }
 
     // نفس ما بيحصل في التسجيل العادي: محفظة + كريدت ترحيبي + ملف براند
-    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, STARTER_CREDITS]);
-    db_run(
-        'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, "add", ?, "signup", ?)',
-        [$userId, STARTER_CREDITS, 'كريدت ترحيبي عند التسجيل بجوجل']
-    );
+    require_once __DIR__ . '/credits.php';
+    $starter = function_exists('pkg_signup_starter') ? pkg_signup_starter() : STARTER_CREDITS;   // باقة التسجيل (لو الأدمن اختارها)
+    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, $starter]);
+    if ($starter > 0) {
+        db_run(
+            'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, "add", ?, "signup", ?)',
+            [$userId, $starter, 'كريدت ترحيبي عند التسجيل بجوجل']
+        );
+    }
+    if (function_exists('pkg_signup_grant')) pkg_signup_grant((int) $userId);
     db_run('INSERT INTO brand_profiles (user_id, business_name) VALUES (?, ?)', [$userId, mb_substr($g['name'], 0, 150)]);
 
     return ['ok' => true, 'user_id' => $userId, 'is_new' => true, 'auto_approved' => $autoApprove];
