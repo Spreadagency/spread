@@ -28,6 +28,10 @@ if (!$content) {
     json_response(['ok' => false, 'error' => 'المنشور غير موجود']);
 }
 
+// قطعة من محرك المحتوى متجدولة/اتنشرت من هناك ← مانشرهاش تاني من هنا
+require_once __DIR__ . '/../../includes/ce-library.php';
+if ($__ce = ce_lib_engine_publishing($contentId)) json_response(['ok' => false, 'error' => $__ce, 'code' => 'engine']);
+
 $conn = connection_for_user((int) ($_POST['connection_id'] ?? 0), (int) $user['id']);
 if (!$conn || $conn['status'] !== 'active') {
     json_response(['ok' => false, 'error' => 'الصفحة المختارة غير متاحة — أعد ربطها من «حساباتي المربوطة»']);

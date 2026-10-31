@@ -204,6 +204,9 @@ switch ($action) {
     /* ── المكتبة ── */
     case 'library':
         require_once __DIR__ . '/../../includes/uploader.php';
+        // قطع محرك المحتوى اللي خلصت ← بتظهر في المكتبة (لو فاتها النسخ)
+        require_once __DIR__ . '/../../includes/ce-library.php';
+        if (api_int('page', 1, 1, 500) === 1) ce_lib_backfill($uid);
         if (is_file(__DIR__ . '/../../includes/ui-v2.php')) require_once __DIR__ . '/../../includes/ui-v2.php';
         $stSql = content_status_sql('c');
         $w = ['c.user_id = ?'];

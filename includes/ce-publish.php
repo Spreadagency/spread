@@ -14,6 +14,7 @@
  */
 require_once __DIR__ . '/ce-learning.php';   // + ce-meta.php + social.php
 require_once __DIR__ . '/uploader.php';
+require_once __DIR__ . '/ce-library.php';   // النشر من مكان واحد (المحرك أو المكتبة) + نص المكتبة لو اتعدّل
 
 const CE_PUB_PLATFORMS = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام'];
 const CE_PUB_STATUS = ['pending' => 'مستني معاده', 'processing' => 'بيتنشر…', 'published' => 'اتنشر', 'failed' => 'فشل', 'cancelled' => 'اتلغى'];
@@ -130,6 +131,7 @@ function ce_publish_queue_add(int $uid, int $campaignId, array $contentIds, int 
     foreach (array_slice(array_values(array_unique(array_map('intval', $contentIds))), 0, 100) as $cid) {
         $c = db_one('SELECT * FROM ce_contents WHERE id = ? AND user_id = ? AND campaign_id = ?', [$cid, $uid, $campaignId]);
         if (!$c) { $skipped[] = ['content_id' => $cid, 'reason' => 'القطعة مش موجودة']; continue; }
+        if ($lw = ce_lib_library_publishing($c)) { $skipped[] = ['content_id' => $cid, 'reason' => $lw]; continue; }
         $time = $fixed ?? ce_publish_slot_time((int) $c['slot_id']);
         if (!$time) { $skipped[] = ['content_id' => $cid, 'reason' => 'الخانة مالهاش تاريخ']; continue; }
         if ($when === 'slot' && strtotime($time) <= time()) { $skipped[] = ['content_id' => $cid, 'reason' => 'معادها عدّى — انشرها «دلوقتي» أو اختار معاد']; continue; }
@@ -227,7 +229,7 @@ function ce_publish_one(array $row): array
     $token = social_token_decrypt((string) $conn['access_token_enc']);
     if (!$token) return $fail('تعذّر فك تشفير توكن الصفحة', true);
     $body = json_decode((string) $content['body_json'], true) ?: [];
-    $msg = ce_publish_message($body, (string) $content['format']);
+    $msg = ce_lib_edited_message($content) ?? ce_publish_message($body, (string) $content['format']);   // العميل عدّل النص في المكتبة ← نصه
     $imgs = ce_publish_images((int) $content['slot_id']);
     $fake = ['id' => 0, 'format' => $content['format'] === 'carousel' ? 'carousel' : 'post'];   // شكل دوال النشر بتاعة الموقع
     $log = ['post_id' => null, 'connection_id' => (int) $conn['id']];

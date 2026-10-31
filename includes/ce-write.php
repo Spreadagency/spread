@@ -654,7 +654,9 @@ function ce_content_accept(int $uid, int $cid, int $slotId): bool
 {
     $st = db()->prepare('UPDATE ce_contents SET status = "pass" WHERE slot_id = ? AND campaign_id = ? AND user_id = ? AND status = "manual"');
     $st->execute([$slotId, $cid, $uid]);
-    return $st->rowCount() === 1;
+    if ($st->rowCount() !== 1) return false;
+    ce_lib_after($uid, $cid);
+    return true;
 }
 
 /** كل اللي الواجهة محتاجاه: الخانات + الأفكار + المحتوى + الجودة + التقرير النهائي */

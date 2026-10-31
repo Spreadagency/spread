@@ -283,6 +283,8 @@ function ce_job_step(int $id): ?array
             $fin('failed', (string) $r['fail']);
         } elseif (!empty($r['done'])) {
             $fin('done', null, (array) ($r['result'] ?? []), isset($r['used_credits']) ? (int) $r['used_credits'] : null);
+            // القطع والتصميمات اللي خلصت ← مكتبة المحتوى والتقويم
+            if (in_array($job['kind'], ['campaign_write', 'campaign_design'], true) && $job['ref_type'] === 'ce_campaign') ce_lib_after((int) $job['user_id'], (int) $job['ref_id']);
         } else {
             db_run('UPDATE ce_jobs SET state_json = ?, progress = ?, stage = ?, stage_label = ?, lock_token = NULL, locked_at = NULL
                     WHERE id = ? AND lock_token = ?', [
@@ -304,6 +306,17 @@ function ce_job_step(int $id): ?array
         }
     }
     return db_one('SELECT * FROM ce_jobs WHERE id = ?', [$id]);
+}
+
+/** نسخة المكتبة من الحملة (ce-library.php) — أي خطأ فيها مايوقفش المحرك */
+function ce_lib_after(int $uid, int $cid): void
+{
+    try {
+        require_once __DIR__ . '/ce-library.php';
+        ce_lib_sync_campaign($uid, $cid);
+    } catch (\Throwable $e) {
+        error_log('[ce_lib_after] ' . $e->getMessage());
+    }
 }
 
 /** إلغاء شغلانة من العميل — الحجز بيرجع كله */

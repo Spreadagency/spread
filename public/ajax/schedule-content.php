@@ -31,6 +31,10 @@ if (!empty($_POST['cancel'])) {
     json_response(['ok' => true, 'msg' => 'تم إلغاء الجدولة']);
 }
 
+// قطعة من محرك المحتوى متجدولة/اتنشرت من هناك ← مانجدولهاش تاني من هنا
+require_once __DIR__ . '/../../includes/ce-library.php';
+if ($__ce = ce_lib_engine_publishing($contentId)) json_response(['ok' => false, 'error' => $__ce, 'code' => 'engine']);
+
 // ─── اتصال شخصي (وحدة النشر الجديدة) ───
 $connectionId = (int) ($_POST['connection_id'] ?? 0);
 $conn = null;

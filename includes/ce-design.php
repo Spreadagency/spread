@@ -547,7 +547,9 @@ function ce_design_text(int $uid, int $cid, int $slotId, int $frame, array $in):
     if ($font !== '' && !in_array($font, ce_brand_fonts($uid), true)) return ['ok' => false, 'code' => 'input', 'error' => 'الخط ده مش من خطوط البراند'];
     db_run('UPDATE ce_designs SET headline = ?, subline = ?, template_id = ?, font_family = ? WHERE id = ?', [$head, $sub, $tid ?: null, $font !== '' ? $font : null, (int) $d['id']]);
     $r = ce_design_render(ce_design_row($slotId, $frame), $uid);
-    return $r['ok'] ? ['ok' => true] : ['ok' => false, 'code' => 'render', 'error' => $r['error'] ?? 'مقدرناش نرسم'];
+    if (!$r['ok']) return ['ok' => false, 'code' => 'render', 'error' => $r['error'] ?? 'مقدرناش نرسم'];
+    ce_lib_after($uid, $cid);   // الصورة الجديدة ← المكتبة
+    return ['ok' => true];
 }
 
 /** «اعتمدها زي ما هي» للتصميم اللي محتاج مراجعة */

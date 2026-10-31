@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 09:14',
+  'generated' => '2026-10-31 09:30',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -230,6 +230,9 @@ return array (
     221 => 'sql/2026_ce_perf_posts.sql',
     222 => 'sql/2026_ce_perf_posts_rollback.sql',
     223 => 'docs/PACKAGES_PLAN.md',
+    224 => 'includes/ce-library.php',
+    225 => 'sql/2026_ce_library.sql',
+    226 => 'sql/2026_ce_library_rollback.sql',
   ),
   'files' => 
   array (
@@ -785,8 +788,8 @@ return array (
     ),
     'docs/CONTENT_ENGINE_GUIDE.md' => 
     array (
-      'h' => '86777520872d9fead328fcd37074f0df',
-      's' => 12456,
+      'h' => '4cf3571a34d19b0baead152871d03fc0',
+      's' => 12740,
     ),
     'docs/CONTENT_ENGINE_PHASES.md' => 
     array (
@@ -795,8 +798,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'ecb36174ce55d011ef292fa65834ae0a',
-      's' => 26847,
+      'h' => 'c0b5fe54342ff993c8914bcb05e597a3',
+      's' => 27838,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -805,8 +808,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '7da4bfd125a887c3fcd234868c709393',
-      's' => 17426,
+      'h' => '901aafc35ebf7b4efe97fc355b71e439',
+      's' => 19347,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -910,8 +913,8 @@ return array (
     ),
     'includes/ce-design.php' => 
     array (
-      'h' => '53a0439c37ae475633a75c9d398ca868',
-      's' => 40350,
+      'h' => 'e3a65a4f9b0012d35efcec4299296365',
+      's' => 40446,
     ),
     'includes/ce-dna.php' => 
     array (
@@ -920,8 +923,8 @@ return array (
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => 'bafe7f2e93562abfca4c6e43d042fc51',
-      's' => 23755,
+      'h' => '137214b6d5eed526307aab63531ca2fc',
+      's' => 24416,
     ),
     'includes/ce-lab.php' => 
     array (
@@ -932,6 +935,11 @@ return array (
     array (
       'h' => 'd2d8667013f9ff6d64066d01600bb860',
       's' => 34929,
+    ),
+    'includes/ce-library.php' => 
+    array (
+      'h' => '3983000ce7284073dd3ce926d515ade0',
+      's' => 17061,
     ),
     'includes/ce-meta.php' => 
     array (
@@ -955,8 +963,8 @@ return array (
     ),
     'includes/ce-publish.php' => 
     array (
-      'h' => '9191524bf0b997517dbdc6955b582f47',
-      's' => 19196,
+      'h' => '7395684c9b02b17daaa50a0bda41964d',
+      's' => 19571,
     ),
     'includes/ce-skills.php' => 
     array (
@@ -995,8 +1003,8 @@ return array (
     ),
     'includes/ce-write.php' => 
     array (
-      'h' => 'b304ecf31ee220afd0d40d8717163a87',
-      's' => 47911,
+      'h' => '0e1680db137d62203ac0847a476d65a6',
+      's' => 47969,
     ),
     'includes/config.sample.php' => 
     array (
@@ -1085,8 +1093,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => 'ee88e8d78c6a707d9af23185621f66a3',
-      's' => 15389,
+      'h' => '997e0e2f85532d0a8213899a48a7e7ff',
+      's' => 15554,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1310,8 +1318,8 @@ return array (
     ),
     'public/ajax/publish-direct.php' => 
     array (
-      'h' => 'b524fe6c2b0d259458d35c90e3b71877',
-      's' => 8064,
+      'h' => '63a2afd6e9eae48c227c2f5963b93ad8',
+      's' => 8367,
     ),
     'public/ajax/regenerate-content.php' => 
     array (
@@ -1325,8 +1333,8 @@ return array (
     ),
     'public/ajax/schedule-content.php' => 
     array (
-      'h' => '4db7c9ec48e5cd24849b8b6c85e0be67',
-      's' => 4230,
+      'h' => '0a4ab5ee776218f7d87ca34a19bbc080',
+      's' => 4537,
     ),
     'public/ajax/studio-design.php' => 
     array (
@@ -1385,8 +1393,8 @@ return array (
     ),
     'public/api/contents.php' => 
     array (
-      'h' => '5525c5ff23463c1f8567ce433728a49c',
-      's' => 36504,
+      'h' => 'd6a417600647cd470e3640dbfed3e7af',
+      's' => 36762,
     ),
     'public/api/engine.php' => 
     array (
@@ -1525,8 +1533,8 @@ return array (
     ),
     'public/campaigns.php' => 
     array (
-      'h' => '222bef3a5d65711ab7b0e5514f4332ef',
-      's' => 11782,
+      'h' => 'dc69b29436f892cea0bacf172b1d7db4',
+      's' => 11995,
     ),
     'public/checkout.php' => 
     array (
@@ -1857,6 +1865,16 @@ return array (
     array (
       'h' => '93edb76fb50633e15fcdfa544844d7cb',
       's' => 995,
+    ),
+    'sql/2026_ce_library.sql' => 
+    array (
+      'h' => 'beedb6f2b7b85813404c1273ae994e8e',
+      's' => 2211,
+    ),
+    'sql/2026_ce_library_rollback.sql' => 
+    array (
+      'h' => '3fc8f566f37ba0bfdff507249d862f98',
+      's' => 839,
     ),
     'sql/2026_ce_meta_insights.sql' => 
     array (
