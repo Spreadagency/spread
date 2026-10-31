@@ -41,7 +41,8 @@ Claude ──OAuth/Bearer──▶ خادم الـ MCP (VPS) ──توكن + X-
 | `spread_list_reports` | التقارير اللي اتحفظت | `type` `limit` `cursor` |
 | `spread_get_security_logs` | دخول فاشل · نشاط الـ rate limit · كريدت غير طبيعي · أخطاء PHP | `date` |
 | `spread_list_security_findings` | ملاحظات الأمان لكل مصدر | `source` = zap · dependency · code_review · config · logs |
-| `spread_get_e2e_results` | نتايج الاختبارات الكاملة (المرحلة 8 بتملاها) | `date` |
+| `spread_get_e2e_results` | آخر نتيجة لكل صفحة في اختبار الموقع الأسبوعي (الفاشل الأول) | `date` |
+| `spread_integrity_check` | الـ 12 فحص ترابط **دلوقتي** بالعدد وعينة IDs والحل + الحالة المحفوظة. قراءة بس (المرحلة 8) | — |
 
 ## التقييم والتسجيل: `spread:evaluate`
 | الأداة | بتعمل إيه |
@@ -63,6 +64,7 @@ Claude ──OAuth/Bearer──▶ خادم الـ MCP (VPS) ──توكن + X-
 |---|---|
 | `rubric://content-quality` | معايير التقييم وإزاي تتحسب |
 | برومبت `daily_review` | المراجعة اليومية كاملة: الأرقام ← آخر تقرير ← تقييم أسوأ المنشورات ← البلاغات ← أخطاء الـ AI ← الأمان ← A/B ← حفظ التقرير ← **عرضه في الشات** (`date` اختياري، `evaluate` = عدد المنشورات) |
+| برومبت `security_review` | مراجعة الأمان الأسبوعية: آخر تقرير أمان ← الملاحظات لكل مصدر ← سلامة البيانات ← اختبار الموقع ← سجلات 3 أيام ← ترتيب بالخطورة والحل ← حفظ تقرير `security` (المرحلة 8) |
 | برومبت `evaluate_post` | تقييم منشور واحد وحفظه (`post_id`) |
 
 ## شكل الردود

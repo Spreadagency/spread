@@ -360,9 +360,33 @@ Claude بيقترح ويكتب مسودات ويجرّبها، **ومفيش حا
 
 ---
 
-## الجاي: المرحلة 8، الأمان وسلامة البيانات
-- قايمة فحص أمان + «تعمل إيه لما التقرير يقول كذا».
-- فحوصات سلامة البيانات بـ cron.
-- دليل نسخة Staging وفحص ZAP عليها.
-- اختبارات Playwright كاملة للموقع.
-- صفحة الأمان في الأدمن.
+## المرحلة 8: الأمان وسلامة البيانات ✅
+
+| | |
+|---|---|
+| **فحص الإعدادات** | 16 نقطة على الموقع نفسه، كل واحدة بالخطورة والحل: وضع التطوير · HTTPS · `display_errors` · سر الـ cron · توكن الـ Internal API · قفل الـ IP · مستخدمين MySQL المحدودين · مفتاح التشفير · مجلد الرفع مايشغّلش PHP · الإيصالات مقفولة · صلاحيات `config.php` · إصدار PHP · كوكي الجلسة · **باسوردات الأدمن الافتراضية** · الترحيلات · الـ cron شغال. مابيعرضش أي سر |
+| **سلامة البيانات** | 12 فحص (قراءة بس، مابيصلّحش لوحده): رصيد بالسالب · دفع من غير باقة · أكتر من باقة شغالة · فيديو اتدفع ومااتبعتش · شغل واقف · كريدت محجوز لشغل خلص · نشر واقف · وكيل واقف · أكتر من إصدار برومبت مفعّل · تصميمات/منشورات يتيمة · دفع مستني أكتر من 3 أيام. كل واحد بالعدد وعينة IDs والحل |
+| **التشغيل** | الـ cron كل يوم قبل التقرير اليومي بساعة (علشان يدخل فيه) · تنبيه أحمر لو فيه حاجة حرجة · اللي اتصلّح بيتعلّم لوحده · «مقبولة» و«متجاهلة» بيفضلوا زي ما هم |
+| **الأدمن** | AI CENTER ← **الأمان**: نظرة عامة (الفحص + «افحص دلوقتي» + تشغيل تلقائي) · سلامة البيانات (تجاهل / افتح تاني) · ملاحظات الأمان (تغيير الحالة) · السجلات · اختبارات الموقع |
+| **من الـ VPS (أسبوعي)** | `install.sh checks` بيركّب: **npm audit** + **OWASP ZAP baseline** (سلبي) + **اختبار الموقع كامل بـ Playwright** (الصفحات العامة · العميل كمبيوتر وموبايل · كل صفحات الأدمن) ← `scripts/push-checks.mjs` بيبعتها عبر مسارين جداد: `save_e2e_results` · `sync_security_findings` |
+| **Claude** | أداة جديدة `spread_integrity_check` · برومبت `security_review` الأسبوعي · `daily_review` بقى يشمل الترابط والإعدادات المفتوحة |
+| **التركيب** | `deploy/install.sh`: تركيب الـ VPS كله بأمر واحد (`install` · `update` · `status` · `checks`) |
+| **الأدلة** | `docs/DEPLOY.md` (VPS من الصفر) · `docs/SECURITY.md` (قايمة الفحص + «لو التقرير قال كذا تعمل إيه» + لو حصل اختراق) · `docs/STAGING.md` (نسخة تجربة + ZAP + E2E) |
+
+### الملفات
+- **جديد:** `includes/security-center.php` · `admin/ai-security.php` · `tests/mcp8-security.php` · `tests/e2e/record.php` · `tests/e2e/site-e2e.mjs` · `tests/security/import-findings.php` · `mcp-server/checks/site-e2e.mjs` · `mcp-server/scripts/push-checks.mjs` · `mcp-server/deploy/install.sh` · `mcp-server/deploy/weekly-checks.sh` · `mcp-server/deploy/spread-mcp-checks.service` · `mcp-server/deploy/spread-mcp-checks.timer` · `docs/SECURITY.md` · `docs/STAGING.md`
+- **معدّل:** `includes/internal-api-routes.php` (`integrity_check` حقيقي · `save_e2e_results` · `sync_security_findings`) · `includes/ai-center.php` · `includes/admin-ui.php` · `cron/ce-worker.php` · `mcp-server/src/tools/read.ts` · `mcp-server/src/prompts.ts` · `mcp-server/src/remote-config.ts` · `mcp-server/scripts/smoke.ts` · `mcp-server/.env.example` (المسودات `true`) · `mcp-server/package-lock.json` (`npm audit fix`) · `docs/DEPLOY.md`
+- **ترحيلات:** مفيش (الجداول `security_findings` · `integrity_issues` · `e2e_runs` من المرحلة 3).
+
+### نتيجة الاختبار المحلي
+- `php tests/mcp8-security.php` ← **30 / 30**: الفحص كشف وضع التطوير وباسورد الأدمن الافتراضي ← رصيد سالب وشغل واقف اتكشفوا بالأرقام ← المتجاهَلة بتفضل متجاهلة ← اتصلّحت لوحدها ← «مقبولة» مابترجعش ← الـ cron مرة في اليوم في ميعاده + تنبيه ← E2E والاستيراد ← المسارين من الـ VPS (والقراءة مرفوضة · المصدر الغلط مرفوض · مفيش حذف) ← صفحة الأدمن.
+- اختبار الموقع كامل محليًا: **82 / 82** صفحة.
+- خادم الـ MCP: **28 أداة**، والـ smoke **33 / 33**.
+- `npm audit`: اتصلّح `body-parser`. فاضل تحذير متوسط **مقبول** في `@hono/node-server` (`serveStatic` مش مستخدم، والتحديث محتاج إصدار رئيسي من `@modelcontextprotocol/node`).
+
+---
+
+## مراحل الـ MCP خلصت كلها ✅
+1. التحليل والخطة · 2. تتبّع الأحداث والتقييمات والبلاغات · 3. قاعدة الـ AI والـ Internal API · 4. خادم الـ MCP والـ OAuth · 5. مركز الجودة · 6. المسودات والموافقات · 7. التقرير اليومي لوحده · 8. الأمان وسلامة البيانات.
+
+**الخطوة الجاية عندك:** تركيب الـ VPS (`docs/DEPLOY.md`) ← ربط Claude ← المهمة المجدولة اليومية ← (اختياري) الـ staging والفحوصات الأسبوعية.

@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 17:44',
+  'generated' => '2026-10-31 22:01',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -260,6 +260,8 @@ return array (
     251 => 'admin/ai-changes.php',
     252 => 'admin/ai-ab.php',
     253 => 'includes/daily-report.php',
+    254 => 'includes/security-center.php',
+    255 => 'admin/ai-security.php',
   ),
   'files' => 
   array (
@@ -347,6 +349,11 @@ return array (
     array (
       'h' => 'c58a5fc0a6087ddd2a77ae5d76c9301b',
       's' => 12299,
+    ),
+    'admin/ai-security.php' => 
+    array (
+      'h' => 'eb3bc7a8fdc25a77ca0f45d70e25e97c',
+      's' => 17026,
     ),
     'admin/alerts.php' => 
     array (
@@ -830,8 +837,8 @@ return array (
     ),
     'cron/ce-worker.php' => 
     array (
-      'h' => '6d30e8bf7dc84fcf3b008acf37b4ecc5',
-      's' => 3385,
+      'h' => '65f2ad0592b39eccc76cf902e54939e4',
+      's' => 3856,
     ),
     'cron/daily_notifications.php' => 
     array (
@@ -865,13 +872,13 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '8daa078ea6a2f2e95aff44cad2167133',
-      's' => 38346,
+      'h' => 'c9b74cb69b04233e3695aeed9ef890a0',
+      's' => 40390,
     ),
     'docs/MCP_PHASES.md' => 
     array (
-      'h' => 'e2fd70bce8d01cfb3d3c8d589f3906db',
-      's' => 29355,
+      'h' => 'b3046ddceec7a4e81bb6b655a288697a',
+      's' => 34564,
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
@@ -910,13 +917,13 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '6c9819c691aecdf6018d390e259faf16',
-      's' => 16243,
+      'h' => '505885115ece7bf984e4f48120322cfd',
+      's' => 16378,
     ),
     'includes/ai-center.php' => 
     array (
-      'h' => 'ae7c63fa94101ae410721bc3363764f6',
-      's' => 13179,
+      'h' => '6f96f27fbb2b21fe40c85eeaf117b5e3',
+      's' => 13598,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -1140,8 +1147,8 @@ return array (
     ),
     'includes/internal-api-routes.php' => 
     array (
-      'h' => 'dacab96430bec0c60f6e435988daba87',
-      's' => 48113,
+      'h' => '5c179aa60621f531a6e0e370fc2fd953',
+      's' => 52566,
     ),
     'includes/internal-api.php' => 
     array (
@@ -1272,6 +1279,11 @@ return array (
     array (
       'h' => 'de560fe1fd2ac7bbe9dcf22eaf789b8c',
       's' => 8373,
+    ),
+    'includes/security-center.php' => 
+    array (
+      'h' => '3c5ebff7cc82b758efd475866576695c',
+      's' => 18396,
     ),
     'includes/settings-registry.php' => 
     array (

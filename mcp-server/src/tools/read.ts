@@ -252,11 +252,22 @@ Open a screenshot with spread_get_image. Save your analysis with spread_analyze_
     "spread_get_e2e_results",
     {
       title: "End-to-end test results",
-      description: "Results of the automated end-to-end flows (signup, brand, ideas, post, design, schedule…) on staging: status, duration, error. Empty until phase 8 runs them.",
+      description: "Latest result per end-to-end flow (public pages, client pages on desktop and mobile, every admin page) from the weekly Playwright run on the VPS: status, duration, error. Failed flows first.",
       inputSchema: z.strictObject({ date: Day.optional() }),
       annotations: READ,
     },
     async (a, ctx) => jsonResult(await get("e2e_results", a, ctx.mcpReq.signal)),
+  );
+
+  server.registerTool(
+    "spread_integrity_check",
+    {
+      title: "Data integrity checks (live)",
+      description: "Runs the 12 read-only data integrity checks now (negative wallets, payments approved without a plan, paid videos not sent, stuck jobs, credit holds left open, stuck publishing/agent runs, several live prompt versions, orphans, old pending payments) and returns count, sample IDs, severity and the suggested fix for each, plus the statuses saved by the daily run (open / fixed / ignored). Changes nothing.",
+      inputSchema: z.strictObject({}),
+      annotations: READ,
+    },
+    async (_a, ctx) => jsonResult(await get("integrity_check", {}, ctx.mcpReq.signal)),
   );
 }
 

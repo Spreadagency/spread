@@ -280,6 +280,28 @@ sudo systemctl restart spread-mcp
 | «إلغاء» على قطعة مستنية | «اتلغى» والحصة رجعت |
 | الأدمن ← «الاستخدام والتعلّم» ← «نتايج العملاء» | أرقام النشر وآخر الأخطاء |
 
+## MCP — المرحلة 8: الأمان وسلامة البيانات
+- **الحزمة:** `spread-mcp8-site.zip` للموقع + `spread-mcp-server.zip` للـ VPS (أداة `spread_integrity_check` · برومبت `security_review` · سكريبت التركيب والفحوصات الأسبوعية) — **من غير ترحيل**.
+- الفحص اليومي بيشتغل من نفس الـ cron بتاع المحرك (`cron/ce-worker.php`).
+
+### بعد الرفع
+1. الأدمن ← مركز الجودة ← **الأمان** ← «🔍 افحص دلوقتي».
+2. أي حاجة **حرجة** أو **عالية** في «نظرة عامة» صلّحها بالحل اللي جنبها (التفاصيل في `docs/SECURITY.md`).
+3. «سلامة البيانات»: راجع أي مشكلة عددها أكبر من 0. اللي طبيعية عندك دوس عليها «تجاهل».
+4. في «ملاحظات الأمان» علّم `@hono/node-server` (متوسطة) **«مقبولة»** (السبب في `docs/SECURITY.md`).
+
+### خادم الـ MCP (على الـ VPS)
+- **لو لسه ماتركّبش:** `docs/DEPLOY.md` من أوله (أمر واحد: `install.sh install`).
+- **لو متركّب:** ارفع الحزمة لـ `/root` ← `cd /root && unzip -o spread-mcp-server.zip deploy/install.sh && sudo bash deploy/install.sh update`.
+- **(اختياري) الفحوصات الأسبوعية:** `sudo bash /opt/spread-mcp/app/deploy/install.sh checks staging.ai.spreadagency.net` (الـ staging في `docs/STAGING.md`).
+
+### اختبار سريع
+| جرّب | المفروض |
+|---|---|
+| «افحص دلوقتي» | 16 نقطة إعدادات بالحل + 12 فحص ترابط |
+| Claude ← «اعمل مراجعة الأمان» (برومبت `security_review`) | تقرير مرتّب بالخطورة ومتحفظ كـ `security` |
+| `sudo systemctl start spread-mcp-checks` على الـ VPS | بعد دقايق: «اختبارات الموقع» و«ملاحظات الأمان» (zap · dependency) فيهم نتايج |
+
 ## MCP — المرحلة 7: التقرير اليومي لوحده
 - **الحزمة:** `spread-mcp7-site.zip` للموقع + `spread-mcp-server.zip` للـ VPS (تعديل صغير في برومبت `daily_review`) — **من غير ترحيل**.
 - لازم الـ cron بتاع المحرك (`cron/ce-worker.php`) يكون شغال كل دقيقة.

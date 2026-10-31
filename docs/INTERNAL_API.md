@@ -96,15 +96,17 @@ php tests/internal-api-smoke.php https://ai.spreadagency.net
 | `change_requests` | read | `status`: الاقتراحات ومعاها ملاحظة الأدمن (علشان المرفوض مايتعادش) |
 | `reports` | read | التقارير اللي اتحفظت |
 | `security_logs` | read | `date`: دخول فاشل بالـ IP · نشاط الـ rate limit · استهلاك كريدت غير طبيعي · أخطاء PHP |
-| `security_scan` · `dependency_audit` · `e2e_results` | read | نتايج فحوصات الأمان والـ E2E (المرحلة 8 بتملاها) |
+| `security_scan` · `dependency_audit` · `e2e_results` | read | ملاحظات الأمان لكل مصدر (config · zap · dependency · code_review · logs) · آخر نتيجة لكل صفحة في اختبار الموقع |
 | `save_evaluation` | ai_write | `post_id` + `content_scores` (8 معايير من 1 لـ 10) + `design_scores` (6) + نقط القوة والضعف والتعديل. الإجمالي = 0.6 محتوى + 0.4 تصميم (`mcp_rubric_weights`) |
 | `analyze_issue` | ai_write | تصنيف البلاغ وخطورته وسببه والحل والبلاغات المرتبطة |
 | `save_report` | ai_write | `daily/weekly/security` (تقرير واحد لكل نوع في اليوم، والحفظ التاني بيحدّثه) |
 | `save_security_finding` · `save_integrity_issue` | ai_write | تحديث لو المشكلة موجودة (من غير تكرار) |
+| `save_e2e_results` | ai_write | `results: [{flow, status, ms, error}]` (500 بالكتير) + `run_at`: نتيجة اختبار الموقع من الـ VPS (`scripts/push-checks.mjs e2e`). بيضيف بس، والأقدم من 90 يوم بيتشال من الموقع نفسه (المرحلة 8) |
+| `sync_security_findings` | ai_write | `source: zap/dependency` + `findings` (300 بالكتير): تقرير فحص كامل. بيحدّث كل ملاحظة، واللي كانت مفتوحة ومش موجودة في التقرير بتتعلّم «اتصلّحت». مفيش حذف (المرحلة 8) |
 | `propose_change` | draft | اقتراح بالأدلة. **المرفوض قبل كده بنفس الأدلة بيترفض تلقائيًا** (`already_rejected`)، والمكرر المستني مراجعة مابيتسجلش تاني |
 | `draft_prompt` · `draft_style` · `draft_reply` | draft | مسودات مستنية موافقة الأدمن |
 | `test_regenerate` | draft | `prompt_draft_id` أو `prompt_version_id` + `post_id` (اختياري): التوليد التجريبي ← `before` · `after` · `sandbox_run_id` · `left_today`. المنشور والكريدت زي ما هم · `rate_limit` (429) بعد الحد اليومي (المرحلة 6) |
-| `integrity_check` | — | المرحلة 8 |
+| `integrity_check` | read | الـ 12 فحص ترابط **دلوقتي** (العدد · عينة IDs · الخطورة · الحل) + الحالات المحفوظة من الفحص اليومي (open/fixed/ignored). مابيغيّرش حاجة (المرحلة 8) |
 
 الأخطاء بترجع نص عربي واضح فيه الحل، ومعاه `code`: `auth` · `scope_mismatch` · `not_found` · `invalid` · `already_rejected` · `db_denied` · `rate_limit`.
 

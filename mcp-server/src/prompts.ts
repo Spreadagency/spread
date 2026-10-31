@@ -1,5 +1,5 @@
 /**
- * البرومبتات الجاهزة: المراجعة اليومية (بتتعرض في شات Claude) + تقييم منشور واحد.
+ * البرومبتات الجاهزة: المراجعة اليومية (بتتعرض في شات Claude) + مراجعة الأمان الأسبوعية + تقييم منشور واحد.
  */
 import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
@@ -44,7 +44,7 @@ export function registerPrompts(server: McpServer, opts: { canWrite: boolean; ca
 2. \`spread_list_reports\` (type="daily", limit=2) — آخر تقرير، علشان ماتكررش نفس التوصيات. لو فيه تقرير لنفس اليوم معمول «تلقائي من الموقع» (بيبدأ بـ «التقرير اليومي التلقائي»)، ابني عليه — تقريرك هيحل محله لما تحفظه.
 3. المنشورات: \`spread_list_posts\` (date_from=date_to=${day}, rating="down") وبعدها (unevaluated_only=true). اختار لحد ${n} منشورات (الأولوية: 👎، بعدين إعادة توليد كتير، بعدين غير متقيّمة)، وافتح كل واحد بـ \`spread_get_post\` (بالصور) ${evalStep}.
 4. البلاغات: \`spread_list_issues\` (status="new")${opts.canWrite ? " وحلّل كل واحد بـ `spread_analyze_issue`" : ""}.
-5. \`spread_get_ai_errors\` (date=${day}) و\`spread_get_security_logs\` (date=${day}).
+5. \`spread_get_ai_errors\` (date=${day}) و\`spread_get_security_logs\` (date=${day}) و\`spread_integrity_check\` (أي مشكلة ترابط عددها أكبر من 0 تدخل في «🔒 الأمان» بالعدد والحل) و\`spread_list_security_findings\` (source="config" — اللي لسه open بس).
 6. A/B: لو فيه برومبت عليه نسخة تجربة في \`spread_list_prompt_templates\`، شوف \`spread_get_ab_results\` (ماتنصحش بتغيير لو sample_ok = false).
 ${save}
 8. اعرض التقرير هنا في الشات بالشكل ده:
@@ -52,6 +52,40 @@ ${save}
 ${draft}
 
 قواعد: مفيش أي تعديل على المنصة — كله قراءة وتقييم ومسودات بس. ماتكتبش أرقام تليفونات أو إيميلات. لو أداة رجعت خطأ، اذكره في التقرير وكمّل.`,
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerPrompt(
+    "security_review",
+    {
+      title: "مراجعة الأمان الأسبوعية",
+      description: "الإعدادات · سلامة البيانات · ZAP · المكتبات · اختبار الموقع · السجلات — بالأولوية والحل، ويتحفظ تقرير أمان.",
+      argsSchema: z.object({}),
+    },
+    async () => {
+      const week = new Date().toISOString().slice(0, 10);
+      return {
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: `اعمل مراجعة الأمان الأسبوعية لـ Spread AI، بالمصري.
+
+1. \`spread_list_reports\` (type="security", limit=1) — آخر مراجعة، علشان تقول إيه اتصلّح وإيه لسه.
+2. \`spread_list_security_findings\` لكل مصدر: config · zap · dependency · code_review · logs. ركّز على open و in_progress. الـ accepted_risk و false_positive اذكر عددهم بس.
+3. \`spread_integrity_check\` — أي فحص عدده أكبر من 0 بالعدد والحل (من غير أرقام عملاء في التقرير).
+4. \`spread_get_e2e_results\` — الصفحات اللي فشلت وسبب كل واحدة.
+5. \`spread_get_security_logs\` لآخر 3 أيام (date لكل يوم) — دخول فاشل متكرر · رفض Internal API · استهلاك كريدت غير طبيعي.
+6. رتّب كل اللي لقيته: حرجة ← عالية ← متوسطة ← منخفضة، وكل بند: إيه المشكلة · ليه مهمة · الحل بالخطوات (من docs/SECURITY.md لو موجود).
+${opts.canWrite ? `7. أي حاجة جديدة لقيتها بنفسك (مش متسجلة) سجّلها بـ \`spread_save_security_finding\` (source="code_review" أو "logs"). وبعدين احفظ التقرير بـ \`spread_save_report\` (type="security", report_date="${week}").` : "7. (الاتصال ده للقراءة بس — اعرض التقرير بس.)"}
+${opts.canDraft ? "8. لو فيه تعديل كود أو إعداد واضح، سجّله بـ `spread_propose_change` (الأدمن بيوافق)." : ""}
+
+قواعد: مفيش أي تعديل على المنصة. ماتكتبش أسرار أو توكنات أو إيميلات أو أرقام تليفونات حتى لو ظهرت في نتيجة. لو أداة رجعت خطأ، اذكره وكمّل.`,
             },
           },
         ],

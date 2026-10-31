@@ -41,6 +41,8 @@ function iapi_routes(): array
         'save_report'       => ['ai_write', 'w_save_report'],
         'save_security_finding' => ['ai_write', 'w_save_security_finding'],
         'save_integrity_issue'  => ['ai_write', 'w_save_integrity_issue'],
+        'save_e2e_results'      => ['ai_write', 'w_save_e2e_results'],
+        'sync_security_findings' => ['ai_write', 'w_sync_security_findings'],
         // ── C. مسودات (موافقة الأدمن) ──
         'propose_change'    => ['draft', 'd_propose_change'],
         'draft_prompt'      => ['draft', 'd_draft_prompt'],
@@ -494,9 +496,15 @@ function r_e2e_results(): void
     iapi_ok(['items' => $rows]);
 }
 
+/** فحص ترابط البيانات دلوقتي (قراءة بس — التسجيل بيعمله الـ cron/الأدمن) + آخر نتيجة متسجلة لكل فحص (MCP المرحلة 8) */
 function r_integrity_check(): void
 {
-    iapi_fail('فحص الترابط بيتعمل في المرحلة 8 — لحد دلوقتي اقرا آخر نتايج متسجلة في integrity_issues', 'not_implemented', 501);
+    require_once __DIR__ . '/security-center.php';
+    $now = array_map(fn($i) => ['check_key' => $i['key'], 'entity_type' => $i['entity'], 'count' => count($i['ids']), 'entity_ids' => array_slice($i['ids'], 0, 50),
+                                'description' => $i['title'], 'suggested_fix' => $i['fix'], 'severity' => $i['severity']], integrity_checks());
+    $saved = iapi_ai_has('integrity_issues') ? iq_all('SELECT check_key, count, status, detected_at FROM ' . mcp_t('integrity_issues') . ' ORDER BY check_key') : [];
+    iapi_ok(['checked_at' => date('Y-m-d H:i:s'), 'open' => count(array_filter($now, fn($x) => $x['count'] > 0)), 'checks' => $now, 'last_saved' => $saved,
+             'note' => 'لو فيه مشكلة سجّلها بـ save_integrity_issue أو اقترح الحل بـ propose_change — الفحص مابيصلّحش حاجة لوحده']);
 }
 
 /* ═══════════ B. تقييم وتسجيل (ai_write) ═══════════ */
@@ -574,6 +582,61 @@ function w_save_report(): void
     // المرحلة 7: تقرير Claude بيحل محل التقرير التلقائي — ولو الميعاد عدّى بيوصلك تنبيه «جاهز»
     try { require_once __DIR__ . '/daily-report.php'; dr_on_claude_saved($type, $date); } catch (\Throwable $e) {}
     iapi_ok(['type' => $type, 'report_date' => $date, 'saved' => true]);
+}
+
+/** نتيجة اختبار الموقع (site-e2e.mjs) من الـ VPS ← e2e_runs — بيضيف بس (والأقدم من 90 يوم بيتشال من الموقع نفسه) */
+function w_save_e2e_results(): void
+{
+    $rows = iapi_arr('results');
+    if (!$rows) iapi_fail('results مطلوبة: [{flow, status, ms, error}]', 'invalid', 422);
+    if (count($rows) > 500) iapi_fail('أقصى حاجة 500 نتيجة في المرة', 'invalid', 422);
+    $ts = strtotime(iapi_str('run_at', 40));
+    $at = $ts ? date('Y-m-d H:i:s', $ts) : date('Y-m-d H:i:s');
+    $n = 0; $failed = 0;
+    foreach ($rows as $r) {
+        if (!is_array($r)) continue;
+        $flow = mb_substr((string) preg_replace('/[^\w:\/.\-?=&]/u', '', (string) ($r['flow'] ?? '')), 0, 80);
+        if ($flow === '') continue;
+        $ok = ($r['status'] ?? '') === 'passed';
+        if (!$ok) $failed++;
+        iq_exec('INSERT INTO ' . mcp_t('e2e_runs') . ' (flow_key, status, duration_ms, error, run_at) VALUES (?,?,?,?,?)',
+            [$flow, $ok ? 'passed' : 'failed', isset($r['ms']) && is_numeric($r['ms']) ? (int) $r['ms'] : null,
+             isset($r['error']) && is_scalar($r['error']) ? mb_substr((string) $r['error'], 0, 2000) : null, $at], 'ai_write');
+        $n++;
+    }
+    iapi_ok(['saved' => $n, 'failed' => $failed]);
+}
+
+/**
+ * تقرير فحص كامل من الـ VPS (OWASP ZAP · npm audit): بيحدّث كل ملاحظة،
+ * واللي كانت مفتوحة من نفس المصدر ومش موجودة في التقرير الجديد بتتعلّم «اتصلّحت». مفيش حذف.
+ */
+function w_sync_security_findings(): void
+{
+    $src = iapi_str('source', 20);
+    if (!in_array($src, ['zap', 'dependency'], true)) iapi_fail('source: zap · dependency', 'invalid', 422);
+    $rows = iapi_arr('findings');
+    if (count($rows) > 300) iapi_fail('أقصى حاجة 300 ملاحظة في المرة', 'invalid', 422);
+    $sevs = ['info', 'low', 'medium', 'high', 'critical'];
+    $t = mcp_t('security_findings');
+    $seen = [];
+    foreach ($rows as $f) {
+        if (!is_array($f)) continue;
+        $title = mb_substr(trim((string) ($f['title'] ?? '')), 0, 255);
+        $loc = mb_substr(trim((string) ($f['location'] ?? '')), 0, 500);
+        if ($title === '' || $loc === '') continue;
+        $sev = in_array($f['severity'] ?? '', $sevs, true) ? $f['severity'] : 'info';
+        $seen[$loc] = true;
+        iq_exec('INSERT INTO ' . $t . ' (source, title, severity, location, description, recommendation) VALUES (?,?,?,?,?,?)
+                 ON DUPLICATE KEY UPDATE title = VALUES(title), severity = VALUES(severity), description = VALUES(description), recommendation = VALUES(recommendation),
+                 last_seen = NOW(), status = IF(status = "fixed", "open", status), fixed_at = IF(status = "fixed", NULL, fixed_at)',
+            [$src, $title, $sev, $loc, mb_substr((string) ($f['description'] ?? ''), 0, 4000), mb_substr((string) ($f['recommendation'] ?? ''), 0, 4000)], 'ai_write');
+    }
+    $fixed = 0;
+    foreach (iq_all('SELECT id, location FROM ' . $t . ' WHERE source = ? AND status IN ("open","in_progress")', [$src], 'ai_write') as $r) {
+        if (!isset($seen[$r['location']])) { iq_exec('UPDATE ' . $t . ' SET status = "fixed", fixed_at = NOW() WHERE id = ?', [(int) $r['id']], 'ai_write'); $fixed++; }
+    }
+    iapi_ok(['saved' => count($seen), 'marked_fixed' => $fixed]);
 }
 
 function w_save_security_finding(): void

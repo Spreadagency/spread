@@ -42,6 +42,7 @@ export const TOOL_ROUTES: Record<string, string[]> = {
   spread_get_security_logs: ["security_logs"],
   spread_list_security_findings: ["security_scan", "dependency_audit"],
   spread_get_e2e_results: ["e2e_results"],
+  spread_integrity_check: ["integrity_check"],
   spread_save_evaluation: ["save_evaluation"],
   spread_analyze_issue: ["analyze_issue"],
   spread_save_report: ["save_report"],

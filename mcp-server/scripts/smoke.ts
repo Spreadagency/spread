@@ -74,13 +74,16 @@ if (!TOKEN) {
   check("برومبت daily_review", prompts.some(p => p.name === "daily_review"));
   const dr = await c.getPrompt({ name: "daily_review", arguments: { date: "2026-01-01" } });
   check("daily_review بيتولّد", JSON.stringify(dr.messages).includes("spread_get_metrics"));
+  check("برومبت security_review", prompts.some(p => p.name === "security_review"));
+  const sr = await c.getPrompt({ name: "security_review", arguments: {} });
+  check("security_review بيتولّد", JSON.stringify(sr.messages).includes("spread_integrity_check"));
 
   console.log("\n— القراءة");
   const h = await call(c, "spread_health");
   check("spread_health", !h.isError && json(h).service === "spread-internal-api", `secure_mode=${json(h).secure_mode}`);
   for (const [t, a] of [["spread_get_metrics", {}], ["spread_list_prompt_templates", {}], ["spread_list_style_presets", {}], ["spread_list_issues", { limit: 3 }],
     ["spread_get_ai_errors", {}], ["spread_list_change_requests", { limit: 3 }], ["spread_list_reports", { limit: 2 }], ["spread_get_security_logs", {}],
-    ["spread_list_security_findings", { source: "config" }], ["spread_list_security_findings", { source: "dependency" }], ["spread_get_e2e_results", {}]] as const) {
+    ["spread_list_security_findings", { source: "config" }], ["spread_list_security_findings", { source: "dependency" }], ["spread_get_e2e_results", {}], ["spread_integrity_check", {}]] as const) {
     const r = await call(c, t, a);
     check(`${t}${"source" in a ? `(${a.source})` : ""}`, !r.isError, r.isError ? textOf(r).slice(0, 160) : "");
   }

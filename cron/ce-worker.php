@@ -38,6 +38,15 @@ try { set_setting('ce_worker_last_run', date('Y-m-d H:i:s')); } catch (\Throwabl
 $n = ce_worker_tick(50);
 echo date('Y-m-d H:i:s') . " — ran $n step(s)\n";
 
+// MCP المرحلة 8: فحص الأمان وترابط البيانات (مرة في اليوم قبل التقرير اليومي بساعة)
+try {
+    require_once __DIR__ . '/../includes/security-center.php';
+    $sc = sec_tick();
+    if ($sc) echo 'security: config ' . $sc['config_failed'] . '/' . $sc['config_total'] . ' failed · integrity open ' . $sc['integrity_open'] . "\n";
+} catch (\Throwable $e) {
+    error_log('security tick: ' . $e->getMessage());
+}
+
 // MCP المرحلة 7: التقرير اليومي لوحده (مرة في اليوم بعد الساعة المحددة)
 try {
     require_once __DIR__ . '/../includes/daily-report.php';
