@@ -1,0 +1,60 @@
+/* ═══ Spread AI — المساعدين (المرحلة 7) ═══ */
+.sa-root { --sa-blue: #0C87EF; --sa-ink: #0B1526; --sa-mute: #6B7A90; --sa-line: #DCE7F3; --sa-soft: #F2F8FE; --sa-bg: #fff;
+    position: fixed; z-index: 9980; bottom: 22px; right: 22px; font-family: inherit; direction: rtl; }
+.sa-fab { display: flex; align-items: center; gap: 8px; border: 0; cursor: pointer; padding: 11px 16px 11px 14px; border-radius: 999px;
+    background: linear-gradient(135deg, #0C87EF, #2EC4D6); color: #fff; font: inherit; font-size: 14px; box-shadow: 0 10px 28px rgba(12, 135, 239, .35); }
+.sa-fab span { font-size: 20px; line-height: 1; }
+.sa-fab:focus-visible { outline: 3px solid #9CCBFA; outline-offset: 3px; }
+.sa-root.on .sa-fab b { display: none; }
+.sa-panel { position: absolute; bottom: 62px; right: 0; width: min(390px, calc(100vw - 32px)); height: min(600px, calc(100vh - 110px));
+    background: var(--sa-bg); color: var(--sa-ink); border-radius: 20px; box-shadow: 0 30px 80px rgba(11, 21, 38, .28); display: flex; flex-direction: column; overflow: hidden; }
+.sa-panel[hidden] { display: none; }
+.sa-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--sa-line); }
+.sa-tabs { display: flex; gap: 4px; flex: 1; }
+.sa-tabs button { border: 0; background: transparent; padding: 7px 12px; border-radius: 999px; font: inherit; font-size: 13.5px; color: var(--sa-mute); cursor: pointer; }
+.sa-tabs button.on { background: var(--sa-soft); color: var(--sa-blue); font-weight: 700; }
+.sa-ic { border: 0; background: transparent; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; color: var(--sa-mute); font-size: 15px; }
+.sa-ic:hover, .sa-tabs button:hover { background: var(--sa-soft); }
+.sa-body { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; overscroll-behavior: contain; }
+.sa-msg { max-width: 88%; padding: 9px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.75; word-wrap: break-word; }
+.sa-msg.bot { background: var(--sa-soft); align-self: flex-start; border-start-start-radius: 4px; }
+.sa-msg.me { background: var(--sa-blue); color: #fff; align-self: flex-end; border-start-end-radius: 4px; }
+.sa-msg.err { background: #FDECEA; color: #9B2C1F; }
+.sa-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sa-links a, .sa-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px; background: var(--sa-blue); color: #fff; text-decoration: none; font-size: 12.5px; font-weight: 700; border: 0; cursor: pointer; font-family: inherit; }
+.sa-links a { background: #fff; color: var(--sa-blue); border: 1px solid #B9DAFB; }
+.sa-btn.ghost { background: #fff; color: var(--sa-ink); border: 1px solid var(--sa-line); }
+.sa-btn:disabled { opacity: .6; cursor: default; }
+.sa-typing { display: flex; gap: 4px; } .sa-typing i { width: 6px; height: 6px; border-radius: 50%; background: #9FB3C8; animation: sa-b 1s infinite; }
+.sa-typing i:nth-child(2) { animation-delay: .15s; } .sa-typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes sa-b { 0%, 60%, 100% { transform: none; opacity: .5; } 30% { transform: translateY(-4px); opacity: 1; } }
+.sa-hints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sa-hint { border: 1px dashed #B9DAFB; background: #fff; color: var(--sa-blue); border-radius: 12px; padding: 6px 10px; font: inherit; font-size: 12.5px; cursor: pointer; text-align: start; }
+.sa-form { display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px; border-top: 1px solid var(--sa-line); }
+.sa-form[hidden] { display: none; }
+.sa-form textarea { flex: 1; resize: none; border: 1px solid var(--sa-line); border-radius: 14px; padding: 9px 12px; font: inherit; font-size: 14px; max-height: 120px; }
+.sa-form textarea:focus { outline: 2px solid #9CCBFA; border-color: transparent; }
+.sa-send { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--sa-blue); color: #fff; font-size: 16px; cursor: pointer; transform: scaleX(-1); }
+.sa-mute { color: var(--sa-mute); font-size: 12.5px; }
+.sa-lock { text-align: center; margin: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.sa-lock p { margin: 0; color: var(--sa-mute); font-size: 13.5px; line-height: 1.8; }
+.sa-run { border: 1px solid var(--sa-line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 10px; background: #fff; }
+.sa-run.paused { border-color: #F4C46A; background: #FFFBF1; } .sa-run.failed { border-color: #F1B0A8; } .sa-run.done { border-color: #9EE2C6; }
+.sa-run-h { display: flex; flex-direction: column; gap: 2px; } .sa-run-h small { color: var(--sa-mute); font-size: 12px; }
+.sa-cost { margin: 0; padding-inline-start: 18px; font-size: 13px; line-height: 1.9; }
+.sa-pub { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.sa-pub legend { font-weight: 700; margin-bottom: 4px; }
+.sa-pub label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.sa-pub-opts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-inline-start: 22px; }
+.sa-pub-opts select { border: 1px solid var(--sa-line); border-radius: 10px; padding: 5px 8px; font: inherit; font-size: 12.5px; max-width: 100%; }
+.sa-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.sa-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.sa-steps li { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #F1F4F8; color: var(--sa-mute); }
+.sa-steps li.done { background: #E2F6EE; color: #0A7A5C; } .sa-steps li.running { background: #E6F3FF; color: #0A5FCF; font-weight: 700; }
+.sa-steps li.paused { background: #FFF1D6; color: #8A5A00; font-weight: 700; } .sa-steps li.failed { background: #FDECEA; color: #9B2C1F; }
+.sa-note { margin: 0; font-size: 12.5px; line-height: 1.8; background: #FFF6E5; border-radius: 10px; padding: 8px 10px; }
+.sa-log { font-size: 12px; color: var(--sa-mute); } .sa-log summary { cursor: pointer; } .sa-log div { padding: 2px 0; }
+@media (max-width: 980px) { .sa-root { bottom: 86px; right: 14px; } .sa-fab b { display: none; } .sa-fab { padding: 12px; } }
+@media (max-width: 520px) { .sa-panel { position: fixed; inset: 10px 10px 150px 10px; width: auto; height: auto; } }
+@media (prefers-reduced-motion: reduce) { .sa-typing i { animation: none; } }
+@media print { .sa-root { display: none; } }

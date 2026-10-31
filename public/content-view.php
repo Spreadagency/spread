@@ -17,13 +17,16 @@ $versions = get_content_versions($id);
 $brand = user_brand();
 $notes = db_all('SELECT * FROM content_notes WHERE content_id = ? ORDER BY created_at DESC', [$id]);
 $designs = db_all('SELECT * FROM content_designs WHERE content_id = ? ORDER BY id DESC', [$id]);
+// تقييم العميل لكل تصميم (نظام الجودة) — قبل الترحيل الجدول مش موجود
+$__dRates = [];
+try { foreach (db_all('SELECT design_id, rating FROM design_ratings WHERE content_id = ? AND user_id = ?', [$id, (int) $_SESSION['user_id']]) as $__r) $__dRates[(int) $__r['design_id']] = (int) $__r['rating']; } catch (\Throwable $e) {}
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/social.php';
 
 // اتصالات النشر بتاعة العميل (لو الميزة مفعّلة له)
 $socialOn = feature_allows((int) $user['id']);
 $myConnections = $socialOn ? user_connections((int) $user['id'], 'active') : [];
-$designCost = cost_for('content_design_cost');
+$designCost = design_credit_cost();
 $aiEditCost = cost_for('ai_edit_cost');
 $__locked = in_array((string) ($content['publish_status'] ?? ''), ['published', 'scheduled', 'processing'], true) || !empty($content['published_at']);
 $__selDesign = (int) ($content['selected_image_id'] ?? 0) ?: (int) ($designs[0]['id'] ?? 0);
@@ -57,6 +60,7 @@ include __DIR__ . '/../templates/header.php';
                 </div>
             </div>
             <div style="display:flex;gap:8px">
+                <button type="button" class="btn ghost" data-report data-content-id="<?= (int) $id ?>">⚑ بلّغ عن مشكلة</button>
                 <a href="<?= url('content-edit.php?id=' . $id) ?>" class="btn">✎ تعديل</a>
             </div>
         </div>
@@ -88,6 +92,8 @@ include __DIR__ . '/../templates/header.php';
                         <a href="<?= url('content-edit.php?id=' . $id) ?>" class="btn ghost">✎ تعديل وحفظ</a>
                     </div>
                 </div>
+
+                <?php require_once __DIR__ . '/../includes/brand-kit.php'; $bkpContentId = $id; $bkpScheduleUrl = '#schedule'; include __DIR__ . '/../templates/brand-kit-post.php'; ?>
 
                 <!-- ✨ تعديل المنشور بالكلام / بناءً على تعليق (نفس مسار مكتبة المحتوى: اقتراح ← مقارنة ← اعتماد) -->
                 <div class="card mt-20 cv-ai" id="ai-edit">
@@ -123,6 +129,15 @@ include __DIR__ . '/../templates/header.php';
                         </div>
                     </div>
                 </div>
+
+                <!-- ⭐ تقييم المحتوى (نفس برومبت ومعايير تقييم الحملات من الأدمن) -->
+                <?php $__ev = (json_decode((string) ($content['brief_json'] ?? ''), true) ?: [])['eval'] ?? null; ?>
+                <div class="card mt-20" id="rate">
+                    <div class="card-head"><h3>⭐ قيّم المنشور</h3>
+                        <button type="button" class="btn sm ghost" id="cv-rate-btn" onclick="cvRate()"><?= $__ev ? 'قيّم تاني' : 'قيّمه' ?> ✨<?php $__rc = (int) get_setting('campaign_eval_cost', 0); if ($__rc): ?> <small class="cr">· <?= $__rc ?></small><?php endif; ?></button></div>
+                    <div id="cv-rate-box"><?php if (!$__ev): ?><p class="text-mute" style="font-size:13px;margin:0">الـ AI يقيّم المنشور من 100 بمعايير واضحة ويقولك إيه اللي يتحسن — وتقدر تحسّنه بضغطة.</p><?php endif; ?></div>
+                </div>
+                <script>window.CV_EVAL = <?= json_encode($__ev, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?>;</script>
 
                 <?php if ($__fmt === 'video'): ?>
                 <!-- ⑦-ج الفيديو مابيتصممش — سكريبت ← اعتماد ← تنفيذ يدوي -->
@@ -165,7 +180,7 @@ include __DIR__ . '/../templates/header.php';
                 <div class="card mt-20" id="design">
                     <div class="card-head">
                         <h3>🎨 التصميمات</h3>
-                        <button class="btn sm" id="design-btn" onclick="generateDesign()">＋ توليد تصميم (<?= $designCost ?> كريدت)</button>
+                        <button class="btn sm" id="design-btn" onclick="generateDesign()">＋ توليد تصميم (<?= e(design_cost_text()) ?>)</button>
                     </div>
                     <!-- Phase 3: فكرة التصميم -->
                     <div class="field" style="margin-bottom:12px">
@@ -201,6 +216,39 @@ include __DIR__ . '/../templates/header.php';
                     <?php endif; ?>
                     <?php if ($__fmt === 'story'): ?><p class="text-mute" style="font-size:12.5px">📱 ستوري — التصميم بيتعمل رأسي 9:16 تلقائيًا.</p><?php endif; ?>
                     <?php $ratioScope = 'post'; $ratioCurrent = '1:1'; if ($__fmt !== 'story') include __DIR__ . '/../templates/ratio-picker.php'; ?>
+                    <?php if ($__fmt !== 'story'): ?>
+                    <div class="field" style="margin-top:-4px">
+                        <label style="font-size:13px">أو مقاس مخصص <span class="text-mute" style="font-size:12px">(العرض × الارتفاع بالبكسل — الصورة بتطلع بالمقاس ده بالظبط)</span></label>
+                        <input id="design-size-wh" class="input" dir="ltr" placeholder="1080x1350" style="max-width:180px">
+                    </div>
+                    <?php endif; ?>
+                    <?php
+                    require_once __DIR__ . '/../includes/uploader.php';
+                    $__dStyles = db_all('SELECT id, name FROM style_presets WHERE kind = "design_style" AND is_active = 1 ORDER BY sort_order, id LIMIT 12');
+                    $__dChars = [];
+                    if (bk_enabled()) foreach (bk_characters((int) $user['id']) as $__c) {
+                        if ((int) $__c['is_active'] && $__c['images'] && ($__c['type'] !== 'real_person' || (int) $__c['consent_confirmed'])) $__dChars[] = $__c;
+                    }
+                    ?>
+                    <?php if ($__dStyles): ?>
+                    <div class="field">
+                        <label style="font-size:13px">🖌 استايل الصورة</label>
+                        <div class="cv-chips" id="design-style">
+                            <button type="button" class="chip on" data-v="" onclick="cvPick(this, 'design-style')">زي الهوية</button>
+                            <?php foreach ($__dStyles as $__st): ?><button type="button" class="chip" data-v="<?= (int) $__st['id'] ?>" onclick="cvPick(this, 'design-style')"><?= e($__st['name']) ?></button><?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($__dChars): ?>
+                    <div class="field">
+                        <label style="font-size:13px">🧑 الشخصيات في التصميم <span class="text-mute" style="font-size:12px">(لحد شخصيتين)</span></label>
+                        <div class="cv-chips" id="design-chars">
+                            <button type="button" class="chip on" data-v="auto" onclick="cvChars(this)">زي البوست</button>
+                            <button type="button" class="chip" data-v="none" onclick="cvChars(this)">من غير شخصيات</button>
+                            <?php foreach ($__dChars as $__c): ?><button type="button" class="chip cv-chip-img" data-v="<?= (int) $__c['id'] ?>" onclick="cvChars(this)"><img src="<?= e(upload_url($__c['images'][0]['image_path'])) ?>" alt=""><?= e($__c['name']) ?></button><?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <?php if ($designs && !$__locked): ?>
                     <!-- ✏️ تعديل التصميم — 3 طرق -->
                     <div class="cv-dedit" id="design-edit">
@@ -220,7 +268,7 @@ include __DIR__ . '/../templates/header.php';
                             <textarea id="cv-dinstr" class="textarea" rows="2" maxlength="600" placeholder="مثلًا: كبّر اللوجو وخلّي الخلفية أفتح"></textarea>
                             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
                                 <button type="button" class="btn" id="cv-dedit-btn" onclick="cvDesignEdit()">تعديل التصميم ✨</button>
-                                <small class="text-mute"><span class="cr"><?= $designCost ?> كريدت · </span>النسخة الجديدة هتبقى الغلاف، والقديمة بتفضل موجودة</small>
+                                <small class="text-mute"><span class="cr"><?= e(design_cost_text()) ?> · </span>النسخة الجديدة هتبقى الغلاف، والقديمة بتفضل موجودة</small>
                             </div>
                         </div>
                         <div class="cv-dpane" data-pane="pick" style="display:none">
@@ -244,6 +292,9 @@ include __DIR__ . '/../templates/header.php';
                                 </a>
                                 <figcaption>
                                     <b>V<?= count($designs) - $i ?></b><?php if (!empty($d['slide_no'])): ?> · شريحة <?= (int) $d['slide_no'] ?><?php endif; ?>
+                                    <span data-design-rate="<?= (int) $d['id'] ?>" data-v="<?= (int) ($__dRates[(int) $d['id']] ?? 0) ?>"></span>
+                                    <a href="<?= url('storage/' . $d['image_path']) ?>" download class="sq-flag" data-design-download="<?= (int) $d['id'] ?>" title="تحميل التصميم" aria-label="تحميل التصميم">⬇</a>
+                                    <button type="button" class="sq-flag" data-report data-design-id="<?= (int) $d['id'] ?>" data-content-id="<?= (int) $id ?>" data-category="design" title="بلّغ عن مشكلة في التصميم" aria-label="بلّغ عن مشكلة في التصميم">⚑</button>
                                     <?php if ($__cur): ?><span class="cv-cur">الغلاف ✓</span>
                                     <?php elseif (!$__locked): ?><button type="button" class="btn ghost sm" onclick="cvUseDesign(<?= (int) $d['id'] ?>, this)">استخدام</button><?php endif; ?>
                                 </figcaption>
@@ -590,6 +641,40 @@ function copyAll() {
     copyToClipboard(t.trim());
 }
 
+function cvPick(el, box) { document.querySelectorAll('#' + box + ' .chip').forEach(b => b.classList.remove('on')); el.classList.add('on'); }
+function cvChars(el) {
+    const all = [...document.querySelectorAll('#design-chars .chip')], v = el.dataset.v;
+    if (v === 'auto' || v === 'none') { all.forEach(b => b.classList.toggle('on', b === el)); return; }
+    all.filter(b => b.dataset.v === 'auto' || b.dataset.v === 'none').forEach(b => b.classList.remove('on'));
+    el.classList.toggle('on');
+    const on = all.filter(b => b.classList.contains('on') && /^\d+$/.test(b.dataset.v));
+    if (on.length > 2) on[0].classList.remove('on');
+    if (!all.some(b => b.classList.contains('on'))) all[0].classList.add('on');
+}
+function cvRateRender(e) {
+    const box = document.getElementById('cv-rate-box'); if (!box || !e) return;
+    const esc = (t) => String(t || '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+    const ok = e.score >= (e.ready || 80);
+    box.innerHTML = '<div class="cv-rate"><div class="cv-rate-ring ' + (ok ? 'ok' : 'warn') + '"><b>' + e.score + '</b><small>/100</small></div><div class="cv-rate-cats">'
+        + (e.cats || []).map((v, k) => '<div><span>' + esc((e.labels || [])[k] || '') + '</span><i><s style="width:' + v + '%"></s></i><b>' + v + '</b></div>').join('') + '</div></div>'
+        + (e.comment ? '<p class="cv-rate-c">✦ ' + esc(e.comment) + '</p>' : '')
+        + (!ok && e.issues ? '<p class="cv-rate-i">ⓘ ' + esc(e.issues) + '</p><button type="button" class="btn sm" onclick="cvRateFix()">حسّنه بالـ AI ✨</button>' : '');
+}
+async function cvRate() {
+    const btn = document.getElementById('cv-rate-btn'); btn.disabled = true; const t = btn.textContent; btn.textContent = '⟳ بيقيّم…';
+    const r = await SpreadAPI.post('contents', 'evaluate', { id: CV_ID });
+    btn.disabled = false; btn.textContent = t;
+    if (!r.ok) return showToast(r.error || 'تعذّر التقييم', 'danger');
+    window.CV_EVAL = r.eval; cvRateRender(r.eval);
+}
+function cvRateFix() {
+    const i = document.getElementById('cv-instr'); if (!i || !window.CV_EVAL) return;
+    i.value = 'حسّن المنشور وعالج الملاحظات دي: ' + window.CV_EVAL.issues;
+    document.getElementById('ai-edit').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    cvAiEdit();
+}
+document.addEventListener('DOMContentLoaded', () => cvRateRender(window.CV_EVAL));
+
 async function generateDesign() {
     const btn = document.getElementById('design-btn');
     btn.disabled = true;
@@ -606,6 +691,12 @@ async function generateDesign() {
         fd.append('include_brand_images', document.getElementById('design-use-images')?.checked ? '1' : '0');
         fd.append('style_ref', (typeof selectedStyleRef === 'function') ? selectedStyleRef() : '');
         fd.append('ratio', (typeof selectedRatio === 'function') ? selectedRatio('post') : '1:1');
+        const __wh = (document.getElementById('design-size-wh')?.value || '').trim();
+        if (__wh) fd.append('size_wh', __wh);
+        const __st = document.querySelector('#design-style .chip.on');
+        if (__st && __st.dataset.v) fd.append('style_preset_id', __st.dataset.v);
+        const __ch = [...document.querySelectorAll('#design-chars .chip.on')].map(b => b.dataset.v);
+        if (__ch.length && __ch[0] !== 'auto') fd.append('character_ids', __ch[0] === 'none' ? '0' : __ch.join(','));
         const slideSel = document.getElementById('design-slide');
         if (slideSel) fd.append('slide_no', slideSel.value);
         const srcInput = document.getElementById('design-source-image');

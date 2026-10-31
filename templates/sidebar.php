@@ -31,6 +31,11 @@ $balance = user_credits();
             <span class="ico">📣</span> حملاتي
         </a>
         <?php endif; ?>
+        <?php if (is_file(__DIR__ . '/../includes/ce-jobs.php') && (require_once __DIR__ . '/../includes/ce-jobs.php') && ce_enabled_for((int) ($user['id'] ?? (current_user()['id'] ?? 0)))): ?>
+        <a href="<?= url('engine.php') ?>" class="<?= $active === 'engine' ? 'active' : '' ?>">
+            <span class="ico">✨</span> محرك المحتوى
+        </a>
+        <?php endif; ?>
         <a href="<?= url('create-content.php') ?>" class="<?= $active === 'create' ? 'active' : '' ?>">
             <span class="ico">✎</span> إنشاء منشور
         </a>
@@ -60,7 +65,12 @@ $balance = user_credits();
             <span class="ico">▤</span> المحتوى السابق
         </a>
         <?php endif; ?>
-        <?php if (menu_visible('brand-profile')): ?>
+        <?php $__bkOn = is_file(__DIR__ . '/../includes/brand-kit.php') && (require_once __DIR__ . '/../includes/brand-kit.php') && bk_enabled(); ?>
+        <?php if ($__bkOn): ?>
+        <a href="<?= url('brand-kit.php') ?>" class="<?= in_array($active, ['brand-kit', 'brand-brain', 'brand'], true) ? 'active' : '' ?>">
+            <span class="ico">🧬</span> هوية البراند
+        </a>
+        <?php elseif (menu_visible('brand-profile')): ?>
         <?php if (function_exists('ui_v2_enabled') && ui_v2_enabled()): ?>
         <a href="<?= url('brand-brain.php') ?>" class="<?= in_array($active, ['brand-brain', 'brand'], true) ? 'active' : '' ?>">
             <span class="ico">🧠</span> Brand Brain · الهوية
@@ -78,6 +88,11 @@ $balance = user_credits();
         <?php endif; ?>
 
         <div class="nav-section">الحساب</div>
+        <?php if (get_setting('plan_page_unified', '1') === '1'): /* «باقتي»: الاشتراك والرصيد وادع واكسب في صفحة واحدة */ ?>
+        <a href="<?= url('my-plan.php') ?>" class="<?= in_array($active, ['my-plan', 'credits', 'referrals', 'packages'], true) ? 'active' : '' ?>">
+            <span class="ico">💎</span> باقتي <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
+        </a>
+        <?php else: ?>
         <?php if (menu_visible('referrals')): ?>
         <a href="<?= url('referrals.php') ?>" class="<?= $active === 'referrals' ? 'active' : '' ?>">
             <span class="ico">🎁</span> <?= (function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت' ?>
@@ -87,6 +102,7 @@ $balance = user_credits();
         <a href="<?= url('credits.php') ?>" class="<?= $active === 'credits' ? 'active' : '' ?>">
             <span class="ico">◇</span> <span class="cr">الرصيد</span><span class="cr-alt">الباقة والاستهلاك</span> <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
         </a>
+        <?php endif; ?>
         <?php endif; ?>
         <a href="<?= url('profile.php') ?>" class="<?= $active === 'profile' ? 'active' : '' ?>">
             <span class="ico">○</span> الملف الشخصي

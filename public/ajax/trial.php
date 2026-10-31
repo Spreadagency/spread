@@ -2,6 +2,8 @@
 /**
  * Spread AI — واجهة التجربة المجانية (اصنع منشورك الآن)
  * بتتنادى من الموقع التعريفي بدون تسجيل دخول.
+ * action=analyze → قراءة لينك الموقع / صفحة الفيسبوك واستخراج معلومات النشاط
+ * action=resume → آخر مرحلة وصلها الزائر (الكوكي ← الـ IP) · action=stage / reset
  * action=ideas → 4 أفكار · action=post → منشور كامل
  * محمية بحد لكل IP، ومش بتخصم كريدت من حد.
  */
@@ -11,6 +13,7 @@ require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/credits.php';
 require_once __DIR__ . '/../../includes/rate-limit.php';
 require_once __DIR__ . '/../../includes/ai.php';
+require_once __DIR__ . '/../../includes/trial-brand.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -36,8 +39,80 @@ if (get_setting('trial_enabled', '1') !== '1') {
     trial_out(['ok' => false, 'error' => 'التجربة المجانية موقوفة حاليًا']);
 }
 
-$ip = mb_substr((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+$ip = trial_client_ip();
 $action = (string) ($_POST['action'] ?? '');
+trial_ensure_schema();
+
+/** جلسة التجربة بالتوكن (المفتوحة بس) */
+function trial_by_token(): ?array
+{
+    $token = preg_replace('/[^a-f0-9]/', '', (string) ($_POST['token'] ?? ''));
+    return $token !== '' ? (db_one('SELECT * FROM trial_sessions WHERE token = ? AND claimed_user_id IS NULL', [$token]) ?: null) : null;
+}
+
+/* ═══════════ الاستكمال: الزائر رجع ← نفس المرحلة اللي وصلها ═══════════ */
+if ($action === 'resume') {
+    if (!rate_limit('trial_resume', 'ip' . $ip, 60, 3600)) trial_out(['ok' => true, 'state' => null]);
+    $t = trial_find_open();
+    if ($t) trial_set_cookie((string) $t['token']);
+    trial_out(['ok' => true, 'state' => $t ? trial_state($t) : null]);
+}
+
+/* المرحلة الحالية (التصميم / الحفظ / الرجوع لمرحلة قبلها) */
+if ($action === 'stage') {
+    $t = trial_by_token();
+    if ($t) trial_set_stage((int) $t['id'], (string) ($_POST['stage'] ?? ''));
+    trial_out(['ok' => (bool) $t]);
+}
+
+/* «ابدأ من الأول» ← التجربة دي ماتظهرش تاني */
+if ($action === 'reset') {
+    $t = trial_by_token();
+    if ($t) trial_set_stage((int) $t['id'], 'closed');
+    trial_set_cookie('');
+    trial_out(['ok' => true]);
+}
+
+/* ═══════════ عرّفنا على مشروعك: لينك الموقع أو صفحة الفيسبوك ═══════════ */
+if ($action === 'analyze') {
+    $perHour = max(1, (int) get_setting('trial_per_ip_hour', 5));
+    if (!rate_limit('trial_analyze', 'ip' . $ip, $perHour * 2, 3600)) {
+        trial_out(['ok' => false, 'error' => 'جرّبت كذا مرة خلال ساعة — سجّل حساب مجاني وكمّل من جوه المنصة 🙂', 'signup' => true]);
+    }
+    $url = mb_substr(trim((string) ($_POST['url'] ?? '')), 0, 500);
+    $manualName = mb_substr(trim((string) ($_POST['business_name'] ?? '')), 0, 200);
+    $manualInd = mb_substr(trim((string) ($_POST['industry'] ?? '')), 0, 150);
+
+    if ($manualName !== '') {
+        // الصفحة ماتقريتش ← الزائر كتب الاسم والمجال بنفسه
+        $d = $url !== '' ? brand_detect_link($url) : null;
+        if ($d && empty(safe_http_validate($d['url'])['ok'])) $d = null;
+        $res = ['ok' => true, 'url' => $d['url'] ?? '', 'type' => $d['type'] ?? '', 'label' => $d['label'] ?? '', 'text' => '',
+                'profile' => ['business_name' => $manualName, 'industry' => $manualInd, 'description' => '', 'audience' => '', 'services' => '',
+                              'tone' => '', 'phones' => '', 'image' => '', 'links' => [], 'manual' => true]];
+    } else {
+        $res = trial_analyze_url($url);
+        if (!$res['ok']) trial_out(['ok' => false, 'error' => $res['error'], 'code' => $res['code'] ?? '', 'guess' => $res['guess'] ?? '']);
+    }
+
+    $pr = $res['profile'];
+    $json = json_encode([
+        'description' => $pr['description'], 'phones' => $pr['phones'], 'image' => $pr['image'], 'links' => $pr['links'],
+        'source_label' => $res['label'], 'manual' => !empty($pr['manual']),
+    ], JSON_UNESCAPED_UNICODE);
+    $token = bin2hex(random_bytes(20));
+    db_insert(
+        'INSERT INTO trial_sessions (token, business_name, industry, audience, services, tone, dialect, goal, ip,
+                                     source_url, source_type, profile_json, source_text, stage, ua_hash, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, "egyptian", "", ?, ?, ?, ?, ?, "profile", ?, NOW())',
+        [$token, mb_substr($pr['business_name'], 0, 200), mb_substr($pr['industry'], 0, 150), mb_substr($pr['audience'], 0, 300),
+         mb_substr($pr['services'], 0, 1000), mb_substr($pr['tone'] ?: 'ودّي', 0, 80), $ip,
+         $res['url'] !== '' ? mb_substr($res['url'], 0, 500) : null, $res['type'] ?: null, $json, $res['text'] !== '' ? $res['text'] : null, trial_ua_hash()]
+    );
+    trial_set_cookie($token);
+    $t = db_one('SELECT * FROM trial_sessions WHERE token = ?', [$token]);
+    trial_out(['ok' => true, 'state' => trial_state($t)]);
+}
 
 /* ═══════════ 0) مرحلة التصميم: التحقق من الاشتراك (قبل أي تصميم) ═══════════
  * مابيولّدش حاجة ولا بيخصم ولا بيعمل Job — بيرجّع بس: مشترك ولا لأ + لينك الكمال.
@@ -66,18 +141,23 @@ if ($action === 'ideas') {
         trial_out(['ok' => false, 'error' => 'جرّبت كذا مرة خلال ساعة — سجّل حساب مجاني وكمّل من جوه المنصة 🙂', 'signup' => true]);
     }
 
+    // جلسة اتحلّلت من لينك؟ بنبني على معلوماتها (والزائر ممكن يعدّل الاسم والمجال)
+    $sess = trial_by_token();
+    $in = fn(string $k, int $max, string $def = '') => mb_substr(trim((string) ($_POST[$k] ?? $def)), 0, $max);
     $biz = [
-        'business_name' => mb_substr(trim((string) ($_POST['business_name'] ?? '')), 0, 200),
-        'industry'      => mb_substr(trim((string) ($_POST['industry'] ?? '')), 0, 150),
-        'audience'      => mb_substr(trim((string) ($_POST['audience'] ?? '')), 0, 300),
-        'services'      => mb_substr(trim((string) ($_POST['services'] ?? '')), 0, 1000),
-        'tone'          => mb_substr(trim((string) ($_POST['tone'] ?? 'ودّي')), 0, 80),
-        'dialect'       => in_array($_POST['dialect'] ?? '', ['egyptian', 'msa'], true) ? $_POST['dialect'] : 'egyptian',
-        'goal'          => mb_substr(trim((string) ($_POST['goal'] ?? '')), 0, 150),
+        'business_name' => $in('business_name', 200) ?: (string) ($sess['business_name'] ?? ''),
+        'industry'      => $in('industry', 150) ?: (string) ($sess['industry'] ?? ''),
+        'audience'      => $in('audience', 300) ?: (string) ($sess['audience'] ?? ''),
+        'services'      => $in('services', 1000) ?: (string) ($sess['services'] ?? ''),
+        'tone'          => $in('tone', 80) ?: (string) ($sess['tone'] ?? '') ?: 'ودّي',
+        'dialect'       => in_array($_POST['dialect'] ?? '', ['egyptian', 'msa'], true) ? $_POST['dialect'] : ((string) ($sess['dialect'] ?? '') ?: 'egyptian'),
+        'goal'          => $in('goal', 150) ?: (string) ($sess['goal'] ?? ''),
     ];
-    if ($biz['business_name'] === '' || $biz['industry'] === '') {
-        trial_out(['ok' => false, 'error' => 'اكتب اسم البيزنس والمجال على الأقل']);
+    $desc = $sess ? (string) (json_decode((string) ($sess['profile_json'] ?? ''), true)['description'] ?? '') : '';
+    if ($biz['business_name'] === '') {
+        trial_out(['ok' => false, 'error' => 'اكتب اسم النشاط على الأقل']);
     }
+    if ($biz['industry'] === '') $biz['industry'] = 'نشاط تجاري';
 
     $count = max(3, min(6, (int) get_setting('trial_ideas_count', 4)));
     $dialectLabel = $biz['dialect'] === 'egyptian' ? 'العامية المصرية' : 'العربية الفصحى المبسّطة';
@@ -86,6 +166,7 @@ if ($action === 'ideas') {
         . "اقترح {$count} أفكار منشورات متنوعة ومحددة للبيزنس ده:\n\n"
         . "- الاسم: {$biz['business_name']}\n"
         . "- المجال: {$biz['industry']}\n"
+        . ($desc !== '' ? "- عن النشاط: {$desc}\n" : '')
         . ($biz['audience'] !== '' ? "- الجمهور: {$biz['audience']}\n" : '')
         . ($biz['services'] !== '' ? "- الخدمات/المنتجات: {$biz['services']}\n" : '')
         . ($biz['goal'] !== '' ? "- الهدف: {$biz['goal']}\n" : '')
@@ -124,13 +205,24 @@ if ($action === 'ideas') {
         trial_out(['ok' => false, 'error' => 'تعذّر توليد الأفكار — جرّب تاني']);
     }
 
-    $token = bin2hex(random_bytes(20));
-    db_insert(
-        'INSERT INTO trial_sessions (token, business_name, industry, audience, services, tone, dialect, goal, ideas_json, ip)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [$token, $biz['business_name'], $biz['industry'], $biz['audience'], $biz['services'],
-         $biz['tone'], $biz['dialect'], $biz['goal'], json_encode($ideas, JSON_UNESCAPED_UNICODE), $ip]
-    );
+    if ($sess) {
+        // نفس الجلسة: الأفكار الجديدة بتمسح المنشور القديم
+        $token = (string) $sess['token'];
+        db_run('UPDATE trial_sessions SET business_name = ?, industry = ?, audience = ?, services = ?, tone = ?, dialect = ?, goal = ?,
+                       ideas_json = ?, chosen_idea = NULL, generated_text = NULL, hashtags = NULL, cta = NULL,
+                       ip = ?, ua_hash = ?, stage = "ideas", updated_at = NOW() WHERE id = ?',
+            [$biz['business_name'], $biz['industry'], $biz['audience'], $biz['services'], $biz['tone'], $biz['dialect'], $biz['goal'],
+             json_encode($ideas, JSON_UNESCAPED_UNICODE), $ip, trial_ua_hash(), $sess['id']]);
+    } else {
+        $token = bin2hex(random_bytes(20));
+        db_insert(
+            'INSERT INTO trial_sessions (token, business_name, industry, audience, services, tone, dialect, goal, ideas_json, ip, stage, ua_hash, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "ideas", ?, NOW())',
+            [$token, $biz['business_name'], $biz['industry'], $biz['audience'], $biz['services'],
+             $biz['tone'], $biz['dialect'], $biz['goal'], json_encode($ideas, JSON_UNESCAPED_UNICODE), $ip, trial_ua_hash()]
+        );
+    }
+    trial_set_cookie($token);
 
     trial_out(['ok' => true, 'token' => $token, 'ideas' => $ideas]);
 }
@@ -179,7 +271,7 @@ if ($action === 'post') {
     $cta = $grab('CTA');
 
     db_run(
-        'UPDATE trial_sessions SET chosen_idea = ?, generated_text = ?, hashtags = ?, cta = ? WHERE id = ?',
+        'UPDATE trial_sessions SET chosen_idea = ?, generated_text = ?, hashtags = ?, cta = ?, stage = "post", updated_at = NOW() WHERE id = ?',
         [json_encode($idea, JSON_UNESCAPED_UNICODE), mb_substr($content, 0, 8000), mb_substr($hashtags, 0, 600), mb_substr($cta, 0, 400), $t['id']]
     );
 

@@ -77,7 +77,11 @@ include __DIR__ . '/../templates/admin-header.php';
                         <tr><th>العميل</th><td><a href="<?= url('admin/user-view.php?id=' . (int) $r['user_id']) ?>"><b><?= e($r['user_name']) ?></b></a> · #<?= (int) $r['user_id'] ?> <?= $prev ? '<span class="chip">' . $prev . ' دفعة سابقة معتمدة</span>' : '<span class="chip">أول دفعة</span>' ?></td></tr>
                         <tr><th>الإيميل</th><td dir="ltr"><?= e($r['contact_email'] ?: $r['user_email']) ?></td></tr>
                         <tr><th>الموبايل</th><td dir="ltr"><?= e($r['contact_phone'] ?: (string) $r['user_phone']) ?></td></tr>
+                        <?php if (!empty($r['video_order_id'])): ?>
+                        <tr><th>الفيديو</th><td><b><?= e($r['plan_name']) ?></b> · 🎬 دفع بالفلوس (من غير كريدت) · <a href="<?= url('admin/video-requests.php?f=all') ?>">طلبات الفيديو</a></td></tr>
+                        <?php else: ?>
                         <tr><th>الباقة</th><td><b><?= e($r['plan_name']) ?></b> · <?= (int) $r['credits'] ?> كريدت<?= (int) $r['bonus_credits'] ? ' + 🎁 ' . (int) $r['bonus_credits'] : '' ?> · <?= (int) $r['validity_days'] ?> يوم<?= (int) $r['extra_days'] ? ' + ' . (int) $r['extra_days'] . ' يوم' : '' ?></td></tr>
+                        <?php endif; ?>
                         <tr><th>المبلغ</th><td><b style="font-size:18px"><?= number_format((float) $r['final_amount'], 2) ?> <?= e($r['currency']) ?></b>
                             <?php if ((float) $r['discount_amount'] > 0): ?> <small class="sub">(الأصلي <?= number_format((float) $r['original_amount'], 2) ?> − خصم <?= number_format((float) $r['discount_amount'], 2) ?>)</small><?php endif; ?></td></tr>
                         <?php if ($r['promo_code']): ?><tr><th>كود الخصم</th><td><span class="chip" dir="ltr"><?= e($r['promo_code']) ?></span> <?= e($promo['label'] ?? '') ?></td></tr><?php endif; ?>
@@ -131,7 +135,7 @@ include __DIR__ . '/../templates/admin-header.php';
                         <form method="POST" data-safe-post style="margin-bottom:12px"><?= csrf_field() ?><input type="hidden" name="action" value="review">
                             <button class="btn ghost full">🔎 بدء المراجعة (Under Review)</button></form>
                     <?php endif; ?>
-                    <form method="POST" data-safe-post onsubmit="return confirm('تأكيد الدفع وتفعيل الباقة وإضافة <?= (int) $r['credits'] + (int) $r['bonus_credits'] ?> كريدت؟')">
+                    <form method="POST" data-safe-post onsubmit="return confirm('<?= !empty($r['video_order_id']) ? 'تأكيد الدفع وإرسال الفيديو لفريق التنفيذ؟' : 'تأكيد الدفع وتفعيل الباقة وإضافة ' . ((int) $r['credits'] + (int) $r['bonus_credits']) . ' كريدت؟' ?>')">
                         <?= csrf_field() ?><input type="hidden" name="action" value="approve">
                         <input class="input" name="note" placeholder="ملاحظة الاعتماد (اختياري)" style="margin-bottom:8px">
                         <button class="btn full" style="background:#10A8A0;border-color:#10A8A0">✓ Approve — اعتماد وتفعيل</button>

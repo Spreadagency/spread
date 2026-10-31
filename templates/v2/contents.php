@@ -75,18 +75,18 @@
     <!-- الكروت -->
     <div class="lib-grid" v-else>
         <article v-for="c in items" :key="c.id" class="card lib-card" :class="{ fail: c.fail }">
-            <button type="button" class="lib-cover" @click="open(c.id)" :aria-label="'فتح ' + c.hook">
+            <a class="lib-cover" :href="base + '/content-view.php?id=' + c.id" :aria-label="'فتح ' + c.hook">
                 <?= ui_icon('image', 26) ?>
                 <img v-if="c.cover" :src="c.cover" alt="" loading="lazy" decoding="async" @error="$event.target.remove()">
                 <em class="lib-type">{{ c.type_label }}</em>
                 <em class="lib-fmt" v-if="c.format && c.format !== 'post'">{{ c.format_emoji }} {{ c.format_label }}<span v-if="c.slides_count"> · {{ c.slides_count }}</span></em>
-            </button>
+            </a>
             <div class="lib-body">
                 <div class="lib-row">
                     <span class="cm-st" :style="{ '--st': c.status.color }">{{ c.status.label }}</span>
                     <small class="sub">{{ c.ago }}</small>
                 </div>
-                <b class="lib-hook" @click="open(c.id)">{{ c.hook || 'بدون نص' }}</b>
+                <a class="lib-hook" :href="base + '/content-view.php?id=' + c.id" style="display:block;color:inherit;text-decoration:none;font-weight:700">{{ c.hook || 'بدون نص' }}</a>
                 <div class="lib-meta">
                     <span>{{ c.platform }}</span>
                     <a v-if="c.campaign" :href="base + '/campaign.php?id=' + c.campaign.id" class="lib-camp">{{ c.campaign.title }}</a>
@@ -99,7 +99,9 @@
                 <small class="lib-sched" v-if="c.scheduled">🗓 مجدول: <span dir="ltr">{{ c.scheduled }}</span></small>
                 <small class="lib-fail" v-if="c.fail">✕ {{ c.fail }}</small>
                 <div class="lib-act">
-                    <button type="button" class="btn ghost sm" @click="open(c.id)">فتح المنشور</button>
+                    <a class="btn ghost sm" :href="base + '/content-view.php?id=' + c.id">فتح المنشور</a>
+                    <button type="button" class="btn ghost sm" @click="open(c.id)" title="معاينة سريعة من غير ما تسيب الصفحة">👁</button>
+                    <button type="button" class="btn ghost sm" data-report :data-content-id="c.id" title="بلّغ عن مشكلة في المنشور ده" aria-label="بلّغ عن مشكلة">⚑</button>
                     <span class="pv-c" v-if="c.next.kind === 'link'"><a :href="c.next.url" class="btn sm">{{ c.next.label }}</a></span>
                     <span class="pv-c" v-if="c.next.kind === 'external'"><a :href="c.next.url" class="btn soft sm" target="_blank" rel="noopener">{{ c.next.label }}</a></span>
                     <span class="pv-c" v-if="c.next.kind === 'panel'"><button type="button" class="btn sm" @click="open(c.id)">{{ c.next.label }}</button></span>
@@ -287,6 +289,7 @@
                     <a v-if="d.video.delivery_url" :href="d.video.delivery_url" target="_blank" rel="noopener nofollow" class="btn ghost sm">رابط الفيديو</a></div>
                 <div class="lib-vbox" v-if="['sent', 'in_production'].indexOf(d.video.status.key) >= 0">
                     <b>{{ d.video.status.key === 'sent' ? '📨 طلبك وصل لفريق Spread AI' : '🎬 الفيديو قيد التنفيذ' }}</b>
+                    <small class="sub" v-if="vOrder() && vOrder().status === 'paid'">💳 مدفوع: {{ vOrder().label }} · {{ money(vOrder().final) }}<template v-if="vOrder().days"> · التسليم خلال {{ vOrder().days }} يوم تقريبًا</template></small>
                     <p class="sub">هنبلّغك هنا أول ما يجهز. {{ d.video.note }}</p>
                     <button type="button" class="btn ghost sm" @click="videoRequest()" :disabled="vBusy">📲 كلّمنا على واتساب تاني</button>
                 </div>
@@ -313,8 +316,34 @@
                 <div class="lib-save" v-if="!videoLocked()">
                     <button type="button" class="btn ghost" v-if="videoDirty" @click="videoSave()" :disabled="vBusy">حفظ التعديلات</button>
                     <button type="button" class="btn" v-if="d.video.status.key === 'script'" @click="videoAct('video_approve')" :disabled="vBusy">✓ اعتمد السكريبت</button>
-                    <button type="button" class="btn lib-wa" v-if="d.video.status.key === 'approved'" @click="videoRequest()" :disabled="vBusy || !d.video.wa || null">📲 تواصل معنا لتنفيذ الفيديو</button>
-                    <small class="sub" v-if="d.video.status.key === 'approved' && !d.video.wa">رقم واتساب التنفيذ مش مضبوط — كلّم الإدارة</small>
+                    <button type="button" class="btn lib-wa" v-if="d.video.status.key === 'approved' && !vpOn()" @click="videoRequest()" :disabled="vBusy || !d.video.wa || null">📲 تواصل معنا لتنفيذ الفيديو</button>
+                    <small class="sub" v-if="d.video.status.key === 'approved' && !vpOn() && !d.video.wa">رقم واتساب التنفيذ مش مضبوط — كلّم الإدارة</small>
+                </div>
+
+                <!-- المرحلة 6: نوع الفيديو ومدته ← السعر بعد خصم الباقة ← اطلب وادفع -->
+                <div class="lib-vpay" v-if="vpOn() && d.video.status.key === 'approved'">
+                    <div class="lib-vpay-h"><b>🎬 اختار نوع الفيديو ومدته</b>
+                        <span class="lib-vpay-disc" v-if="d.video.pay.discount_pct > 0">🏷 خصم باقتك {{ pctTxt(d.video.pay.discount_pct) }}%</span></div>
+                    <div class="lib-vtypes" role="radiogroup" aria-label="نوع الفيديو">
+                        <div class="lib-vtype" v-for="t in d.video.pay.types" :key="t.id" :class="{ on: vType === t.id }">
+                            <button type="button" class="lib-vtype-b" role="radio" :aria-checked="vType === t.id ? 'true' : 'false'" @click="vPick(t.id)">
+                                <b>{{ t.name }}</b><small v-if="t.desc">{{ t.desc }}</small>
+                                <small class="lib-vfrom">من {{ money(minPrice(t)) }}</small></button>
+                            <button type="button" class="btn ghost sm" v-if="t.samples.length" @click="vSamples = t">🎞 شوف فيديوهات زيه</button>
+                        </div>
+                    </div>
+                    <div class="lib-vdurs" v-if="vTypeObj()" role="radiogroup" aria-label="مدة الفيديو">
+                        <label class="lib-vdur" v-for="o in vTypeObj().durations" :key="o.i" :class="{ on: vDur === o.i }">
+                            <input type="radio" name="vdur" :value="o.i" v-model="vDur">
+                            <span><b>{{ o.label }}</b><small v-if="o.days">التسليم خلال {{ o.days }} يوم</small></span>
+                            <span class="lib-vprice"><s v-if="o.final < o.base">{{ money(o.base) }}</s><b>{{ money(o.final) }}</b></span>
+                        </label>
+                    </div>
+                    <div class="lib-vpay-pending" v-if="vOrder() && vOrder().payment_id">⏳ طلب الدفع #{{ vOrder().payment_id }} للفيديو ده بيتراجع — <a :href="vOrder().payment_url">تابعه</a></div>
+                    <div class="lib-save" v-else>
+                        <button type="button" class="btn" @click="videoOrder()" :disabled="vBusy || !vSel() || null">💳 اطلب وادفع{{ vSel() ? ' — ' + money(vSel().final) : '' }}</button>
+                        <small class="sub">الفيديو بيتدفع بالفلوس (مش من الكريدت) — بيروح لفريق التنفيذ بعد تأكيد الدفع.</small>
+                    </div>
                 </div>
                 <p class="sub">🎬 الـ AI بيجهّز السكريبت، والتنفيذ بيتم يدويًا بواسطة فريق Spread AI.</p>
             </section>
@@ -354,6 +383,14 @@
             </section>
         </div>
     </aside>
+    <!-- المرحلة 6: «شوف فيديوهات زيه» — برّه اللوحة (اللوحة متحركة فالـ fixed جوّاها بيتقص) -->
+    <div class="lib-vmodal" v-if="vSamples" role="dialog" aria-modal="true" :aria-label="'أمثلة: ' + (vSamples ? vSamples.name : '')" @click.self="vSamples = null" @keydown.esc="vSamples = null">
+        <div class="lib-vmodal-in">
+            <div class="lib-vpay-h"><b>🎞 فيديوهات زي «{{ vSamples ? vSamples.name : '' }}»</b><button type="button" class="btn ghost sm" @click="vSamples = null" aria-label="قفل">✕</button></div>
+            <a v-for="(x, k) in (vSamples ? vSamples.samples : [])" :key="k" :href="x.url" target="_blank" rel="noopener nofollow" class="lib-vsample">▶ {{ x.title || ('مثال ' + (k + 1)) }}<small dir="ltr">{{ host(x.url) }}</small></a>
+            <small class="sub">الأمثلة بتتفتح في تاب جديدة.</small>
+        </div>
+    </div>
 
     <div class="toast-container" v-if="toast"><div class="toast" :class="toast.type">{{ toast.msg }}</div></div>
 </div>
@@ -376,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function () {
     instruction: '', aiBusy: false, proposal: null,
     dInstruction: '', dBusy: false,
     // ⑦-ج
-    slidesDirty: false, slideBusy: '', videoDirty: false, vBusy: false,
+    slidesDirty: false, slideBusy: '', videoDirty: false, vBusy: false, vType: 0, vDur: null, vSamples: null,
     videoSteps: [['script', 'السكريبت جاهز'], ['approved', 'اعتمدت السكريبت'], ['sent', 'اتبعت للتنفيذ'], ['in_production', 'قيد التنفيذ'], ['ready', 'جاهز'], ['delivered', 'اتسلّم']],
     briefLbl: { type: 'نوع الفيديو', duration: 'المدة', platform: 'المنصة', ratio: 'المقاس' },
     chips: ['خلّي الـ CTA أقوى', 'اختصره للنص', 'أضف إيموجي بسيطة', 'خلّيه رسمي أكتر', 'ابدأ بسؤال يشد'],
@@ -421,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var r = await SpreadAPI.get('contents', { action: 'get', id: id });
       this.dLoading = false;
       if (!r.ok) { this.close(); return this.notify(r.error, 'danger'); }
-      this.d = r.content; this.slidesDirty = false; this.videoDirty = false; this.syncUrl();
+      this.d = r.content; this.slidesDirty = false; this.videoDirty = false; this.vInit(); this.syncUrl();
       if (this.d.format === 'video' && ['ready', 'approved'].indexOf(this.d.video.status.key) >= 0) this.tab = 'design';
       setTimeout(function () { var x = document.querySelector('.lib-x'); if (x) x.focus(); }, 30);
     },
@@ -550,8 +587,8 @@ document.addEventListener('DOMContentLoaded', function () {
       var r = await SpreadAPI.post('contents', action, { id: this.d.id });
       this.vBusy = false;
       if (!r.ok) return this.notify(r.error, 'danger');
-      this.d.video = r.video; this.refreshCardLight();
-      this.notify(action === 'video_approve' ? 'اعتمدت السكريبت ✓ — اطلب التنفيذ من فريقنا' : 'تمام — اتسجّل الاستلام ✓');
+      this.d.video = r.video; this.vInit(); this.refreshCardLight();
+      this.notify(action === 'video_approve' ? (this.vpOn() ? 'اعتمدت السكريبت ✓ — اختار نوع الفيديو ومدته' : 'اعتمدت السكريبت ✓ — اطلب التنفيذ من فريقنا') : 'تمام — اتسجّل الاستلام ✓');
     },
     async videoRequest() {
       if (this.videoDirty && !(await this.videoSave())) return;
@@ -564,6 +601,41 @@ document.addEventListener('DOMContentLoaded', function () {
       this.d.video = r.video; this.refreshCardLight();
       if (w) w.location.href = r.wa; else location.href = r.wa;
       this.notify('جهّزنا رسالة الطلب على واتساب 📲');
+    },
+    /* ── المرحلة 6: نوع الفيديو والدفع ── */
+    vpOn: function () { return !!(this.d && this.d.video && this.d.video.pay && this.d.video.pay.on && this.d.video.pay.types.length); },
+    vOrder: function () { return this.d && this.d.video && this.d.video.pay ? this.d.video.pay.order : null; },
+    vInit: function () {
+      this.vSamples = null; this.vType = 0; this.vDur = null;
+      if (!this.vpOn()) return;
+      var o = this.vOrder(), ts = this.d.video.pay.types;
+      var t = (o && ts.find(function (x) { return x.id === o.type_id; })) || ts[0];
+      this.vPick(t.id);
+      if (o) { var m = t.durations.find(function (x) { return o.label === t.name + ' — ' + x.label; }); if (m) this.vDur = m.i; }
+    },
+    vPick: function (id) {
+      if (this.vType === id) return;
+      this.vType = id; var t = this.vTypeObj();
+      this.vDur = t && t.durations.length ? t.durations[0].i : null;
+    },
+    vTypeObj: function () { var id = this.vType; return this.vpOn() ? this.d.video.pay.types.find(function (x) { return x.id === id; }) || null : null; },
+    vSel: function () { var t = this.vTypeObj(), i = this.vDur; return t && i !== null ? t.durations.find(function (x) { return x.i === i; }) || null : null; },
+    minPrice: function (t) { return Math.min.apply(null, t.durations.map(function (x) { return x.final; })); },
+    money: function (n) { n = Number(n) || 0; return n.toLocaleString('en-US', { maximumFractionDigits: n % 1 ? 2 : 0 }) + ' ج'; },
+    pctTxt: function (n) { return String(Math.round(Number(n) * 100) / 100); },
+    host: function (u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } },
+    async videoOrder() {
+      if (this.videoDirty && !(await this.videoSave())) return;
+      var sel = this.vSel();
+      if (!sel) return this.notify('اختار مدة الفيديو', 'danger');
+      this.vBusy = true;
+      var r = await SpreadAPI.post('contents', 'video_order', { id: this.d.id, type_id: this.vType, dur: sel.i });
+      if (!r.ok) {
+        this.vBusy = false;
+        if (r.payment_url) { this.notify(r.error, 'warning'); setTimeout(function () { location.href = r.payment_url; }, 900); return; }
+        return this.notify(r.error, 'danger');
+      }
+      location.href = r.checkout;
     },
     refreshCardLight: function () {
       var d = this.d, c = this.items.find(function (x) { return x.id === d.id; });

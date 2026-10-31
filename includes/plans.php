@@ -30,15 +30,15 @@ function plans_setting(string $k, $d)
     return ($v === null || $v === '') ? $d : $v;
 }
 
-/** وحدات الحصص: key => [emoji, label, en] */
+/**
+ * وحدات الحصص: key => [emoji, label, en]
+ * الباقات الجديدة: الكتابة كلها (منشورات · سكريبتات فيديو · ستوري …) والنشر بالكريدت — الحصص بقت التصميمات والأبحاث بس
+ */
 function plan_units(): array
 {
     return [
-        'posts'     => ['📝', 'منشورات', 'Posts'],
         'designs'   => ['🎨', 'تصميمات', 'Designs'],
-        'publishes' => ['📤', 'نشر', 'Publishing'],
         'research'  => ['🔬', 'أبحاث', 'Research'],
-        'videos'    => ['🎬', 'سكريبتات فيديو', 'Video scripts'],
     ];
 }
 
@@ -64,10 +64,10 @@ function plan_quotas_decode(?string $json): array
  * الدورة الحالية للعميل.
  * لو مفيش دورة مسجّلة (عملاء قبل 8-ب / رصيد مجاني): دورة من آخر شحن لحد انتهاء الصلاحية ومن غير حصص.
  */
-function plan_active(int $uid): array
+function plan_active(int $uid, bool $fresh = false): array
 {
     static $cache = [];
-    if (isset($cache[$uid])) return $cache[$uid];
+    if (!$fresh && isset($cache[$uid])) return $cache[$uid];
     if (plans_ready()) {
         try {
             $r = db_one('SELECT * FROM user_plans WHERE user_id = ? AND status = "active" AND ends_at > NOW() ORDER BY id DESC LIMIT 1', [$uid]);
@@ -76,6 +76,11 @@ function plan_active(int $uid): array
                     'id' => (int) $r['id'], 'name' => (string) $r['name'], 'package_id' => $r['package_id'] ? (int) $r['package_id'] : null,
                     'source' => (string) $r['source'], 'starts' => (string) $r['starts_at'], 'ends' => (string) $r['ends_at'],
                     'allowance' => (int) $r['credits_allowance'], 'quotas' => plan_quotas_decode($r['quotas_json']), 'synthetic' => false,
+                    // الباقات الجديدة (لقطة وقت الاشتراك)
+                    'weekly_credits' => (int) ($r['weekly_credits'] ?? 0), 'weekly_designs' => (int) ($r['weekly_designs'] ?? 0),
+                    'quality_tier' => (string) ($r['quality_tier'] ?? 'standard'), 'allow_research' => (int) ($r['allow_research'] ?? 1),
+                    'video_discount_pct' => (float) ($r['video_discount_pct'] ?? 0),
+                    'assistant_support' => (int) ($r['assistant_support'] ?? 1), 'assistant_agent' => (int) ($r['assistant_agent'] ?? 0),
                 ];
             }
         } catch (\Throwable $e) {
@@ -125,9 +130,18 @@ function plan_used(int $uid, string $unit, string $from, string $to): int
                     return 0;
                 }
             case 'designs':
-                $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ? AND credits_used > 0', [$uid, $from, $to])['n'] ?? 0);
+                // تصميمات الموقع: اللي اتولّدت بالـ AI (اتخصم عليها كريدت قديمًا أو متعلّم عليها الموديل) — المرفوع والمنسوخ من الاستوديو مابيتحسبش
+                $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?
+                                    AND (credits_used > 0 OR (provider IS NOT NULL AND COALESCE(model, "") <> "upload"))', [$uid, $from, $to])['n'] ?? 0);
                 try {
                     $n += (int) (db_one('SELECT COUNT(*) n FROM studio_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?', [$uid, $from, $to])['n'] ?? 0);
+                } catch (\Throwable $e) {}
+                // محرك المحتوى: كل تصميم نهائي (الإعادات الداخلية بعد مراجعة الصورة مابتتحسبش) + «صورة جديدة» بطلب العميل
+                try {
+                    $n += (int) (db_one('SELECT COUNT(*) n FROM ce_designs WHERE user_id = ? AND created_at >= ? AND created_at < ? AND status IN ("pass", "manual")', [$uid, $from, $to])['n'] ?? 0);
+                } catch (\Throwable $e) {}
+                try {
+                    $n += (int) (db_one('SELECT COUNT(*) n FROM usage_events WHERE user_id = ? AND unit = "designs" AND created_at >= ? AND created_at < ?', [$uid, $from, $to])['n'] ?? 0);
                 } catch (\Throwable $e) {}
                 return $n;
             case 'research':
@@ -204,7 +218,20 @@ function plan_usage(int $uid, bool $fresh = false): array
  */
 function plan_gate(int $uid, string $unit, int $n = 1): ?string
 {
+    // النشر بقى بالكريدت (مش حصة): الرصيد لازم يكفي سعر النشر
+    if ($unit === 'publishes') {
+        $cost = function_exists('publish_credit_cost') ? publish_credit_cost() * max(1, $n) : 0;
+        return $cost > 0 && function_exists('credits_balance') && credits_balance($uid) < $cost ? credits_short_msg($cost, 'النشر') : null;
+    }
+    // البحث مش في الباقة ← مقفول (حتى لو الحصص مش متطبقة)
+    if ($unit === 'research' && function_exists('pkg_research_allowed') && !pkg_research_allowed($uid)) {
+        return 'البحث العميق مش في باقتك — رقّي باقتك علشان تفتحه.';
+    }
     if ((string) plans_setting('quotas_enforced', '1') !== '1' || !plans_ready()) return null;
+    // الحد الأسبوعي للتصميمات (الباقات الطويلة) — تراكمي
+    if ($unit === 'designs' && function_exists('pkg_weekly_designs') && ($wk = pkg_weekly_designs($uid)) && $wk['used'] + $n > $wk['allow']) {
+        return 'وصلت لحد التصميمات في الأسبوع ده (فاضل ' . $wk['left'] . ') — بيزيد ' . $wk['weekly'] . ' يوم ' . (function_exists('fmt_date') ? fmt_date($wk['next']) : $wk['next']) . '، أو اشتري تصميمات زيادة.';
+    }
     $plan = plan_active($uid);
     $lim = plan_limits($uid, $plan);
     $l = $lim[$unit] ?? null;
@@ -236,6 +263,8 @@ function plan_gate(int $uid, string $unit, int $n = 1): ?string
 /** رسالة «مش كفاية» حسب طريقة العرض */
 function credits_short_msg(int $need = 0, string $what = ''): string
 {
+    // الخصم اتمنع بسبب الحد الأسبوعي (مش الرصيد)
+    if (!empty($GLOBALS['credits_block_msg'])) return (string) $GLOBALS['credits_block_msg'];
     if (credits_show_numbers()) {
         return 'رصيدك مش كفاية' . ($what !== '' ? ' — ' . $what : '') . ($need > 0 ? ' — محتاج ' . $need . ' كريدت' : '');
     }
@@ -250,6 +279,16 @@ function plan_upgrade_link(): string
         return 'https://wa.me/' . $num . '?text=' . rawurlencode((string) plans_setting('upgrade_whatsapp_msg', 'السلام عليكم، عايز أرقّي باقتي في Spread AI'));
     }
     return function_exists('url') ? url('credits.php') : 'credits.php';
+}
+
+/** رقم واتساب النشر اليدوي (للي باقته مافيهاش نشر مباشر): publish_whatsapp ← الدعم ← الزرار العائم ← الدفع */
+function publish_whatsapp_number(): string
+{
+    foreach (['publish_whatsapp', 'support_whatsapp', 'whatsapp_float', 'pay_whatsapp'] as $k) {
+        $n = preg_replace('/\D+/', '', (string) plans_setting($k, ''));
+        if ($n !== '') return $n;
+    }
+    return '';
 }
 
 /** العنصر ده اتحسب قبل كده؟ (النشر: المنشور الواحد مرة واحدة) */
@@ -268,12 +307,32 @@ function plan_counted(int $uid, string $unit, int $refId): bool
     }
 }
 
-/** تسجيل حدث استهلاك (مرة واحدة لكل عنصر) — للنشر */
+/** رجوع كريدت النشر: آخر خصم للمنشور ده لو مالوش استرداد بعده */
+function publish_credit_refund(int $uid, int $refId): void
+{
+    try {
+        $c = db_one('SELECT id, amount, created_at FROM credit_transactions WHERE user_id = ? AND action_type = "consume" AND reference_type = "publish" AND reference_id = ? ORDER BY id DESC LIMIT 1', [$uid, $refId]);
+        if (!$c) return;
+        if (db_one('SELECT id FROM credit_transactions WHERE user_id = ? AND action_type = "add" AND reference_type = "refund" AND reference_id = ? AND notes LIKE "استرداد نشر%" AND id > ?', [$uid, $refId, (int) $c['id']])) return;
+        credits_add($uid, (int) $c['amount'], 'استرداد نشر: اتلغى أو ماتنشرش', null, 'refund', $refId);
+    } catch (\Throwable $e) {
+        error_log('[publish_refund] ' . $e->getMessage());
+    }
+}
+
+/**
+ * تسجيل حدث استهلاك (مرة واحدة لكل عنصر) — للنشر وتصميمات المحرك اللي بطلب العميل
+ * النشر: أول مرة المنشور بيتسجل ← بيتخصم كريدت النشر (المنشور الواحد مرة واحدة مهما اتنشر على كام منصة)
+ */
 function plan_event(int $uid, string $unit, int $refId): void
 {
     if (!plans_ready()) return;
     try {
-        db_run('INSERT INTO usage_events (user_id, unit, ref_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE created_at = IF(created_at < DATE_SUB(NOW(), INTERVAL 1 DAY), NOW(), created_at)', [$uid, $unit, $refId]);
+        $st = db()->prepare('INSERT INTO usage_events (user_id, unit, ref_id) VALUES (?,?,?) ON DUPLICATE KEY UPDATE created_at = IF(created_at < DATE_SUB(NOW(), INTERVAL 1 DAY), NOW(), created_at)');
+        $st->execute([$uid, $unit, $refId]);
+        if ($unit === 'publishes' && $st->rowCount() === 1 && function_exists('publish_credit_cost') && ($cost = publish_credit_cost()) > 0) {
+            if (!credits_consume($uid, $cost, 'نشر منشور', 'publish', $refId)) error_log('[plan_event] publish charge failed u' . $uid . ' ref ' . $refId);
+        }
     } catch (\Throwable $e) {}
 }
 
@@ -282,8 +341,11 @@ function plan_event_release(int $uid, string $unit, int $refId): void
 {
     if (!plans_ready()) return;
     try {
-        if ($unit === 'publishes' && db_one('SELECT id FROM contents WHERE id = ? AND published_at IS NOT NULL', [$refId])) return;
-        db_run('DELETE FROM usage_events WHERE user_id = ? AND unit = ? AND ref_id = ?', [$uid, $unit, $refId]);
+        if ($unit === 'publishes' && $refId > 0 && db_one('SELECT id FROM contents WHERE id = ? AND published_at IS NOT NULL', [$refId])) return;
+        $st = db()->prepare('DELETE FROM usage_events WHERE user_id = ? AND unit = ? AND ref_id = ?');
+        $st->execute([$uid, $unit, $refId]);
+        // النشر اتلغى أو فشل ← كريدت النشر بيرجع (لو كان اتخصم ولسه مارجعش)
+        if ($unit === 'publishes' && $st->rowCount() > 0) publish_credit_refund($uid, $refId);
     } catch (\Throwable $e) {}
 }
 
@@ -291,19 +353,37 @@ function plan_event_release(int $uid, string $unit, int $refId): void
  * بداية دورة جديدة (شراء/تفعيل باقة). الدورة القديمة بتتقفل كـ replaced.
  * @return int|null id الدورة
  */
-function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, string $source = 'paid', ?int $by = null, ?string $note = null): ?int
+function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, string $source = 'paid', ?int $by = null, ?string $note = null, array $opts = []): ?int
 {
     if (!plans_ready()) return null;
     try {
         $pkg = $packageId ? db_one('SELECT * FROM credit_packages WHERE id = ?', [$packageId]) : null;
         $days = max(1, (int) ($days ?: ($pkg['validity_days'] ?? plans_setting('default_credit_validity_days', 30))));
         $name = $pkg ? (string) $pkg['name'] : 'باقة مخصصة';
+        // حصص المدة اللي اتشترت (لو فيه) بدل حصص الباقة الأساسية
+        $quotas = $opts['quotas_json'] ?? ($pkg['quotas_json'] ?? null);
         db_run('UPDATE user_plans SET status = "replaced" WHERE user_id = ? AND status = "active"', [$uid]);
         $id = db_insert(
             'INSERT INTO user_plans (user_id, package_id, name, source, starts_at, ends_at, credits_allowance, quotas_json, note, created_by)
              VALUES (?,?,?,?, NOW(), DATE_ADD(NOW(), INTERVAL ? DAY), ?, ?, ?, ?)',
-            [$uid, $packageId, $name, $source, $days, $credits, $pkg['quotas_json'] ?? null, $note ? mb_substr($note, 0, 255) : null, $by]
+            [$uid, $packageId, $name, $source, $days, $credits, $quotas, $note ? mb_substr($note, 0, 255) : null, $by]
         );
+        // الباقات الجديدة: الحد الأسبوعي · مستوى الجودة · البحث · المدة
+        if ($id && function_exists('pkg_v2_ready') && pkg_v2_ready()) {
+            db_run('UPDATE user_plans SET weekly_credits = ?, weekly_designs = ?, quality_tier = ?, allow_research = ?, price_id = ? WHERE id = ?', [
+                (int) ($pkg['weekly_credits'] ?? 0), (int) ($pkg['weekly_designs'] ?? 0), (string) ($pkg['quality_tier'] ?? 'standard'),
+                (int) ($pkg['allow_research'] ?? 1), isset($opts['price_id']) ? (int) $opts['price_id'] : null, $id]);
+        }
+        // المرحلة 7: المساعدين في الباقة (لقطة وقت الاشتراك)
+        if ($id && $pkg && array_key_exists('assistant_agent', $pkg)) {
+            try { db_run('UPDATE user_plans SET assistant_support = ?, assistant_agent = ? WHERE id = ?', [(int) $pkg['assistant_support'] ? 1 : 0, (int) $pkg['assistant_agent'] ? 1 : 0, $id]); } catch (\Throwable $e) {}
+        }
+        // المرحلة 6: خصم الفيديو بتاع الباقة (لقطة وقت الاشتراك)
+        if ($id && $pkg && array_key_exists('video_discount_pct', $pkg)) {
+            try { db_run('UPDATE user_plans SET video_discount_pct = ? WHERE id = ?', [max(0, min(100, (float) $pkg['video_discount_pct'])), $id]); } catch (\Throwable $e) {}
+        }
+        plan_active($uid, true);   // الدورة الجديدة تبان في نفس الطلب
+        if (function_exists('plan_usage')) plan_usage($uid, true);
         return $id ?: null;
     } catch (\Throwable $e) {
         error_log('[plans] start ' . $e->getMessage());
@@ -392,3 +472,49 @@ function design_subscription_gate(int $uid): ?array
         ],
     ];
 }
+
+/* ═══════════ مميزات الباقة: النشر المباشر · العلامة المائية (بيختارها الأدمن في كل باقة) ═══════════ */
+
+/** أعمدة الباقة (مرة واحدة · من غير تعديل بيانات): allow_publish افتراضي لأ · watermark افتراضي آه (زي الأول) */
+function package_flags_ensure(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        $have = array_column(db_all('SHOW COLUMNS FROM credit_packages'), 'Field');
+        if (!in_array('allow_publish', $have, true)) db_run('ALTER TABLE credit_packages ADD COLUMN allow_publish TINYINT(1) NOT NULL DEFAULT 0');
+        if (!in_array('watermark', $have, true)) db_run('ALTER TABLE credit_packages ADD COLUMN watermark TINYINT(1) NOT NULL DEFAULT 1');
+        return $ok = true;
+    } catch (\Throwable $e) {
+        error_log('[plans] package flags ' . $e->getMessage());
+        return $ok = false;
+    }
+}
+
+/**
+ * مميزات العميل من باقته الحالية — بتتفتح تلقائيًا مع الاشتراك وتتقفل لما الباقة تخلص
+ * @return array{has_plan:bool, name:string, publish:bool, watermark:bool}
+ */
+function plan_flags(int $uid): array
+{
+    static $cache = [];
+    if (isset($cache[$uid])) return $cache[$uid];
+    $out = ['has_plan' => false, 'name' => '', 'publish' => false, 'watermark' => true];
+    try {
+        $p = plan_active($uid);
+        if (!empty($p['id']) && empty($p['synthetic'])) {
+            $out['has_plan'] = true;
+            $out['name'] = (string) $p['name'];
+            if (!empty($p['package_id']) && package_flags_ensure()) {
+                $pkg = db_one('SELECT allow_publish, watermark FROM credit_packages WHERE id = ?', [$p['package_id']]);
+                if ($pkg) {
+                    $out['publish'] = (int) $pkg['allow_publish'] === 1;
+                    $out['watermark'] = (int) $pkg['watermark'] === 1;
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+    }
+    return $cache[$uid] = $out;
+}
+

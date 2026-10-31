@@ -40,6 +40,30 @@ function migrations_manifest(): array
         '2026_phase8c2_ai_fixes.sql'     => 'إصلاح: المحاولات اللي المزود رفضها (4xx) تكلفتها صفر + إعادة حساب العمليات المتأثرة (8-ج)',
         '2026_phase9_drafts_inspirations_slider.sql' => 'مشاريع الاستوديو اللي لسه مكملتش · تصميمات بتعجبك في Brand Brain · سلايدر إعلانات الرئيسية (9)',
         '2026_phase10_billing_promo_auth.sql' => 'الباقات والدفع اليدوي بالإيصال · مراجعة الأدمن · أكواد الخصم · إشعارات العميل · «افتكرني» (10)',
+        '2026_mobile_api.sql'            => 'تطبيق الموبايل: توكنات الأجهزة · منع الخصم المكرر (/api/v1)',
+        '2026_whatsapp_messaging.sql'    => 'الرسايل والإشعارات: واتساب عبر n8n · صندوق الرسايل · القوالب · الحملات · كود التحقق',
+        '2026_trial_link.sql'            => 'التجربة المجانية: التعرّف على النشاط من لينك الموقع / صفحة الفيسبوك · الاستكمال من نفس المرحلة',
+        '2026_brand_kit.sql'             => 'مركز الهوية (Brand Kit): خدمات · مواضيع · شخصيات · أشكال · نسخ · التعلّم من التعديلات · مكتبة التعلّم والقطاعات والـ Presets · بريف لكل حملة وبوست',
+        '2026_mcp_foundation.sql'        => 'نظام الجودة (MCP) — الأساس: إصدارات البرومبت + A/B · الأحداث · تقييم التصميم · «بلّغ عن مشكلة»',
+        '2026_ce_models.sql'             => 'محرك المحتوى v3 — سجل الموديلات (من الـ API) · خريطة المراحل والحرارة · الإعدادات الجاهزة · تسجيل الكاش والتجارب في ai_runs',
+        '2026_ce_fixes.sql'              => 'إصلاحات المراجعة — رقم طلب Paymob فريد · السجل المالي مايتمسحش مع حذف العميل · فهارس لوحة الأدمن والمكتبة',
+        '2026_ce_engine.sql'             => 'محرك المحتوى v3 (D) — طابور الشغل · حجز الكريدت وتسويته · Brand DNA · حملات المحرك الجديد',
+        '2026_ce_plan.sql'               => 'محرك المحتوى v3 (E) — خطة المحتوى (Matrix) · بوابة الخطة · مكتبة الزوايا',
+        '2026_ce_content.sql'            => 'محرك المحتوى v3 (F) — الأفكار · الاختيار · الكتابة · مراجعة الجودة · المراجعة النهائية',
+        '2026_ce_design.sql'             => 'محرك المحتوى v3 (G) — التصميم · قوالب النص العربي · مراجعة الصورة (Vision QA)',
+        '2026_ce_design_v2.sql'          => 'محرك المحتوى v3 (G) — خط العنوان لكل تصميم · كل شرايح الكاروسيل بصورة · غلاف الريلز اختياري',
+        '2026_ce_lab.sql'                => 'محرك المحتوى v3 (H) — نسخ البرومبتات · حالات الاختبار · اختبار الرجوع',
+        '2026_ce_skills.sql'             => 'محرك المحتوى v3 (H2) — Skills التخصصات (ملفات MD) بنسخها واختبار الرجوع',
+        '2026_ce_learning.sql'           => 'محرك المحتوى v3 (I) — نتايج المحتوى بعد النشر · التقرير الشهري (الدرجة قدام الأداء)',
+        '2026_ce_meta_insights.sql'      => 'محرك المحتوى v3 — ربط النتايج بـ Meta Insights (فيسبوك وإنستجرام)',
+        '2026_ce_publish.sql'            => 'محرك المحتوى v3 — النشر والجدولة على فيسبوك وإنستجرام من المحرك',
+        '2026_ce_perf_posts.sql'         => 'محرك المحتوى v3 — نتايج القطعة من فيسبوك وإنستجرام مع بعض (مجموع المنصتين)',
+        '2026_ce_library.sql'            => 'محرك المحتوى v3 — قطع المحرك في مكتبة المحتوى والتقويم («حملاتي»)',
+        '2026_packages_v2.sql'           => 'الباقات الجديدة — المدد والأسعار · الحد الأسبوعي · مستوى الجودة · البحث · الإضافات · باقة التسجيل',
+        '2026_plan_page.sql'             => 'صفحة «باقتي» الموحدة + اختيار مكافأة «ادع واكسب» (كريدت · تصميمات · خصم)',
+        '2026_quality_tiers.sql'         => 'مستويات الجودة — موديل لكل مهمة في كل مستوى · معامل الكريدت · جولات التحسين · الأولوية',
+        '2026_video_pricing.sql'         => 'الفيديو — الأنواع والأسعار بالمدة · لينكات الأمثلة · خصم الفيديو لكل باقة · طلبات الفيديو المدفوعة',
+        '2026_assistants.sql'            => 'المساعدين — «الدعم» (بيحل المشكلة أو يفتح تذكرة) و«الوكيل» (بينفّذ حملة كاملة بموافقة العميل) · لكل باقة',
     ];
 }
 
@@ -114,9 +138,36 @@ function migrations_ensure_table(): void
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 }
 
-/** حالة كل ملف: مطبّق · معلّق · اتغيّر بعد التطبيق · مفقود */
+/** الجداول اللي الملف بيعملها (CREATE TABLE IF NOT EXISTS) — علشان نتأكد إنها موجودة فعلًا بعد التشغيل */
+function migration_expected_tables(string $file): array
+{
+    $path = migrations_dir() . '/' . basename($file);
+    if (!is_file($path)) return [];
+    preg_match_all('/CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`?([A-Za-z0-9_]+)`?/i', (string) file_get_contents($path), $m);
+    return array_values(array_unique(array_map('strtolower', $m[1])));
+}
+
+/** أسماء جداول قاعدة المنصة الموجودة فعلًا (null = مقدرناش نقرا) */
+function migrations_existing_tables(): ?array
+{
+    try {
+        $out = [];
+        foreach (db_all('SELECT table_name t FROM information_schema.tables WHERE table_schema = DATABASE()') as $r) {
+            $out[strtolower((string) ($r['t'] ?? $r['TABLE_NAME'] ?? ''))] = true;
+        }
+        return $out;
+    } catch (\Throwable $e) {
+        return null;
+    }
+}
+
+/**
+ * حالة كل ملف: مطبّق · معلّق · اتغيّر بعد التطبيق · مفقود
+ * · ناقص (incomplete) = متسجّل إنه اتشغّل بس جداوله مش موجودة في القاعدة — بيتعامل زي المعلّق ويتشغّل تاني
+ */
 function migrations_status(): array
 {
+    $have = migrations_existing_tables();
     $applied = [];
     if (migrations_table_ready()) {
         foreach (db_all('SELECT * FROM schema_migrations') as $r) {
@@ -130,6 +181,11 @@ function migrations_status(): array
         $sum = $exists ? sha1_file($path) : null;
         $row = $applied[$file] ?? null;
         $state = !$exists ? 'missing' : (!$row ? 'pending' : ($row['checksum'] && $row['checksum'] !== $sum ? 'changed' : 'applied'));
+        $gone = [];
+        if ($row && $exists && $have !== null) {
+            foreach (migration_expected_tables($file) as $t) if (!isset($have[$t])) $gone[] = $t;
+            if ($gone) $state = 'incomplete';
+        }
         $out[] = [
             'file'       => $file,
             'label'      => $label,
@@ -137,6 +193,7 @@ function migrations_status(): array
             'applied_at' => $row['applied_at'] ?? null,
             'applied_by' => $row['applied_by'] ?? null,
             'ms'         => (int) ($row['duration_ms'] ?? 0),
+            'missing_tables' => $gone,
         ];
     }
     return $out;
@@ -169,6 +226,15 @@ function migration_run_file(string $file, string $by = 'admin'): array
         }
     }
     $ms = (int) round((microtime(true) - $t0) * 1000);
+    // اتأكد إن الجداول اتعملت فعلًا قبل ما نسجّل إنه اتنفّذ
+    $have = migrations_existing_tables();
+    if ($have !== null) {
+        $gone = array_values(array_filter(migration_expected_tables($file), fn($t) => !isset($have[$t])));
+        if ($gone) {
+            return ['ok' => false, 'error' => 'الجمل اتنفّذت بس الجداول دي مش موجودة: ' . implode(' · ', $gone)
+                . ' — اتأكد إن DB_NAME في config.php هو نفس القاعدة اللي بتشوفها في phpMyAdmin'];
+        }
+    }
     migration_mark($file, $by, $ms);
     return ['ok' => true, 'ms' => $ms];
 }
@@ -192,7 +258,7 @@ function migrations_run_pending(string $by = 'admin'): array
     migrations_ensure_table();
     $ran = [];
     foreach (migrations_status() as $m) {
-        if ($m['state'] !== 'pending') continue;
+        if ($m['state'] !== 'pending' && $m['state'] !== 'incomplete') continue;
         $r = migration_run_file($m['file'], $by);
         if (!$r['ok']) {
             return ['ok' => false, 'ran' => $ran, 'error' => $m['file'] . ': ' . $r['error']];

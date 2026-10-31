@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/promo.php';
+require_once __DIR__ . '/credits.php';   // + plans.php + packages.php (المدد والإضافات)
 
 const BILLING_PROOF_MAX = 6 * 1024 * 1024;
 
@@ -113,11 +114,26 @@ function billing_action_label(string $a): string
 /** إشعار للعميل: جوه المنصة (الجرس) + إيميل (لو الإيميل مفعّل) */
 function notify_user(int $userId, string $kind, string $title, string $body = '', string $url = '', string $tone = 'brand', bool $email = true): void
 {
+    $notifId = null;
     try {
-        db_insert('INSERT INTO user_notifications (user_id, kind, title, body, url, tone) VALUES (?,?,?,?,?,?)',
+        $notifId = db_insert('INSERT INTO user_notifications (user_id, kind, title, body, url, tone) VALUES (?,?,?,?,?,?)',
             [$userId, mb_substr($kind, 0, 40), mb_substr($title, 0, 190), $body !== '' ? mb_substr($body, 0, 2000) : null, $url !== '' ? mb_substr($url, 0, 255) : null, $tone]);
     } catch (\Throwable $e) {
         error_log('[notify] ' . $e->getMessage());
+    }
+    // واتساب: نفس الإشعار كرسالة (لو العميل مأكد رقمه) — عبر n8n
+    if (!class_exists('Notifier') && is_file(__DIR__ . '/Notifier.php')) {
+        require_once __DIR__ . '/Notifier.php';
+    }
+    if (class_exists('Notifier')) {
+        Notifier::mirrorNotification($userId, $kind, $title, $body, $url, $notifId ?: null);
+    }
+    // تطبيق الموبايل: نفس الإشعار كـ push (لو العميل مسجّل من التطبيق)
+    if (!function_exists('mobile_push_user') && is_file(__DIR__ . '/mobile-push.php')) {
+        require_once __DIR__ . '/mobile-push.php';
+    }
+    if (function_exists('mobile_push_user')) {
+        mobile_push_user($userId, $title, $body, ['screen' => 'notifications', 'kind' => $kind]);
     }
     if ($email && function_exists('get_setting') && get_setting('billing_email_notify', '1') === '1') {
         try {
@@ -168,11 +184,40 @@ function billing_create_request(array $user, array $in, ?array $proofFile): arra
 {
     if (!billing_ready()) return ['ok' => false, 'error' => 'الدفع مش متاح دلوقتي — كلّم الدعم'];
     $uid = (int) $user['id'];
-    $pkg = billing_package((int) ($in['package_id'] ?? 0));
-    if (!$pkg) return ['ok' => false, 'error' => 'الباقة دي مش متاحة'];
+    // فيديو مدفوع (المرحلة 6): السعر من الطلب (بعد خصم الباقة) — مفيش كريدت ولا كود خصم
+    $video = null;
+    if (!empty($in['video_order_id'])) {
+        require_once __DIR__ . '/video-pricing.php';
+        $video = vp_order((int) $in['video_order_id']);
+        if (!$video || (int) $video['user_id'] !== $uid || $video['status'] !== 'pending_payment') return ['ok' => false, 'error' => 'طلب الفيديو ده مش مستني دفع'];
+        if (trim((string) ($in['promo_code'] ?? '')) !== '') return ['ok' => false, 'error' => 'أكواد الخصم بتشتغل على الباقات بس'];
+        $in['addon_id'] = 0;
+    }
+    // إضافة (تصميمات زيادة / كريدت مساعد) بدل باقة — مع باقة شغالة بس، ومن غير كود خصم
+    $addon = !empty($in['addon_id']) && function_exists('addon_pack') ? addon_pack((int) $in['addon_id']) : null;
+    if (!empty($in['addon_id']) && !$addon) return ['ok' => false, 'error' => 'الإضافة دي مش متاحة'];
+    if ($video) {
+        $pkg = ['id' => null, 'name' => 'فيديو: ' . vp_order_label($video), 'price_egp' => (float) $video['final_egp'], 'credits' => 0,
+                'validity_days' => 1, 'bonus_credits' => 0, 'price_id' => null, 'quotas_json' => null, 'duration_label' => ''];
+        $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND video_order_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, (int) $video['id']]);
+    } elseif ($addon) {
+        if ($why = addon_blocked($uid)) return ['ok' => false, 'error' => $why];
+        if (trim((string) ($in['promo_code'] ?? '')) !== '') return ['ok' => false, 'error' => 'أكواد الخصم بتشتغل على الباقات بس'];
+        $pkg = ['id' => null, 'name' => 'إضافة: ' . addon_label($addon), 'price_egp' => (float) $addon['price_egp'], 'credits' => $addon['kind'] === 'credits' ? (int) $addon['amount'] : 0,
+                'validity_days' => (int) $addon['validity_days'], 'bonus_credits' => 0, 'price_id' => null, 'quotas_json' => null, 'duration_label' => ''];
+        $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND addon_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, (int) $addon['id']]);
+    } else {
+        $pkg = billing_package((int) ($in['package_id'] ?? 0));
+        if (!$pkg) return ['ok' => false, 'error' => 'الباقة دي مش متاحة'];
+        // المدة (شهري · 3 شهور · سنة …) ← السعر والكريدت والحصص بتاعتها
+        if (function_exists('pkg_variant')) {
+            $pkg = pkg_variant($pkg, !empty($in['price_id']) ? (int) $in['price_id'] : null);
+            if (!$pkg) return ['ok' => false, 'error' => 'المدة دي مش متاحة'];
+        }
+        $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]);
+    }
 
     // طلب معلّق لنفس الباقة؟ مايتكررش
-    $dup = db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]);
     if ($dup) return ['ok' => false, 'error' => 'عندك طلب لنفس الباقة لسه بيتراجع (#' . $dup['id'] . ') — استنى نتيجته أو ألغيه', 'existing' => (int) $dup['id']];
 
     // الكود: بيتحسب من السيرفر من الأول (مش من أرقام الواجهة)
@@ -215,7 +260,7 @@ function billing_create_request(array $user, array $in, ?array $proofFile): arra
                                        contact_name, contact_email, contact_phone, user_note, status)
          VALUES (?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?, "pending")',
         [
-            $uid, (int) $pkg['id'], (string) $pkg['name'], (int) $pkg['credits'], $bonusPkg + (int) ($quote['bonus_credits'] ?? 0),
+            $uid, $pkg['id'] !== null ? (int) $pkg['id'] : null, (string) $pkg['name'] . (!empty($pkg['price_id']) ? ' — ' . $pkg['duration_label'] : ''), (int) $pkg['credits'], $bonusPkg + (int) ($quote['bonus_credits'] ?? 0),
             max(1, (int) ($pkg['validity_days'] ?? 30)), (int) ($quote['extra_days'] ?? 0), $original, (float) ($quote['discount'] ?? 0), $final,
             $free ? 'promo' : (string) $method['mkey'], $free ? 'مجانًا بكود العرض' : (string) $method['label'],
             mb_substr(trim((string) ($in['transaction_ref'] ?? '')), 0, 120) ?: null, $proof, $atSql,
@@ -225,14 +270,23 @@ function billing_create_request(array $user, array $in, ?array $proofFile): arra
             mb_substr(trim((string) ($in['note'] ?? '')), 0, 1000) ?: null,
         ]
     );
+    // المدة أو الإضافة اللي اتطلبت + حصص المدة
+    if (function_exists('pkg_v2_ready') && pkg_v2_ready()) {
+        db_run('UPDATE payment_requests SET price_id = ?, addon_id = ?, quotas_json = ? WHERE id = ?',
+            [$pkg['price_id'] ?? null, $addon ? (int) $addon['id'] : null, $pkg['quotas_json'] ?? null, $id]);
+    }
+    if ($video) {
+        db_run('UPDATE payment_requests SET video_order_id = ? WHERE id = ?', [(int) $video['id'], $id]);
+        vp_order_link_payment((int) $video['id'], (int) $id);
+    }
     // رقم الموبايل بيتحفظ في الحساب لو فاضي
     if (empty($user['phone'])) {
         try { db_run('UPDATE users SET phone = ? WHERE id = ? AND (phone IS NULL OR phone = "")', [mb_substr($phone, 0, 30), $uid]); } catch (\Throwable $e) {}
     }
     billing_event($id, 'user', $uid, 'created', null, 'pending',
         ($quote ? 'كود ' . $quote['code'] . ' · ' : '') . number_format($final, 2) . ' جنيه · ' . ($free ? 'مجانًا' : $method['label']));
-    notify_user($uid, 'payment_pending', 'وصلنا طلب اشتراك «' . $pkg['name'] . '» ✓',
-        'طلبك #' . $id . ' في انتظار المراجعة — هنفعّل الباقة أول ما نتأكد من التحويل.', 'payments.php?id=' . $id, 'brand', false);
+    notify_user($uid, 'payment_pending', ($video ? 'وصلنا طلب «' : 'وصلنا طلب اشتراك «') . $pkg['name'] . '» ✓',
+        'طلبك #' . $id . ' في انتظار المراجعة — ' . ($video ? 'الفيديو بيروح لفريق التنفيذ أول ما نتأكد من التحويل.' : 'هنفعّل الباقة أول ما نتأكد من التحويل.'), 'payments.php?id=' . $id, 'brand', false);
     if (function_exists('admin_alert')) {
         try { admin_alert('warn', 'payment_request', 'طلب دفع جديد #' . $id, $user['name'] . ' · ' . $pkg['name'] . ' · ' . number_format($final, 0) . ' جنيه', 'admin/payment-view.php?id=' . $id, 'pr:' . $id); } catch (\Throwable $e) {}
     }
@@ -334,6 +388,39 @@ function billing_approve(int $id, int $adminId, string $note = ''): array
     $days = max(1, (int) $r['validity_days'] + (int) $r['extra_days']);
     $label = 'باقة «' . $r['plan_name'] . '» — طلب دفع #' . $id;
 
+    // فيديو مدفوع (المرحلة 6) ← الطلب «مدفوع» والفيديو بيروح لفريق التنفيذ — مفيش كريدت ولا دورة باقة
+    if (!empty($r['video_order_id'])) {
+        require_once __DIR__ . '/video-pricing.php';
+        $vr = vp_order_paid($r, $adminId);
+        if (!$vr['ok']) {
+            db_run('UPDATE payment_requests SET status = ? WHERE id = ?', [$r['status'], $id]);
+            billing_event($id, 'system', null, 'note', 'approved', $r['status'], 'تعذّر تأكيد طلب الفيديو — الطلب رجع للمراجعة');
+            return ['ok' => false, 'error' => $vr['error'] ?? 'تعذّر تأكيد طلب الفيديو'];
+        }
+        $vo = vp_order((int) $r['video_order_id']);
+        billing_event($id, 'system', null, 'note', null, null, 'الفيديو اتبعت لفريق التنفيذ');
+        notify_user($uid, 'payment_approved', 'اتأكدنا من دفع الفيديو 🎬', 'طلب «' . ($vo ? vp_order_label($vo) : $r['plan_name']) . '» راح لفريق التنفيذ'
+            . ($vo && (int) $vo['delivery_days'] > 0 ? ' — التسليم خلال ' . (int) $vo['delivery_days'] . ' يوم تقريبًا' : '') . '. هنبلّغك أول ما يجهز.',
+            $vo ? 'content-history.php?open=' . (int) $vo['content_id'] : 'content-history.php', 'ok');
+        if (function_exists('admin_log')) admin_log('payment_approve', 'payment_request', $id, json_encode(['user' => $uid, 'video_order' => (int) $r['video_order_id'], 'egp' => (float) $r['final_amount']], JSON_UNESCAPED_UNICODE));
+        return ['ok' => true, 'plan_id' => null];
+    }
+
+    // إضافة (تصميمات زيادة / كريدت مساعد) ← مابتبدأش دورة جديدة
+    if (!empty($r['addon_id']) && function_exists('addon_apply')) {
+        $ar = addon_apply($r, $adminId);
+        if (!$ar['ok']) {
+            db_run('UPDATE payment_requests SET status = ? WHERE id = ?', [$r['status'], $id]);
+            billing_event($id, 'system', null, 'note', 'approved', $r['status'], 'فشل تطبيق الإضافة — الطلب رجع للمراجعة');
+            return ['ok' => false, 'error' => $ar['error'] ?? 'تعذّر تطبيق الإضافة'];
+        }
+        billing_event($id, 'system', null, 'credits_added', null, null, $r['plan_name']);
+        if ((float) $r['final_amount'] > 0) { try { db_run('UPDATE users SET has_purchased = 1 WHERE id = ?', [$uid]); } catch (\Throwable $e) {} }
+        notify_user($uid, 'payment_approved', 'اتضافت «' . $r['plan_name'] . '» ✓', 'اتأكدنا من الدفع والإضافة شغالة مع باقتك.', 'credits.php', 'ok');
+        if (function_exists('admin_log')) admin_log('payment_approve', 'payment_request', $id, json_encode(['user' => $uid, 'addon' => (int) $r['addon_id'], 'egp' => (float) $r['final_amount']], JSON_UNESCAPED_UNICODE));
+        return ['ok' => true, 'plan_id' => null];
+    }
+
     // ② + ③ + ⑥ الكريدت في المحفظة (اللدجر + دفعة بإيراد حقيقي) — idem_key يمنع الإضافة مرتين
     $okAdd = credits_add($uid, (int) $r['credits'], 'تفعيل ' . $label, $adminId, 'payment_request', $id, $days,
         (float) $r['final_amount'] > 0 ? ['source' => 'paid', 'amount_egp' => (float) $r['final_amount'], 'idem_key' => 'pr:' . $id]
@@ -353,7 +440,8 @@ function billing_approve(int $id, int $adminId, string $note = ''): array
 
     // ④ + ⑤ + ⑦ دورة الباقة (بداية · نهاية · حصص) = سجل الاشتراك
     $planId = function_exists('plan_start')
-        ? plan_start($uid, $r['package_id'] ? (int) $r['package_id'] : null, (int) $r['credits'] + (int) $r['bonus_credits'], $days, 'paid', $adminId, 'طلب دفع #' . $id)
+        ? plan_start($uid, $r['package_id'] ? (int) $r['package_id'] : null, (int) $r['credits'] + (int) $r['bonus_credits'], $days, 'paid', $adminId, 'طلب دفع #' . $id,
+                     ['quotas_json' => $r['quotas_json'] ?? null, 'price_id' => $r['price_id'] ?? null])
         : null;
     if ($planId) {
         db_run('UPDATE payment_requests SET user_plan_id = ? WHERE id = ?', [$planId, $id]);

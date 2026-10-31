@@ -76,6 +76,7 @@ function admin_nav(): array
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
             ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
             ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],
+            ['whatsapp', 'الرسايل والواتساب', 'Messages & WhatsApp', 'send', 'admin/whatsapp.php', 'view_users', ['whatsapp']],
         ],
         'CONTENT' => [
             ['content', 'المحتوى', 'Content', 'pen', 'admin/content-history.php', 'view_content', ['content']],
@@ -88,10 +89,26 @@ function admin_nav(): array
             ['templates', 'القوالب', 'Templates', 'layout', 'admin/templates.php', 'view_content', ['templates']],
             ['watermark', 'العلامة المائية', 'Watermark', 'drop', 'admin/watermark.php', 'site_settings', ['watermark']],
         ],
+        // محرك المحتوى الجديد ومراقبته: مجموعة لوحدها
+        'CONTENT ENGINE' => [
+            ['ce-settings', 'محرك المحتوى', 'Content Engine', 'spark', 'admin/ce-settings.php', 'ai_settings', ['ce-settings']],
+            ['ce-lab', 'البرومبتات والـ Playground', 'Prompts & Playground', 'flask', 'admin/ce-lab.php', 'ai_settings', ['ce-lab']],
+            ['ce-skills', 'Skills التخصصات', 'Sector Skills', 'text', 'admin/ce-skills.php', 'ai_settings', ['ce-skills']],
+            ['ce-insights', 'الاستخدام والتعلّم', 'Usage & Learning', 'chart', 'admin/ce-insights.php', 'ai_settings', ['ce-insights']],
+            // مركز الجودة: زرار واحد — الصفحات الخمسة (التقرير · التقييمات · البلاغات · سجل الـ MCP · الإعدادات) تبويبات جوّاه
+            ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
+            ['mcp-setup', 'إعدادات الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
+        ],
         'AI CENTER' => [
             ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
+            ['ai-models', 'الموديلات (السجل والمراحل)', 'Model Registry', 'cpu', 'admin/ai-models.php', 'ai_settings', ['ai-models']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
+            ['quality-tiers', 'مستويات الجودة', 'Quality Tiers', 'sliders', 'admin/quality-tiers.php', 'ai_settings', ['quality-tiers']],
             ['prompts', 'مكتبة البرومبتات', 'Prompt Library', 'text', 'admin/prompts.php', 'ai_settings', ['prompts', 'type-prompts']],
+            ['brand-learning', 'مكتبة التعلّم', 'Learning Library', 'flask', 'admin/brand-learning.php', 'ai_settings', ['brand-learning']],
+            ['brand-kits', 'هويات العملاء (Brand Kit)', 'Brand Kits', 'palette', 'admin/brand-kits.php', 'view_users', ['brand-kits']],
+            ['sector-templates', 'قوالب القطاعات', 'Sector Templates', 'layout', 'admin/sector-templates.php', 'ai_settings', ['sector-templates']],
+            ['style-presets', 'مكتبة الـ Presets', 'Style Presets', 'sliders', 'admin/style-presets.php', 'ai_settings', ['style-presets']],
             ['ai-logs', 'سجل طلبات الـ AI', 'AI Request Logs', 'list', 'admin/ai-runs.php', 'view_costs', ['ai-logs', 'ai-runs']],
             ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
         ],
@@ -101,6 +118,8 @@ function admin_nav(): array
         'COMMERCIAL' => [
             ['payments', 'المدفوعات', 'Payments', 'card', 'admin/payments.php', 'view_users', ['payments'], 'payments'],
             ['packages', 'الباقات والأسعار', 'Plans & Pricing', 'card', 'admin/packages.php', 'manage_packages', ['packages']],
+            ['video-types', 'أنواع الفيديو وأسعارها', 'Video Pricing', 'video', 'admin/video-types.php', 'manage_packages', ['video-types']],
+            ['assistants', 'المساعدين (الدعم والوكيل)', 'Assistants', 'spark', 'admin/assistants.php', 'manage_packages', ['assistants']],
             ['pricing', 'تسعير العمليات', 'Credits Pricing', 'diamond', 'admin/pricing.php', 'manage_packages', ['pricing']],
             ['offers', 'العروض', 'Offers', 'gift', 'admin/offers.php', 'manage_packages', ['offers']],
         ],
@@ -115,9 +134,22 @@ function admin_nav(): array
             ['features', 'المزايا والنشر', 'Features', 'toggle', 'admin/features.php', 'features', ['features']],
             ['appearance', 'المظهر', 'Appearance', 'sliders', 'admin/appearance.php', 'site_settings', ['appearance']],
             ['settings', 'مركز الإعدادات', 'Settings Center', 'gear', 'admin/settings.php', 'site_settings', ['settings', 'integrations', 'google-auth']],
+            ['security-keys', 'مفاتيح التشفير', 'Encryption Keys', 'lock', 'admin/security-keys.php', 'ai_settings', ['security-keys']],
             ['migrations', 'الترحيلات', 'Migrations', 'db', 'admin/migrations.php', 'site_settings', ['migrations']],
             ['ui-diagnose', 'فحص التحديث', 'Update Check', 'tool', 'admin/ui-diagnose.php', 'site_settings', ['ui-diagnose']],
         ],
+    ];
+}
+
+/** صفحات جوه زرار واحد (تبويبات) — بتظهر في البحث العام بس: [label, en, url, perm] */
+function admin_nav_search_extra(): array
+{
+    return [
+        ['التقرير اليومي', 'Daily Report', 'admin/ai-report.php', 'ai_settings'],
+        ['تقييمات المحتوى', 'Content Evaluations', 'admin/ai-evaluations.php', 'ai_settings'],
+        ['البلاغات', 'User Issues', 'admin/ai-issues.php', 'view_users'],
+        ['سجل الـ MCP', 'MCP Audit Log', 'admin/ai-mcp-log.php', 'ai_settings'],
+        ['إعدادات الجودة', 'Quality Settings', 'admin/ai-quality-settings.php', 'ai_settings'],
     ];
 }
 
@@ -136,6 +168,9 @@ function admin_nav_count(string $kind): int
         }
         if ($kind === 'alerts') {
             return admin_alerts_open_count();
+        }
+        if ($kind === 'issues') {
+            return (int) (db_one('SELECT COUNT(*) n FROM user_issues WHERE status = "new"')['n'] ?? 0);
         }
     } catch (\Throwable $e) {
     }

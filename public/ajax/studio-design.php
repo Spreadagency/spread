@@ -51,9 +51,18 @@ if ($action === 'idea') {
         if (!empty($brand['visual_identity'])) $brandCtx .= "- الهوية البصرية: " . mb_substr($brand['visual_identity'], 0, 800) . "\n";
     }
 
-    $prompt = "أنت مدير فني محترف. اقرأ المحتوى التالي واكتب فكرة تصميم سوشيال ميديا له في 2-4 جمل بالعربي: التكوين، العناصر الرئيسية، الألوان، والنص الظاهر على التصميم (لو مناسب).\n\n"
-        . ($brandCtx ? "الهوية:\n{$brandCtx}\n" : '')
-        . "المحتوى:\n{$text}\n\nاكتب الفكرة مباشرة بدون مقدمات.";
+    require_once __DIR__ . '/../../includes/prompt-library.php';
+    if (prompt_full('design_idea')) {
+        // برومبت «فكرة التصميم» الكامل (v1): المنشور والستايل في متغيراته — والرد نص قصير (الستوديو بيعرضه كده)
+        $prompt = prompt_fill('design_idea', ['format' => 'منشور سوشيال ميديا', 'post_text' => $text,
+                'design_style' => trim((string) ($brand['design_rules'] ?? '') . "\n" . mb_substr((string) ($brand['visual_identity'] ?? ''), 0, 800)),
+                'brand_colors' => (string) ($brand['colors'] ?? '')], ['uid' => (int) $user['id'], 'brand' => $brand ?: null, 'agent' => 'design', 'identity' => false])
+            . prompt_format_head() . 'اكتب الفكرة المرشحة بس في 2-4 جمل بالعربي (التكوين · البطل البصري · العنوان على التصميم · الألوان) — مباشرة من غير مقدمات ومن غير JSON.';
+    } else {
+        $prompt = "أنت مدير فني محترف. اقرأ المحتوى التالي واكتب فكرة تصميم سوشيال ميديا له في 2-4 جمل بالعربي.\n\n"
+            . prompt_fill('design_idea', ['format' => 'منشور سوشيال ميديا', 'data' => ($brandCtx ? "الهوية:\n{$brandCtx}\n" : '') . "المحتوى:\n{$text}"])
+            . "\n\nاكتب الفكرة مباشرة بدون مقدمات.";
+    }
 
     $ai = ai_generate($prompt);
     if (!$ai['ok']) {
@@ -205,7 +214,7 @@ if ($mode === 'free' && $freePrompt === '') {
 if ($__g = plan_gate((int) $user['id'], 'designs')) {
     json_response(['ok' => false, 'error' => $__g, 'code' => 'quota']);
 }
-$cost = cost_for('content_design_cost');
+$cost = design_credit_cost();
 if (!credits_consume((int) $user['id'], $cost, 'تصميم من الاستوديو (' . $mode . ')', 'studio', null)) {
     json_response(['ok' => false, 'error' => credits_short_msg($cost)]);
 }
@@ -220,6 +229,10 @@ if ($brand) {
     if (!empty($brand['visual_identity'])) $identity[] = 'VISUAL IDENTITY GUIDE (follow these style rules precisely): ' . mb_substr($brand['visual_identity'], 0, 1500);
 }
 $identityBlock = $identity ? implode("\n", $identity) . "\n" : '';
+// الهوية الموحّدة: الاسم وقواعد العميل + الألوان والخطوط والاستايل وطبيعة الصور والممنوعات
+require_once __DIR__ . '/../../includes/brand-kit.php';
+$__bkD = $brand ? bk_brand_block($brand + ['user_id' => (int) $user['id']], 'design') : null;
+if ($__bkD !== null) $identityBlock = $__bkD . "\n";
 
 $concept = match ($mode) {
     'from_content' => ($designIdea !== '' ? "Design concept (follow closely): {$designIdea}\n" : '')
@@ -324,7 +337,7 @@ if (!$result['ok']) {
 if ($includeLogo && !$modelReceivedImages) {
     brand_logo_apply($result['path'], $brand['logo_path']);
 }
-if (watermark_ready()) {
+if (watermark_for_user((int) $user['id'])) {
     watermark_apply($result['path']);
 }
 

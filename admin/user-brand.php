@@ -80,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         admin_log('admin_edit_brand', 'brand_profile', (int) $brand['id'], 'user #' . $userId);
+        require_once __DIR__ . '/../includes/brand-brain.php';
+        brand_kit_notify($userId, ['business_name', 'industry', 'description', 'audience', 'tone', 'colors', 'dialect', 'keywords_use', 'keywords_avoid', 'logo_path'], 'admin', 'تعديل من فريق Spread');
         flash_set('success', 'تم حفظ هوية العميل ✓');
         redirect('admin/user-brand.php?user_id=' . $userId);
     }
@@ -111,6 +113,13 @@ include __DIR__ . '/../templates/admin-header.php';
             <a href="<?= url('admin/user-view.php?id=' . $userId) ?>" class="btn">→ ملف العميل</a>
         </div>
 
+        <?php require_once __DIR__ . '/../includes/brand-brain.php'; if (brand_kit_on()): ?>
+        <div class="tabs" style="display:flex;gap:6px;margin:0 0 14px">
+            <a class="btn sm" href="<?= url('admin/user-brand.php?user_id=' . $userId) ?>">البيانات واللوجو والتواصل</a>
+            <a class="btn ghost sm" href="<?= url('admin/brand-kits.php?user=' . $userId) ?>">Brand Kit (الكلام والتصميم والشخصيات والنسخ)</a>
+        </div>
+        <p class="text-mute" style="font-size:12.5px;margin:-6px 0 12px">الصفحتين دول هوية واحدة: أي حفظ هنا بيتسجّل نسخة في الـ Brand Kit.</p>
+        <?php endif; ?>
         <?= render_flash() ?>
 
         <form method="POST" data-safe-post enctype="multipart/form-data">

@@ -99,7 +99,7 @@ include __DIR__ . '/../templates/header.php';
                             <?php if ($c['status'] !== 'active'): ?>
                                 <a href="<?= url('social/connect.php') ?>" class="btn sm">↻ أعد الربط</a>
                             <?php endif; ?>
-                            <form method="POST" onsubmit="return confirm('فصل «<?= e($c['page_name']) ?>»؟ التوكن هيتحذف نهائيًا وأي بوستات مجدولة عليها هتتلغي.')">
+                            <form method="POST" onsubmit="return confirm(<?= js_str('فصل «' . $c['page_name'] . '»؟ التوكن هيتحذف نهائيًا وأي بوستات مجدولة عليها هتتلغي.') ?>)">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="disconnect">
                                 <input type="hidden" name="conn_id" value="<?= $c['id'] ?>">

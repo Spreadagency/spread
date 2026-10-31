@@ -21,6 +21,17 @@ if (!$offer) {
 
 $link = rtrim(APP_URL, '/') . '/register.php?ref=' . urlencode($offer['code']);
 
+// اختيار المكافأة (كريدت · تصميمات · خصم على الاشتراك) — الخيارات وقيمها من الأدمن
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_POST['action'] ?? '') === 'ref_reward') {
+    require_csrf();
+    $ok = referral_reward_set((int) $user['id'], (string) ($_POST['reward'] ?? ''));
+    flash_set($ok ? 'success' : 'warning', $ok ? 'اتحفظ اختيارك ✓ — المكافآت الجاية هتوصلك كده' : 'الاختيار ده مش متاح');
+    redirect(get_setting('plan_page_unified', '1') === '1' ? 'my-plan.php?tab=refer' : 'referrals.php');
+}
+$__rOpts = referral_reward_options($offer);
+$__rChoice = referral_reward_choice((int) $user['id']);
+$__coupons = referral_coupons((int) $user['id']);
+
 $stats = db_one(
     'SELECT COUNT(*) total,
             SUM(status = "rewarded") rewarded,
@@ -47,9 +58,14 @@ $statusLabels = [
     'rejected'  => ['✕ مرفوضة', '#c0392b'],
 ];
 
+// صفحة «باقتي» الموحدة: الصفحة دي بقت تبويب جوّاها (GET بيتحوّل — والروابط القديمة بتفضل شغالة)
+if (!defined('BL_EMBED') && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && get_setting('plan_page_unified', '1') === '1') {
+    redirect('my-plan.php?tab=refer' . (($_SERVER['QUERY_STRING'] ?? '') !== '' ? '&' . $_SERVER['QUERY_STRING'] : ''));
+}
 $active = 'referrals';
 $__crNum = !function_exists('credits_show_numbers') || credits_show_numbers();
 $page_title = $__crNum ? 'اربح كريدت' : 'ادعُ واكسب';
+if (!defined('BL_EMBED')):
 include __DIR__ . '/../templates/header.php';
 ?>
 <div class="app">
@@ -63,6 +79,7 @@ include __DIR__ . '/../templates/header.php';
         </div>
 
         <?= render_flash() ?>
+<?php endif; ?>
 
         <div class="card" style="background:linear-gradient(135deg,var(--primary),#14B8A6);color:#fff;border:0">
             <div style="font-size:13px;opacity:.9;margin-bottom:6px">كود الدعوة بتاعك</div>
@@ -93,16 +110,36 @@ include __DIR__ . '/../templates/header.php';
             <?php endforeach; ?>
         </div>
 
+        <div class="card" style="margin-bottom:18px">
+            <div class="card-head"><h3>🎁 مكافأتك عن كل دعوة</h3></div>
+            <?php if (count($__rOpts) > 1): ?>
+            <form method="POST" action="<?= url('referrals.php') ?>" class="rf-choice" data-safe-post>
+                <?= csrf_field() ?><input type="hidden" name="action" value="ref_reward">
+                <?php foreach ($__rOpts as $__k => [$__l]): ?>
+                    <label class="rf-opt<?= $__k === $__rChoice ? ' on' : '' ?>"><input type="radio" name="reward" value="<?= e($__k) ?>" <?= $__k === $__rChoice ? 'checked' : '' ?>> <?= e($__l) ?></label>
+                <?php endforeach; ?>
+                <button class="btn sm">احفظ اختياري</button>
+            </form>
+            <?php else: ?>
+                <p class="sub" style="margin:0">كل صاحب بيفعّل حسابه بكودك = <b><?= e(reset($__rOpts)[0]) ?></b></p>
+            <?php endif; ?>
+            <?php if ($__coupons): ?>
+                <div class="rf-coupons"><b>كوبونات الخصم بتاعتك:</b>
+                    <?php foreach ($__coupons as $__c): ?><span class="chip chip-primary" dir="ltr"><?= e($__c['code']) ?></span> <small class="sub"><?= e($__c['title']) ?><?= $__c['expires_at'] ? ' · لحد ' . e(fmt_date(substr((string) $__c['expires_at'], 0, 10))) : '' ?></small><?php endforeach; ?>
+                    <small class="sub">اكتبه في «كود الخصم» وإنت بتشترك أو بتجدّد.</small></div>
+            <?php endif; ?>
+        </div>
+
         <div class="card" style="background:var(--primary-soft)">
             <b>إزاي بتشتغل؟</b>
             <p style="margin:8px 0 0;font-size:14px;line-height:1.95">
                 <?php if (!$__crNum): ?>
                 ابعت اللينك لأي حد · لما يسجّل بيه هياخد <b>رصيد هدية</b> يجرّب بيه فورًا ·
-                ولما يفعّل حسابه تاخد انت <b>رصيد إضافي</b> على باقتك.
+                ولما يفعّل حسابه تاخد انت <b><?= e($__rOpts[$__rChoice][1] ?? 'رصيد إضافي') ?></b> على باقتك.
                 <br>صلاحية الهدية <b><?= $offer['credit_validity_days'] !== null ? (int) $offer['credit_validity_days'] : (int) get_setting('offer_default_validity_days', 30) ?> يوم</b> من وقت ما تستلمها.
                 <?php else: ?>
                 ابعت اللينك لأي حد · لما يسجّل بيه هياخد <b><?= (int) $offer['referee_credits'] ?> كريدت</b> هدية فورًا ·
-                ولما يفعّل حسابه تاخد انت <b><?= (int) $offer['referrer_credits'] ?> كريدت</b>.
+                ولما يفعّل حسابه تاخد انت <b><?= e($__rOpts[$__rChoice][1] ?? ((int) $offer['referrer_credits'] . ' كريدت')) ?></b>.
                 <br>صلاحية الكريدت <b><?= $offer['credit_validity_days'] !== null ? (int) $offer['credit_validity_days'] : (int) get_setting('offer_default_validity_days', 30) ?> يوم</b> من وقت ما تستلمه.
             <?php endif; ?>
             </p>
@@ -134,8 +171,10 @@ include __DIR__ . '/../templates/header.php';
             </div>
             <?php endif; ?>
         </div>
+<?php if (!defined('BL_EMBED')): ?>
     </main>
 </div>
+<?php endif; ?>
 
 <script>
 function cp(t, btn) {
@@ -152,4 +191,4 @@ function cp(t, btn) {
     }
 }
 </script>
-<?php include __DIR__ . '/../templates/footer.php'; ?>
+<?php if (!defined('BL_EMBED')) include __DIR__ . '/../templates/footer.php'; ?>

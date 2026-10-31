@@ -127,7 +127,7 @@ switch ($action) {
             'brand'   => ['name' => (string) ($brand['business_name'] ?? ''), 'logo' => !empty($brand['logo_path']) ? upload_url($brand['logo_path']) : null,
                           'health' => $health, 'adds' => $adds],
             'month'   => $month,
-            'costs'   => ['design' => cost_for('content_design_cost'), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
+            'costs'   => ['design' => design_credit_cost(), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
                           'balance' => credits_balance($uid)],
             'ratios'  => array_map(fn($k, $m) => ['key' => $k, 'label' => $m['label'], 'hint' => $m['hint']],
                                    array_keys(design_ratios()), array_values(design_ratios())),
@@ -239,6 +239,9 @@ switch ($action) {
         }
         $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
         $dialect = $dialects[$brand['dialect'] ?? ''] ?? 'العامية المصرية';
+        require_once __DIR__ . '/../../includes/brand-kit.php';
+        $__u = $brand ? bk_brand_block($brand, 'ideas') : null;
+        if ($__u !== null) { $ctx = [str_replace("\n", "\n  ", $__u)]; $dialect = bk_dialect_label((string) ($brand['dialect'] ?? 'egyptian')); }
         $isReel = $t['type'] === 'Reel';
         $prompt = "انت مدير إبداعي. عندك ترند سوشيال ميديا، وعايزين نفصّله على براند العميل — **نستخدم هيكل الترند، مش نسخة منه**.\n\n"
             . trend_blueprint_text($t) . "\n"
@@ -316,6 +319,13 @@ switch ($action) {
         }
         $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
         $dialect = $dialects[$brand['dialect'] ?? ''] ?? 'العامية المصرية';
+        require_once __DIR__ . '/../../includes/brand-kit.php';
+        $__u = $brand ? bk_brand_block($brand, 'copy') : null;
+        if ($__u !== null) {
+            $__d = bk_brand_block($brand, 'design');
+            $ctx = [str_replace("\n", "\n  ", $__u . "\n" . $__d)];
+            $dialect = bk_dialect_label((string) ($brand['dialect'] ?? 'egyptian'));
+        }
         $kind = ['before_after' => 'تصميم قبل/بعد يوضح نتيجة حقيقية', 'from_image' => 'تصميم إعلاني حوالين صورة حقيقية للعميل',
                  'free' => 'تصميم سوشيال ميديا'][$method] ?? 'تصميم سوشيال ميديا';
 

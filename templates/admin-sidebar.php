@@ -19,17 +19,33 @@ $__logo = function_exists('site_setting') ? site_setting('site_logo', '') : '';
     </div>
 
     <nav class="nav">
-        <?php foreach ($__nav as $__g => $__items): ?>
-            <?php if ($__g !== ''): ?><div class="nav-section"><?= e($__g) ?></div><?php endif; ?>
-            <?php foreach ($__items as $__it):
+        <?php
+        // كل مجموعة بتتقفل وتتفتح (accordion): المفتوحة بس هي اللي فيها الصفحة الحالية — والضغط على عنوان مجموعة بيقفل الباقي
+        $__gi = 0;
+        foreach ($__nav as $__g => $__items):
+            $__open = false;
+            $__gcnt = 0;
+            $__html = '';
+            foreach ($__items as $__it) {
                 $__on = in_array($active, $__it[6], true);
+                $__open = $__open || $__on;
                 $__cnt = !empty($__it[7]) ? admin_nav_count($__it[7]) : 0;
-            ?>
-            <a href="<?= url($__it[4]) ?>" class="<?= $__on ? 'active' : '' ?>" title="<?= e($__it[2]) ?>" data-en="<?= e($__it[2]) ?>" <?= $__on ? 'aria-current="page"' : '' ?>>
-                <span class="ico"><?= admin_icon($__it[3]) ?></span><span class="lbl"><?= e($__it[1]) ?></span>
-                <?php if ($__cnt > 0): ?><span class="a2-cnt"><?= $__cnt > 99 ? '99+' : $__cnt ?></span><span class="a2-dot"></span><?php endif; ?>
-            </a>
-            <?php endforeach; ?>
+                $__gcnt += $__cnt;
+                $__html .= '<a href="' . url($__it[4]) . '" class="' . ($__on ? 'active' : '') . '" title="' . e($__it[2]) . '" data-en="' . e($__it[2]) . '"' . ($__on ? ' aria-current="page"' : '') . '>'
+                    . '<span class="ico">' . admin_icon($__it[3]) . '</span><span class="lbl">' . e($__it[1]) . '</span>'
+                    . ($__cnt > 0 ? '<span class="a2-cnt">' . ($__cnt > 99 ? '99+' : $__cnt) . '</span><span class="a2-dot"></span>' : '') . '</a>';
+            }
+            if ($__g === ''): echo $__html; continue; endif;
+            $__gi++;
+        ?>
+            <div class="nav-grp<?= $__open ? ' open' : '' ?>">
+                <button type="button" class="nav-section nav-gbtn" aria-expanded="<?= $__open ? 'true' : 'false' ?>" aria-controls="a2g<?= $__gi ?>">
+                    <span><?= e($__g) ?></span>
+                    <?php if ($__gcnt > 0): ?><span class="a2-gcnt"><?= $__gcnt > 99 ? '99+' : $__gcnt ?></span><?php endif; ?>
+                    <?= admin_icon('chev', 14) ?>
+                </button>
+                <div class="nav-gitems" id="a2g<?= $__gi ?>"><?= $__html ?></div>
+            </div>
         <?php endforeach; ?>
     </nav>
 
@@ -59,7 +75,7 @@ if (function_exists('admin_can') && admin_can('site_settings') && is_file(__DIR_
     } else {
         try {
             require_once __DIR__ . '/../includes/migrations.php';
-            foreach (migrations_status() as $__m) if ($__m['state'] === 'pending') $__updPending[] = $__m['file'];
+            foreach (migrations_status() as $__m) if ($__m['state'] === 'pending' || $__m['state'] === 'incomplete') $__updPending[] = $__m['file'];
             $_SESSION['a2_mig_pending'] = ['t' => time(), 'p' => $__updPending];
         } catch (\Throwable $e) {}
     }
@@ -118,6 +134,7 @@ if (function_exists('admin_can') && admin_can('site_settings') && is_file(__DIR_
 <script type="application/json" id="a2-navdata"><?php
     $__flat = [];
     foreach ($__nav as $__g => $__items) foreach ($__items as $__it) $__flat[] = ['t' => $__it[1], 'en' => $__it[2], 'u' => url($__it[4])];
+    foreach (admin_nav_search_extra() as $__x) if (!function_exists('admin_can') || admin_can($__x[3])) $__flat[] = ['t' => $__x[0], 'en' => $__x[1], 'u' => url($__x[2])];
     // 8-ج: الإعدادات نفسها في البحث العام (اسم الإعداد ← تبويبه في مركز الإعدادات)
     $__sets = [];
     if (function_exists('settings_registry') && admin_can('site_settings')) {

@@ -193,6 +193,16 @@ $__v1Csrf = csrf_field();
                     </div>
                 </div>
             </section>
+
+            <!-- ═══ الإشعارات والواتساب ═══ -->
+            <section class="sx-card sx-o4" aria-labelledby="sx-h-notif">
+                <h3 class="sx-h" id="sx-h-notif"><span class="sx-ic teal"><?= ui_icon('bell', 17) ?></span>الإشعارات والواتساب</h3>
+                <small class="sx-mute">ضيف رقم الواتساب وأكّده علشان توصلك إشعاراتك والعروض الجديدة عليه — وتقدر تختار كل نوع يوصلك فين.</small>
+                <div class="sx-row-btns">
+                    <a :href="base + '/notifications.php?tab=whatsapp'" class="sx-btn soft">إعدادات الواتساب</a>
+                    <a :href="base + '/notifications.php'" class="sx-link">صندوق الرسايل</a>
+                </div>
+            </section>
         </div>
 
         <!-- ═══ الأمان ═══ -->

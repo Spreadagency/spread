@@ -24,6 +24,30 @@ function google_enabled(): bool
         && google_client_secret() !== '';
 }
 
+/**
+ * ليه الزرار مش ظاهر — كل سبب [مختصر، الحل]. فاضية = الدخول بجوجل شغّال.
+ * (google_enabled() بيخفي الزرار في صمت — دي اللي بتقول للأدمن السبب)
+ */
+function google_issues(): array
+{
+    $out = [];
+    if (get_setting('google_login_enabled', '0') !== '1') {
+        $out[] = ['المفتاح مقفول', 'فعّل «زرار الدخول بجوجل ظاهر للعملاء» واحفظ'];
+    }
+    if (google_client_id() === '') {
+        $out[] = ['Client ID فاضي', 'انسخ الـ Client ID من Google Cloud Console واحفظه'];
+    }
+    $enc = (string) get_setting('google_client_secret_enc', '');
+    if ($enc === '') {
+        $out[] = ['Client Secret مش محفوظ', 'انسخ الـ Client Secret من Google Cloud Console واحفظه'];
+    } elseif (!defined('ENCRYPTION_KEY') || strlen((string) ENCRYPTION_KEY) < 64) {
+        $out[] = ['ENCRYPTION_KEY ناقص', 'ENCRYPTION_KEY مش موجود في includes/config.php، فالـ Secret مايتفكّش — رجّع نفس المفتاح القديم'];
+    } elseif (google_client_secret() === '') {
+        $out[] = ['Client Secret مش بيتفك', 'الـ Secret محفوظ بس مش بيتفك — غالبًا ENCRYPTION_KEY في config.php اتغيّر بعد ما اتحفظ. اكتب الـ Client Secret تاني واحفظ'];
+    }
+    return $out;
+}
+
 function google_client_id(): string
 {
     return trim((string) get_setting('google_client_id', ''));
@@ -227,11 +251,16 @@ function google_find_or_create_user(array $g): array
     }
 
     // نفس ما بيحصل في التسجيل العادي: محفظة + كريدت ترحيبي + ملف براند
-    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, STARTER_CREDITS]);
-    db_run(
-        'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, "add", ?, "signup", ?)',
-        [$userId, STARTER_CREDITS, 'كريدت ترحيبي عند التسجيل بجوجل']
-    );
+    require_once __DIR__ . '/credits.php';
+    $starter = function_exists('pkg_signup_starter') ? pkg_signup_starter() : STARTER_CREDITS;   // باقة التسجيل (لو الأدمن اختارها)
+    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, $starter]);
+    if ($starter > 0) {
+        db_run(
+            'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, "add", ?, "signup", ?)',
+            [$userId, $starter, 'كريدت ترحيبي عند التسجيل بجوجل']
+        );
+    }
+    if (function_exists('pkg_signup_grant')) pkg_signup_grant((int) $userId);
     db_run('INSERT INTO brand_profiles (user_id, business_name) VALUES (?, ?)', [$userId, mb_substr($g['name'], 0, 150)]);
 
     return ['ok' => true, 'user_id' => $userId, 'is_new' => true, 'auto_approved' => $autoApprove];

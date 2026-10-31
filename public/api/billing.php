@@ -22,6 +22,7 @@ switch ($action) {
         if (!rate_limit('promo_quote', 'u' . $uid, 20, 600)) api_fail('محاولات كتير — استنى شوية', 'rate_limit', 429);
         $pkg = billing_package(api_int('package_id'));
         if (!$pkg) api_fail('الباقة دي مش متاحة', 'not_found', 404);
+        if (function_exists('pkg_variant') && !($pkg = pkg_variant($pkg, api_int('price_id') ?: null))) api_fail('المدة دي مش متاحة', 'not_found', 404);
         $code = api_str('code', 40);
         if ($code === '') api_fail('اكتب الكود', 'empty', 422);
         $q = promo_quote($code, $user, $pkg, api_str('method', 40));
@@ -35,7 +36,7 @@ switch ($action) {
     case 'submit':
         if (!rate_limit('payment_submit', 'u' . $uid, 8, 3600)) api_fail('طلبات كتير — استنى شوية', 'rate_limit', 429);
         $in = [
-            'package_id' => api_int('package_id'), 'method' => api_str('method', 40), 'promo_code' => api_str('promo_code', 40),
+            'package_id' => api_int('package_id'), 'price_id' => api_int('price_id'), 'addon_id' => api_int('addon_id'), 'video_order_id' => api_int('video_order_id'), 'method' => api_str('method', 40), 'promo_code' => api_str('promo_code', 40),
             'transaction_ref' => api_str('transaction_ref', 120), 'transferred_at' => api_str('transferred_at', 30),
             'note' => api_str('note', 1000), 'phone' => api_str('phone', 30),
         ];

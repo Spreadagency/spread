@@ -78,12 +78,22 @@ function ui_icon(string $name, int $size = 20, string $class = ''): string
  */
 function ui_sections(): array
 {
+    // صفحة واحدة للهوية (مركز الهوية) لما يكون مفعّل
+    $__bk = is_file(__DIR__ . '/brand-kit.php') && (require_once __DIR__ . '/brand-kit.php') && bk_enabled();
+    $__brandUrl = $__bk ? 'brand-kit.php' : 'brand-brain.php';
+    // محرك المحتوى الجديد: بيظهر بس للعملاء اللي الأدمن فتحهولهم
+    $__ce = false;
+    if (is_file(__DIR__ . '/ce-jobs.php') && function_exists('current_user')) {
+        require_once __DIR__ . '/ce-jobs.php';
+        $__u = current_user();
+        $__ce = $__u && ce_enabled_for((int) $__u['id']);
+    }
+    $__campSubs = [['حملاتي', 'campaigns.php', 'campaigns', null]];
+    if ($__ce) $__campSubs[] = ['محرك المحتوى ✨', 'engine.php', 'engine', null];
+    $__campSubs[] = ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'];
     return [
         'dashboard' => ['الرئيسية', 'home', 'dashboard.php', ['dashboard'], []],
-        'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan'], [
-            ['حملاتي', 'campaigns.php', 'campaigns', null],
-            ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'],
-        ]],
+        'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan', 'engine'], $__campSubs],
         'contents' => ['المحتويات', 'folder', 'content-history.php', ['history', 'create'], [
             ['كل المحتويات', 'content-history.php', 'history', 'content-history'],
             ['منشور سريع', 'create-content.php', 'create', 'create-content'],
@@ -94,22 +104,27 @@ function ui_sections(): array
         ]],
         'analytics' => ['التحليلات', 'chart', 'analytics.php', ['analytics'], []],
         // ⑦-ب البحث العميق: صفحة مستقلة زي ما هي — بس جوه Brand Brain (بيقرا الهوية وبيسجّل فيها)
-        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources', 'research'], [
-            ['Brand Brain', 'brand-brain.php', 'brand-brain', null],
+        'brand' => [$__bk ? 'هوية البراند' : 'Brand Brain · الهوية', 'brain', $__brandUrl, ['brand-brain', 'brand', 'brand-agent', 'sources', 'research', 'brand-kit'], [
+            [$__bk ? 'هوية البراند' : 'Brand Brain', $__brandUrl, $__bk ? 'brand-kit' : 'brand-brain', null],
             ['البحث العميق', 'research.php', 'research', 'research'],
             ['المساعد الذكي', 'brand-agent.php', 'brand-agent', 'brand-agent'],
             ['المستندات', 'sources.php', 'sources', 'sources'],
         ]],
         // ⑦ رحلتك الأولى — بتختفي من القائمة لما تخلص (السايدبار)
         'journey' => ['رحلتك الأولى', 'star', 'journey.php', ['journey'], []],
-        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], [
+        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'my-plan', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], array_merge([
             ['حسابي', 'profile.php', 'profile', null],
+        ], get_setting('plan_page_unified', '1') === '1' ? [
+            // «باقتي»: الاشتراك والرصيد وادع واكسب في صفحة واحدة
+            ['باقتي', 'my-plan.php', 'my-plan', 'credits'],
+        ] : [
             ['الباقات والاشتراك', 'packages.php', 'packages', null],
             ['الرصيد', 'credits.php', 'credits', 'credits'],
             [(function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت', 'referrals.php', 'referrals', 'referrals'],
+        ], [
             ['ربط السوشيال', 'social-accounts.php', 'social-accounts', 'social-accounts'],
             ['دليل المنصة', 'help.php', 'help', 'help'],
-        ]],
+        ])],
     ];
 }
 
