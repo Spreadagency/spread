@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 09:13',
+  'generated' => '2026-10-31 09:14',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -795,8 +795,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '8544ddd1aff6b1038733f1368d033626',
-      's' => 25585,
+      'h' => 'ecb36174ce55d011ef292fa65834ae0a',
+      's' => 26847,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -805,8 +805,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '09c1466f66c8f6efe54200bc36bec957',
-      's' => 15566,
+      'h' => '7da4bfd125a887c3fcd234868c709393',
+      's' => 17426,
     ),
     'docs/prompts-v1.md' => 
     array (
