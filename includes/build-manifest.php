@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 09:51',
+  'generated' => '2026-10-31 10:02',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -236,6 +236,9 @@ return array (
     227 => 'includes/packages.php',
     228 => 'sql/2026_packages_v2.sql',
     229 => 'sql/2026_packages_v2_rollback.sql',
+    230 => 'public/my-plan.php',
+    231 => 'sql/2026_plan_page.sql',
+    232 => 'sql/2026_plan_page_rollback.sql',
   ),
   'files' => 
   array (
@@ -461,8 +464,8 @@ return array (
     ),
     'admin/offer-settings.php' => 
     array (
-      'h' => 'e27ab73214774921380b3c0a6e34536f',
-      's' => 6230,
+      'h' => 'fa7d4881350830c82ed75a66f604bc59',
+      's' => 7120,
     ),
     'admin/offer-test.php' => 
     array (
@@ -626,8 +629,8 @@ return array (
     ),
     'assets/css/main.css' => 
     array (
-      'h' => 'b1b5f32ff34366438f690cb6ca2db93e',
-      's' => 50699,
+      'h' => '2bd2125e5ffa19fb8ca67031d14b72b8',
+      's' => 53647,
     ),
     'assets/css/quality.css' => 
     array (
@@ -801,8 +804,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '7958c70943967bd6fd235c8b7ae89041',
-      's' => 29530,
+      'h' => 'c1a4d53f224a7310331478cd3878cf35',
+      's' => 30437,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -811,8 +814,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '34ce73f496835e52f5af588d12504eb6',
-      's' => 22030,
+      'h' => '419ef1e16783f05ae789e78c5bb97ee3',
+      's' => 24034,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -1096,8 +1099,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => 'e6b0b4486bdb8e2a6c79101be296fa3e',
-      's' => 15780,
+      'h' => '00c0baeec2d34681ad2c93e5fa46f668',
+      's' => 15957,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1116,8 +1119,8 @@ return array (
     ),
     'includes/offers.php' => 
     array (
-      'h' => '9e3578cb435ea529d962b7155706c9a8',
-      's' => 24106,
+      'h' => 'e5bf7175b7006c30773466c1fba2936b',
+      's' => 29922,
     ),
     'includes/packages.php' => 
     array (
@@ -1226,8 +1229,8 @@ return array (
     ),
     'includes/ui-v2.php' => 
     array (
-      'h' => 'dd81457f88d31b05fa721202257d641a',
-      's' => 19657,
+      'h' => 'aac24c3864d8e9f98d07ae43ffcabad2',
+      's' => 19942,
     ),
     'includes/uploader.php' => 
     array (
@@ -1581,8 +1584,8 @@ return array (
     ),
     'public/credits.php' => 
     array (
-      'h' => '44e2d5b980a0acde0998ba630f37316b',
-      's' => 19386,
+      'h' => '36cf205d72d4a40cf805276ae855cc23',
+      's' => 20046,
     ),
     'public/dashboard.php' => 
     array (
@@ -1639,6 +1642,11 @@ return array (
       'h' => 'e7fcf686fc5bd55fb8342d24b6b743c3',
       's' => 156,
     ),
+    'public/my-plan.php' => 
+    array (
+      'h' => '6b458a615bcc337140330e2f2bff72a8',
+      's' => 8415,
+    ),
     'public/notif.php' => 
     array (
       'h' => '93eda692cd50c1f2c72c7cf1600c7584',
@@ -1651,8 +1659,8 @@ return array (
     ),
     'public/packages.php' => 
     array (
-      'h' => 'eabb9991de69e43676e1b7af565cf1a1',
-      's' => 12285,
+      'h' => '16c53e312bbf2cd69bc8cd6dea6165ab',
+      's' => 12826,
     ),
     'public/payment-proof.php' => 
     array (
@@ -1681,8 +1689,8 @@ return array (
     ),
     'public/referrals.php' => 
     array (
-      'h' => '0eb081cc81603576327655b8d174eda1',
-      's' => 8124,
+      'h' => '3eb7f66345342ad22f5a0ba3b6f84575',
+      's' => 11112,
     ),
     'public/register.php' => 
     array (
@@ -2069,6 +2077,16 @@ return array (
       'h' => 'bc344a4a7102167057a73cb456facbdb',
       's' => 4067,
     ),
+    'sql/2026_plan_page.sql' => 
+    array (
+      'h' => '2bdd762deb7d07075f40b05162e76f00',
+      's' => 2835,
+    ),
+    'sql/2026_plan_page_rollback.sql' => 
+    array (
+      'h' => 'c7ab79961d71ca59fd5fab39b439353c',
+      's' => 1267,
+    ),
     'sql/2026_trial_link.sql' => 
     array (
       'h' => '0703712272b5634bfadbfa7660b96f52',
@@ -2186,8 +2204,8 @@ return array (
     ),
     'templates/sidebar.php' => 
     array (
-      'h' => '1e98858978afbe9eb50f787d4747d820',
-      's' => 7347,
+      'h' => 'ffeb9e869a7acb9bba12757e9a3fcd98',
+      's' => 7957,
     ),
     'templates/style-ref-picker.php' => 
     array (
@@ -2201,8 +2219,8 @@ return array (
     ),
     'templates/topbar.php' => 
     array (
-      'h' => '7e7813ad39172a9d2e3cfde0685bbc31',
-      's' => 3131,
+      'h' => 'd69accef4afeb090a950d83fc5e66cc2',
+      's' => 3207,
     ),
     'templates/v2/auth.php' => 
     array (
@@ -2261,8 +2279,8 @@ return array (
     ),
     'templates/v2/topbar.php' => 
     array (
-      'h' => 'a95c0c51eaf1b92f78c2fd79fd74b227',
-      's' => 9136,
+      'h' => 'ae689f5360744a82fe853e270f6c0ea8',
+      's' => 9161,
     ),
   ),
 );

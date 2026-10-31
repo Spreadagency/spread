@@ -26,8 +26,13 @@ $hasMethods = (bool) billing_methods();
 $promoQ = strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($_GET['code'] ?? '')));
 $promoQ = $promoQ !== '' ? '&code=' . urlencode(mb_substr($promoQ, 0, 40)) : '';
 
+// صفحة «باقتي» الموحدة: الصفحة دي بقت تبويب جوّاها (GET بيتحوّل — والروابط القديمة بتفضل شغالة)
+if (!defined('BL_EMBED') && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && get_setting('plan_page_unified', '1') === '1') {
+    redirect('my-plan.php?tab=plans' . (($_SERVER['QUERY_STRING'] ?? '') !== '' ? '&' . $_SERVER['QUERY_STRING'] : ''));
+}
 $active = 'packages';
 $page_title = 'الباقات';
+if (!defined('BL_EMBED')):
 include __DIR__ . '/../templates/header.php';
 ?>
 <div class="app">
@@ -40,8 +45,9 @@ include __DIR__ . '/../templates/header.php';
             <h1>الباقات</h1>
             <div class="sub">اختار الباقة المناسبة — بعد التحويل ارفع الإيصال، وأول ما نتأكد الباقة بتتفعّل والكريدت يوصل محفظتك.</div>
         </div>
+<?php endif; ?>
 
-        <?php if ($pu): ?>
+        <?php if ($pu && !defined('BL_EMBED')): ?>
         <div class="card bl-current">
             <div>
                 <small class="sub">باقتك الحالية</small>
@@ -156,6 +162,8 @@ function blDur(b) {
     const go = card.querySelector('.bl-go'); if (go) go.href = b.dataset.href;
 }
 </script>
+<?php if (!defined('BL_EMBED')): ?>
     </main>
 </div>
 <?php include __DIR__ . '/../templates/footer.php'; ?>
+<?php endif; ?>

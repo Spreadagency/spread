@@ -311,18 +311,24 @@ function redeem_offer(int $offerId, int $userId, string $role = 'referee', array
         }
 
         $credits = $role === 'referrer' ? (int) $offer['referrer_credits'] : (int) $offer['referee_credits'];
-        if ($credits <= 0) {
+        // المكافأة مش كريدت (تصميمات / خصم) ← الواقعة بتتسجل والمكافأة بتتصرف برّه
+        $noCredits = !empty($ctx['no_credits']);
+        if ($noCredits) $credits = 0;
+        if ($credits <= 0 && !$noCredits) {
             throw new RuntimeException('NO_CREDITS_CONFIGURED');
         }
 
         // الـ UNIQUE index هو الحارس النهائي
+        // مكافأة المُحيل: صف لكل إحالة (referral_id) — هدية المستخدم الجديد مرة واحدة (0)
+        $refId = (int) ($ctx['referral_id'] ?? 0);
+        $hasRefCol = (bool) $pdo->query("SHOW COLUMNS FROM offer_redemptions LIKE 'referral_id'")->fetch();
         $ins = $pdo->prepare('INSERT INTO offer_redemptions
-            (offer_id, user_id, identity_hash, offer_group, ip, device_hash, role, credits_given)
-            VALUES (?,?,?,?,?,?,?,?)');
-        $ins->execute([
+            (offer_id, user_id, identity_hash, offer_group, ip, device_hash, role, credits_given' . ($hasRefCol ? ', referral_id' : '') . ')
+            VALUES (?,?,?,?,?,?,?,?' . ($hasRefCol ? ',?' : '') . ')');
+        $ins->execute(array_merge([
             $offerId, $userId, $ctx['identity_hash'] ?? null, $offer['offer_group'],
             $ctx['ip'] ?? offer_client_ip(), $ctx['device_hash'] ?? null, $role, $credits,
-        ]);
+        ], $hasRefCol ? [$refId] : []));
         $redemptionId = (int) $pdo->lastInsertId();
 
         if (!empty($offer['offer_group'])) {
@@ -334,6 +340,7 @@ function redeem_offer(int $offerId, int $userId, string $role = 'referee', array
             ->execute([$credits, $offerId]);
 
         if ($ownTx) $pdo->commit();
+        if ($noCredits) return ['ok' => true, 'credits' => 0, 'redemption_id' => $redemptionId, 'validity_days' => 0];
 
         // الكريدت خارج الترانزكشن — credits_add بتفتح ترانزكشن خاصة بيها
         $validity = $offer['credit_validity_days'] !== null
@@ -470,6 +477,74 @@ function referral_qualify(int $refereeUserId, string $event = 'on_activation'): 
     return referral_reward((int) $ref['id']);
 }
 
+/* ═══════════════════ اختيار مكافأة «ادع واكسب» ═══════════════════ */
+
+/** المكافآت المتاحة (من الأدمن): key ← [label, short] */
+function referral_reward_options(?array $offer = null): array
+{
+    $out = [];
+    $cr = (int) ($offer['referrer_credits'] ?? get_setting('referral_default_reward', 100));
+    if (get_setting('referral_reward_credits_on', '1') === '1' && $cr > 0) $out['credits'] = ['◇ ' . $cr . ' كريدت', $cr . ' كريدت'];
+    $d = (int) get_setting('referral_reward_designs', 0);
+    if ($d > 0) $out['designs'] = ['🎨 ' . $d . ' تصميم زيادة', $d . ' تصميم'];
+    $p = (int) get_setting('referral_reward_discount_pct', 0);
+    if ($p > 0) $out['discount'] = ['🏷 خصم ' . $p . '% على اشتراكك الجاي', 'خصم ' . $p . '%'];
+    return $out ?: ['credits' => ['◇ ' . max(1, $cr) . ' كريدت', max(1, $cr) . ' كريدت']];
+}
+
+/** مكافأة العميل المختارة (ولو اختياره اتقفل من الأدمن ← أول خيار متاح) */
+function referral_reward_choice(int $userId): string
+{
+    $opts = referral_reward_options(db_one('SELECT * FROM offers WHERE type = "referral" AND owner_user_id = ?', [$userId]));
+    $c = null;
+    try { $c = db_one('SELECT reward FROM referral_prefs WHERE user_id = ?', [$userId])['reward'] ?? null; } catch (\Throwable $e) {}
+    return $c && isset($opts[$c]) ? $c : (string) array_key_first($opts);
+}
+
+function referral_reward_set(int $userId, string $reward): bool
+{
+    if (!isset(referral_reward_options(db_one('SELECT * FROM offers WHERE type = "referral" AND owner_user_id = ?', [$userId]))[$reward])) return false;
+    try {
+        db_run('INSERT INTO referral_prefs (user_id, reward) VALUES (?, ?) ON DUPLICATE KEY UPDATE reward = VALUES(reward)', [$userId, $reward]);
+        return true;
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
+/** صرف مكافأة مش كريدت ← نص المكافأة للإشعار */
+function referral_reward_grant(int $userId, string $choice, int $referralId): string
+{
+    if ($choice === 'designs') {
+        $n = max(1, (int) get_setting('referral_reward_designs', 0));
+        $plan = function_exists('plan_active') ? plan_active($userId) : [];
+        $ends = empty($plan['synthetic']) && !empty($plan['ends']) ? (string) $plan['ends'] : date('Y-m-d H:i:s', strtotime('+' . max(1, (int) get_setting('referral_reward_designs_days', 60)) . ' days'));
+        db_insert('INSERT INTO quota_overrides (user_id, unit, extra, reason, expires_at) VALUES (?, "designs", ?, ?, ?)', [$userId, $n, 'مكافأة إحالة #' . $referralId, $ends]);
+        return $n . ' تصميم زيادة';
+    }
+    // خصم على الاشتراك ← كوبون شخصي (مرة واحدة · للعميل ده بس) بيتطبّق في صفحة الدفع
+    $pct = max(1, min(100, (int) get_setting('referral_reward_discount_pct', 0)));
+    $days = max(1, (int) get_setting('referral_reward_discount_days', 60));
+    $code = offer_generate_code(8, 'REF');
+    // owner فاضي (غير كده بيتعامل كإنه كوده الشخصي ويترفض) — صاحبه في القايمة المسموحة + الوصف
+    db_insert('INSERT INTO offers (code, title, description, type, owner_user_id, referrer_credits, referee_credits, trigger_event, rules_json, max_uses, expires_at, is_active)
+               VALUES (?, ?, ?, "promo", NULL, 0, 0, "on_register", ?, 1, DATE_ADD(NOW(), INTERVAL ? DAY), 1)', [
+        $code, 'مكافأة إحالة — خصم ' . $pct . '%', 'ref_coupon:' . $userId,
+        json_encode(['reward' => ['discount_type' => 'percent', 'discount_value' => $pct], 'whitelist_user_ids' => [$userId], 'once_per_user' => true], JSON_UNESCAPED_UNICODE), $days]);
+    return 'كوبون خصم ' . $pct . '% على اشتراكك الجاي: ' . $code;
+}
+
+/** كوبونات الخصم اللي العميل كسبها ولسه ماستخدمهاش */
+function referral_coupons(int $userId): array
+{
+    try {
+        return db_all('SELECT code, title, expires_at FROM offers WHERE type = "promo" AND description = ? AND is_active = 1 AND used_count < COALESCE(max_uses, 1)
+                       AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY id DESC', ['ref_coupon:' . $userId]);
+    } catch (\Throwable $e) {
+        return [];
+    }
+}
+
 /** صرف مكافأة المُحيل فعليًا */
 function referral_reward(int $referralId, ?int $adminId = null): array
 {
@@ -480,16 +555,23 @@ function referral_reward(int $referralId, ?int $adminId = null): array
     $referrer = db_one('SELECT * FROM users WHERE id = ?', [$ref['referrer_user_id']]);
     if (!$referrer) return ['ok' => false, 'reason' => 'REFERRER_NOT_FOUND'];
 
+    // المكافأة اللي المُحيل اختارها (كريدت · تصميمات · خصم على الاشتراك)
+    $choice = referral_reward_choice((int) $ref['referrer_user_id']);
     $res = redeem_offer((int) $ref['offer_id'], (int) $ref['referrer_user_id'], 'referrer', [
         'identity_hash' => $referrer['identity_hash'] ?? null,
         'ip' => $ref['signup_ip'],
+        'no_credits' => $choice !== 'credits',
+        'referral_id' => (int) $referralId,
     ]);
 
     if ($res['ok']) {
+        require_once __DIR__ . '/Notifier.php';   // wa_credit_amount_text
+        $text = $choice === 'credits' ? wa_credit_amount_text((int) ($res['credits'] ?? 0)) : referral_reward_grant((int) $ref['referrer_user_id'], $choice, (int) $referralId);
+        $res['reward'] = $choice;
+        $res['reward_text'] = $text;
         db_run('UPDATE referrals SET status = "rewarded", rewarded_at = NOW() WHERE id = ?', [$referralId]);
         require_once __DIR__ . '/Notifier.php';
-        Notifier::notify((int) $ref['referrer_user_id'], 'referral_reward', ['reward' => wa_credit_amount_text((int) ($res['credits'] ?? 0))],
-            ['url' => 'referrals.php', 'tone' => 'ok']);
+        Notifier::notify((int) $ref['referrer_user_id'], 'referral_reward', ['reward' => $text], ['url' => 'my-plan.php?tab=refer', 'tone' => 'ok']);
     }
     return $res;
 }

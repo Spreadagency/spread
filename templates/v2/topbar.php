@@ -85,9 +85,9 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
         $__menu = [
             ['profile.php', 'user', 'حسابي'],
             ['profile.php#sx-h-sec', 'lock', 'كلمة المرور والأمان'],
-            ['packages.php', 'star', 'الاشتراك والباقات'],
+            ['my-plan.php', 'star', 'باقتي (الاشتراك والرصيد)'],
             ['payments.php', 'file', 'المدفوعات والفواتير'],
-            ['credits.php', 'coin', 'الرصيد'],
+            ['my-plan.php?tab=refer', 'coin', 'ادع واكسب'],
             ['profile.php#sx-h-acc', 'link', 'الحسابات المرتبطة'],
             ['social-accounts.php', 'send', 'ربط السوشيال'],
             ['notifications.php', 'bell', 'الرسايل والإشعارات'],

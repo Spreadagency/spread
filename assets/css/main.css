@@ -1564,3 +1564,32 @@ button[aria-busy="true"] { opacity: .75; cursor: wait; }
 .cv-rate-c { margin: 10px 0 0; color: #0F7F77; font-size: 13px; }
 .cv-rate-i { margin: 10px 0 8px; color: #9A5B00; font-size: 13px; }
 @media (max-width: 480px) { .cv-rate-cats div { grid-template-columns: 110px 1fr 28px; } }
+
+/* ═══ «باقتي»: الاشتراك/الترقية + التبويبات ═══ */
+.mp-hero { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: center; padding: 22px; margin-bottom: 16px; background: linear-gradient(135deg, var(--primary-soft, #EAF4FF), var(--surface, #fff)); }
+.mp-hero.new { background: linear-gradient(135deg, var(--primary, #0C87EF), #14B8A6); color: #fff; border: 0; }
+.mp-hero.new .sub { color: rgba(255, 255, 255, .9); }
+.mp-kicker { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .02em; padding: 3px 12px; border-radius: 999px; background: var(--primary, #0C87EF); color: #fff; margin-bottom: 8px; }
+.mp-hero.new .mp-kicker { background: rgba(255, 255, 255, .22); }
+.mp-hero h1 { font-size: clamp(20px, 3.4vw, 26px); margin: 0 0 6px; }
+.mp-tier { font-size: 13px; font-weight: 700; padding: 2px 10px; border-radius: 999px; background: #FFF4E0; color: #9A5B00; vertical-align: middle; }
+.mp-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.mp-hero.new .btn.ghost { color: #fff; border-color: rgba(255, 255, 255, .6); }
+.mp-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.mp-m { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 14px; background: var(--surface, #fff); border: 1px solid var(--line, #E5E9F0); color: var(--ink, #1E1B3A); }
+.mp-m span { font-size: 12px; color: var(--mute, #6B7280); }
+.mp-m b { font-size: 20px; }
+.mp-m b small { font-size: 12px; color: var(--mute, #6B7280); font-weight: 600; }
+.mp-bar { display: block; height: 6px; border-radius: 999px; background: var(--line, #E5E9F0); overflow: hidden; }
+.mp-bar > i { display: block; height: 100%; background: var(--primary, #0C87EF); }
+.mp-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 4px 0 16px; padding-bottom: 2px; }
+.mp-tab { flex: 0 0 auto; border: 1px solid var(--line, #E5E9F0); background: var(--surface, #fff); padding: 9px 16px; border-radius: 999px; font: inherit; font-weight: 700; font-size: 14px; color: var(--ink-2, #3A4A60); cursor: pointer; }
+.mp-tab.on { background: var(--primary, #0C87EF); border-color: var(--primary, #0C87EF); color: #fff; }
+.mp-tab:focus-visible { outline: 2px solid var(--primary, #0C87EF); outline-offset: 2px; }
+@media (max-width: 760px) { .mp-hero { grid-template-columns: 1fr; padding: 18px; } }
+
+/* اختيار مكافأة «ادع واكسب» */
+.rf-choice { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rf-opt { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--line, #E5E9F0); cursor: pointer; font-weight: 600; }
+.rf-opt.on, .rf-opt:has(input:checked) { border-color: var(--primary, #0C87EF); background: var(--primary-soft, #EAF4FF); }
+.rf-coupons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }

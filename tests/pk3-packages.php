@@ -207,7 +207,7 @@ t('حفظ المدد: مدة جديدة اتضافت · المدة اللي عل
   count($ps) === 3 && (int) db_one('SELECT is_active FROM package_prices WHERE id = ?', [$y])['is_active'] === 0 && (bool) array_filter($ps, fn($p) => (int) $p['days'] === 90 && (float) $p['compare_egp'] === 300.0)
   && db_one('SELECT quality_tier FROM credit_packages WHERE id = ?', [$pkg])['quality_tier'] === 'premium', json_encode(array_map(fn($p) => [$p['label'], $p['days'], $p['is_active']], $ps), JSON_UNESCAPED_UNICODE));
 $s = login($base, db_one('SELECT email FROM users WHERE id = ?', [$u1])['email']);
-[$c2, $h2] = http('GET', "$base/public/packages.php", [], $s[0]);
+[$c2, $h2] = http("GET", "$base/public/my-plan.php?tab=plans", [], $s[0]);
 t('العميل: تبديل المدة في كارت الباقة + «زوّد باقتك»', $c2 === 200 && str_contains($h2, 'bl-dur') && str_contains($h2, 'price=') && str_contains($h2, 'id="addons"') && !str_contains($h2, 'Warning:'), (string) $c2);
 $px = (int) array_values(array_filter($ps, fn($p) => (int) $p['days'] === 90))[0]['id'];
 [$c3, $h3] = http('GET', "$base/public/checkout.php?package=$pkg&price=$px", [], $s[0]);

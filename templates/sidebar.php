@@ -88,6 +88,11 @@ $balance = user_credits();
         <?php endif; ?>
 
         <div class="nav-section">الحساب</div>
+        <?php if (get_setting('plan_page_unified', '1') === '1'): /* «باقتي»: الاشتراك والرصيد وادع واكسب في صفحة واحدة */ ?>
+        <a href="<?= url('my-plan.php') ?>" class="<?= in_array($active, ['my-plan', 'credits', 'referrals', 'packages'], true) ? 'active' : '' ?>">
+            <span class="ico">💎</span> باقتي <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
+        </a>
+        <?php else: ?>
         <?php if (menu_visible('referrals')): ?>
         <a href="<?= url('referrals.php') ?>" class="<?= $active === 'referrals' ? 'active' : '' ?>">
             <span class="ico">🎁</span> <?= (function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت' ?>
@@ -97,6 +102,7 @@ $balance = user_credits();
         <a href="<?= url('credits.php') ?>" class="<?= $active === 'credits' ? 'active' : '' ?>">
             <span class="ico">◇</span> <span class="cr">الرصيد</span><span class="cr-alt">الباقة والاستهلاك</span> <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
         </a>
+        <?php endif; ?>
         <?php endif; ?>
         <a href="<?= url('profile.php') ?>" class="<?= $active === 'profile' ? 'active' : '' ?>">
             <span class="ico">○</span> الملف الشخصي

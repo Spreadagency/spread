@@ -112,14 +112,19 @@ function ui_sections(): array
         ]],
         // ⑦ رحلتك الأولى — بتختفي من القائمة لما تخلص (السايدبار)
         'journey' => ['رحلتك الأولى', 'star', 'journey.php', ['journey'], []],
-        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], [
+        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'my-plan', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], array_merge([
             ['حسابي', 'profile.php', 'profile', null],
+        ], get_setting('plan_page_unified', '1') === '1' ? [
+            // «باقتي»: الاشتراك والرصيد وادع واكسب في صفحة واحدة
+            ['باقتي', 'my-plan.php', 'my-plan', 'credits'],
+        ] : [
             ['الباقات والاشتراك', 'packages.php', 'packages', null],
             ['الرصيد', 'credits.php', 'credits', 'credits'],
             [(function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت', 'referrals.php', 'referrals', 'referrals'],
+        ], [
             ['ربط السوشيال', 'social-accounts.php', 'social-accounts', 'social-accounts'],
             ['دليل المنصة', 'help.php', 'help', 'help'],
-        ]],
+        ])],
     ];
 }
 
