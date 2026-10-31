@@ -566,7 +566,9 @@ function cost_for(string $action): int
         'design_cost' => COST_DESIGN,
         'content_design_cost' => COST_DESIGN
     ];
-    return (int) get_setting($action, $defaults[$action] ?? 1);
+    $base = (int) get_setting($action, $defaults[$action] ?? 1);
+    // مستوى الجودة: أسعار الكتابة × معامل مستوى باقة العميل
+    return function_exists('qt_price') ? qt_price($action, $base) : $base;
 }
 
 /**
@@ -577,7 +579,8 @@ function cost_for_format(string $format): int
 {
     $key = ['carousel' => 'carousel_generation_cost', 'story' => 'story_generation_cost', 'video' => 'video_script_cost', 'reel' => 'video_script_cost'][$format] ?? null;
     $v = $key !== null ? get_setting($key, '') : '';
-    return $v === '' || $v === null ? cost_for('content_generation_cost') : max(0, (int) $v);
+    if ($v === '' || $v === null) return cost_for('content_generation_cost');
+    return function_exists('qt_price') ? qt_price((string) $key, max(0, (int) $v)) : max(0, (int) $v);
 }
 
 /** التصميم بيتحسب من حصة الباقة — والكريدت عليه بس لو الأدمن فتح «التصميم بالكريدت كمان» */
@@ -603,4 +606,6 @@ function publish_credit_cost(): int
 require_once __DIR__ . '/plans.php';
 // الباقات الجديدة: المدد · الحد الأسبوعي · الإضافات · باقة التسجيل
 require_once __DIR__ . '/packages.php';
+// مستويات الجودة: الموديلات · معامل السعر · جولات التحسين · الأولوية
+require_once __DIR__ . '/quality-tiers.php';
 require_once __DIR__ . '/settings-registry.php';

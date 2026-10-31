@@ -163,6 +163,8 @@ function ce_job_create(int $uid, string $kind, array $state = [], array $opt = [
     if (!isset(ce_job_handlers()[$kind])) return ['ok' => false, 'code' => 'kind', 'error' => 'نوع شغل مش معروف'];
     $idem = isset($opt['idem_key']) && $opt['idem_key'] !== '' ? mb_substr((string) $opt['idem_key'], 0, 100) : null;
     $credits = max(0, (int) ($opt['credits'] ?? 0));
+    // مستوى الجودة: الأعلى بيتنفذ الأول في الطابور
+    $prio = function_exists('qt_engine') ? qt_engine($uid ?: null)['priority'] : 0;
     $pdo = db();
     $pdo->beginTransaction();
     try {
@@ -188,6 +190,7 @@ function ce_job_create(int $uid, string $kind, array $state = [], array $opt = [
             $uid ?: null, $kind, $opt['ref_type'] ?? null, isset($opt['ref_id']) ? (int) $opt['ref_id'] : null,
             'في الطابور…', json_encode($state, JSON_UNESCAPED_UNICODE), max(1, (int) ($opt['max_attempts'] ?? 3)), $holdId, $idem,
         ]);
+        if ($prio) { try { db_run('UPDATE ce_jobs SET priority = ? WHERE id = ?', [$prio, $id]); } catch (\Throwable $e) {} }
         $pdo->commit();
         return ['ok' => true, 'job' => db_one('SELECT * FROM ce_jobs WHERE id = ?', [$id]), 'existing' => false];
     } catch (\Throwable $e) {
@@ -245,8 +248,14 @@ function ce_job_claim(int $id): ?string
 /** الشغلانة اللي عليها الدور (أقدم واحدة جاهزة ومش مقفولة) */
 function ce_job_pick(): ?int
 {
-    $r = db_one('SELECT id FROM ce_jobs WHERE status IN ("queued","running") AND (run_after IS NULL OR run_after <= NOW())
-                 AND (lock_token IS NULL OR locked_at < NOW() - INTERVAL 5 MINUTE) ORDER BY id LIMIT 1');
+    $sql = 'SELECT id FROM ce_jobs WHERE status IN ("queued","running") AND (run_after IS NULL OR run_after <= NOW())
+                 AND (lock_token IS NULL OR locked_at < NOW() - INTERVAL 5 MINUTE) ORDER BY ';
+    // مستوى الجودة الأعلى الأول (لو عمود الأولوية موجود)
+    try {
+        $r = db_one($sql . 'priority DESC, id LIMIT 1');
+    } catch (\Throwable $e) {
+        $r = db_one($sql . 'id LIMIT 1');
+    }
     return $r ? (int) $r['id'] : null;
 }
 
@@ -277,6 +286,8 @@ function ce_job_step(int $id): ?array
     }
 
     @set_time_limit(180);
+    // السعر والمستوى والموديلات بتاعة صاحب الشغلانة (الـ worker مالوش جلسة)
+    if (function_exists('qt_price_user')) qt_price_user($job['user_id'] ? (int) $job['user_id'] : null, true);
     try {
         $r = ($h['fn'])($job, $state);
         if (!empty($r['fail'])) {
@@ -450,9 +461,10 @@ function ce_billing_fixed(): bool
 /** الخطة: بناء الخطة (ce_plan_cost) · إعادة التقييم بس (campaign_plan_eval_cost) */
 function ce_price_plan(bool $gateOnly = false): int
 {
-    if ($gateOnly) return max(0, (int) get_setting('campaign_plan_eval_cost', 1));
+    if ($gateOnly) return cost_for('campaign_plan_eval_cost');
     $v = get_setting('ce_plan_cost', '');
-    return max(0, (int) ($v === '' || $v === null ? get_setting('plan_ideas_cost', 2) : $v));
+    $base = max(0, (int) ($v === '' || $v === null ? get_setting('plan_ideas_cost', 2) : $v));
+    return function_exists('qt_price') ? qt_price('ce_plan_cost', $base) : $base;
 }
 
 /** سعر كتابة خانات (حسب شكل كل خانة) */

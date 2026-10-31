@@ -201,6 +201,10 @@ function ai_gw_chain(string $task, array $ctx = []): array
     $cap = (string) ($route['capability'] ?? usage_task_capability($task));
     $custData = $ctx['customer_data'] ?? true;
     $chain = [];
+    // مستوى الجودة: موديل المستوى أول السلسلة — والأساسي بعده كبديل
+    if (!empty($ctx['tier_route']['p']) && ($tp = ai_gw_provider((string) $ctx['tier_route']['p']))) {
+        $chain[] = ['p' => $tp, 'm' => (string) $ctx['tier_route']['m']];
+    }
     $explicit = json_decode((string) ($route['chain_json'] ?? ''), true);
     if (is_array($explicit) && $explicit) {
         foreach ($explicit as $e) {
@@ -723,6 +727,10 @@ function ai_run(string $task, array $req, array $ctx = []): array
     if ($cap === 'text' && isset($route['temperature']) && $route['temperature'] !== null && $route['temperature'] !== '' && !isset($ctx['temperature_locked'])) {
         $req['temperature'] = (float) $route['temperature'];
     }
+    // مستوى الجودة (من باقة العميل): موديل المستوى للمهمة دي بيتقدّم · والحرارة بتاعته لو متحددة — اختبارات الأدمن من غير مستوى
+    $tier = (string) ($ctx['tier'] ?? ((($ctx['customer_data'] ?? true) && function_exists('qt_for_user')) ? qt_for_user(isset($ctx['user_id']) ? (int) $ctx['user_id'] : qt_price_user()) : 'standard'));
+    $tierRoute = function_exists('qt_route') ? qt_route($tier, $task) : null;
+    if ($cap === 'text' && $tierRoute && $tierRoute['temp'] !== null && !isset($ctx['temperature_locked'])) $req['temperature'] = $tierRoute['temp'];
 
     if (!empty($ctx['only'])) {
         $p = ai_gw_provider((string) $ctx['only']['p'], true);
@@ -732,6 +740,7 @@ function ai_run(string $task, array $req, array $ctx = []): array
             'customer_data' => $ctx['customer_data'] ?? true, // افتراضيًا بيانات عميل — اختبارات الأدمن بس بتبعت false
             'has_refs' => $cap === 'image' && !empty($req['refs']),
             'vision' => $cap === 'text' && ai_gw_has_images($req['messages'] ?? []),
+            'tier_route' => $tierRoute,
         ]);
     }
 

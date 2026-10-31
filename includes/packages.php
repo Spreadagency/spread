@@ -32,6 +32,8 @@ function pkg_v2_ready(): bool
 
 function pkg_tiers(): array
 {
+    // من «مستويات الجودة» في الأدمن (لو اتعملت) — غير كده الأسماء الافتراضية
+    if (function_exists('qt_all') && ($t = qt_all(false))) return array_map(fn($r) => (string) $r['label'], $t);
     return PKG_TIERS;
 }
 
@@ -196,7 +198,7 @@ function pkg_quality_tier(int $uid): string
 {
     if (!pkg_v2_ready() || !function_exists('plan_active')) return 'standard';
     $t = (string) (plan_active($uid)['quality_tier'] ?? 'standard');
-    return isset(PKG_TIERS[$t]) ? $t : 'standard';
+    return isset(pkg_tiers()[$t]) ? $t : 'standard';
 }
 
 /* ═══════════════════ باقة التسجيل ═══════════════════ */

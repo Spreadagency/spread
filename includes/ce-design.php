@@ -38,8 +38,9 @@ function ce_design_ready(): bool
 
 function ce_design_rules(): array
 {
+    $tq = function_exists('qt_engine') ? qt_engine() : [];   // مستوى الجودة بتاع صاحب الحملة
     return [
-        'max_regen' => max(0, min(4, ce_setting_int('ce_vision_max_regen', 2))),
+        'max_regen' => max(0, min(4, $tq['vision_regen'] ?? ce_setting_int('ce_vision_max_regen', 2))),
         'min_idea' => max(0, min(100, ce_setting_float('ce_vision_min_idea', 70))),
         'min_palette' => max(0, min(100, ce_setting_float('ce_vision_min_palette', 60))),
         // 0 = كل شرايح الكاروسيل بصورة AI (الافتراضي) · رقم = أول N شريحة والباقي نص على خلفية البراند

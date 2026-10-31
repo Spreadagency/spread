@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 10:02',
+  'generated' => '2026-10-31 10:14',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -239,6 +239,10 @@ return array (
     230 => 'public/my-plan.php',
     231 => 'sql/2026_plan_page.sql',
     232 => 'sql/2026_plan_page_rollback.sql',
+    233 => 'includes/quality-tiers.php',
+    234 => 'admin/quality-tiers.php',
+    235 => 'sql/2026_quality_tiers.sql',
+    236 => 'sql/2026_quality_tiers_rollback.sql',
   ),
   'files' => 
   array (
@@ -516,6 +520,11 @@ return array (
     array (
       'h' => 'd811f1b4344ad6e2cc66117a680f5455',
       's' => 29382,
+    ),
+    'admin/quality-tiers.php' => 
+    array (
+      'h' => 'bfb84f3f11c8de2857a0fcc3d4b4a7f7',
+      's' => 13268,
     ),
     'admin/referrals.php' => 
     array (
@@ -804,8 +813,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'c1a4d53f224a7310331478cd3878cf35',
-      's' => 30437,
+      'h' => 'dfa9b8a1f465658027246b9d0a70d743',
+      's' => 31378,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -814,8 +823,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '419ef1e16783f05ae789e78c5bb97ee3',
-      's' => 24034,
+      'h' => '859f780387532179fea84d0a9c076984',
+      's' => 25961,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -849,8 +858,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '2fa35e5340869d7eaf67997fab7a8cce',
-      's' => 15424,
+      'h' => '7e1ac1b8caf65ef6c3bdda3a71929d4e',
+      's' => 15575,
     ),
     'includes/ai-center.php' => 
     array (
@@ -859,8 +868,8 @@ return array (
     ),
     'includes/ai-gateway.php' => 
     array (
-      'h' => 'ae7fbc2bd6bd490862c09c03b3d2f1a6',
-      's' => 58604,
+      'h' => 'cc57a15b1dae14856be13b96b3fa457b',
+      's' => 59607,
     ),
     'includes/ai-log.php' => 
     array (
@@ -919,8 +928,8 @@ return array (
     ),
     'includes/ce-design.php' => 
     array (
-      'h' => 'e3a65a4f9b0012d35efcec4299296365',
-      's' => 40446,
+      'h' => '1027b7cc434c60235b521303264c23d6',
+      's' => 40588,
     ),
     'includes/ce-dna.php' => 
     array (
@@ -929,8 +938,8 @@ return array (
     ),
     'includes/ce-jobs.php' => 
     array (
-      'h' => '137214b6d5eed526307aab63531ca2fc',
-      's' => 24416,
+      'h' => 'dc2b2a2c80dd27c4513fe448d03a331a',
+      's' => 25246,
     ),
     'includes/ce-lab.php' => 
     array (
@@ -1009,8 +1018,8 @@ return array (
     ),
     'includes/ce-write.php' => 
     array (
-      'h' => '0e1680db137d62203ac0847a476d65a6',
-      's' => 47969,
+      'h' => '0be67e91339f6cc4f7efcfbdf227f3c8',
+      's' => 48126,
     ),
     'includes/config.sample.php' => 
     array (
@@ -1024,8 +1033,8 @@ return array (
     ),
     'includes/credits.php' => 
     array (
-      'h' => '6ceff5ec0a922699a1e47b254097d728',
-      's' => 32144,
+      'h' => 'fd97dec1740c96cc6a2d1ac403b7562d',
+      's' => 32582,
     ),
     'includes/crypto.php' => 
     array (
@@ -1099,8 +1108,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '00c0baeec2d34681ad2c93e5fa46f668',
-      's' => 15957,
+      'h' => '373205a34f8106e93a2f7d07870fabaf',
+      's' => 16162,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1124,8 +1133,8 @@ return array (
     ),
     'includes/packages.php' => 
     array (
-      'h' => 'e1663ae24a2c2b08591ac05d8b907ecc',
-      's' => 12417,
+      'h' => '38c2959ab56e7179f5fafed506cd050d',
+      's' => 12668,
     ),
     'includes/plan-functions.php' => 
     array (
@@ -1166,6 +1175,11 @@ return array (
     array (
       'h' => '4bc7c39342a979b94230973351e2157b',
       's' => 243669,
+    ),
+    'includes/quality-tiers.php' => 
+    array (
+      'h' => 'eaec75370940349dbd140c1f5a97962c',
+      's' => 5812,
     ),
     'includes/rate-limit.php' => 
     array (
@@ -2086,6 +2100,16 @@ return array (
     array (
       'h' => 'c7ab79961d71ca59fd5fab39b439353c',
       's' => 1267,
+    ),
+    'sql/2026_quality_tiers.sql' => 
+    array (
+      'h' => '5375364c89780d1b298185a9d209d606',
+      's' => 3302,
+    ),
+    'sql/2026_quality_tiers_rollback.sql' => 
+    array (
+      'h' => 'd2cecbc81f3289a5403048e9a07ac474',
+      's' => 696,
     ),
     'sql/2026_trial_link.sql' => 
     array (

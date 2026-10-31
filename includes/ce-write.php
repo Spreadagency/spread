@@ -59,10 +59,11 @@ function ce_qa_weights(): array
 
 function ce_qa_rules(): array
 {
+    $tq = function_exists('qt_engine') ? qt_engine() : [];   // مستوى الجودة بتاع صاحب الحملة
     return [
-        'pass_total' => max(0, min(100, ce_setting_float('ce_qa_pass_total', 85))),
+        'pass_total' => max(0, min(100, $tq['qa_pass'] ?? ce_setting_float('ce_qa_pass_total', 85))),
         'min_criterion' => max(0, min(100, ce_setting_float('ce_qa_min_criterion', 70))),
-        'max_rounds' => max(0, min(4, ce_setting_int('ce_qa_max_rounds', 2))),
+        'max_rounds' => max(0, min(4, $tq['qa_rounds'] ?? ce_setting_int('ce_qa_max_rounds', 2))),
         'select_min' => max(0, min(100, ce_setting_float('ce_select_min', 75))),
         'dedup' => max(0.5, min(1.0, ce_setting_float('ce_dedup_threshold', 0.85))),
         'other_provider' => ce_setting_int('ce_critic_other_provider', 1) === 1,

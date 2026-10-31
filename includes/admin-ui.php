@@ -103,6 +103,7 @@ function admin_nav(): array
             ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
             ['ai-models', 'الموديلات (السجل والمراحل)', 'Model Registry', 'cpu', 'admin/ai-models.php', 'ai_settings', ['ai-models']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
+            ['quality-tiers', 'مستويات الجودة', 'Quality Tiers', 'sliders', 'admin/quality-tiers.php', 'ai_settings', ['quality-tiers']],
             ['prompts', 'مكتبة البرومبتات', 'Prompt Library', 'text', 'admin/prompts.php', 'ai_settings', ['prompts', 'type-prompts']],
             ['brand-learning', 'مكتبة التعلّم', 'Learning Library', 'flask', 'admin/brand-learning.php', 'ai_settings', ['brand-learning']],
             ['brand-kits', 'هويات العملاء (Brand Kit)', 'Brand Kits', 'palette', 'admin/brand-kits.php', 'view_users', ['brand-kits']],
