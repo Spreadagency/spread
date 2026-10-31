@@ -41,7 +41,7 @@ export function registerPrompts(server: McpServer, opts: { canWrite: boolean; ca
               text: `اعمل المراجعة اليومية لـ Spread AI عن يوم ${day}، بالمصري.
 
 1. \`spread_get_metrics\` (date_from=date_to=${day}) — القمع والجودة والكريدت والـ AI، ومقارنة باليوم اللي قبله، والـ anomalies.
-2. \`spread_list_reports\` (type="daily", limit=1) — آخر تقرير، علشان ماتكررش نفس التوصيات.
+2. \`spread_list_reports\` (type="daily", limit=2) — آخر تقرير، علشان ماتكررش نفس التوصيات. لو فيه تقرير لنفس اليوم معمول «تلقائي من الموقع» (بيبدأ بـ «التقرير اليومي التلقائي»)، ابني عليه — تقريرك هيحل محله لما تحفظه.
 3. المنشورات: \`spread_list_posts\` (date_from=date_to=${day}, rating="down") وبعدها (unevaluated_only=true). اختار لحد ${n} منشورات (الأولوية: 👎، بعدين إعادة توليد كتير، بعدين غير متقيّمة)، وافتح كل واحد بـ \`spread_get_post\` (بالصور) ${evalStep}.
 4. البلاغات: \`spread_list_issues\` (status="new")${opts.canWrite ? " وحلّل كل واحد بـ `spread_analyze_issue`" : ""}.
 5. \`spread_get_ai_errors\` (date=${day}) و\`spread_get_security_logs\` (date=${day}).

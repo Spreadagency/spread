@@ -571,6 +571,8 @@ function w_save_report(): void
     $payload = iapi_in()['payload'] ?? null;
     iq_exec('INSERT INTO ' . mcp_t('ai_reports') . ' (type, report_date, summary, payload) VALUES (?,?,?,?)
              ON DUPLICATE KEY UPDATE summary = VALUES(summary), payload = VALUES(payload)', [$type, $date, $summary, iapi_json($payload)], 'ai_write');
+    // المرحلة 7: تقرير Claude بيحل محل التقرير التلقائي — ولو الميعاد عدّى بيوصلك تنبيه «جاهز»
+    try { require_once __DIR__ . '/daily-report.php'; dr_on_claude_saved($type, $date); } catch (\Throwable $e) {}
     iapi_ok(['type' => $type, 'report_date' => $date, 'saved' => true]);
 }
 

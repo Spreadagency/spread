@@ -38,6 +38,15 @@ try { set_setting('ce_worker_last_run', date('Y-m-d H:i:s')); } catch (\Throwabl
 $n = ce_worker_tick(50);
 echo date('Y-m-d H:i:s') . " — ran $n step(s)\n";
 
+// MCP المرحلة 7: التقرير اليومي لوحده (مرة في اليوم بعد الساعة المحددة)
+try {
+    require_once __DIR__ . '/../includes/daily-report.php';
+    $dr = dr_tick();
+    if ($dr) echo 'daily report ' . $dr['day'] . ': ' . $dr['source'] . "\n";
+} catch (\Throwable $e) {
+    error_log('daily report: ' . $e->getMessage());
+}
+
 // المرحلة 7: «الوكيل» — المهام الشغالة بتتحرك مرحلة (والواقفة بتكمّل لوحدها لو السبب اتحل)
 try {
     require_once __DIR__ . '/../includes/assistants.php';

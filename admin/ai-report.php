@@ -9,10 +9,31 @@ require_once __DIR__ . '/../includes/admin-metrics.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
 require_once __DIR__ . '/../includes/ai-center.php';
 
+require_once __DIR__ . '/../includes/daily-report.php';
+
 require_admin();
 require_admin_can('ai_settings');
 
 $ready = aic_has('ai_reports');
+// المرحلة 7: إعدادات التقرير اليومي لوحده + «اعمل التقرير التلقائي دلوقتي»
+if ($ready && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf();
+    $act = (string) ($_POST['action'] ?? '');
+    if ($act === 'dr_settings') {
+        foreach (['daily_report_on', 'daily_report_auto', 'daily_report_ai_summary', 'daily_report_email_on'] as $k) set_setting($k, !empty($_POST[$k]) ? '1' : '0');
+        set_setting('daily_report_hour', (string) max(0, min(23, (int) ($_POST['daily_report_hour'] ?? 9))));
+        $em = array_filter(array_map('trim', explode(',', (string) ($_POST['daily_report_emails'] ?? ''))), fn($x) => filter_var($x, FILTER_VALIDATE_EMAIL));
+        set_setting('daily_report_emails', implode(',', array_slice($em, 0, 5)));
+        admin_log('daily_report_settings', 'settings', null, 'hour=' . (int) ($_POST['daily_report_hour'] ?? 9));
+        flash_set('success', 'اتحفظ ✓');
+    } elseif ($act === 'dr_run') {
+        $day = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_POST['day'] ?? '')) ? $_POST['day'] : date('Y-m-d', strtotime('-1 day'));
+        $r = dr_make_auto($day);
+        admin_log('daily_report_auto', 'ai_report', $r['id'] ?? null, $day);
+        flash_set($r['ok'] ? 'success' : 'warning', $r['ok'] ? 'اتعمل التقرير التلقائي لـ ' . $day . ' ✓' : (($r['skipped'] ?? '') === 'claude' ? 'فيه تقرير من Claude لليوم ده — التلقائي مابيكتبش فوقه' : 'مقدرناش نعمله'));
+    }
+    redirect('admin/ai-report.php?type=daily');
+}
 $type = in_array($_GET['type'] ?? '', ['daily', 'weekly', 'security'], true) ? $_GET['type'] : 'daily';
 $id = (int) ($_GET['id'] ?? 0);
 
@@ -113,10 +134,12 @@ include __DIR__ . '/../templates/admin-header.php';
                         </ol>
                     </div>
                 <?php else: ?>
-                    <div class="a2-muted" style="font-size:12px;margin-bottom:8px">اتحفظ <?= e($report['created_at']) ?><?= $report['updated_at'] ? ' · اتحدّث ' . e($report['updated_at']) : '' ?></div>
+                    <div class="a2-muted" style="font-size:12px;margin-bottom:8px">
+                        <?php if ($report['type'] === 'daily'): ?><span class="chip <?= dr_source($report) === 'auto' ? 'chip-amber' : 'chip-mint' ?>"><?= dr_source($report) === 'auto' ? '⚙️ تلقائي من الموقع' : '🤖 من Claude' ?></span><?php endif; ?>
+                        اتحفظ <?= e($report['created_at']) ?><?= $report['updated_at'] ? ' · اتحدّث ' . e($report['updated_at']) : '' ?></div>
                     <div style="font-size:14px"><?= aic_md((string) $report['summary']) ?></div>
                     <?php if (is_array($payload) && $payload): ?>
-                        <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">الأرقام اللي Claude حفظها مع التقرير</summary>
+                        <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">الأرقام اللي اتحفظت مع التقرير</summary>
                             <pre dir="ltr" style="white-space:pre-wrap;background:#F6F8FB;border-radius:10px;padding:10px;font-size:12px;max-height:360px;overflow:auto"><?= e(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) ?></pre>
                         </details>
                     <?php endif; ?>
@@ -131,6 +154,41 @@ include __DIR__ . '/../templates/admin-header.php';
                         <div class="a2-muted" style="font-size:12px;line-height:1.6"><?= e(mb_substr(preg_replace('/[#*|`]/u', '', (string) $r['teaser']), 0, 110)) ?>…</div>
                     </a>
                 <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- المرحلة 7: التقرير اليومي لوحده -->
+        <div class="split split-2" style="align-items:flex-start;margin-top:14px">
+            <div class="card">
+                <div class="a2-h"><h3>⏰ التقرير اليومي لوحده</h3>
+                    <span class="a2-muted">آخر تشغيل: <?= e(get_setting('daily_report_last_run', '') ?: 'لسه') ?></span></div>
+                <p class="a2-muted" style="line-height:1.9;margin-top:0">كل يوم في الساعة دي الموقع بيبص على تقرير امبارح: لو Claude عمله ← يبعتلك «جاهز»، ولو لأ ← يعمل <b>تقرير تلقائي</b> من أرقام الموقع ويبعتهولك. تقرير Claude لو جه بعدها بيحل محله. (محتاج الـ cron بتاع المحرك شغال كل دقيقة.)</p>
+                <form method="POST" data-safe-post>
+                    <?= csrf_field() ?><input type="hidden" name="action" value="dr_settings">
+                    <div class="field-row">
+                        <div class="field"><label>الساعة (توقيت القاهرة)</label><input type="number" name="daily_report_hour" class="input" min="0" max="23" value="<?= (int) get_setting('daily_report_hour', '9') ?>"></div>
+                        <div class="field"><label>إيميلات (مفصولة بفاصلة)</label><input type="text" name="daily_report_emails" class="input" dir="ltr" maxlength="400" value="<?= e((string) get_setting('daily_report_emails', '')) ?>" placeholder="<?= e(implode(', ', dr_recipients())) ?>"><div class="field-help">فاضي = حسابات الأدمن الرئيسية</div></div>
+                    </div>
+                    <?php foreach (['daily_report_on' => 'شغّال', 'daily_report_auto' => 'لو Claude ماعملوش ← تقرير تلقائي من الموقع', 'daily_report_ai_summary' => 'خلاصة قصيرة بالـ AI في التقرير التلقائي', 'daily_report_email_on' => 'ابعتلي إيميل'] as $k => $l): ?>
+                        <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><input type="checkbox" name="<?= $k ?>" value="1" <?= get_setting($k, '1') === '1' ? 'checked' : '' ?>> <?= e($l) ?></label>
+                    <?php endforeach; ?>
+                    <button class="btn sm">💾 حفظ</button>
+                </form>
+                <form method="POST" style="display:flex;gap:8px;align-items:flex-end;margin-top:12px" data-safe-post>
+                    <?= csrf_field() ?><input type="hidden" name="action" value="dr_run">
+                    <label class="field" style="margin:0"><small>اليوم</small><input type="date" name="day" class="input" value="<?= e(date('Y-m-d', strtotime('-1 day'))) ?>" max="<?= e(date('Y-m-d')) ?>"></label>
+                    <button class="btn ghost sm">▶ اعمل التقرير التلقائي دلوقتي</button>
+                </form>
+            </div>
+            <div class="card">
+                <div class="a2-h"><h3>🤖 خلّي Claude يعمل المراجعة كل يوم</h3></div>
+                <ol style="padding-inline-start:20px;line-height:2;margin:0">
+                    <li>في Claude (بعد ما توصّل موصّل Spread AI): اعمل <b>مهمة مجدولة (Scheduled task)</b> يومية قبل الساعة اللي فوق بنص ساعة على الأقل.</li>
+                    <li>حط فيها النص ده:</li>
+                </ol>
+                <pre id="dr-prompt" style="white-space:pre-wrap;background:#F6F8FB;border-radius:10px;padding:10px;font-size:13px;line-height:1.8"><?= e(dr_schedule_prompt()) ?></pre>
+                <button type="button" class="btn ghost sm" onclick="navigator.clipboard.writeText(document.getElementById('dr-prompt').textContent.trim()).then(() => this.textContent = '✓ اتنسخ')">📋 نسخ</button>
+                <p class="a2-muted" style="line-height:1.9">لو المهام المجدولة مش متاحة في حسابك: افتح شات جديد كل يوم واختار برومبت <b>daily_review</b> — والتقرير التلقائي بيغطّي الأيام اللي مايتعملش فيها.</p>
             </div>
         </div>
         <?php endif; ?>

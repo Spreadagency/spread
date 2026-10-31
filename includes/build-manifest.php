@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 15:27',
+  'generated' => '2026-10-31 17:44',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -259,6 +259,7 @@ return array (
     250 => 'includes/prompt-review.php',
     251 => 'admin/ai-changes.php',
     252 => 'admin/ai-ab.php',
+    253 => 'includes/daily-report.php',
   ),
   'files' => 
   array (
@@ -334,8 +335,8 @@ return array (
     ),
     'admin/ai-report.php' => 
     array (
-      'h' => '7ea5cd1a5bfedd684fe6ec2dcbe90d3a',
-      's' => 10737,
+      'h' => '3efb650b02aff0c9dc0d29e6c06d2cb1',
+      's' => 16976,
     ),
     'admin/ai-router.php' => 
     array (
@@ -829,8 +830,8 @@ return array (
     ),
     'cron/ce-worker.php' => 
     array (
-      'h' => '711fec45f7943bee719d2acb158abfc4',
-      's' => 3015,
+      'h' => '6d30e8bf7dc84fcf3b008acf37b4ecc5',
+      's' => 3385,
     ),
     'cron/daily_notifications.php' => 
     array (
@@ -864,13 +865,13 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '48e7b5a1633fa1d435fd0a832313ff19',
-      's' => 36982,
+      'h' => '8daa078ea6a2f2e95aff44cad2167133',
+      's' => 38346,
     ),
     'docs/MCP_PHASES.md' => 
     array (
-      'h' => 'a7ef08080b21c2a20402517fd39fd3bc',
-      's' => 25949,
+      'h' => 'e2fd70bce8d01cfb3d3c8d589f3906db',
+      's' => 29355,
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
@@ -1097,6 +1098,11 @@ return array (
       'h' => 'e784effb8ae5f25cf4bd72af00024dd4',
       's' => 3739,
     ),
+    'includes/daily-report.php' => 
+    array (
+      'h' => '47e805b48b09dbc62925479d09e75e63',
+      's' => 17486,
+    ),
     'includes/dashboard-v2.php' => 
     array (
       'h' => '5395a228a6266b51d9db1c1af9f1762b',
@@ -1134,8 +1140,8 @@ return array (
     ),
     'includes/internal-api-routes.php' => 
     array (
-      'h' => '17264807d1570073d52b2b437b891793',
-      's' => 47835,
+      'h' => 'dacab96430bec0c60f6e435988daba87',
+      's' => 48113,
     ),
     'includes/internal-api.php' => 
     array (
