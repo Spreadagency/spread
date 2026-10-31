@@ -104,6 +104,11 @@ function prompt_library(): array
 function prompt_pick(string $type): ?array
 {
     static $cache = [];
+    // التوليد التجريبي (MCP المرحلة 6): نص مسودة للنوع ده في الطلب ده بس — مابيتكيّش
+    if (isset($GLOBALS['__prompt_override'][$type])) {
+        $GLOBALS['__prompt_used'][$type] = null;
+        return ['id' => 0, 'prompt_text' => (string) $GLOBALS['__prompt_override'][$type]];
+    }
     if (array_key_exists($type, $cache)) return $cache[$type];
     $row = null;
     try {

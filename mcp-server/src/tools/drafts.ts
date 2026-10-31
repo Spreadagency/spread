@@ -61,6 +61,23 @@ Before proposing, check spread_list_change_requests: a proposal rejected before 
   );
 
   server.registerTool(
+    "spread_test_regenerate",
+    {
+      title: "Sandbox: rewrite a real post with a draft prompt",
+      description: `Rewrite one real post with a prompt draft (from spread_draft_prompt) or an existing prompt version, and get before/after text to judge the draft before proposing it.
+Nothing changes on the platform: the post stays as it is, the customer is not charged, and the run is logged as sandbox. There is a daily cap (sandbox_daily_cap) — use it on a few representative posts, not in bulk.
+Without post_id the latest post of the same prompt type is used. approximate=true means the type is not 'content', so the prompt was filled with the basic variables only.`,
+      inputSchema: z.strictObject({
+        prompt_draft_id: Id.optional(),
+        prompt_version_id: Id.optional(),
+        post_id: Id.optional(),
+      }).refine(v => v.prompt_draft_id !== undefined || v.prompt_version_id !== undefined, { message: "prompt_draft_id or prompt_version_id is required" }),
+      annotations: WRITE_APPEND,
+    },
+    async (a, ctx) => jsonResult(await post("test_regenerate", a, ctx.mcpReq.signal)),
+  );
+
+  server.registerTool(
     "spread_draft_reply",
     {
       title: "Draft a reply to a user's issue",

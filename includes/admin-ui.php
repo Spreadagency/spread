@@ -96,7 +96,7 @@ function admin_nav(): array
             ['ce-skills', 'Skills التخصصات', 'Sector Skills', 'text', 'admin/ce-skills.php', 'ai_settings', ['ce-skills']],
             ['ce-insights', 'الاستخدام والتعلّم', 'Usage & Learning', 'chart', 'admin/ce-insights.php', 'ai_settings', ['ce-insights']],
             // مركز الجودة: زرار واحد — الصفحات الخمسة (التقرير · التقييمات · البلاغات · سجل الـ MCP · الإعدادات) تبويبات جوّاه
-            ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
+            ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-changes', 'ai-ab', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
             ['mcp-setup', 'إعدادات الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
         ],
         'AI CENTER' => [
@@ -149,6 +149,8 @@ function admin_nav_search_extra(): array
         ['التقرير اليومي', 'Daily Report', 'admin/ai-report.php', 'ai_settings'],
         ['تقييمات المحتوى', 'Content Evaluations', 'admin/ai-evaluations.php', 'ai_settings'],
         ['البلاغات', 'User Issues', 'admin/ai-issues.php', 'view_users'],
+        ['طلبات التعديل', 'Change Requests', 'admin/ai-changes.php', 'ai_settings'],
+        ['تجارب A/B', 'A/B Tests', 'admin/ai-ab.php', 'ai_settings'],
         ['سجل الـ MCP', 'MCP Audit Log', 'admin/ai-mcp-log.php', 'ai_settings'],
         ['إعدادات الجودة', 'Quality Settings', 'admin/ai-quality-settings.php', 'ai_settings'],
     ];

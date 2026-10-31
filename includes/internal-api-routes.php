@@ -669,7 +669,32 @@ function d_draft_reply(): void
     iapi_ok(['id' => $id, 'status' => 'draft', 'note' => 'الرد مابيتبعتش غير لما الأدمن يوافق']);
 }
 
+/**
+ * التوليد التجريبي (MCP المرحلة 6): منشور حقيقي بنص مسودة برومبت (أو إصدار) ← قبل/بعد
+ * مابيلمسش المنشور ولا كريدت العميل · متسجّل sandbox · بحد يومي (sandbox_daily_cap)
+ * المدخلات: post_id (اختياري — آخر منشور من نفس النوع) + prompt_draft_id أو prompt_version_id
+ */
 function d_test_regenerate(): void
 {
-    iapi_fail('التوليد التجريبي (sandbox) بيتعمل في المرحلة 6', 'not_implemented', 501);
+    require_once __DIR__ . '/prompt-review.php';
+    require_once __DIR__ . '/ai.php';
+    $draftId = iapi_int('prompt_draft_id') ?: null;
+    $verId = iapi_int('prompt_version_id') ?: null;
+    if (!$draftId && !$verId) iapi_fail('ابعت prompt_draft_id (من draft_prompt) أو prompt_version_id', 'invalid', 422);
+    if ($draftId) {
+        $d = iq_one('SELECT prompt_type, body FROM ' . mcp_t('prompt_drafts') . ' WHERE id = ?', [$draftId], 'draft');
+        if (!$d) iapi_fail('المسودة #' . $draftId . ' مش موجودة', 'not_found', 404);
+        [$type, $body] = [(string) $d['prompt_type'], (string) $d['body']];
+    } else {
+        $v = iq_one('SELECT prompt_type, prompt_text FROM prompts WHERE id = ?', [$verId]);
+        if (!$v) iapi_fail('الإصدار #' . $verId . ' مش موجود', 'not_found', 404);
+        [$type, $body] = [(string) $v['prompt_type'], (string) $v['prompt_text']];
+    }
+    $postId = iapi_int('post_id') ?: pr_sample_post($type);
+    if (!$postId) iapi_fail('مفيش منشور من نوع «' . $type . '» نجرّب عليه — ابعت post_id', 'not_found', 404);
+    $r = pr_sandbox($postId, $type, $body, $draftId, $verId, fn($sql, $args) => iq_exec($sql, $args, 'draft'));
+    if (!$r['ok']) iapi_fail($r['error'], $r['code'] === 'cap' ? 'rate_limit' : ($r['code'] === 'not_found' ? 'not_found' : 'invalid'), $r['code'] === 'cap' ? 429 : ($r['code'] === 'not_found' ? 404 : 422));
+    iapi_ok(['post_id' => $postId, 'template_key' => $type, 'before' => $r['before'], 'after' => $r['after'], 'sandbox_run_id' => $r['run_id'],
+             'approximate' => $r['approx'], 'left_today' => $r['left_today'],
+             'note' => 'تجربة بس — المنشور زي ما هو، ومفيش كريدت اتخصم من العميل. الأدمن بيشوف النتيجة في «طلبات التعديل».']);
 }

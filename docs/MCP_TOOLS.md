@@ -14,7 +14,7 @@ Claude ──OAuth/Bearer──▶ خادم الـ MCP (VPS) ──توكن + X-
 |---|---|---|
 | `spread:read` | أدوات القراءة (17) | `read` |
 | `spread:evaluate` | التقييم والتسجيل (5) | `ai_write` (قاعدة الـ AI بس) |
-| `spread:draft` | المسودات (4)، **مقفولة لحد المرحلة 6** (`MCP_ENABLE_DRAFT_TOOLS`) | `draft` (قاعدة الـ AI بس) |
+| `spread:draft` | المسودات والتوليد التجريبي (5) — شغالة من المرحلة 6 (`MCP_ENABLE_DRAFT_TOOLS=0` يقفلها) | `draft` (قاعدة الـ AI بس) |
 
 - صاحب الموقع بيختار الصلاحيات في صفحة الموافقة، والقراءة إجبارية.
 - التوكن بيشوف **الأدوات المسموحة له بس**: توكن قراءة مابيظهرلوش أي أداة كتابة أصلًا.
@@ -52,9 +52,10 @@ Claude ──OAuth/Bearer──▶ خادم الـ MCP (VPS) ──توكن + X-
 | `spread_save_security_finding` | ملاحظة أمان (نفس المصدر + المكان = تحديث، مش تكرار) |
 | `spread_save_integrity_issue` | نتيجة فحص ترابط البيانات |
 
-## المسودات: `spread:draft` (بتتفعّل في المرحلة 6)
-`spread_propose_change` · `spread_draft_prompt` · `spread_draft_style` · `spread_draft_reply`
-- كلها بتسجّل **مسودة** ومابتطبّقش أي حاجة.
+## المسودات: `spread:draft` (المرحلة 6)
+`spread_propose_change` · `spread_draft_prompt` · `spread_draft_style` · `spread_draft_reply` · `spread_test_regenerate`
+- كلها بتسجّل **مسودة** ومابتطبّقش أي حاجة — الأدمن بيوافق من «طلبات التعديل» و«تجارب A/B».
+- `spread_test_regenerate` (`prompt_draft_id` أو `prompt_version_id` + `post_id` اختياري): منشور حقيقي بالمسودة ← قبل/بعد، من غير ما يلمس المنشور أو كريدت العميل، وبحد يومي.
 - الاقتراح اللي اترفض قبل كده بنفس الأدلة بيترفض تلقائي.
 
 ## الموارد والبرومبتات

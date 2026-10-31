@@ -51,6 +51,7 @@ export const TOOL_ROUTES: Record<string, string[]> = {
   spread_draft_prompt: ["draft_prompt"],
   spread_draft_style: ["draft_style"],
   spread_draft_reply: ["draft_reply"],
+  spread_test_regenerate: ["test_regenerate"],
 };
 
 export function toolHidden(name: string, off: Set<string>): boolean {

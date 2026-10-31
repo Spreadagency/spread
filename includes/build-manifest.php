@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 14:05',
+  'generated' => '2026-10-31 15:27',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -256,6 +256,9 @@ return array (
     247 => 'sql/2026_assistants_rollback.sql',
     248 => 'includes/profitability.php',
     249 => 'admin/profitability.php',
+    250 => 'includes/prompt-review.php',
+    251 => 'admin/ai-changes.php',
+    252 => 'admin/ai-ab.php',
   ),
   'files' => 
   array (
@@ -263,6 +266,16 @@ return array (
     array (
       'h' => '20a9aefdc2fa4e9e4e4faafc63678714',
       's' => 10918,
+    ),
+    'admin/ai-ab.php' => 
+    array (
+      'h' => '317c8c689375bfb03b13da7afe0ef436',
+      's' => 8925,
+    ),
+    'admin/ai-changes.php' => 
+    array (
+      'h' => 'ef36674f44f8ca39a7727e4912194d7b',
+      's' => 19472,
     ),
     'admin/ai-connection.php' => 
     array (
@@ -851,13 +864,13 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'ec5c6396abae807c77ab42218c364c2d',
-      's' => 35406,
+      'h' => '48e7b5a1633fa1d435fd0a832313ff19',
+      's' => 36982,
     ),
     'docs/MCP_PHASES.md' => 
     array (
-      'h' => '29393934e21f51761da88fe05ceb86a3',
-      's' => 21658,
+      'h' => 'a7ef08080b21c2a20402517fd39fd3bc',
+      's' => 25949,
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
@@ -896,13 +909,13 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '7ea5836753a5e8b2f123788ca24cf049',
-      's' => 16048,
+      'h' => '6c9819c691aecdf6018d390e259faf16',
+      's' => 16243,
     ),
     'includes/ai-center.php' => 
     array (
-      'h' => 'b3586355d188d43c4c5aeca09ec848ae',
-      's' => 12254,
+      'h' => 'ae7c63fa94101ae410721bc3363764f6',
+      's' => 13179,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -1121,8 +1134,8 @@ return array (
     ),
     'includes/internal-api-routes.php' => 
     array (
-      'h' => '0a2fc19c48119dc4a2ce303323a8c34b',
-      's' => 45663,
+      'h' => '17264807d1570073d52b2b437b891793',
+      's' => 47835,
     ),
     'includes/internal-api.php' => 
     array (
@@ -1211,8 +1224,8 @@ return array (
     ),
     'includes/prompt-library.php' => 
     array (
-      'h' => '15c176a0bb5e64fefbefe271895e7bde',
-      's' => 20310,
+      'h' => '6ed83394f489b248f3d09ec279592f3c',
+      's' => 20656,
     ),
     'includes/prompt-pack-dna.php' => 
     array (
@@ -1223,6 +1236,11 @@ return array (
     array (
       'h' => '4bc7c39342a979b94230973351e2157b',
       's' => 243669,
+    ),
+    'includes/prompt-review.php' => 
+    array (
+      'h' => '12f44cbcf6f550b7d15e015b8c70e90d',
+      's' => 22378,
     ),
     'includes/quality-tiers.php' => 
     array (

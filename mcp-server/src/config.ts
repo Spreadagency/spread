@@ -56,8 +56,8 @@ export const config = {
   /** Bearer ثابت (Claude Code · المهام المجدولة · الاختبار) — كل واحد 32 حرف على الأقل */
   staticTokens: list("MCP_STATIC_TOKENS").filter(t => t.length >= 32),
 
-  /** أدوات المسودات بتتفعّل في المرحلة 6 (لما صفحات الموافقة تبقى جاهزة) */
-  enableDraftTools: bool("MCP_ENABLE_DRAFT_TOOLS", false),
+  /** أدوات المسودات (المرحلة 6): صفحات الموافقة جاهزة ← شغالة افتراضيًا · MCP_ENABLE_DRAFT_TOOLS=0 يقفلها */
+  enableDraftTools: bool("MCP_ENABLE_DRAFT_TOOLS", true),
 
   requestsPerMinute: Number(process.env.MCP_RATE_PER_MIN ?? 240),
   trustProxy: (process.env.TRUST_PROXY ?? "loopback").trim(),

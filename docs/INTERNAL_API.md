@@ -103,7 +103,8 @@ php tests/internal-api-smoke.php https://ai.spreadagency.net
 | `save_security_finding` · `save_integrity_issue` | ai_write | تحديث لو المشكلة موجودة (من غير تكرار) |
 | `propose_change` | draft | اقتراح بالأدلة. **المرفوض قبل كده بنفس الأدلة بيترفض تلقائيًا** (`already_rejected`)، والمكرر المستني مراجعة مابيتسجلش تاني |
 | `draft_prompt` · `draft_style` · `draft_reply` | draft | مسودات مستنية موافقة الأدمن |
-| `test_regenerate` · `integrity_check` | — | المرحلة 6 والمرحلة 8 |
+| `test_regenerate` | draft | `prompt_draft_id` أو `prompt_version_id` + `post_id` (اختياري): التوليد التجريبي ← `before` · `after` · `sandbox_run_id` · `left_today`. المنشور والكريدت زي ما هم · `rate_limit` (429) بعد الحد اليومي (المرحلة 6) |
+| `integrity_check` | — | المرحلة 8 |
 
 الأخطاء بترجع نص عربي واضح فيه الحل، ومعاه `code`: `auth` · `scope_mismatch` · `not_found` · `invalid` · `already_rejected` · `db_denied` · `rate_limit`.
 

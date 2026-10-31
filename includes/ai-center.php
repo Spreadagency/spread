@@ -39,6 +39,8 @@ function aic_pages(): array
         'ai-report'      => ['admin/ai-report.php', 'التقرير اليومي'],
         'ai-evaluations' => ['admin/ai-evaluations.php', 'تقييمات المحتوى'],
         'ai-issues'      => ['admin/ai-issues.php', 'البلاغات'],
+        'ai-changes'     => ['admin/ai-changes.php', 'طلبات التعديل'],
+        'ai-ab'          => ['admin/ai-ab.php', 'تجارب A/B'],
         'ai-mcp-log'     => ['admin/ai-mcp-log.php', 'سجل الـ MCP'],
         'ai-quality-settings' => ['admin/ai-quality-settings.php', 'إعدادات الجودة'],
     ];
@@ -50,9 +52,22 @@ function aic_tabs(string $active): string
     foreach (aic_pages() as $k => [$u, $l]) {
         $badge = '';
         if ($k === 'ai-issues' && ($n = aic_new_issues()) > 0) $badge = ' <span class="chip chip-coral" style="padding:0 7px">' . $n . '</span>';
+        if ($k === 'ai-changes' && ($n = aic_pending_changes()) > 0) $badge = ' <span class="chip chip-amber" style="padding:0 7px">' . $n . '</span>';
         $out .= '<a class="' . ($k === $active ? 'on' : '') . '" href="' . e(url($u)) . '">' . e($l) . $badge . '</a>';
     }
     return $out . '</div>';
+}
+
+/** اقتراحات ومسودات Claude المستنية مراجعة (MCP المرحلة 6) */
+function aic_pending_changes(): int
+{
+    static $n = null;
+    if ($n !== null) return $n;
+    $n = 0;
+    foreach (['change_requests' => 'status = "pending"', 'prompt_drafts' => 'status = "draft"', 'style_preset_drafts' => 'status = "draft"'] as $t => $w) {
+        try { $n += (int) (db_one('SELECT COUNT(*) n FROM ' . mcp_t($t) . ' WHERE ' . $w)['n'] ?? 0); } catch (\Throwable $e) {}
+    }
+    return $n;
 }
 
 function aic_new_issues(): int
@@ -152,6 +167,7 @@ function aic_route_catalog(): array
         'draft_prompt' => ['draft', 'مسودة برومبت', 'spread_draft_prompt'],
         'draft_style' => ['draft', 'مسودة استايل', 'spread_draft_style'],
         'draft_reply' => ['draft', 'مسودة رد على بلاغ', 'spread_draft_reply'],
+        'test_regenerate' => ['draft', 'التوليد التجريبي (sandbox)', 'spread_test_regenerate'],
     ];
 }
 
