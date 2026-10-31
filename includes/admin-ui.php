@@ -124,6 +124,7 @@ function admin_nav(): array
             ['offers', 'العروض', 'Offers', 'gift', 'admin/offers.php', 'manage_packages', ['offers']],
         ],
         'REPORTS' => [
+            ['profitability', 'ربحية الباقات', 'Plan Profitability', 'chart', 'admin/profitability.php', 'view_costs', ['profitability']],
             ['users-export', 'تصدير العملاء', 'Customer Export', 'download', 'admin/users-export.php', 'manage_packages', ['users-export']],
             ['logs', 'سجل النشاط', 'Activity Logs', 'list', 'admin/logs.php', 'view_users', ['logs']],
         ],

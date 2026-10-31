@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 13:33',
+  'generated' => '2026-10-31 14:05',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -254,6 +254,8 @@ return array (
     245 => 'assets/css/assistant.css',
     246 => 'sql/2026_assistants.sql',
     247 => 'sql/2026_assistants_rollback.sql',
+    248 => 'includes/profitability.php',
+    249 => 'admin/profitability.php',
   ),
   'files' => 
   array (
@@ -526,6 +528,11 @@ return array (
     array (
       'h' => 'f5610a7d20fe814e6b8ea8d1aa28651c',
       's' => 12472,
+    ),
+    'admin/profitability.php' => 
+    array (
+      'h' => '6921ca236ad3c612d94f12067a6b650d',
+      's' => 14599,
     ),
     'admin/prompt-view.php' => 
     array (
@@ -844,8 +851,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'efae3f1f4e267dfe953e176799400ef3',
-      's' => 34495,
+      'h' => 'ec5c6396abae807c77ab42218c364c2d',
+      's' => 35406,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -854,8 +861,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '785805634f141c6b25288f96be043ba2',
-      's' => 32556,
+      'h' => '495ca443b179f59c976c09996f1de993',
+      's' => 34841,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -889,8 +896,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '6445f1106fdcd9adc974d3bada56c594',
-      's' => 15897,
+      'h' => '7ea5836753a5e8b2f123788ca24cf049',
+      's' => 16048,
     ),
     'includes/ai-center.php' => 
     array (
@@ -1181,6 +1188,11 @@ return array (
     array (
       'h' => 'c60cae41020ff2236d097b6155dd865c',
       's' => 31447,
+    ),
+    'includes/profitability.php' => 
+    array (
+      'h' => 'd6d215863224f26b1d8157f05a63c503',
+      's' => 13327,
     ),
     'includes/promo.php' => 
     array (
