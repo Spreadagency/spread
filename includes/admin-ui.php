@@ -119,6 +119,7 @@ function admin_nav(): array
             ['payments', 'المدفوعات', 'Payments', 'card', 'admin/payments.php', 'view_users', ['payments'], 'payments'],
             ['packages', 'الباقات والأسعار', 'Plans & Pricing', 'card', 'admin/packages.php', 'manage_packages', ['packages']],
             ['video-types', 'أنواع الفيديو وأسعارها', 'Video Pricing', 'video', 'admin/video-types.php', 'manage_packages', ['video-types']],
+            ['assistants', 'المساعدين (الدعم والوكيل)', 'Assistants', 'spark', 'admin/assistants.php', 'manage_packages', ['assistants']],
             ['pricing', 'تسعير العمليات', 'Credits Pricing', 'diamond', 'admin/pricing.php', 'manage_packages', ['pricing']],
             ['offers', 'العروض', 'Offers', 'gift', 'admin/offers.php', 'manage_packages', ['offers']],
         ],

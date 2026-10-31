@@ -80,6 +80,7 @@ function plan_active(int $uid, bool $fresh = false): array
                     'weekly_credits' => (int) ($r['weekly_credits'] ?? 0), 'weekly_designs' => (int) ($r['weekly_designs'] ?? 0),
                     'quality_tier' => (string) ($r['quality_tier'] ?? 'standard'), 'allow_research' => (int) ($r['allow_research'] ?? 1),
                     'video_discount_pct' => (float) ($r['video_discount_pct'] ?? 0),
+                    'assistant_support' => (int) ($r['assistant_support'] ?? 1), 'assistant_agent' => (int) ($r['assistant_agent'] ?? 0),
                 ];
             }
         } catch (\Throwable $e) {
@@ -372,6 +373,10 @@ function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, 
             db_run('UPDATE user_plans SET weekly_credits = ?, weekly_designs = ?, quality_tier = ?, allow_research = ?, price_id = ? WHERE id = ?', [
                 (int) ($pkg['weekly_credits'] ?? 0), (int) ($pkg['weekly_designs'] ?? 0), (string) ($pkg['quality_tier'] ?? 'standard'),
                 (int) ($pkg['allow_research'] ?? 1), isset($opts['price_id']) ? (int) $opts['price_id'] : null, $id]);
+        }
+        // المرحلة 7: المساعدين في الباقة (لقطة وقت الاشتراك)
+        if ($id && $pkg && array_key_exists('assistant_agent', $pkg)) {
+            try { db_run('UPDATE user_plans SET assistant_support = ?, assistant_agent = ? WHERE id = ?', [(int) $pkg['assistant_support'] ? 1 : 0, (int) $pkg['assistant_agent'] ? 1 : 0, $id]); } catch (\Throwable $e) {}
         }
         // المرحلة 6: خصم الفيديو بتاع الباقة (لقطة وقت الاشتراك)
         if ($id && $pkg && array_key_exists('video_discount_pct', $pkg)) {

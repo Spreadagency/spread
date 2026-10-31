@@ -113,6 +113,7 @@ include __DIR__ . '/../templates/header.php';
                     <?php foreach ($q as $k => $n): ?><li><?= plan_units()[$k][0] ?? '•' ?> <b class="<?= $k === 'designs' ? 'bl-ds' : ($k === 'research' ? 'bl-rs' : '') ?>"><?= (int) $n ?></b> <?= e(plan_units()[$k][1] ?? $k) ?></li><?php endforeach; ?>
                     <?php if (function_exists('pkg_tiers') && isset($p['quality_tier'])): ?><li>⭐ جودة <?= e(pkg_tiers()[$p['quality_tier']] ?? 'عادي') ?></li><?php endif; ?>
                     <?php if (isset($p['allow_research']) && !(int) $p['allow_research']): ?><li class="sub">من غير بحث عميق</li><?php endif; ?>
+                    <?php if ((int) ($p['assistant_agent'] ?? 0) && get_setting('assistant_agent_enabled', '1') === '1'): ?><li>🤖 الوكيل بينفّذ حملاتك مكانك</li><?php endif; ?>
                     <?php if (function_exists('vp_package_discount') && vp_on() && vp_package_discount($p) > 0): ?><li>🎬 خصم <?= e(rtrim(rtrim(number_format(vp_package_discount($p), 2), '0'), '.')) ?>% على الفيديو</li><?php endif; ?>
                     <?php if ((int) ($p['weekly_credits'] ?? 0) > 0): ?><li>⏱ لحد <?= (int) $p['weekly_credits'] ?> كريدت في الأسبوع (اللي مايتصرفش بيفضل)</li><?php endif; ?>
                     <?php foreach (array_slice($feats, 0, 10) as $f): ?><li>✓ <?= e($f) ?></li><?php endforeach; ?>

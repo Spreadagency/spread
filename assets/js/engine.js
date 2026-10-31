@@ -549,7 +549,13 @@
     // نفس المرجع الـ reactive اللي الواجهة شغالة عليه
     var scope = window.SpreadApp.reactive(app);
     window.SpreadApp.mount(root, scope);
-    scope.load();
+    // engine.php?campaign=ID ← يفتح الحملة على طول (لينكات الوكيل والإشعارات)
+    var deep = parseInt(new URLSearchParams(location.search).get('campaign') || '0', 10);
+    scope.load().then(function () {
+      if (!deep) return;
+      var c = (scope.campaigns || []).find(function (x) { return x.id === deep; });
+      if (c) scope.openCampaign(c);
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);

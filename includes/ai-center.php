@@ -109,7 +109,7 @@ const AIC_ISSUE_STATUS = [
     'new' => ['chip-coral', 'جديد'], 'analyzing' => ['chip-amber', 'بيتحلّل'], 'analyzed' => ['chip-primary', 'اتحلّل'],
     'in_progress' => ['chip-amber', 'شغالين عليه'], 'resolved' => ['chip-mint', 'اتحل'], 'wont_fix' => ['chip-line', 'مش هيتعمل'],
 ];
-const AIC_USER_CAT = ['tech' => 'مشكلة تقنية', 'content' => 'المحتوى', 'design' => 'التصميم', 'ux' => 'صعوبة في الاستخدام', 'suggestion' => 'اقتراح'];
+const AIC_USER_CAT = ['tech' => 'مشكلة تقنية', 'content' => 'المحتوى', 'design' => 'التصميم', 'ux' => 'صعوبة في الاستخدام', 'suggestion' => 'اقتراح', 'support_chat' => '🛟 من مساعد الدعم'];
 const AIC_AI_CAT = ['bug' => 'Bug', 'content_quality' => 'جودة المحتوى', 'design_quality' => 'جودة التصميم', 'ux' => 'تجربة الاستخدام', 'feature_request' => 'طلب ميزة', 'security' => 'أمان'];
 const AIC_SEVERITY = ['low' => ['chip-line', 'بسيطة'], 'medium' => ['chip-amber', 'متوسطة'], 'high' => ['chip-coral', 'عالية'], 'critical' => ['chip-coral', 'حرجة']];
 

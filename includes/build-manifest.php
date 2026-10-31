@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 13:06',
+  'generated' => '2026-10-31 13:33',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -247,6 +247,13 @@ return array (
     238 => 'admin/video-types.php',
     239 => 'sql/2026_video_pricing.sql',
     240 => 'sql/2026_video_pricing_rollback.sql',
+    241 => 'includes/assistants.php',
+    242 => 'admin/assistants.php',
+    243 => 'public/api/assistant.php',
+    244 => 'assets/js/assistant.js',
+    245 => 'assets/css/assistant.css',
+    246 => 'sql/2026_assistants.sql',
+    247 => 'sql/2026_assistants_rollback.sql',
   ),
   'files' => 
   array (
@@ -344,6 +351,11 @@ return array (
     array (
       'h' => '7db5b74658e955ccb5608898164be6b1',
       's' => 10093,
+    ),
+    'admin/assistants.php' => 
+    array (
+      'h' => 'ea18b95c4f4de682a19446d51aec38c2',
+      's' => 12009,
     ),
     'admin/brand-kits.php' => 
     array (
@@ -487,8 +499,8 @@ return array (
     ),
     'admin/packages.php' => 
     array (
-      'h' => '6e1973359ac2b5849ae27996da7095fb',
-      's' => 40426,
+      'h' => '132c4671d8177cef70698a1aeccfe802',
+      's' => 41744,
     ),
     'admin/payment-methods.php' => 
     array (
@@ -630,6 +642,11 @@ return array (
       'h' => '8977a031ad8a92e5f23556b0c558e868',
       's' => 48207,
     ),
+    'assets/css/assistant.css' => 
+    array (
+      'h' => 'c2d1b37e3a030b6c64ba7f0890eea4e0',
+      's' => 6523,
+    ),
     'assets/css/brand-kit.css' => 
     array (
       'h' => '3da0a44d83d09a3c6060a9b35848f674',
@@ -720,6 +737,11 @@ return array (
       'h' => 'f4a0f4534e4ae6e1f29d2d372ca6d0ba',
       's' => 9930,
     ),
+    'assets/js/assistant.js' => 
+    array (
+      'h' => '8a9ef20a08f3ddae3cd1c76e0e9acd6b',
+      's' => 13567,
+    ),
     'assets/js/brand-kit-post.js' => 
     array (
       'h' => '09280495dd7fd44279cc66ab832f762a',
@@ -737,8 +759,8 @@ return array (
     ),
     'assets/js/engine.js' => 
     array (
-      'h' => 'd36853c54e628dc7e8e1f6c333f0be38',
-      's' => 33977,
+      'h' => '8363828910118ddd394dabff16f5121d',
+      's' => 34357,
     ),
     'assets/js/main.js' => 
     array (
@@ -787,8 +809,8 @@ return array (
     ),
     'cron/ce-worker.php' => 
     array (
-      'h' => '1eb7c375e6609b72f400eefd0300b2fd',
-      's' => 2627,
+      'h' => '711fec45f7943bee719d2acb158abfc4',
+      's' => 3015,
     ),
     'cron/daily_notifications.php' => 
     array (
@@ -822,8 +844,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '2283f7db3f4a7474cc8358212d0bc7fd',
-      's' => 32865,
+      'h' => 'efae3f1f4e267dfe953e176799400ef3',
+      's' => 34495,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -832,8 +854,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '6a8e5eb464a2a7487a9170a980eba985',
-      's' => 28517,
+      'h' => '785805634f141c6b25288f96be043ba2',
+      's' => 32556,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -867,13 +889,13 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '540f6e28dbcd89908d09bac7dd925d44',
-      's' => 15737,
+      'h' => '6445f1106fdcd9adc974d3bada56c594',
+      's' => 15897,
     ),
     'includes/ai-center.php' => 
     array (
-      'h' => '0d9c23fdb8c7797e604cad2d9a30baf4',
-      's' => 12201,
+      'h' => 'b3586355d188d43c4c5aeca09ec848ae',
+      's' => 12254,
     ),
     'includes/ai-gateway.php' => 
     array (
@@ -904,6 +926,11 @@ return array (
     array (
       'h' => 'e33e74e864a9f140209c53499573cebd',
       's' => 8535,
+    ),
+    'includes/assistants.php' => 
+    array (
+      'h' => '03a4d66894e3ff9e038fa0402f526df6',
+      's' => 53660,
     ),
     'includes/auth.php' => 
     array (
@@ -1117,8 +1144,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '765cdeb22287845dcc5f599febeecfb9',
-      's' => 16391,
+      'h' => 'b0c396f5ce19afd710faeb021df01467',
+      's' => 16628,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1152,8 +1179,8 @@ return array (
     ),
     'includes/plans.php' => 
     array (
-      'h' => '03485fc719da68ad9c6ab18c9a843299',
-      's' => 30905,
+      'h' => 'c60cae41020ff2236d097b6155dd865c',
+      's' => 31447,
     ),
     'includes/promo.php' => 
     array (
@@ -1404,6 +1431,11 @@ return array (
     array (
       'h' => 'f8c63cf5574d5788b86f07f998364323',
       's' => 6434,
+    ),
+    'public/api/assistant.php' => 
+    array (
+      'h' => '64571ba23c5e0ba75a8de09f7cbf0bb6',
+      's' => 3680,
     ),
     'public/api/billing.php' => 
     array (
@@ -1687,8 +1719,8 @@ return array (
     ),
     'public/packages.php' => 
     array (
-      'h' => '8910a0da2556777f495baf50afe087d8',
-      's' => 13076,
+      'h' => 'feedd243aad2118ec547d9a2deb485ce',
+      's' => 13279,
     ),
     'public/payment-proof.php' => 
     array (
@@ -1834,6 +1866,16 @@ return array (
     array (
       'h' => 'a33a4ce9290bce0afd81e269666942c8',
       's' => 2363,
+    ),
+    'sql/2026_assistants.sql' => 
+    array (
+      'h' => '34e9aed7e13b0fd89256f943d28418ce',
+      's' => 5148,
+    ),
+    'sql/2026_assistants_rollback.sql' => 
+    array (
+      'h' => '53b0b712c81a49a3561135b245fd263a',
+      's' => 1121,
     ),
     'sql/2026_brand_kit.sql' => 
     array (
@@ -2222,8 +2264,8 @@ return array (
     ),
     'templates/footer.php' => 
     array (
-      'h' => '52d05fbb8b13756b3488f44a870c5b76',
-      's' => 1418,
+      'h' => 'f01ed2d82d9e0b827f3d03a10e52e53b',
+      's' => 2318,
     ),
     'templates/google-button.php' => 
     array (

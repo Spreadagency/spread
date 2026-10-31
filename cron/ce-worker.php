@@ -38,6 +38,15 @@ try { set_setting('ce_worker_last_run', date('Y-m-d H:i:s')); } catch (\Throwabl
 $n = ce_worker_tick(50);
 echo date('Y-m-d H:i:s') . " — ran $n step(s)\n";
 
+// المرحلة 7: «الوكيل» — المهام الشغالة بتتحرك مرحلة (والواقفة بتكمّل لوحدها لو السبب اتحل)
+try {
+    require_once __DIR__ . '/../includes/assistants.php';
+    $ag = as_agent_tick_all(10);
+    if ($ag) echo "agent runs advanced: $ag\n";
+} catch (\Throwable $e) {
+    error_log('agent tick: ' . $e->getMessage());
+}
+
 // حلقة التعلّم: تقرير الشهر اللي فات (مرة واحدة أول ما الشهر يبدأ)
 try {
     require_once __DIR__ . '/../includes/ce-learning.php';

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/billing.php';   // 10: هدية الباقة
+require_once __DIR__ . '/../includes/assistants.php'; // المرحلة 7: المساعدين في الباقة
 
 require_admin();
 require_admin_can('manage_packages');
@@ -73,6 +74,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['weekly_designs'] = max(0, min(100000, (int) ($_POST['weekly_designs'] ?? 0)));
             $data['quality_tier'] = isset(pkg_tiers()[$_POST['quality_tier'] ?? '']) ? $_POST['quality_tier'] : 'standard';
             $data['allow_research'] = !empty($_POST['allow_research']) ? 1 : 0;
+        }
+        // المرحلة 7: المساعدين في الباقة
+        if (function_exists('as_ready') && as_ready()) {
+            $data['assistant_support'] = !empty($_POST['assistant_support']) ? 1 : 0;
+            $data['assistant_agent'] = !empty($_POST['assistant_agent']) ? 1 : 0;
         }
         // المرحلة 6: خصم الفيديو للباقة (% من سعر الفيديو — الفيديو بيتدفع بالفلوس)
         if (vp_ready()) $data['video_discount_pct'] = round(max(0, min(100, (float) ($_POST['video_discount_pct'] ?? 0))), 2);
@@ -307,6 +313,14 @@ include __DIR__ . '/../templates/admin-header.php';
                         </select>
                         <div class="field-help">الموديلات وسرعتها لكل مستوى بتتحدد في «مستويات الجودة»</div>
                     </div>
+                    <?php if (as_ready()): ?>
+                    <div class="field">
+                        <label>🤖 المساعدين</label>
+                        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="assistant_support" value="1" <?= (int) ($editing['assistant_support'] ?? 1) ? 'checked' : '' ?>> 🛟 الدعم (بيحل مشاكل العميل)</label>
+                        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="assistant_agent" value="1" <?= (int) ($editing['assistant_agent'] ?? 0) ? 'checked' : '' ?>> 🤖 الوكيل (بينفّذ الحملات مكانه)</label>
+                        <div class="field-help">الإعدادات والرسوم من <a href="<?= url('admin/assistants.php') ?>">المساعدين</a></div>
+                    </div>
+                    <?php endif; ?>
                     <?php if (vp_ready()): ?>
                     <div class="field">
                         <label>🎬 خصم الفيديو %</label>
