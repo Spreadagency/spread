@@ -1190,6 +1190,27 @@ body.ui-v2 .cp-pop a { color: var(--ink); }
 .lib-vgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
 .lib-vgrid label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--mute); }
 .btn.lib-wa { background: linear-gradient(90deg, #128C7E, #25D366); border-color: transparent; color: #fff; }
+/* المرحلة 6: نوع الفيديو ومدته والدفع + «شوف فيديوهات زيه» */
+.lib-vpay { border: 1px solid #DCE7F3; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.lib-vpay-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.lib-vpay-disc { font-size: 12px; font-weight: 700; color: #0A7A5C; background: #E2F6EE; border-radius: 999px; padding: 3px 10px; }
+.lib-vtypes { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.lib-vtype { border: 1.5px solid #DCE7F3; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.lib-vtype.on { border-color: #2F80ED; background: #F2F8FE; }
+.lib-vtype-b { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.lib-vtype-b:focus-visible { outline: 2px solid #2F80ED; outline-offset: 3px; border-radius: 6px; }
+.lib-vtype-b small { color: var(--mute); font-size: 11.5px; line-height: 1.5; }
+.lib-vtype-b .lib-vfrom { color: #0A5FCF; font-weight: 700; }
+.lib-vdurs { display: flex; flex-direction: column; gap: 6px; }
+.lib-vdur { display: flex; align-items: center; gap: 10px; border: 1px solid #DCE7F3; border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.lib-vdur.on { border-color: #2F80ED; background: #F2F8FE; }
+.lib-vdur > span:nth-of-type(1) { flex: 1; display: flex; flex-direction: column; } .lib-vdur small { color: var(--mute); font-size: 11.5px; }
+.lib-vprice { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; } .lib-vprice s { color: var(--mute); font-size: 12px; }
+.lib-vpay-pending { background: #FFF6E5; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+.lib-vmodal { position: fixed; inset: 0; z-index: 95; background: rgba(15, 23, 42, .45); display: grid; place-items: center; padding: 16px; }
+.lib-vmodal-in { background: #fff; border-radius: 16px; padding: 16px; width: min(440px, 100%); max-height: 80vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.lib-vsample { display: flex; justify-content: space-between; gap: 10px; border: 1px solid #DCE7F3; border-radius: 10px; padding: 10px 12px; text-decoration: none; color: inherit; font-weight: 700; }
+.lib-vsample:hover { background: #F2F8FE; } .lib-vsample small { color: var(--mute); font-weight: 500; }
 
 /* 8-ب: حصص الشهر في كارت الباقة */
 .sx-quotas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin-top: 14px; }

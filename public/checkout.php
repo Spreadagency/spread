@@ -12,9 +12,22 @@ require_login();
 $user = current_user();
 $uid = (int) $user['id'];
 
-// إضافة (تصميمات زيادة / كريدت مساعد) ولا باقة بمدة
-$addon = !empty($_GET['addon']) && function_exists('addon_pack') ? addon_pack((int) $_GET['addon']) : null;
-if ($addon) {
+// فيديو مدفوع (المرحلة 6) ولا إضافة (تصميمات زيادة / كريدت مساعد) ولا باقة بمدة
+$video = null;
+if (!empty($_GET['video'])) {
+    require_once __DIR__ . '/../includes/video-pricing.php';
+    $video = vp_order((int) $_GET['video']);
+    if (!$video || (int) $video['user_id'] !== $uid || $video['status'] !== 'pending_payment') {
+        flash_set('warning', $video && $video['status'] === 'paid' ? 'الفيديو ده اتدفع خلاص' : 'طلب الفيديو ده مش مستني دفع');
+        redirect('content-history.php' . ($video ? '?open=' . (int) $video['content_id'] : ''));
+    }
+}
+$addon = !$video && !empty($_GET['addon']) && function_exists('addon_pack') ? addon_pack((int) $_GET['addon']) : null;
+if ($video) {
+    $pkg = ['id' => 0, 'name' => 'فيديو: ' . vp_order_label($video), 'price_egp' => (float) $video['final_egp'], 'credits' => 0,
+            'validity_days' => 0, 'bonus_credits' => 0, 'price_id' => null, 'duration_label' => ''];
+    $dup = billing_ready() ? db_one('SELECT id FROM payment_requests WHERE user_id = ? AND video_order_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, (int) $video['id']]) : null;
+} elseif ($addon) {
     if ($why = addon_blocked($uid)) {
         flash_set('warning', $why);
         redirect('packages.php');
@@ -32,7 +45,7 @@ if ($addon) {
     $dup = billing_ready() ? db_one('SELECT id FROM payment_requests WHERE user_id = ? AND package_id = ? AND status IN ("pending","under_review") LIMIT 1', [$uid, $pkg['id']]) : null;
 }
 if ($dup) {
-    flash_set('info', 'عندك طلب لنفس الباقة لسه بيتراجع — تابعه من هنا');
+    flash_set('info', $video ? 'عندك طلب دفع للفيديو ده لسه بيتراجع — تابعه من هنا' : 'عندك طلب لنفس الباقة لسه بيتراجع — تابعه من هنا');
     redirect('payments.php?id=' . (int) $dup['id']);
 }
 $methods = billing_methods();
@@ -53,9 +66,15 @@ include __DIR__ . '/../templates/header.php';
         <?= render_flash() ?>
 
         <div class="page-head">
+            <?php if ($video): ?>
+            <a href="<?= url('content-history.php?open=' . (int) $video['content_id']) ?>" class="text-mute" style="font-size:13px">← رجوع للفيديو</a>
+            <h1>الدفع</h1>
+            <div class="sub">حوّل المبلغ وارفع صورة الإيصال — الفيديو بيروح لفريق التنفيذ بعد ما نراجع التحويل.</div>
+            <?php else: ?>
             <a href="<?= url('packages.php') ?>" class="text-mute" style="font-size:13px">← كل الباقات</a>
             <h1>الدفع</h1>
             <div class="sub">حوّل المبلغ وارفع صورة الإيصال — الباقة بتتفعّل بعد ما نراجع التحويل.</div>
+            <?php endif; ?>
         </div>
 
         <form id="co" class="bl-checkout" onsubmit="return coSubmit(event)" novalidate>
@@ -63,17 +82,18 @@ include __DIR__ . '/../templates/header.php';
 
                 <!-- ① الباقة -->
                 <section class="card bl-co-sec">
-                    <h3>① الباقة</h3>
+                    <h3>① <?= $video ? 'الفيديو' : 'الباقة' ?></h3>
                     <div class="bl-co-plan">
                         <div><b><?= e($pkg['name']) ?><?= !empty($pkg['price_id']) ? ' — ' . e($pkg['duration_label']) : '' ?></b>
-                            <?php if ($addon): ?><small class="sub"><?= $addon['kind'] === 'credits' ? 'صالح ' . (int) $addon['validity_days'] . ' يوم استخدام مع باقتك (بيقف لو الباقة خلصت ويكمل مع الجديدة)' : 'لحد آخر باقتك الحالية' ?></small>
+                            <?php if ($video): ?><small class="sub">🎬 تنفيذ يدوي بواسطة فريق Spread AI<?= (int) $video['delivery_days'] > 0 ? ' · التسليم خلال ' . (int) $video['delivery_days'] . ' يوم تقريبًا' : '' ?><?= (float) $video['discount_pct'] > 0 ? ' · خصم باقتك ' . rtrim(rtrim(number_format((float) $video['discount_pct'], 2), '0'), '.') . '% (السعر الأصلي ' . e(vp_money((float) $video['base_egp'])) . ')' : '' ?></small>
+                            <?php elseif ($addon): ?><small class="sub"><?= $addon['kind'] === 'credits' ? 'صالح ' . (int) $addon['validity_days'] . ' يوم استخدام مع باقتك (بيقف لو الباقة خلصت ويكمل مع الجديدة)' : 'لحد آخر باقتك الحالية' ?></small>
                             <?php else: ?><small class="sub"><?= $crShow ? (int) $pkg['credits'] . ' كريدت · ' : '' ?><?= e(function_exists('pkg_duration_text') ? pkg_duration_text((int) ($pkg['validity_days'] ?? 30)) : (int) ($pkg['validity_days'] ?? 30) . ' يوم') ?><?= $pkgBonus ? ' · 🎁 +' . $pkgBonus . ' كريدت هدية' : '' ?></small><?php endif; ?></div>
                         <b class="bl-co-price"><?= number_format($price, 0) ?> <small>جنيه</small></b>
                     </div>
                 </section>
 
                 <!-- ② كود الخصم -->
-                <section class="card bl-co-sec" <?= $addon ? 'hidden' : '' ?>>
+                <section class="card bl-co-sec" <?= $addon || $video ? 'hidden' : '' ?>>
                     <h3>② كود الخصم <small class="sub">(اختياري)</small></h3>
                     <div class="bl-promo">
                         <input class="input" id="co-code" dir="ltr" maxlength="40" placeholder="SPREAD50" value="<?= e($initCode) ?>" autocomplete="off" style="text-transform:uppercase">
@@ -142,23 +162,23 @@ include __DIR__ . '/../templates/header.php';
             <!-- الملخص -->
             <aside class="card bl-co-sum">
                 <h3>الملخص</h3>
-                <div class="bl-sum-row"><span>الباقة</span><b><?= e($pkg['name']) ?></b></div>
+                <div class="bl-sum-row"><span><?= $video ? 'الفيديو' : 'الباقة' ?></span><b><?= e($pkg['name']) ?></b></div>
                 <div class="bl-sum-row"><span>السعر الأصلي</span><b id="s-orig"><?= number_format($price, 2) ?> ج</b></div>
                 <div class="bl-sum-row disc" id="s-disc-row" hidden><span id="s-disc-lbl">خصم</span><b id="s-disc">−0</b></div>
                 <div class="bl-sum-total"><span>الإجمالي</span><b id="s-final"><?= number_format($price, 2) ?> ج</b></div>
-                <?php if ($crShow): ?><div class="bl-sum-row"><span>الكريدت</span><b><?= (int) $pkg['credits'] ?></b></div><?php endif; ?>
+                <?php if ($crShow && !$video): ?><div class="bl-sum-row"><span>الكريدت</span><b><?= (int) $pkg['credits'] ?></b></div><?php endif; ?>
                 <div class="bl-sum-row bonus" id="s-bonus-row" <?= $pkgBonus ? '' : 'hidden' ?>><span>🎁 هدية</span><b id="s-bonus">+<?= $pkgBonus ?> كريدت</b></div>
                 <div class="bl-sum-row" id="s-days-row" hidden><span>⏳ أيام زيادة</span><b id="s-days"></b></div>
-                <div class="bl-sum-row"><span>المدة</span><b id="s-validity"><?= (int) ($pkg['validity_days'] ?? 30) ?> يوم</b></div>
+                <div class="bl-sum-row" <?= $video ? 'hidden' : '' ?>><span>المدة</span><b id="s-validity"><?= (int) ($pkg['validity_days'] ?? 30) ?> يوم</b></div>
                 <button type="submit" class="btn full lg" id="co-submit" <?= $methods ? '' : 'disabled' ?>>إرسال طلب الدفع</button>
-                <p class="sub bl-sum-note">الباقة مش هتتفعّل تلقائيًا — بنراجع التحويل ونبعتلك إشعار أول ما تتفعّل.</p>
+                <p class="sub bl-sum-note"><?= $video ? 'بنراجع التحويل ونبعت الفيديو لفريق التنفيذ — وهيوصلك إشعار.' : 'الباقة مش هتتفعّل تلقائيًا — بنراجع التحويل ونبعتلك إشعار أول ما تتفعّل.' ?></p>
             </aside>
         </form>
     </main>
 </div>
 
 <script>
-const CO = { pkg: <?= (int) $pkg['id'] ?>, priceId: <?= (int) ($pkg['price_id'] ?? 0) ?>, addon: <?= (int) ($addon['id'] ?? 0) ?>, price: <?= json_encode($price) ?>, bonus: <?= $pkgBonus ?>, days: <?= (int) ($pkg['validity_days'] ?? 30) ?>, code: '', final: <?= json_encode($price) ?> };
+const CO = { pkg: <?= (int) $pkg['id'] ?>, priceId: <?= (int) ($pkg['price_id'] ?? 0) ?>, addon: <?= (int) ($addon['id'] ?? 0) ?>, video: <?= (int) ($video['id'] ?? 0) ?>, price: <?= json_encode($price) ?>, bonus: <?= $pkgBonus ?>, days: <?= (int) ($pkg['validity_days'] ?? 30) ?>, code: '', final: <?= json_encode($price) ?> };
 const csrf = () => document.querySelector('meta[name="csrf-token"]').content;
 const fmt = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج';
 
@@ -230,7 +250,7 @@ async function coSubmit(e) {
     const btn = document.getElementById('co-submit');
     btn.disabled = true; btn.textContent = 'بنبعت الطلب…';
     const fd = new FormData();
-    fd.append('action', 'submit'); fd.append('package_id', CO.pkg); fd.append('price_id', CO.priceId); fd.append('addon_id', CO.addon); fd.append('method', free ? '' : method);
+    fd.append('action', 'submit'); fd.append('package_id', CO.pkg); fd.append('price_id', CO.priceId); fd.append('addon_id', CO.addon); fd.append('video_order_id', CO.video); fd.append('method', free ? '' : method);
     fd.append('promo_code', CO.code); fd.append('transaction_ref', document.getElementById('co-ref').value.trim());
     fd.append('transferred_at', document.getElementById('co-at').value); fd.append('note', document.getElementById('co-note').value.trim());
     fd.append('phone', phone);

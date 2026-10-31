@@ -274,8 +274,17 @@ function video_whatsapp_message(array $user, ?array $brand, array $content): str
         . 'المنصة: ' . $b['platform'] . "\n"
         . 'المقاس: ' . $b['ratio'] . "\n"
         . 'رقم الطلب: #' . (int) $content['id'] . "\n"
+        . video_whatsapp_order_line((int) $content['id'])
         . "السكريبت:\n----------------\n" . mb_substr(video_script_text($b), 0, 3000) . "\n----------------\n"
         . "ملاحظات:\n" . ($b['notes'] !== '' ? $b['notes'] : '—');
+}
+
+/** سطر الطلب المدفوع في رسالة واتساب (لو فيه) */
+function video_whatsapp_order_line(int $contentId): string
+{
+    require_once __DIR__ . '/video-pricing.php';
+    $o = vp_order_for_content($contentId);
+    return $o && $o['status'] === 'paid' ? 'الطلب المدفوع: ' . vp_order_label($o) . ' · ' . vp_money((float) $o['final_egp']) . "\n" : '';
 }
 
 function video_whatsapp_link(array $user, ?array $brand, array $content): string
@@ -304,6 +313,10 @@ function content_format_api(array $content, ?array $bySlide = null): array
         $out['video'] = ['status' => video_status_meta($content['video_status'] ?? null), 'brief' => video_brief($content),
                          'delivery_url' => (string) ($content['video_delivery_url'] ?? ''), 'note' => (string) ($content['video_admin_note'] ?? ''),
                          'at' => $content['video_status_at'] ?? null, 'wa' => video_whatsapp_number() !== ''];
+        // المرحلة 6: الأنواع بأسعار العميل (بعد خصم باقته) + طلب الفيديو المدفوع
+        require_once __DIR__ . '/video-pricing.php';
+        $vpUid = (int) ($content['user_id'] ?? 0) ?: (int) ($_SESSION['user_id'] ?? 0);
+        $out['video']['pay'] = $vpUid ? vp_client($vpUid, $content) : ['on' => false];
     }
     $out['progress'] = content_design_progress($content, $bySlide);
     return $out;

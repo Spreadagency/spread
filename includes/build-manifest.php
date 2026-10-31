@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-10-31',
-  'generated' => '2026-10-31 10:14',
+  'generated' => '2026-10-31 13:06',
   'update' => 
   array (
     0 => 'admin/announcements.php',
@@ -243,6 +243,10 @@ return array (
     234 => 'admin/quality-tiers.php',
     235 => 'sql/2026_quality_tiers.sql',
     236 => 'sql/2026_quality_tiers_rollback.sql',
+    237 => 'includes/video-pricing.php',
+    238 => 'admin/video-types.php',
+    239 => 'sql/2026_video_pricing.sql',
+    240 => 'sql/2026_video_pricing_rollback.sql',
   ),
   'files' => 
   array (
@@ -483,8 +487,8 @@ return array (
     ),
     'admin/packages.php' => 
     array (
-      'h' => '68393c1be7d6380b40b5d35a33ce06e0',
-      's' => 39547,
+      'h' => '6e1973359ac2b5849ae27996da7095fb',
+      's' => 40426,
     ),
     'admin/payment-methods.php' => 
     array (
@@ -498,8 +502,8 @@ return array (
     ),
     'admin/payment-view.php' => 
     array (
-      'h' => 'd962235fa04f0c17b477c007c68e9b9c',
-      's' => 13399,
+      'h' => '58eaf7a1fc34273d12d7399c2c7627f8',
+      's' => 13912,
     ),
     'admin/payments.php' => 
     array (
@@ -598,8 +602,13 @@ return array (
     ),
     'admin/video-requests.php' => 
     array (
-      'h' => 'b0c6ffc7031a413a29c22714e946acc3',
-      's' => 10894,
+      'h' => 'bf9ebf0f9972844aa8cd1bd976311a21',
+      's' => 12926,
+    ),
+    'admin/video-types.php' => 
+    array (
+      'h' => '8a5db08053dd983eb336ec550f922573',
+      's' => 13233,
     ),
     'admin/watermark.php' => 
     array (
@@ -638,8 +647,8 @@ return array (
     ),
     'assets/css/main.css' => 
     array (
-      'h' => '2bd2125e5ffa19fb8ca67031d14b72b8',
-      's' => 53647,
+      'h' => 'ae1c5d8e0db1639bb83f169cef3b624b',
+      's' => 53706,
     ),
     'assets/css/quality.css' => 
     array (
@@ -658,8 +667,8 @@ return array (
     ),
     'assets/css/shell-v2.css' => 
     array (
-      'h' => 'd158d9e56c03dd40d55d122da70b75db',
-      's' => 105729,
+      'h' => 'fe357bf47bc8ac6b41ccf4b3b00d2953',
+      's' => 108174,
     ),
     'assets/css/theme-v2.css' => 
     array (
@@ -813,8 +822,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => 'dfa9b8a1f465658027246b9d0a70d743',
-      's' => 31378,
+      'h' => '2283f7db3f4a7474cc8358212d0bc7fd',
+      's' => 32865,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -823,8 +832,8 @@ return array (
     ),
     'docs/PACKAGES_PLAN.md' => 
     array (
-      'h' => '859f780387532179fea84d0a9c076984',
-      's' => 25961,
+      'h' => '6a8e5eb464a2a7487a9170a980eba985',
+      's' => 28517,
     ),
     'docs/prompts-v1.md' => 
     array (
@@ -858,8 +867,8 @@ return array (
     ),
     'includes/admin-ui.php' => 
     array (
-      'h' => '7e1ac1b8caf65ef6c3bdda3a71929d4e',
-      's' => 15575,
+      'h' => '540f6e28dbcd89908d09bac7dd925d44',
+      's' => 15737,
     ),
     'includes/ai-center.php' => 
     array (
@@ -903,8 +912,8 @@ return array (
     ),
     'includes/billing.php' => 
     array (
-      'h' => 'ad73c24cd26b99171b97fc44984ba05e',
-      's' => 29000,
+      'h' => '54918b7224c48d7562db3303c5a453d2',
+      's' => 32196,
     ),
     'includes/brand-brain.php' => 
     array (
@@ -1028,13 +1037,13 @@ return array (
     ),
     'includes/content-formats.php' => 
     array (
-      'h' => 'b29bb791bd862028735c55356c9d0f35',
-      's' => 14478,
+      'h' => '64678b19806bc4debd1bdd9dc19eeddc',
+      's' => 15291,
     ),
     'includes/credits.php' => 
     array (
-      'h' => 'fd97dec1740c96cc6a2d1ac403b7562d',
-      's' => 32582,
+      'h' => 'f9ef5337bd9b3ec5ab86da2e5d3450d0',
+      's' => 32770,
     ),
     'includes/crypto.php' => 
     array (
@@ -1108,8 +1117,8 @@ return array (
     ),
     'includes/migrations.php' => 
     array (
-      'h' => '373205a34f8106e93a2f7d07870fabaf',
-      's' => 16162,
+      'h' => '765cdeb22287845dcc5f599febeecfb9',
+      's' => 16391,
     ),
     'includes/mobile-boot.php' => 
     array (
@@ -1143,8 +1152,8 @@ return array (
     ),
     'includes/plans.php' => 
     array (
-      'h' => 'be9eec6ef517cbba6b0be26528c72524',
-      's' => 30452,
+      'h' => '03485fc719da68ad9c6ab18c9a843299',
+      's' => 30905,
     ),
     'includes/promo.php' => 
     array (
@@ -1260,6 +1269,11 @@ return array (
     array (
       'h' => 'd62ae4bb6b30c5e8f889af3d4af866e1',
       's' => 330,
+    ),
+    'includes/video-pricing.php' => 
+    array (
+      'h' => 'c50cad32aa79191e1d79f90f706a26db',
+      's' => 12401,
     ),
     'includes/watermark.php' => 
     array (
@@ -1393,8 +1407,8 @@ return array (
     ),
     'public/api/billing.php' => 
     array (
-      'h' => 'c138c819b3bf127d37d60d1077e782eb',
-      's' => 3929,
+      'h' => '2fc248707d46de760cc7377f35f48981',
+      's' => 3976,
     ),
     'public/api/brand-kit.php' => 
     array (
@@ -1418,8 +1432,8 @@ return array (
     ),
     'public/api/contents.php' => 
     array (
-      'h' => 'd6a417600647cd470e3640dbfed3e7af',
-      's' => 36762,
+      'h' => '5afb59ecd094a6ac9817e14a13a26d7c',
+      's' => 38437,
     ),
     'public/api/engine.php' => 
     array (
@@ -1563,8 +1577,8 @@ return array (
     ),
     'public/checkout.php' => 
     array (
-      'h' => '9c386bed7b37a5e348ef5e83dfe7676b',
-      's' => 17004,
+      'h' => '23e9bb05b25d6cb6b1ce7ff6e069557c',
+      's' => 19452,
     ),
     'public/complete-account.php' => 
     array (
@@ -1673,8 +1687,8 @@ return array (
     ),
     'public/packages.php' => 
     array (
-      'h' => '16c53e312bbf2cd69bc8cd6dea6165ab',
-      's' => 12826,
+      'h' => '8910a0da2556777f495baf50afe087d8',
+      's' => 13076,
     ),
     'public/payment-proof.php' => 
     array (
@@ -1683,8 +1697,8 @@ return array (
     ),
     'public/payments.php' => 
     array (
-      'h' => '7b3201c9f659397d2b4f864d7777c268',
-      's' => 9255,
+      'h' => 'ce8569f25012e88fa870eded149e69a4',
+      's' => 9780,
     ),
     'public/paymob-callback.php' => 
     array (
@@ -2121,6 +2135,16 @@ return array (
       'h' => 'f026f5a07152e3379fcb68e61e1531e1',
       's' => 1438,
     ),
+    'sql/2026_video_pricing.sql' => 
+    array (
+      'h' => 'ec18a516729a915a6f59421b61871aa9',
+      's' => 4423,
+    ),
+    'sql/2026_video_pricing_rollback.sql' => 
+    array (
+      'h' => '64b2fc461a70d718edc7ccd78f3ed056',
+      's' => 957,
+    ),
     'sql/2026_whatsapp_messaging.sql' => 
     array (
       'h' => 'b4dd2912183dfd306dc0210a534c478f',
@@ -2253,13 +2277,13 @@ return array (
     ),
     'templates/v2/campaign.php' => 
     array (
-      'h' => '16f6bed275673182814de19bbc94b3b0',
-      's' => 118775,
+      'h' => 'c1308ba79dc268dad6bafeae61a1fd0c',
+      's' => 119301,
     ),
     'templates/v2/contents.php' => 
     array (
-      'h' => '4f2d678f44784171e786de1a017bd6b2',
-      's' => 40787,
+      'h' => '96d1ed82ce58c5cabb0acc8b8dec834f',
+      's' => 47204,
     ),
     'templates/v2/dashboard.php' => 
     array (

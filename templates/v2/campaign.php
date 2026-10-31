@@ -468,7 +468,8 @@
                         <div class="cf-row" v-if="i.video">
                             <button type="button" class="cf-btn ghost sm" @click="active = i.id; mode = 'script'; go(2)">راجع السكريبت</button>
                             <button type="button" class="cf-btn soft sm grow" v-if="i.video.status.key === 'script'" @click="videoAct(i, 'video_approve')" :disabled="bulk.on">✓ اعتمد السكريبت</button>
-                            <button type="button" class="cf-btn primary sm grow cf-wa" v-if="i.video.status.key === 'approved'" @click="videoRequest(i)" :disabled="bulk.on || !i.video.wa || null">📲 تواصل معنا لتنفيذ الفيديو</button>
+                            <button type="button" class="cf-btn primary sm grow cf-wa" v-if="i.video.status.key === 'approved' && !(i.video.pay && i.video.pay.on)" @click="videoRequest(i)" :disabled="bulk.on || !i.video.wa || null">📲 تواصل معنا لتنفيذ الفيديو</button>
+                            <a class="cf-btn primary sm grow" v-if="i.video.status.key === 'approved' && i.video.pay && i.video.pay.on" :href="base + '/content-history.php?open=' + i.content.id">{{ i.video.pay.order && i.video.pay.order.payment_id ? '⏳ الدفع بيتراجع — تابعه' : '🎬 اختار نوع الفيديو واطلبه' }}</a>
                             <a class="cf-btn ghost sm grow" v-if="['sent', 'in_production', 'ready', 'delivered'].indexOf(i.video.status.key) >= 0" :href="base + '/content-history.php?open=' + i.content.id" target="_blank" rel="noopener">متابعة الطلب</a>
                         </div>
                     </div>
@@ -868,7 +869,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async videoAct(i, action) {
       var r = await SpreadAPI.post('contents', action, { id: i.content.id });
       if (!r.ok) return this.notify(r.error, 'danger');
-      i.video = r.video; this.notify('اعتمدت السكريبت ✓ — اطلب التنفيذ من فريقنا');
+      i.video = r.video; this.notify(r.video && r.video.pay && r.video.pay.on ? 'اعتمدت السكريبت ✓ — اختار نوع الفيديو واطلبه' : 'اعتمدت السكريبت ✓ — اطلب التنفيذ من فريقنا');
     },
     async videoRequest(i) {
       var w = window.open('about:blank', '_blank');

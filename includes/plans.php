@@ -79,6 +79,7 @@ function plan_active(int $uid, bool $fresh = false): array
                     // الباقات الجديدة (لقطة وقت الاشتراك)
                     'weekly_credits' => (int) ($r['weekly_credits'] ?? 0), 'weekly_designs' => (int) ($r['weekly_designs'] ?? 0),
                     'quality_tier' => (string) ($r['quality_tier'] ?? 'standard'), 'allow_research' => (int) ($r['allow_research'] ?? 1),
+                    'video_discount_pct' => (float) ($r['video_discount_pct'] ?? 0),
                 ];
             }
         } catch (\Throwable $e) {
@@ -371,6 +372,10 @@ function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, 
             db_run('UPDATE user_plans SET weekly_credits = ?, weekly_designs = ?, quality_tier = ?, allow_research = ?, price_id = ? WHERE id = ?', [
                 (int) ($pkg['weekly_credits'] ?? 0), (int) ($pkg['weekly_designs'] ?? 0), (string) ($pkg['quality_tier'] ?? 'standard'),
                 (int) ($pkg['allow_research'] ?? 1), isset($opts['price_id']) ? (int) $opts['price_id'] : null, $id]);
+        }
+        // المرحلة 6: خصم الفيديو بتاع الباقة (لقطة وقت الاشتراك)
+        if ($id && $pkg && array_key_exists('video_discount_pct', $pkg)) {
+            try { db_run('UPDATE user_plans SET video_discount_pct = ? WHERE id = ?', [max(0, min(100, (float) $pkg['video_discount_pct'])), $id]); } catch (\Throwable $e) {}
         }
         plan_active($uid, true);   // الدورة الجديدة تبان في نفس الطلب
         if (function_exists('plan_usage')) plan_usage($uid, true);

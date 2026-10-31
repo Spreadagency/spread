@@ -36,7 +36,7 @@ switch ($action) {
     case 'submit':
         if (!rate_limit('payment_submit', 'u' . $uid, 8, 3600)) api_fail('طلبات كتير — استنى شوية', 'rate_limit', 429);
         $in = [
-            'package_id' => api_int('package_id'), 'price_id' => api_int('price_id'), 'addon_id' => api_int('addon_id'), 'method' => api_str('method', 40), 'promo_code' => api_str('promo_code', 40),
+            'package_id' => api_int('package_id'), 'price_id' => api_int('price_id'), 'addon_id' => api_int('addon_id'), 'video_order_id' => api_int('video_order_id'), 'method' => api_str('method', 40), 'promo_code' => api_str('promo_code', 40),
             'transaction_ref' => api_str('transaction_ref', 120), 'transferred_at' => api_str('transferred_at', 30),
             'note' => api_str('note', 1000), 'phone' => api_str('phone', 30),
         ];

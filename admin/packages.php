@@ -74,6 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['quality_tier'] = isset(pkg_tiers()[$_POST['quality_tier'] ?? '']) ? $_POST['quality_tier'] : 'standard';
             $data['allow_research'] = !empty($_POST['allow_research']) ? 1 : 0;
         }
+        // المرحلة 6: خصم الفيديو للباقة (% من سعر الفيديو — الفيديو بيتدفع بالفلوس)
+        if (vp_ready()) $data['video_discount_pct'] = round(max(0, min(100, (float) ($_POST['video_discount_pct'] ?? 0))), 2);
         // 8-ب: حصص الباقة في الدورة (0 = مفتوح في حدود الكريدت)
         if (function_exists('plans_ready') && plans_ready()) {
             $q = [];
@@ -305,6 +307,13 @@ include __DIR__ . '/../templates/admin-header.php';
                         </select>
                         <div class="field-help">الموديلات وسرعتها لكل مستوى بتتحدد في «مستويات الجودة»</div>
                     </div>
+                    <?php if (vp_ready()): ?>
+                    <div class="field">
+                        <label>🎬 خصم الفيديو %</label>
+                        <input type="number" name="video_discount_pct" class="input" min="0" max="100" step="0.5" value="<?= e((string) (float) ($editing['video_discount_pct'] ?? 0)) ?>">
+                        <div class="field-help">من سعر الفيديو (الأسعار من <a href="<?= url('admin/video-types.php') ?>">أنواع الفيديو</a>) · 0 = من غير خصم</div>
+                    </div>
+                    <?php endif; ?>
                     <div class="field">
                         <label>🔬 البحث العميق</label>
                         <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="allow_research" value="1" <?= (int) ($editing['allow_research'] ?? 1) ? 'checked' : '' ?>> في الباقة (غير كده بيختفي من عند العميل)</label>

@@ -21,6 +21,7 @@
  *   POST action=video_approve {id}                       العميل اعتمد السكريبت
  *   POST action=video_request {id, notes}                «تواصل معنا لتنفيذ الفيديو» ← رابط واتساب جاهز + الحالة «اتبعت للتنفيذ»
  *   POST action=video_received {id}                      العميل استلم الفيديو
+ *   POST action=video_order {id, type_id, dur}           نوع الفيديو ومدته ← طلب مستني الدفع ← checkout.php?video=ID (المرحلة 6)
  */
 require_once __DIR__ . '/../../includes/api.php';
 require_once __DIR__ . '/../../includes/content-formats.php';   // ⑦-ج
@@ -350,6 +351,7 @@ switch ($action) {
     case 'video_approve':
     case 'video_request':
     case 'video_received':
+    case 'video_order':
         $c = api_own('contents', api_int('id'), $uid);
         if (content_format_key($c['format'] ?? '') !== 'video') api_fail('ده مش فيديو', 'invalid', 422);
         $st = (string) ($c['video_status'] ?: 'script');
@@ -371,8 +373,20 @@ switch ($action) {
         if ($action === 'video_approve') {
             if (trim(video_brief($c)['script']['body']) === '') api_fail('السكريبت فاضي — اكتبه الأول', 'empty', 422);
             if (!$sent) video_set_status((int) $c['id'], 'approved');
+        } elseif ($action === 'video_order') {
+            // المرحلة 6: النوع والمدة ← السعر بعد خصم الباقة ← صفحة الدفع
+            require_once __DIR__ . '/../../includes/video-pricing.php';
+            if (!rate_limit('video_order', 'u' . $uid, 20, 3600)) api_fail('طلبات كتير — استنى شوية', 'rate_limit', 429);
+            $r = vp_order_create($uid, $c, api_int('type_id'), api_int('dur', 0, 0, VP_MAX_DURATIONS));
+            if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'invalid', in_array($r['code'] ?? '', ['pending', 'paid', 'state'], true) ? 409 : 422,
+                                   !empty($r['payment_id']) ? ['payment_url' => url('payments.php?id=' . (int) $r['payment_id'])] : []);
+            api_ok(['order_id' => (int) $r['order']['id'], 'checkout' => url('checkout.php?video=' . (int) $r['order']['id']),
+                    'video' => content_format_api(db_one('SELECT * FROM contents WHERE id = ?', [$c['id']]))['video']]);
         } elseif ($action === 'video_request') {
             if (!in_array($st, ['approved', 'sent'], true)) api_fail('اعتمد السكريبت الأول', 'state', 409);
+            // الفيديو بالدفع شغال ← التنفيذ بيبدأ بعد الدفع (واتساب للمتابعة بس بعد ما الطلب يتبعت)
+            require_once __DIR__ . '/../../includes/video-pricing.php';
+            if ($st === 'approved' && vp_on()) api_fail('اختار نوع الفيديو ومدته وادفع الأول — الطلب بيروح للتنفيذ بعد تأكيد الدفع', 'needs_order', 409);
             if (video_whatsapp_number() === '') api_fail('رقم واتساب التنفيذ مش مضبوط — كلّم الإدارة', 'no_whatsapp', 503);
             if (!rate_limit('video_request', 'u' . $uid, 10, 3600)) api_fail('طلبات كتير — استنى شوية', 'rate_limit', 429);
             $notes = api_str('notes', 1000);

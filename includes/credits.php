@@ -608,4 +608,6 @@ require_once __DIR__ . '/plans.php';
 require_once __DIR__ . '/packages.php';
 // مستويات الجودة: الموديلات · معامل السعر · جولات التحسين · الأولوية
 require_once __DIR__ . '/quality-tiers.php';
+// المرحلة 6: الفيديو بالفلوس (الأنواع والأسعار · خصم الباقة · الطلبات المدفوعة)
+require_once __DIR__ . '/video-pricing.php';
 require_once __DIR__ . '/settings-registry.php';

@@ -1517,6 +1517,7 @@ button[aria-busy="true"] { opacity: .75; cursor: wait; }
 .bl-co-sum { position: sticky; top: 90px; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .bl-co-sum h3 { margin: 0; }
 .bl-sum-row { display: flex; justify-content: space-between; font-size: 14px; }
+.bl-sum-row[hidden], .bl-co-sec[hidden] { display: none; }
 .bl-sum-row.disc b { color: #0B7E78; }
 .bl-sum-row.bonus b { color: #8A5A10; }
 .bl-sum-total { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); font-size: 16px; }

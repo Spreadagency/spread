@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/content-formats.php';
+require_once __DIR__ . '/../includes/video-pricing.php';
 
 require_admin();
 require_admin_can('view_content');
@@ -71,6 +72,12 @@ $rows = db_all("SELECT c.id, c.user_id, c.video_status, c.video_status_at, c.vid
                 FROM contents c JOIN users u ON u.id = c.user_id
                 WHERE c.format = 'video' AND ({$where})
                 ORDER BY FIELD(c.video_status, 'sent', 'in_production', 'approved', 'ready', 'script', 'delivered'), c.video_status_at DESC LIMIT 200");
+// المرحلة 6: الطلب المدفوع (أو المستني دفع) لكل فيديو
+$orders = [];
+if ($rows && vp_ready()) {
+    $ids = implode(',', array_map(fn($r) => (int) $r['id'], $rows));
+    foreach (db_all("SELECT * FROM video_orders WHERE content_id IN ({$ids}) AND status IN ('paid','pending_payment') ORDER BY status = 'paid', id") as $o) $orders[(int) $o['content_id']] = $o;
+}
 $counts = [];
 foreach (db_all('SELECT COALESCE(video_status, "script") s, COUNT(*) n FROM contents WHERE format = "video" GROUP BY s') as $r) $counts[$r['s']] = (int) $r['n'];
 
@@ -84,7 +91,8 @@ include __DIR__ . '/../templates/admin-header.php';
     <main class="main">
         <div class="page-head">
             <h1>🎬 طلبات تنفيذ الفيديو</h1>
-            <div class="sub">الـ AI بيكتب السكريبت · العميل يعتمده ويبعت الطلب على واتساب · الفريق ينفّذ يدوي ويحدّث الحالة هنا</div>
+            <div class="sub">الـ AI بيكتب السكريبت · العميل يعتمده ويختار النوع ويدفع (أو يبعت على واتساب لو مفيش أسعار) · الفريق ينفّذ يدوي ويحدّث الحالة هنا</div>
+            <?php if (admin_can('manage_packages') || admin_can('site_settings')): ?><a class="btn ghost sm" href="<?= url('admin/video-types.php') ?>">💰 أنواع الفيديو وأسعارها</a><?php endif; ?>
         </div>
 
         <?= render_flash() ?>
@@ -118,6 +126,14 @@ include __DIR__ . '/../templates/admin-header.php';
                                 <span class="text-mute" style="margin-inline-start:auto;font-size:11.5px"><?= $r['video_status_at'] ? e(time_ago($r['video_status_at'])) : '' ?></span>
                             </div>
                             <div class="text-mute" style="font-size:12px;margin:6px 0"><?= e($b['type']) ?> · <?= e($b['duration']) ?> · <?= e($b['platform']) ?> · <?= e($b['ratio']) ?></div>
+                            <?php if ($o = $orders[(int) $r['id']] ?? null): ?>
+                                <div style="font-size:12.5px;margin:0 0 6px">
+                                    <span class="chip <?= $o['status'] === 'paid' ? 'chip-mint' : 'chip-amber' ?>"><?= $o['status'] === 'paid' ? '💳 مدفوع' : '⏳ مستني الدفع' ?></span>
+                                    <b><?= e(vp_order_label($o)) ?></b> · <?= e(vp_money((float) $o['final_egp'])) ?><?= (float) $o['discount_pct'] > 0 ? ' <span class="text-mute">(خصم ' . (float) $o['discount_pct'] . '% من ' . e(vp_money((float) $o['base_egp'])) . ')</span>' : '' ?>
+                                    <?php if ((int) $o['delivery_days'] > 0): ?><span class="text-mute">· التسليم خلال <?= (int) $o['delivery_days'] ?> يوم<?= $o['paid_at'] ? ' (لحد ' . e(date('Y-m-d', strtotime($o['paid_at'] . ' +' . (int) $o['delivery_days'] . ' days'))) . ')' : '' ?></span><?php endif; ?>
+                                    <?php if ($o['payment_request_id']): ?> · <a href="<?= url('admin/payment-view.php?id=' . (int) $o['payment_request_id']) ?>">طلب الدفع #<?= (int) $o['payment_request_id'] ?></a><?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             <details><summary style="cursor:pointer;font-size:12.5px">السكريبت<?= $b['notes'] !== '' ? ' + ملاحظات العميل' : '' ?></summary>
                                 <div style="white-space:pre-wrap;font-size:12.5px;line-height:1.8;background:var(--surface-2);border-radius:10px;padding:10px;margin-top:6px"><?= e(video_script_text($b)) ?></div>
                                 <?php if ($b['notes'] !== ''): ?><div class="cta-box" style="margin-top:6px"><?= e($b['notes']) ?></div><?php endif; ?>
