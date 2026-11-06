@@ -125,6 +125,7 @@ function admin_nav(): array
         ],
         'REPORTS' => [
             ['profitability', 'ربحية الباقات', 'Plan Profitability', 'chart', 'admin/profitability.php', 'view_costs', ['profitability']],
+            ['campaign_cost', 'تكلفة الحملة', 'Campaign Cost', 'chart', 'admin/campaign-cost.php', 'view_costs', ['campaign_cost']],
             ['users-export', 'تصدير العملاء', 'Customer Export', 'download', 'admin/users-export.php', 'manage_packages', ['users-export']],
             ['logs', 'سجل النشاط', 'Activity Logs', 'list', 'admin/logs.php', 'view_users', ['logs']],
         ],
