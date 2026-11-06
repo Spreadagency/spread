@@ -53,6 +53,12 @@ if (function_exists('ce_dna_ready') ? ce_dna_ready() : true) {
     if (!ce_dna_get($sub)) ce_dna_save($sub, ce_dna_trim(ce_dna_clean($sub, ce_dna_from_kit($sub))), 'rules');
 }
 
+// مكتبة البرومبتات v1 (زي الموقع الحقيقي) — بتتستورد مرة واحدة بس
+require_once __DIR__ . '/../includes/prompt-library.php';
+if (function_exists('prompt_pack_import') && !db_one('SELECT id FROM prompts WHERE prompt_type = "design_base" LIMIT 1')) {
+    prompt_pack_import(array_keys(prompt_pack()));
+}
+
 // ── مزوّد الـ AI الوهمي ──
 $mockBase = 'http://127.0.0.1:8090/v1';
 $enc = Crypto::encrypt('mock-key-local-only');

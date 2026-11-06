@@ -18,6 +18,8 @@ require_once __DIR__ . '/uploader.php';
 ce_job_register('campaign_design', 'ce_design_job', 'تصميم الحملة', 'ce_design_cancel_cost');
 
 const CE_DESIGN_NEGATIVE = 'any text, letters, numbers, words, captions, logos, watermarks, signatures, distorted hands, extra fingers, distorted teeth, deformed faces, unrealistic medical results, blurry, low quality';
+/** الممنوعات في الوضع الكامل: عيوب الصور بس (الكتابة واللوجو مطلوبين جوه التصميم) */
+const CE_DESIGN_NEGATIVE_FULL = 'distorted hands, extra fingers, distorted teeth, deformed faces, unrealistic medical results, misspelled or broken Arabic letters, fake logos, watermarks, blurry, low quality';
 /** المقاس اللي بيتطلب من موديل الصور (بعدها بنقصّ للمقاس النهائي) */
 const CE_GEN_SIZE = ['1:1' => '1024x1024', '4:5' => '1024x1536', '9:16' => '1024x1536'];
 
@@ -48,7 +50,17 @@ function ce_design_rules(): array
         // غلاف الريلز اختيار العميل — ده الافتراضي في الـ Wizard بس
         'reel_cover' => ce_setting_int('ce_reel_cover', 0) === 1,
         'min_credits' => max(0, ce_setting_int('ce_min_credits_image', 1)),
+        // خطة الحملات (المرحلة 1): full = الموديل بيعمل التصميم كامل بالكتابة والمراجع (زي القديم) · overlay = صورة فاضية + نص بالكود
+        'mode' => ce_design_mode(),
+        // مراجعة الصورة (Vision) مقفولة افتراضيًا — بتتفتح من الإعدادات
+        'vision' => ce_setting_int('ce_vision_enabled', 0) === 1,
     ];
+}
+
+/** وضع التصميم: full (الافتراضي) أو overlay */
+function ce_design_mode(): string
+{
+    return (string) (function_exists('get_setting') ? get_setting('ce_design_mode', 'full') : 'full') === 'overlay' ? 'overlay' : 'full';
 }
 
 /* ═══════════════════ الإطارات ═══════════════════ */
@@ -79,7 +91,7 @@ function ce_design_frames(string $format, array $body, bool $reelCover = false):
             $n = $i + 1;
             $t = trim((string) (is_array($sl) ? ($sl['text'] ?? '') : $sl));
             if ($t === '') continue;
-            $out[] = ['frame' => $n, 'kind' => !$r['carousel_ai'] || $n <= $r['carousel_ai'] ? 'ai' : 'text', 'aspect' => $aspect,
+            $out[] = ['frame' => $n, 'kind' => $r['mode'] === 'full' || !$r['carousel_ai'] || $n <= $r['carousel_ai'] ? 'ai' : 'text', 'aspect' => $aspect,
                       'headline' => $n === 1 && $head !== '' ? $head : mb_substr($t, 0, 120),
                       'subline' => $n === 1 ? $sub : ($n === count($slides) ? $cta : '')];
         }
@@ -115,6 +127,49 @@ function ce_design_prompt_user(array $ctx, array $slot, array $body, array $fram
         . 'الفكرة: ' . mb_substr((string) $idea, 0, 200) . ' · الشكل: ' . $slot['format'] . ($frame['frame'] > 1 ? ' · شريحة ' . $frame['frame'] : '') . "\n"
         . "Aspect ratio: {$frame['aspect']}. Text-safe zone that MUST stay clean and empty: {$zoneTxt}."
         . ($hint !== '' ? "\nREGENERATE HINT (the previous image failed review — fix this): " . $hint : '');
+}
+
+/**
+ * الوضع الكامل: برومبت التصميم من نفس تجهيز التصميم القديم (includes/design-builder.php)
+ * الكتابة العربية (العنوان + السطر التاني) جوه التصميم · اللوجو والشخصيات و«تصميمات بتعجبك» كمراجع
+ * · الكاروسيل: الشريحة 2+ بتاخد الشريحة الأولى مرجع · + design_brief وقسم التصميم في الـ Skill
+ * ← ['prompt', 'refs' => [مسارات الصور المرجعية بالترتيب]]
+ */
+function ce_design_full_prompt(int $uid, array $c, array $slot, array $body, array $d, ?array $skill, string $hint = ''): array
+{
+    require_once __DIR__ . '/design-builder.php';
+    $brand = db_one('SELECT * FROM brand_profiles WHERE user_id = ? ORDER BY id LIMIT 1', [$uid]) ?: [];
+    $db = (array) ($body['design_brief'] ?? []);
+    $db['headline'] = (string) $d['headline'];
+    $db['subline'] = (string) $d['subline'];
+    $format = ['post' => 'post', 'carousel' => 'carousel', 'reel' => 'story'][$slot['format']] ?? 'post';
+    $frames = $format === 'carousel' ? count(ce_design_frames('carousel', $body)) : 1;
+    $o = [
+        'uid' => $uid, 'brand' => $brand, 'format' => $format,
+        'content' => ['generated_text' => ce_content_text($body), 'image_prompt' => '', 'brief_json' => '', 'bk_character_id' => null],
+        'include_logo' => !empty($brand['logo_path']), 'include_images' => false, 'custom_prompt' => '',
+        'brief' => $db, 'skill' => $skill, 'ratio' => (string) $d['aspect'],
+    ];
+    // الشخصيات اللي في البريف ← أرقامها في الهوية
+    $names = (array) ($db['characters_refs'] ?? []);
+    if ($names) {
+        $ids = [];
+        foreach ((array) (ce_dna_get($uid)['visual']['characters'] ?? []) as $ch) if (in_array($ch['name'] ?? '', $names, true) && !empty($ch['id'])) $ids[] = (int) $ch['id'];
+        if ($ids) $o['character_ids'] = implode(',', array_slice($ids, 0, 2));
+    }
+    if ($format === 'carousel') {
+        $o['slide'] = ['title' => (string) $d['headline'], 'text' => (string) $d['subline'], 'design' => ''];
+        $o['slide_no'] = (int) $d['frame'];
+        $o['slides_total'] = $frames;
+        if ((int) $d['frame'] > 1) {
+            $first = db_one('SELECT image_path FROM ce_designs WHERE slot_id = ? AND frame = 1 AND image_path IS NOT NULL', [(int) $d['slot_id']]);
+            if ($first) { $o['source_image_path'] = $first['image_path']; $o['carousel_ref'] = 1; $o['carousel_ratio'] = (string) $d['aspect']; }
+        }
+    }
+    $b = design_build($o);
+    $prompt = $b['prompt'] . ($hint !== '' ? "\nREGENERATE HINT (the previous image failed review — fix this): " . $hint : '');
+    $refs = array_values(array_filter(array_map(fn($r) => (string) ($r['path'] ?? ''), $b['refs'])));
+    return ['prompt' => mb_substr($prompt, 0, 6000), 'refs' => $refs];
 }
 
 /** البرومبت النهائي: التكوين والممنوعات بتتضاف في الكود دايمًا (حتى لو الموديل نسيها) */
@@ -249,6 +304,19 @@ function ce_reel_cover_wanted(array $c): bool
 /** الرسم النهائي لإطار (نص + شعار + علامة مائية) — بيتنادى بعد الصورة وبعد أي تعديل نص */
 function ce_design_render(array $d, int $uid): array
 {
+    if (ce_design_mode() === 'full' && $d['kind'] === 'ai' && !empty($d['image_path'])) {
+        // الكتابة واللوجو جوه التصميم نفسه ← النهائية = نسخة من الصورة + العلامة المائية لو مفعّلة
+        $rel = ce_design_dir($uid) . '/f' . (int) $d['id'] . '-' . bin2hex(random_bytes(5)) . '.png';
+        if (!@copy(STORAGE_PATH . '/' . $d['image_path'], STORAGE_PATH . '/' . $rel)) return ['ok' => false, 'error' => 'مقدرناش نحفظ التصميم'];
+        if (function_exists('watermark_for_user') || is_file(__DIR__ . '/watermark.php')) {
+            require_once __DIR__ . '/watermark.php';
+            if (watermark_for_user($uid)) watermark_apply($rel, ['keep_original' => '0']);
+        }
+        $old = (string) ($d['final_path'] ?? '');
+        db_run('UPDATE ce_designs SET final_path = ? WHERE id = ?', [$rel, (int) $d['id']]);
+        if ($old !== '' && $old !== $rel && str_starts_with($old, 'uploads/ce-designs/')) @unlink(STORAGE_PATH . '/' . $old);
+        return ['ok' => true, 'path' => $rel];
+    }
     $dna = ce_dna_get($uid) ?: [];
     $slot = db_one('SELECT format FROM ce_slots WHERE id = ?', [(int) $d['slot_id']]);
     $format = (string) ($slot['format'] ?? 'post');
@@ -312,6 +380,17 @@ function ce_design_job(array $job, array &$state): array
     // شريحة نص على خلفية البراند: الرسم بس
     if ($d['kind'] === 'text') $state['phase'] = 'render';
 
+    if ($state['phase'] === 'prompt' && $rules['mode'] === 'full') {
+        db_run('UPDATE ce_designs SET status = "generating" WHERE id = ?', [(int) $d['id']]);
+        $fp = ce_design_full_prompt($uid, $c, $slot, $body, $d, $aiCtx['skill'], (string) $state['hint']);
+        // «ممنوع في الصورة» من الـ Skill + عيوب الصور ← بيتضافوا للبرومبت النهائي دايمًا (حتى لو كاتب البرومبت نسيهم)
+        $neg = implode(', ', array_unique(array_filter(array_map('trim', array_merge(ce_skill_items($aiCtx['skill'], 'visual_avoid'), explode(',', CE_DESIGN_NEGATIVE_FULL))))));
+        db_run('UPDATE ce_designs SET prompt = ?, negative = ? WHERE id = ?', [$fp['prompt'], mb_substr($neg, 0, 500), (int) $d['id']]);
+        $state['ref_paths'] = $fp['refs'];
+        $state['phase'] = 'image';
+        return ['done' => false, 'progress' => $prog(0.2), 'label' => $label . ($state['attempt'] ? ': بنعيد التصميم بالملاحظات' : ': جهّزنا التصميم… بنرسمه')];
+    }
+
     if ($state['phase'] === 'prompt') {
         db_run('UPDATE ce_designs SET status = "generating" WHERE id = ?', [(int) $d['id']]);
         $ctx = ce_plan_ctx($uid, $c);
@@ -331,8 +410,13 @@ function ce_design_job(array $job, array &$state): array
 
     if ($state['phase'] === 'image') {
         require_once __DIR__ . '/ai-gateway.php';
-        $refs = !empty($state['refs']) ? ce_design_refs(ce_plan_ctx($uid, $c), $body) : [];
-        $req = ['prompt' => $d['prompt'] . "\nAvoid: " . $d['negative'], 'size' => CE_GEN_SIZE[$d['aspect']] ?? '1024x1024', 'ratio' => $d['aspect']] + ($refs ? ['refs' => $refs] : []);
+        if ($rules['mode'] === 'full') {
+            $refs = function_exists('image_data_uri') ? array_values(array_filter(array_map('image_data_uri', (array) ($state['ref_paths'] ?? [])))) : [];
+            $req = ['prompt' => $d['prompt'] . ($d['negative'] !== '' && $d['negative'] !== null ? "\nAvoid: " . $d['negative'] : ''), 'size' => CE_GEN_SIZE[$d['aspect']] ?? '1024x1024', 'ratio' => $d['aspect']] + ($refs ? ['refs' => $refs] : []);
+        } else {
+            $refs = !empty($state['refs']) ? ce_design_refs(ce_plan_ctx($uid, $c), $body) : [];
+            $req = ['prompt' => $d['prompt'] . "\nAvoid: " . $d['negative'], 'size' => CE_GEN_SIZE[$d['aspect']] ?? '1024x1024', 'ratio' => $d['aspect']] + ($refs ? ['refs' => $refs] : []);
+        }
         $r = function_exists('ai_gw_enabled') && ai_gw_enabled() ? ai_run('ce_image', $req, $aiCtx + ['feature' => 'content_engine']) : ['ok' => false, 'error' => 'gateway_off', 'cost_usd' => 0];
         $state['cost_usd'] += (float) ($r['cost_usd'] ?? 0);
         $rel = !empty($r['ok']) && !empty($r['bin']) ? ce_design_store_image($uid, (string) $r['bin'], $d['aspect']) : null;
@@ -355,6 +439,12 @@ function ce_design_job(array $job, array &$state): array
         db_run('UPDATE ce_designs SET image_path = ?, model = ?, attempts = attempts + 1 WHERE id = ?', [$rel, mb_substr(trim(($r['provider'] ?? '') . ' · ' . ($r['model'] ?? ''), ' ·'), 0, 120), (int) $d['id']]);
         // الصورة القديمة بتتمسح لو مش هي «أحسن صورة» المحفوظة
         if ($old !== '' && $old !== ($state['best']['path'] ?? '') && str_starts_with($old, 'uploads/ce-designs/')) @unlink(STORAGE_PATH . '/' . $old);
+        if (!$rules['vision']) {
+            // مراجعة الصورة مقفولة (الافتراضي) ← على الرسم النهائي على طول
+            db_run('UPDATE ce_designs SET qa_json = ? WHERE id = ?', [json_encode(['skipped' => true, 'note' => 'مراجعة الصورة مقفولة من الإعدادات'], JSON_UNESCAPED_UNICODE), (int) $d['id']]);
+            $state['phase'] = 'render';
+            return ['done' => false, 'progress' => $prog(0.8), 'label' => $label . ($rules['mode'] === 'full' ? ': التصميم جاهز' : ': بنحط النص')];
+        }
         $state['phase'] = 'vision';
         return ['done' => false, 'progress' => $prog(0.55), 'label' => $label . ': الصورة جاهزة… بنراجعها'];
     }
@@ -426,17 +516,17 @@ function ce_design_hold_credits(array $c, int $aiFrames): int
     $e = json_decode((string) ($c['estimate_json'] ?? ''), true) ?: [];
     $per = 0.0;
     foreach ((array) ($e['stages'] ?? []) as $s) {
-        if (in_array($s['key'], ['ce_design_prompt', 'ce_vision_qa'], true) && (float) ($s['count'] ?? 0) > 0) $per += (float) $s['usd'] / (float) $s['count'];
+        if (in_array($s['key'], ce_design_rules()['vision'] ? ['ce_design_prompt', 'ce_vision_qa'] : ['ce_design_prompt'], true) && (float) ($s['count'] ?? 0) > 0) $per += (float) $s['usd'] / (float) $s['count'];
     }
     if (!$per) {
-        foreach (['ce_design_prompt', 'ce_vision_qa'] as $k) {
+        foreach (ce_design_rules()['vision'] ? ['ce_design_prompt', 'ce_vision_qa'] : ['ce_design_prompt'] as $k) {
             [$i, $o] = ce_token_defaults()[$k] ?? [1500, 400];
             $p = ce_stage_price($k);
             $per += $i / 1e6 * $p['in_1m'] + $o / 1e6 * $p['out_1m'];
         }
     }
     $per += ce_image_price()['usd'];
-    $regen = 1 + 0.25 * ce_design_rules()['max_regen'];
+    $regen = ce_design_rules()['vision'] ? 1 + 0.25 * ce_design_rules()['max_regen'] : 1.0;
     return max($aiFrames * ce_design_rules()['min_credits'], ce_usd_to_credits($per * $aiFrames * $regen));
 }
 
@@ -546,6 +636,15 @@ function ce_design_text(int $uid, int $cid, int $slotId, int $frame, array $in):
     // خط العنوان للتصميم ده: من خطوط البراند بس ('' = حسب الترتيب)
     $font = array_key_exists('font', $in) ? (string) $in['font'] : (string) ($d['font_family'] ?? '');
     if ($font !== '' && !in_array($font, ce_brand_fonts($uid), true)) return ['ok' => false, 'code' => 'input', 'error' => 'الخط ده مش من خطوط البراند'];
+    if (ce_design_mode() === 'full' && $d['kind'] === 'ai') {
+        // الكتابة جوه التصميم نفسه ← النص الجديد بيتحفظ وتصميم جديد بيتعمل بيه (تصميم من الحصة زي «صورة جديدة»)
+        if ($head === (string) $d['headline'] && $sub === (string) $d['subline']) return ['ok' => false, 'code' => 'input', 'error' => 'النص زي ما هو — غيّر العنوان أو السطر التاني'];
+        $old = [$d['headline'], $d['subline']];
+        db_run('UPDATE ce_designs SET headline = ?, subline = ? WHERE id = ?', [$head, $sub, (int) $d['id']]);
+        $r = ce_design_redo($uid, $cid, $slotId, $frame);
+        if (!$r['ok']) db_run('UPDATE ce_designs SET headline = ?, subline = ? WHERE id = ?', [$old[0], $old[1], (int) $d['id']]);
+        return $r['ok'] ? ['ok' => true, 'regen' => true, 'job' => $r['job'] ?? null] : $r;
+    }
     db_run('UPDATE ce_designs SET headline = ?, subline = ?, template_id = ?, font_family = ? WHERE id = ?', [$head, $sub, $tid ?: null, $font !== '' ? $font : null, (int) $d['id']]);
     $r = ce_design_render(ce_design_row($slotId, $frame), $uid);
     if (!$r['ok']) return ['ok' => false, 'code' => 'render', 'error' => $r['error'] ?? 'مقدرناش نرسم'];

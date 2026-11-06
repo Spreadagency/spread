@@ -86,7 +86,7 @@ try {
     const p = await b.newPage();
     if (await login(p, '/admin/login.php', process.env.E2E_ADMIN, process.env.E2E_ADMIN_PASS)) {
       const links = await p.evaluate(() => [...new Set([...document.querySelectorAll('.sidebar a[href*="admin/"], nav a[href*="admin/"]')].map(a => a.getAttribute('href')))]);
-      const extra = ['admin/ai-changes.php', 'admin/ai-ab.php', 'admin/ai-security.php', 'admin/profitability.php', 'admin/assistants.php'];
+      const extra = ['admin/ai-changes.php', 'admin/ai-ab.php', 'admin/ai-security.php', 'admin/profitability.php', 'admin/assistants.php', 'admin/campaign-cost.php', 'admin/ce-settings.php?tab=design'];
       for (const href of [...new Set([...links, ...extra])]) {
         const u = new URL(href, BASE + '/').pathname + new URL(href, BASE + '/').search;
         if (/logout/.test(u)) continue;

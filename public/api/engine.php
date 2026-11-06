@@ -249,6 +249,8 @@ switch ($action) {
             $in = api_input();
             $r = ce_design_text($uid, (int) $c['id'], api_int('slot_id'), api_int('frame'), array_intersect_key($in, array_flip(['headline', 'subline', 'template_id', 'font'])));
             if (!$r['ok']) api_fail($r['error'], $r['code'], $r['code'] === 'not_found' ? 404 : 422);
+            // الوضع الكامل: الكتابة جوه التصميم ← تصميم جديد بالنص الجديد (شغلانة)
+            if (!empty($r['regen'])) api_ok(['design' => ce_design_view($uid, $c), 'regen' => true, 'balance' => credits_balance($uid)]);
         }
         api_ok(['design' => ce_design_view($uid, $c)]);
 

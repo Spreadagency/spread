@@ -75,7 +75,10 @@ function px($im, int $x, int $y): array
 }
 db_run('DELETE FROM rate_limits');
 $saved = [];
-foreach (['ce_carousel_ai_images', 'ce_reel_cover', 'ce_vision_max_regen'] as $k) $saved[$k] = get_setting($k, null);
+foreach (['ce_carousel_ai_images', 'ce_reel_cover', 'ce_vision_max_regen', 'ce_design_mode', 'ce_vision_enabled'] as $k) $saved[$k] = get_setting($k, null);
+// الاختبار ده لوضع «صورة + نص بالكود» ومراجعة الصورة (اختيارين في الإعدادات) — الوضع الكامل في tests/cc1-design.php
+set_setting('ce_design_mode', 'overlay');
+set_setting('ce_vision_enabled', '1');
 set_setting('ce_carousel_ai_images', '0');   // الافتراضي: كل شرايح الكاروسيل بصورة
 set_setting('ce_reel_cover', '0');           // غلاف الريلز اختيار العميل
 set_setting('ce_vision_max_regen', '2');

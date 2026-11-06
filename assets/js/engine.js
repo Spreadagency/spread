@@ -374,7 +374,9 @@
         var r = await A.post('engine', 'design_text', { id: this.wc.id, slot_id: e.slot, frame: e.frame, headline: e.headline, subline: e.subline, template_id: e.template_id, font: e.font });
         this.busy = false;
         if (!r.ok) { this.say(r.error, 'danger'); return; }
-        this.dz = r.design; this.dEdit.slot = 0;
+        this.dEdit.slot = 0;
+        if (r.regen) { this.balance = r.balance; this.say('بنعمل التصميم من جديد بالنص الجديد…'); await this.openWrite(this.wc.id); return; }
+        this.dz = r.design;
         this.say('اتحدّث ✓');
       },
       acceptDesign: async function (s, d) {

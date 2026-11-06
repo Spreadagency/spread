@@ -109,7 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $ready) {
             set_setting($k, (string) (int) $v);
         }
         set_setting('ce_reel_cover', !empty($_POST['ce_reel_cover']) ? '1' : '0');
-        admin_log('ce_design_settings', 'settings', null, json_encode(array_intersect_key($_POST, array_flip(['ce_vision_max_regen', 'ce_vision_min_idea', 'ce_vision_min_palette', 'ce_carousel_ai_images']))));
+        set_setting('ce_design_mode', ($_POST['ce_design_mode'] ?? '') === 'overlay' ? 'overlay' : 'full');
+        set_setting('ce_vision_enabled', !empty($_POST['ce_vision_enabled']) ? '1' : '0');
+        admin_log('ce_design_settings', 'settings', null, json_encode(array_intersect_key($_POST, array_flip(['ce_vision_max_regen', 'ce_vision_min_idea', 'ce_vision_min_palette', 'ce_carousel_ai_images', 'ce_design_mode', 'ce_vision_enabled']))));
         foreach ($errs as $e) flash_set('danger', $e);
         if (!$errs) flash_set('success', 'اتحفظ ✓');
         redirect('admin/ce-settings.php?tab=design');
@@ -406,7 +408,11 @@ $secret = (string) get_setting('cron_secret', '');
 
             <form method="post" class="card" style="margin-bottom:14px">
                 <?= csrf_field() ?><input type="hidden" name="action" value="save_design">
-                <div class="a2-h"><h3>مراجعة الصورة والكريدت</h3></div>
+                <div class="a2-h"><h3>طريقة التصميم</h3></div>
+                <label class="st-sw ce-sw"><input type="radio" name="ce_design_mode" value="full" <?= $dr['mode'] === 'full' ? 'checked' : '' ?>><span><b>تصميم كامل بالكتابة (زي القديم) — الافتراضي</b><small>الموديل بيعمل التصميم كله: العنوان العربي والـ CTA جوه التصميم، واللوجو والشخصية و«تصميمات بتعجبك» بتتبعت معاه كمراجع، والكاروسيل بياخد الشريحة الأولى مرجع لباقي الشرايح.</small></span></label>
+                <label class="st-sw ce-sw"><input type="radio" name="ce_design_mode" value="overlay" <?= $dr['mode'] === 'overlay' ? 'checked' : '' ?>><span><b>صورة + نص فوقها بالكود</b><small>الموديل بيعمل صورة من غير كتابة، والنص بيترسم فوقها بقالب ثابت. الإملاء مضمون، بس الشكل أقرب لصورة ستوك.</small></span></label>
+                <label class="st-sw ce-sw"><input type="checkbox" name="ce_vision_enabled" value="1" <?= $dr['vision'] ? 'checked' : '' ?>><span><b>مراجعة الصورة (Vision) بعد كل صورة</b><small>مقفولة افتراضيًا: كل مراجعة طلب زيادة، ولو الصورة ماعدّتش بتتعاد (يعني صور زيادة). لو فتحتها، الإعادات بالحد اللي تحت.</small></span></label>
+                <div class="a2-h" style="margin-top:12px"><h3>مراجعة الصورة والكريدت</h3></div>
                 <div class="ce-fgrid">
                     <label class="ce-f"><span>إعادة الصورة لو ماعدّتش</span><input class="form-control" name="ce_vision_max_regen" value="<?= (int) $dr['max_regen'] ?>" inputmode="numeric"><small>من 0 لـ 4 · الافتراضي 2</small></label>
                     <label class="ce-f"><span>أقل مطابقة للفكرة</span><input class="form-control" name="ce_vision_min_idea" value="<?= (int) $dr['min_idea'] ?>" inputmode="numeric"><small>الافتراضي 70</small></label>
@@ -415,7 +421,7 @@ $secret = (string) get_setting('cron_secret', '');
                     <label class="ce-f"><span>أقل كريدت للصورة</span><input class="form-control" name="ce_min_credits_image" value="<?= (int) $dr['min_credits'] ?>" inputmode="numeric"><small>الافتراضي 1</small></label>
                 </div>
                 <label class="st-sw ce-sw"><input type="checkbox" name="ce_reel_cover" value="1" <?= $dr['reel_cover'] ? 'checked' : '' ?>><span><b>غلاف الريلز متعلّم من الأول في الـ Wizard</b><small>العميل هو اللي بيختار يعمل غلاف 9:16 لكل ريلز أو لأ — ده بس الاختيار المبدئي</small></span></label>
-                <p class="a2-muted" style="margin:8px 0 0">الموديل مابيكتبش أي نص جوه الصورة. المراجعة بتشوف: الألوان · المكان الفاضي للنص · العيوب (إيدين · أسنان · وشوش) · فيه كلام في الصورة · مطابقة الفكرة. موديل الصورة والمراجعة من «الموديلات ← خريطة المراحل» (ce_image · ce_vision_qa).</p>
+                <p class="a2-muted" style="margin:8px 0 0">في وضع «صورة + نص» الموديل مابيكتبش أي نص جوه الصورة. المراجعة (لو مفتوحة) بتشوف: الألوان · المكان الفاضي للنص · العيوب (إيدين · أسنان · وشوش) · فيه كلام في الصورة · مطابقة الفكرة. موديل الصورة والمراجعة من «الموديلات ← خريطة المراحل» (ce_image · ce_vision_qa).</p>
                 <button class="btn" style="margin-top:12px">حفظ</button>
             </form>
 
