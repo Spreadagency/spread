@@ -115,7 +115,7 @@ t('أول مرة: ترحيب باسم العميل', $c1 === 200 && array_key_ex
 $lk = array_column($r2['links'] ?? [], 'url');
 t('الرد + زراير الصفحات المسموحة بس (اللينك الغريب اتشال)', $c2 === 200 && str_contains((string) ($r2['reply'] ?? ''), 'رصيدك') && count($lk) === 2
     && str_contains($lk[0], 'my-plan.php?tab=balance') && str_contains($lk[1], 'payments.php') && !str_contains((string) $r2['reply'], '[LINK'), json_encode($r2, JSON_UNESCAPED_UNICODE));
-$last = json_decode((string) @file_get_contents('/tmp/claude-0/-home-user-spread/c847aa0b-e606-5d77-9835-79b34f925adf/scratchpad/mockai/last_req.json'), true);
+$last = json_decode((string) @file_get_contents(STORAGE_PATH . '/logs/mock-ai-last.json'), true);
 $sys = (string) ($last['messages'][0]['content'] ?? '');
 t('البرومبت فيه دليل المنصة وبيانات الحساب', str_contains($sys, 'ROLE: SPREAD_SUPPORT') && str_contains($sys, 'دليل المنصة') && str_contains($sys, 'طلب دفع #'));
 [$c3, $r3] = aapi($base, $sa, 'send', ['kind' => 'support', 'message' => 'النشر فشل تاني عايز اكلم الفريق', 'page' => '/content-history.php']);
@@ -144,7 +144,7 @@ t('باقة من غير الوكيل ← مقفول + لينك الترقية', 
 t('بيسأل الأول (من غير مهمة)', $k2 === 200 && $x2['run'] === null && str_contains((string) $x2['reply'], 'هدفها'), json_encode([$k2, $x2], JSON_UNESCAPED_UNICODE));
 [, $x3] = aapi($base, $sa, 'send', ['kind' => 'agent', 'message' => 'ناقص']);
 t('بريف ناقص ← بيقول محتاج إيه ومفيش مهمة', $x3['run'] === null && str_contains((string) $x3['reply'], 'محتاج أعرف'), (string) ($x3['reply'] ?? ''));
-$lastA = json_decode((string) @file_get_contents('/tmp/claude-0/-home-user-spread/c847aa0b-e606-5d77-9835-79b34f925adf/scratchpad/mockai/last_req.json'), true);
+$lastA = json_decode((string) @file_get_contents(STORAGE_PATH . '/logs/mock-ai-last.json'), true);
 t('برومبت الوكيل: خدمات العميل والرصيد والاختيارات', str_contains((string) ($lastA['messages'][0]['content'] ?? ''), 'تبييض الأسنان') && str_contains((string) ($lastA['messages'][0]['content'] ?? ''), 'ROLE: SPREAD_AGENT'));
 [$k4, $x4] = aapi($base, $sa, 'send', ['kind' => 'agent', 'message' => 'تمام نفذ']);
 $run = $x4['run'] ?? null;

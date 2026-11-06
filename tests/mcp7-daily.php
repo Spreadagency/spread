@@ -78,7 +78,7 @@ t('قبل الساعة ← مابيعملش حاجة', dr_tick(8) === null && ge
 $r = dr_tick(9);
 $rep = dr_get($day);
 t('بعد الساعة ومفيش تقرير من Claude ← تقرير تلقائي', ($r['source'] ?? '') === 'auto' && $rep && dr_source($rep) === 'auto' && str_contains((string) $rep['summary'], 'التقرير اليومي التلقائي'), json_encode($r));
-$last = json_decode((string) @file_get_contents('/tmp/claude-0/-home-user-spread/c847aa0b-e606-5d77-9835-79b34f925adf/scratchpad/mockai/last_req.json'), true);
+$last = json_decode((string) @file_get_contents(STORAGE_PATH . '/logs/mock-ai-last.json'), true);
 t('الخلاصة بالـ AI اتطلبت بأرقام اليوم', str_contains(json_encode($last, JSON_UNESCAPED_UNICODE), 'اكتب خلاصة لصاحب المنصة'));
 t('تنبيه للأدمن «تلقائي — Claude ماشتغلش»', (bool) db_one('SELECT id FROM admin_alerts WHERE dedupe_key = ?', ['dr:' . $day . ':auto']));
 t('مرة واحدة في اليوم', dr_tick(10) === null);

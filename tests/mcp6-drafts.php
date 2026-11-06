@@ -74,7 +74,7 @@ t('التوليد التجريبي محتاج صلاحية المسودات (rea
 [$c, $r] = call('test_regenerate', 'draft', ['post_id' => $post]);
 t('من غير مسودة أو إصدار ← مرفوض', $c === 422);
 [$c, $r] = call('test_regenerate', 'draft', ['prompt_draft_id' => $did, 'post_id' => $post]);
-$last = json_decode((string) @file_get_contents('/tmp/claude-0/-home-user-spread/c847aa0b-e606-5d77-9835-79b34f925adf/scratchpad/mockai/last_req.json'), true);
+$last = json_decode((string) @file_get_contents(STORAGE_PATH . '/logs/mock-ai-last.json'), true);
 t('قبل/بعد على منشور حقيقي', $c === 200 && str_contains((string) ($r['before'] ?? ''), 'نص المنشور الأصلي MCP6') && ($r['after'] ?? '') !== '' && (int) ($r['sandbox_run_id'] ?? 0) > 0, json_encode([$c, $r], JSON_UNESCAPED_UNICODE));
 t('الموديل اتبعتله المسودة نفسها (مش المفعّل)', str_contains(json_encode($last, JSON_UNESCAPED_UNICODE), 'MCP6: خلي أول سطر سؤال للعميل'));
 $pc = db_one('SELECT generated_text FROM contents WHERE id = ?', [$post]);
