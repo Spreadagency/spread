@@ -101,6 +101,18 @@ include __DIR__ . '/../templates/admin-header.php';
         </div>
         <?php endforeach; ?>
 
+        <?php $cs = cc_cache_stats(30); ?>
+        <div class="card">
+            <div class="a2-h"><h3>الكاش (آخر 30 يوم)</h3><span class="a2-en"><?= $cs['on'] ? 'ترتيب الكاش شغال' : 'ترتيب الكاش مقفول (campaign_prompt_cache = 0)' ?></span></div>
+            <?php if (!$cs['runs']): ?><div class="a2-empty">لسه مفيش طلبات حملات في السجل</div><?php else: ?>
+            <p style="margin:0;line-height:2">
+                <?= (int) $cs['runs'] ?> طلب (أفكار · كتابة · تقييم) · <?= a2n($cs['tokens_in'], 0) ?> توكن داخل · منهم <b><?= a2n($cs['tokens_cached'], 0) ?></b> من الكاش
+                = <b style="color:<?= $cs['pct'] >= 30 ? 'var(--ok, #12805c)' : 'inherit' ?>"><?= a2n($cs['pct'], 1) ?>%</b>
+            </p>
+            <p class="a2-muted" style="margin:6px 0 0">الجزء الثابت (ملف البراند + الـ Skill) بقى في أول كل طلب في الحملة وبنفس الحروف — المزوّد بيحسبه بخصم لما يتكرر في دقايق. النسبة دي بتقولك التوفير الحقيقي.</p>
+            <?php endif; ?>
+        </div>
+
         <div class="card">
             <div class="a2-h"><h3>إزاي بيتحسب</h3></div>
             <p class="a2-muted" style="margin:0;line-height:2">

@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-11-06',
-  'generated' => '2026-11-06 23:43',
+  'generated' => '2026-11-06 23:49',
   'update' => 
   array (
     0 => 'admin/ai-ab.php',
@@ -410,8 +410,8 @@ return array (
     ),
     'admin/campaign-cost.php' => 
     array (
-      'h' => 'cefa42edcd0a9ee3961ce6634d3723ae',
-      's' => 9397,
+      'h' => '13c53ee86eca92ebbc878a378fa7c06e',
+      's' => 10599,
     ),
     'admin/ce-insights.php' => 
     array (
@@ -585,8 +585,8 @@ return array (
     ),
     'admin/prompts.php' => 
     array (
-      'h' => 'a0382e73c381c85f5cb58db92ef0f332',
-      's' => 31922,
+      'h' => '7fb70f34f6ab12193561ca6205bec15a',
+      's' => 32468,
     ),
     'admin/quality-tiers.php' => 
     array (
@@ -900,8 +900,8 @@ return array (
     ),
     'docs/CPANEL_UPDATE.md' => 
     array (
-      'h' => '28a6ad5299e1ab96a85a877c327d53cb',
-      's' => 56872,
+      'h' => 'f98a8e1f9bf93d7bdaba16dd45b80bd2',
+      's' => 58719,
     ),
     'docs/MCP_PHASES.md' => 
     array (
@@ -1015,13 +1015,13 @@ return array (
     ),
     'includes/campaign-cost.php' => 
     array (
-      'h' => 'cd1f55b493e48698812e82fc6d6b6c7a',
-      's' => 11549,
+      'h' => '8eb2fb657dc83d8b17f7ea178eed85a6',
+      's' => 12874,
     ),
     'includes/campaign-flow.php' => 
     array (
-      'h' => '0e7d84f89fdf10802b2b8c54f00f212c',
-      's' => 59068,
+      'h' => 'cd726fe40f76619d5cb581468089414f',
+      's' => 62093,
     ),
     'includes/campaign-jobs.php' => 
     array (
@@ -1100,8 +1100,8 @@ return array (
     ),
     'includes/ce-skills.php' => 
     array (
-      'h' => '636040535c024ebaf2e0112cad824da1',
-      's' => 22348,
+      'h' => '846e2de8ab8f07e379caf3535ff1a63e',
+      's' => 22631,
     ),
     'includes/ce-skills/_template.md' => 
     array (

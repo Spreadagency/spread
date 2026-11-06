@@ -190,3 +190,24 @@ function cc_report(array $shapeIn = []): array
     }
     return ['shape' => $shape, 'fx' => $fx, 'steps' => $byTier, 'rows' => $rows];
 }
+
+/**
+ * قياس الكاش (خطة الحملات §7): من سجل الطلبات — طلبات الحملات (الأفكار · الكتابة · التقييم) آخر N يوم
+ * @return array{runs: int, tokens_in: int, tokens_cached: int, pct: float, cost_usd: float, on: bool}
+ */
+function cc_cache_stats(int $days = 30): array
+{
+    $out = ['runs' => 0, 'tokens_in' => 0, 'tokens_cached' => 0, 'pct' => 0.0, 'cost_usd' => 0.0,
+            'on' => function_exists('get_setting') && get_setting('campaign_prompt_cache', '1') === '1'];
+    try {
+        $r = db_one('SELECT COUNT(*) n, COALESCE(SUM(tokens_in), 0) tin, COALESCE(SUM(tokens_cached), 0) tc, COALESCE(SUM(cost_usd), 0) usd FROM ai_runs
+                     WHERE task IN ("content", "ideas", "eval") AND ref_type IN ("campaign", "campaign_idea") AND status = "ok" AND COALESCE(sandbox, 0) = 0
+                       AND created_at > DATE_SUB(NOW(), INTERVAL ? DAY)', [max(1, $days)]);
+        $out['runs'] = (int) $r['n'];
+        $out['tokens_in'] = (int) $r['tin'];
+        $out['tokens_cached'] = min((int) $r['tc'], (int) $r['tin']);
+        $out['pct'] = $out['tokens_in'] > 0 ? round(100 * $out['tokens_cached'] / $out['tokens_in'], 1) : 0.0;
+        $out['cost_usd'] = round((float) $r['usd'], 4);
+    } catch (\Throwable $e) {}
+    return $out;
+}

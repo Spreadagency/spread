@@ -65,6 +65,9 @@ function mk_skill(string $md): array
 
 db_run('DELETE FROM rate_limits');
 $savedSetting = get_setting('campaign_skills_enabled', null);
+// الاختبار ده للترتيب القديم (Skill لكل مرحلة بأقسامها) — ترتيب الكاش في tests/cc6-cache.php
+$savedCache = get_setting('campaign_prompt_cache', null);
+set_setting('campaign_prompt_cache', '0');
 db_run('DELETE FROM settings WHERE setting_key = "campaign_skills_enabled"');
 // لو «general» موجودة من قبل (أدمن استوردها): بنقفلها وقت الاختبار ونرجّعها
 $preGeneral = db_one('SELECT id, is_enabled FROM ce_skills WHERE skey = "general"');
@@ -213,6 +216,8 @@ if ($preGeneral) {
     db_run('UPDATE ce_skills SET is_enabled = ? WHERE id = ?', [(int) $preGeneral['is_enabled'], (int) $preGeneral['id']]);
 }
 if ($savedSetting !== null) set_setting('campaign_skills_enabled', $savedSetting);
+db_run('DELETE FROM settings WHERE setting_key = "campaign_prompt_cache"');
+if ($savedCache !== null) set_setting('campaign_prompt_cache', $savedCache);
 ce_skill_cache_bust();
 
 echo "\n" . ($fail ? "✗ $fail فشل · " : '✓ ') . "$pass نجح\n";

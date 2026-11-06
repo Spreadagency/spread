@@ -47,6 +47,8 @@ const CE_SKILL_STAGE_MAP = [
     'campaign_content' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra'],
     'campaign_eval' => ['rules', 'forbidden', 'critic'],
     'design_base' => ['visual', 'visual_avoid'],
+    // ترتيب الكاش (خطة الحملات §7): الـ Skill كاملة (نص) مرة واحدة في أول كل خطوات الحملة — بنفس الحروف
+    'campaign_all' => ['knowledge', 'rules', 'forbidden', 'angles', 'hooks', 'examples', 'critic', 'extra'],
 ];
 
 /** الـ Skill العامة: بتشتغل لما مفيش تخصص (ومش بتتعرف بكلمات) */

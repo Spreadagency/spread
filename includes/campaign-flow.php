@@ -129,6 +129,48 @@ function campaign_skill(array $brand, array $c = []): ?array
     return $sk;
 }
 
+/* ═══ ترتيب الكاش (خطة الحملات §7 — «المرحلة 6») ═══
+ * الجزء الثابت في أول البرومبت وبنفس الحروف في كل خطوات الحملة (الأفكار · الكتابة · التقييم · التحسين):
+ *   ملف البراند الموحّد + الـ Skill كاملة ← وبعدهم تعليمات الخطوة (والبريف الخاص بالمنشور).
+ * المزوّد بيحسب الجزء الثابت بخصم لما يتكرر (OpenAI تلقائي فوق 1024 توكن · غيره حسب المزوّد) — التوفير مش داخل في التسعير.
+ * القياس: tokens_cached في سجل الطلبات (الأدمن ← 🧮 تكلفة الحملة). الإعداد campaign_prompt_cache = 0 بيرجّع الترتيب القديم. */
+const CAMP_CACHE_SPLIT = '=== تعليمات الخطوة ===';
+
+function campaign_prompt_cache_on(): bool
+{
+    return get_setting('campaign_prompt_cache', '1') === '1';
+}
+
+/** الجزء الثابت لحملة (نفس الحروف لكل الخطوات) */
+function campaign_cache_prefix(array $brand, array $c = []): string
+{
+    if (!function_exists('ce_skill_block')) require_once __DIR__ . '/ce-skills.php';
+    $GLOBALS['__camp_cache_raw'] = true;   // البلوك الكامل هنا بس — جوه الخطوات بيبقى إشارة
+    try {
+        $b = campaign_brand_block($brand, 'copy');
+    } finally {
+        unset($GLOBALS['__camp_cache_raw']);
+    }
+    $sk = campaign_skill($brand, $c);
+    $skill = $sk ? trim(ce_skill_block('campaign_all', $sk)) : '';
+    return "CAMPAIGN_CONTEXT — ملف البراند وخبرة المجال (ثابتين في كل خطوات الحملة — اعتمد عليهم):\n\n" . trim($b)
+        . ($skill !== '' ? "\n\n" . $skill : '') . "\n\n" . CAMP_CACHE_SPLIT . "\n";
+}
+
+/** برومبت خطوة: الثابت الأول ← الخطوة (وجوه الخطوة ملف البراند بقى إشارة بدل ما يتكرر) */
+function campaign_prompt_wrap(string $stage, array $brand, array $c, callable $build): string
+{
+    if (!campaign_prompt_cache_on()) return campaign_skill_prefix($stage, $brand, $c) . $build();
+    $prefix = campaign_cache_prefix($brand, $c);
+    $GLOBALS['__camp_cache'] = true;
+    try {
+        $body = $build();
+    } finally {
+        unset($GLOBALS['__camp_cache']);
+    }
+    return $prefix . $body;
+}
+
 /** بلوك الـ Skill في أول برومبت المرحلة (ثابت لنفس البراند — أحسن للكاش) — فاضي لو مفيش */
 function campaign_skill_prefix(string $stage, array $brand, array $c = []): string
 {
@@ -141,6 +183,11 @@ function campaign_skill_prefix(string $stage, array $brand, array $c = []): stri
 /** سطور هوية البراند للبرومبتات — + Brand Kit للـ Agent ده (والبريف لو بوست واحد) */
 function campaign_brand_block(array $brand, string $agent = 'copy', ?array $brief = null): string
 {
+    // ترتيب الكاش: ملف البراند مكتوب كامل في أول الرسالة — هنا إشارة + البريف الخاص بالمنشور بس
+    if (!empty($GLOBALS['__camp_cache']) && empty($GLOBALS['__camp_cache_raw'])) {
+        $bt = $brief && class_exists('BrandContext') ? trim(BrandContext::briefText($brief, $agent)) : '';
+        return 'ملف البراند: مكتوب كامل في أول الرسالة (CAMPAIGN_CONTEXT) — التزم بيه.' . ($bt !== '' ? "\n\nبريف المنشور ده:\n" . $bt : '');
+    }
     if (!function_exists('bk_brand_block')) require_once __DIR__ . '/brand-kit.php';
     $__u = bk_brand_block($brand, $agent, $brief);
     if ($__u !== null) return $__u;
@@ -171,7 +218,7 @@ function campaign_dialect(array $brand): string
 /** برومبت دفعة أفكار (JSON) — بيتجنب الأفكار اللي طلعت قبل كده · التعليمات من الأدمن (campaign_ideas) */
 function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitles, string $plan = ''): string
 {
-    return campaign_skill_prefix('campaign_ideas', $brand, $c) . campaign_ideas_prompt_base($brand, $c, $n, $avoidTitles, $plan);
+    return campaign_prompt_wrap('campaign_ideas', $brand, $c, fn() => campaign_ideas_prompt_base($brand, $c, $n, $avoidTitles, $plan));
 }
 
 function campaign_ideas_prompt_base(array $brand, array $c, int $n, array $avoidTitles, string $plan = ''): string
@@ -323,8 +370,7 @@ function campaign_idea_format(array $idea): string
  */
 function campaign_content_prompt(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null, array $task = []): string
 {
-    return campaign_skill_prefix('campaign_content', $brand, $c)
-        . campaign_content_prompt_base($brand, $c, $idea, $extra, $format, $slides, $duration, $brief, $task);
+    return campaign_prompt_wrap('campaign_content', $brand, $c, fn() => campaign_content_prompt_base($brand, $c, $idea, $extra, $format, $slides, $duration, $brief, $task));
 }
 
 function campaign_content_prompt_base(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null, array $task = []): string
@@ -475,7 +521,7 @@ function campaign_split_text(string $text): array
 /** برومبت التقييم (JSON) — التعليمات والمعايير ودرجة النجاح من الأدمن (campaign_eval) */
 function campaign_eval_prompt(array $brand, array $c, array $idea, array $content): string
 {
-    return campaign_skill_prefix('campaign_eval', $brand, $c) . campaign_eval_prompt_base($brand, $c, $idea, $content);
+    return campaign_prompt_wrap('campaign_eval', $brand, $c, fn() => campaign_eval_prompt_base($brand, $c, $idea, $content));
 }
 
 function campaign_eval_prompt_base(array $brand, array $c, array $idea, array $content): string

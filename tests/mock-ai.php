@@ -216,6 +216,16 @@ if (isset($content)) {
     $content = "ابتسامتك تستاهل اهتمام 😁\nفي عيادتنا هتلاقي تعقيم كامل ومواعيد مرنة.\nاحجز كشفك النهارده وابعتلنا على واتساب.\n#ابتسامة #أسنان";
 }
 
+// كاش وهمي (خطة الحملات §7): نفس الجزء الثابت قبل «=== تعليمات الخطوة ===» في آخر 5 دقايق ← 600 توكن من الكاش
+if (($sp = mb_strpos($text, '=== تعليمات الخطوة ===')) !== false) {
+    $cf = dirname(__DIR__) . '/storage/logs/mock-ai-cache.json';
+    $seen = json_decode((string) @file_get_contents($cf), true) ?: [];
+    $hk = md5(mb_substr($text, 0, $sp));
+    if (isset($seen[$hk]) && time() - (int) $seen[$hk] < 300) $usage['prompt_tokens_details']['cached_tokens'] = 600;
+    $seen[$hk] = time();
+    @file_put_contents($cf, json_encode(array_slice($seen, -200, null, true)));
+}
+
 echo json_encode([
     'id' => 'mock-' . bin2hex(random_bytes(4)), 'object' => 'chat.completion', 'created' => time(), 'model' => (string) ($in['model'] ?? 'mock-text'),
     'choices' => [['index' => 0, 'message' => ['role' => 'assistant', 'content' => $content], 'finish_reason' => 'stop']],

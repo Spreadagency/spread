@@ -73,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // خطة الحملات §5: الكتابة + التقييم في طلب واحد (single) أو زي الأول (classic)
         set_setting('campaign_write_mode', ($_POST['write_mode'] ?? '') === 'classic' ? 'classic' : 'single');
         set_setting('campaign_auto_improve_rounds', (string) max(0, min(2, (int) ($_POST['rounds'] ?? 1))));
+        set_setting('campaign_prompt_cache', !empty($_POST['prompt_cache']) ? '1' : '0');
         admin_log('campaign_write_mode', 'settings', null, get_setting('campaign_write_mode') . ' rounds=' . get_setting('campaign_auto_improve_rounds'));
         flash_set('success', 'اتحفظت طريقة الكتابة ✓');
         redirect('admin/prompts.php?type=campaign_eval');
@@ -323,6 +324,8 @@ include __DIR__ . '/../templates/admin-header.php';
                     </div>
                     <div class="field"><label>تحسين تلقائي لو الدرجة تحت الحد (مرات · مش بيتخصم من العميل)</label>
                         <input type="number" name="rounds" class="input" min="0" max="2" value="<?= (int) get_setting('campaign_auto_improve_rounds', '1') ?>" style="max-width:120px"></div>
+                    <label style="display:flex;gap:8px;align-items:center;margin:0 0 10px"><input type="checkbox" name="prompt_cache" value="1" <?= get_setting('campaign_prompt_cache', '1') === '1' ? 'checked' : '' ?>>
+                        ترتيب الكاش: ملف البراند والـ Skill في أول كل طلب وبنفس الحروف (أرخص لما المزوّد يكاش — النسبة في «🧮 تكلفة الحملة»)</label>
                     <button class="btn ghost">حفظ الطريقة</button>
                 </form>
                 <?php endif; ?>
