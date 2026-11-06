@@ -192,7 +192,12 @@ function campaign_ideas_prompt_base(array $brand, array $c, int $n, array $avoid
             'offer' => $details, 'topic' => (string) ($c['topic'] ?? ''),
             'extra_notes' => trim('اسم الحملة: ' . ($c['title'] ?? '') . ($details !== '' ? "\n" . $details : '') . ($plan !== '' ? "\n\n" . $plan : '')),
             'previous_ideas' => $avoidTitles ? '- ' . implode("\n- ", array_slice($avoidTitles, 0, 40)) : 'مفيش'];
-        return prompt_fill('campaign_ideas', $vars, ['uid' => (int) ($brand['user_id'] ?? 0), 'brand' => $brand, 'agent' => 'ideas'])
+        $__filled = prompt_fill('campaign_ideas', $vars, ['uid' => (int) ($brand['user_id'] ?? 0), 'brand' => $brand, 'agent' => 'ideas']);
+        // قالب v1 مافيهوش {previous_ideas} ← قايمة «ماتكررهاش» (أفكار الحملة + المرفوضة) كانت مابتوصلش للموديل
+        if ($avoidTitles && !str_contains($__filled, (string) reset($avoidTitles))) {
+            $__filled .= "\n\nأفكار اتعملت أو اترفضت قبل كده — ماتكررهاش ولا تقرب منها:\n- " . implode("\n- ", array_slice($avoidTitles, 0, 60));
+        }
+        return $__filled
             . prompt_format_head() . "مطلوب {$n} أفكار بالظبط. formats من القايمة دي بس: " . implode('، ', CAMP_FORMATS) . ".\n" . $fmt
             . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}';
     }
@@ -798,7 +803,12 @@ function campaign_idea_api(array $i, ?array $content, array $designs): array
 function campaign_board(array $c): array
 {
     campaign_adopt_contents($c);
-    $ideas = db_all('SELECT * FROM campaign_ideas WHERE campaign_id = ? AND user_id = ? ORDER BY sort_order, id', [$c['id'], $c['user_id']]);
+    // الأفكار «المرفوضة» (خطة الحملات §7) بتفضل للذاكرة بس — مش بتظهر
+    try {
+        $ideas = db_all('SELECT * FROM campaign_ideas WHERE campaign_id = ? AND user_id = ? AND rejected = 0 ORDER BY sort_order, id', [$c['id'], $c['user_id']]);
+    } catch (\Throwable $e) {
+        $ideas = db_all('SELECT * FROM campaign_ideas WHERE campaign_id = ? AND user_id = ? ORDER BY sort_order, id', [$c['id'], $c['user_id']]);
+    }
     $cids = array_values(array_filter(array_map(fn($i) => (int) $i['content_id'], $ideas)));
     $contents = [];
     if ($cids) {

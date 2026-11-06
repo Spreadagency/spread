@@ -189,9 +189,9 @@ if (get_setting('meta_app_secret_enc', '') === '') {
 
 /* ─── 10) الفيديو المقفول بيترفض قبل الخصم ─── */
 echo "حملة: الفيديو المقفول\n";
-$src = (string) file_get_contents($root . '/public/api/campaign-flow.php');
-t('شرط cf_video_locked قبل خصم كتابة الفكرة', strpos($src, 'cf_video_locked($old)) api_fail') < strpos($src, 'cf_charge($uid, $cost, ($old ? \'إعادة كتابة\''));
-t('الحملة بتسيب الجلسة غير في توليد الأفكار', str_contains($src, "api_boot(true, \$action === 'ideas_generate')"));
+$src = (string) file_get_contents($root . '/includes/campaign-write.php');   // كتابة الفكرة اتنقلت من api/campaign-flow.php
+t('شرط cf_video_locked قبل خصم كتابة الفكرة', ($a = strpos($src, 'cw_video_locked($old)) return $fail')) !== false && $a < strpos($src, 'credits_consume($uid, $cost, ($old ? \'إعادة كتابة\''));
+t('الحملة بتسيب الجلسة غير في توليد الأفكار', str_contains((string) file_get_contents($root . '/public/api/campaign-flow.php'), "api_boot(true, \$action === 'ideas_generate')"));
 
 /* ─── 11) صورة الستايل من لينك: مايوصلش للسيرفر نفسه أو شبكته (SSRF) ─── */
 echo "صورة الستايل من لينك\n";

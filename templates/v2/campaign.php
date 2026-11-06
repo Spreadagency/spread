@@ -24,10 +24,10 @@
             <small class="cf-save" :class="save.state"><?= ui_icon('check', 13) ?> {{ saveText() }}</small>
         </div>
         <ol class="cf-steps">
-            <li v-for="n in [1,2,3,4,5,6]" :key="n" :class="stepCls(n)">
+            <li v-for="n in stepList()" :key="n" :class="stepCls(n)">
                 <button type="button" @click.stop="go(n)" :disabled="!canGo(n)" :aria-current="c.stage === n ? 'step' : null">
                     <span class="cf-step-ic" v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span>
-                    <span class="cf-step-txt"><b>{{ n }}. {{ stages[n].name }}</b><small>{{ stages[n].desc }}</small></span>
+                    <span class="cf-step-txt"><b>{{ stepList().indexOf(n) + 1 }}. {{ stages[n].name }}</b><small>{{ stages[n].desc }}</small></span>
                 </button>
             </li>
         </ol>
@@ -46,7 +46,7 @@
                 <small class="cf-crumb-d"><a :href="base + '/campaigns.php'">حملاتي</a> / {{ c.title }}</small>
                 <div class="cf-crumb-m"><b>{{ c.title }}</b><span class="cf-chip" :class="statusChip().cls">{{ statusChip().label }}</span></div>
                 <small class="cf-crumb-m cf-save" :class="save.state"><?= ui_icon('check', 12) ?> {{ saveText() }}</small>
-                <h1>المرحلة {{ c.stage }} من 6 · {{ stages[c.stage].name }}</h1>
+                <h1>المرحلة {{ stepList().indexOf(c.stage) + 1 }} من {{ stepList().length }} · {{ stages[c.stage].name }}</h1>
             </div>
             <div class="cf-think-pill" v-if="ai.on" aria-live="polite"><span class="cf-orb sm"><i></i></span>{{ ai.msg }}</div>
             <div class="cf-menu" @click.stop>
@@ -62,9 +62,9 @@
 
         <!-- موبايل: المراحل أفقي -->
         <ol class="cf-hsteps" aria-label="مراحل الحملة">
-            <li v-for="n in [1,2,3,4,5,6]" :key="n" :class="stepCls(n)">
+            <li v-for="n in stepList()" :key="n" :class="stepCls(n)">
                 <button type="button" @click.stop="go(n)" :disabled="!canGo(n)">
-                    <span class="cf-step-ic"><em>{{ n }}</em><span v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span></span>
+                    <span class="cf-step-ic"><em>{{ stepList().indexOf(n) + 1 }}</em><span v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span></span>
                     <small>{{ stages[n].name }}</small>
                 </button>
             </li>
@@ -77,6 +77,25 @@
             <p class="sub">هويتك دلوقتي {{ health.pct }}%. المحتوى والتصميم بيتبنوا على Brand Brain علشان الـ AI يكتب ويصمم بأسلوبك.</p>
             <div class="cf-bar"><span :style="{ width: health.pct + '%' }"></span></div>
             <a :href="base + '/brand-brain.php'" class="cf-btn primary sm">🧬 كمّل هوية البراند</a>
+        </div>
+
+        <!-- خطة الحملات: الحملة في الباقة (المسودة ← «اعتمد الخطة» ← حدود الحملة) -->
+        <div class="cf-card cf-pkg" v-if="pkg" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
+            <span class="pv-c" v-if="pkg.state === 'draft'" style="display:contents">
+                <div style="flex:1;min-width:220px"><b>📝 الحملة مسودة — لسه ماتحسبتش من باقتك</b>
+                    <small class="cf-muted" style="display:block">إعادة الخطة ببلاش: فاضل {{ Math.max(0, pkg.draft.free_regens - Math.max(0, pkg.draft.plans - 1)) }} · أفكار بديلة ببلاش: فاضل {{ Math.max(0, pkg.draft.free_alts - pkg.draft.alts) }}<span v-if="allowance"> · حملات متاحة: {{ allowance.left }} من {{ allowance.allow }}</span></small></div>
+                <label class="cf-muted" style="display:flex;gap:6px;align-items:center">منشورات <input type="number" class="cf-input" style="width:70px" min="1" :max="pkg.posts.max" v-model="pkgT.posts" @change="setTargets()"> / {{ pkg.posts.max }}</label>
+                <label class="cf-muted" style="display:flex;gap:6px;align-items:center" v-if="pkg.videos.max">فيديو <input type="number" class="cf-input" style="width:60px" min="0" :max="pkg.videos.max" v-model="pkgT.videos" @change="setTargets()"> / {{ pkg.videos.max }}</label>
+                <button type="button" class="cf-btn primary sm" @click="approvePlan()" :disabled="bulk.on || !selectedCount()">✓ اعتمد الخطة</button>
+            </span>
+            <span class="pv-c" v-if="pkg.state === 'approved'" style="display:contents">
+                <div style="flex:1;min-width:220px"><b>📣 من باقتك</b>
+                    <small class="cf-muted" style="display:block">📝 {{ pkg.posts.used }} من {{ pkg.posts.limit }} منشور<span v-if="pkg.videos.limit"> · 🎬 {{ pkg.videos.used }} من {{ pkg.videos.limit }} فيديو</span> · ✏️ فاضل {{ pkg.edits.left }} تعديل ببلاش (بعدها بالكريدت) · تصميم كل منشور ببلاش</small></div>
+            </span>
+            <span class="pv-c" v-if="pkg.state !== 'draft' && pkg.state !== 'approved'" style="display:contents">
+                <div style="flex:1"><b>الحملة دي {{ pkg.state === 'cancelled' ? 'اتلغت' : 'خلصت' }}</b></div>
+            </span>
+            <button type="button" class="cf-link danger" v-if="pkg.state === 'draft' || pkg.state === 'approved'" @click="cancelPlan()">إلغاء الحملة</button>
         </div>
 
         <!-- التفكير (أي شغل جماعي) -->
@@ -167,6 +186,8 @@
                     <input id="cf-cta" class="cf-input" v-model="setup.cta" @input="touch()" maxlength="200" :placeholder="opts.cta || 'مثلًا: احجز دلوقتي على واتساب'">
 
                     <label class="cf-lbl" for="cf-notes">تفاصيل إضافية <small>(اختياري)</small></label>
+                    <div class="cf-muted" v-if="questions.length" style="font-size:13px;margin:-2px 0 6px">💡 جاوب في التفاصيل على اللي يهمك (من خبرة مجالك):
+                        <ul style="margin:4px 0 0;padding-inline-start:18px"><li v-for="q in questions" :key="q">{{ q }}</li></ul></div>
                     <textarea id="cf-notes" class="cf-input" rows="3" v-model="c.notes" @input="touch()" maxlength="2000" placeholder="أضف أي تفاصيل تحب... مثلًا: عرض 30% على التبييض لحد آخر الشهر"></textarea>
                     <button type="button" class="cf-btn primary big" @click="genIdeas()" :disabled="bulk.on || !c.basis || !setupTotal()">
                         {{ ideas.length ? 'إعادة توليد الأفكار ✨' : 'ابدأ توليد الأفكار ✨' }}
@@ -236,6 +257,7 @@
                                 <div class="cf-idea-foot">
                                     <span class="cf-grow"></span>
                                     <span class="cf-have" v-if="i.content">✓ ليها محتوى</span>
+                                    <button type="button" class="cf-link" v-if="!i.content && (!pkg || pkg.state === 'draft')" @click="altIdea(i)" :disabled="bulk.on || null">🔄 فكرة بديلة</button>
                                     <button type="button" class="cf-link" @click="startEdit(i)"><?= ui_icon('edit', 14) ?> تعديل</button>
                                 </div>
                             </div>
@@ -269,9 +291,16 @@
                     <button type="button" v-for="i in selected()" :key="i.id" class="cf-idea-pill" :class="{ on: active === i.id }" @click="active = i.id; mode = ''">
                         <small>الفكرة #{{ i.n }}</small><b>{{ i.title }}</b>
                         <em :class="i.content ? 'ok' : (running[i.id] ? 'run' : '')">{{ i.content ? '✓' : (running[i.id] ? '…' : '○') }}</em>
+                        <small v-if="i.eval && i.eval.mode === 'self'" :style="{ color: i.eval.ready ? 'var(--ok, #12805c)' : 'var(--warn, #b25e00)' }">{{ i.eval.missing ? '⚠ محتاج مراجعة' : (i.eval.ready ? '⭐ ' + i.eval.score : '⚠ ' + i.eval.score) }}</small>
                     </button>
                 </aside>
                 <section class="cf-editor-wrap">
+                    <!-- التقييم جاي مع الكتابة (خطة الحملات §5): الدرجة والملاحظات جنب المنشور -->
+                    <div class="cf-card" v-if="cur() && cur().eval && cur().eval.mode === 'self'" style="margin-bottom:10px;padding:10px 12px">
+                        <b>{{ cur().eval.missing ? '⚠ التقييم مارجعش — راجع المنشور بنفسك' : (cur().eval.ready ? '⭐ ' + cur().eval.score + '/100 — جاهز للتصميم' : '⚠ ' + cur().eval.score + '/100 — محتاج مراجعة (الحد ' + cur().eval.pass_total + ')') }}</b>
+                        <small class="cf-muted" v-if="cur().eval.auto_improved"> · اتحسّن لوحده {{ cur().eval.auto_improved }} مرة</small>
+                        <div class="cf-muted" style="font-size:13px;margin-top:4px" v-if="cur().eval.issues">{{ cur().eval.issues }}</div>
+                    </div>
                     <div class="cf-split">
                         <div class="cf-tabs" role="tablist" v-if="cur() && modesFor(cur()).length > 1">
                             <button type="button" role="tab" v-for="m in modesFor(cur())" :key="m[0]" :aria-selected="curMode() === m[0]" :class="{ on: curMode() === m[0] }" @click="mode = m[0]">{{ m[1] }}</button>
@@ -703,7 +732,7 @@
         <!-- ═══════════ شريط التنقل ═══════════ -->
         <footer class="cf-nav">
             <div class="cf-nav-txt"><b>{{ navInfo().title }}</b><small>{{ navInfo().sub }}</small></div>
-            <button type="button" class="cf-btn ghost" @click="go(c.stage - 1)" :disabled="c.stage === 1 || bulk.on"><?= ui_icon('chevron', 16) ?> السابق</button>
+            <button type="button" class="cf-btn ghost" @click="go(nextStep(c.stage, -1))" :disabled="c.stage === 1 || bulk.on"><?= ui_icon('chevron', 16) ?> السابق</button>
             <button type="button" class="cf-btn primary cf-next" v-if="c.stage < 6" @click="next()" :disabled="!canNext() || bulk.on">
                 {{ navInfo().cta }} <span class="cf-arrow"><?= ui_icon('chevron', 16) ?></span></button>
             <a class="cf-btn ghost" v-if="c.stage === 6" :href="base + '/campaigns.php'" @click="saveAndExit()">حفظ والعودة</a>
@@ -760,6 +789,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // ⑦-ج أشكال المحتوى
     fmtList: [{ k: 'post', e: '🖼', t: 'منشور' }, { k: 'carousel', e: '🎠', t: 'كاروسيل' }, { k: 'video', e: '🎬', t: 'فيديو' }, { k: 'story', e: '📱', t: 'ستوري' }],
     limits: init.limits,
+    // خطة الحملات (المرحلة 5)
+    pkg: init.package || null, allowance: init.allowance || null, writeMode: init.write_mode || 'classic', bg: !!init.bg, questions: init.questions || [],
+    pkgT: { posts: init.package ? init.package.posts.limit : 0, videos: init.package ? init.package.videos.limit : 0 },
     dsel: {}, ratio: '1:1', plat: (init.campaign.prefs && init.campaign.prefs.platform) || 'facebook',
     month: '', week: 1, pick: null, dragId: null, dropOn: '', page: 0, pubRes: {},
 
@@ -881,7 +913,72 @@ document.addEventListener('DOMContentLoaded', function () {
       this.notify('جهّزنا رسالة الطلب على واتساب 📲');
     },
 
+    /* ── الحملة في الباقة (خطة الحملات §2) ── */
+    async approvePlan() {
+      if (!this.pkg || this.pkg.state !== 'draft') return true;
+      if (!confirm('نعتمد الخطة دي؟\nالحملة هتتحسب من حملات باقتك (' + (this.allowance ? 'فاضل ' + this.allowance.left : '') + ')، والمنشورات وتصميم كل منشور من حد الحملة.')) return false;
+      var r = await SpreadAPI.post('campaign-flow', 'plan_approve', { id: this.c.id });
+      if (!r.ok) { this.notify(r.error, 'danger'); return false; }
+      this.pkg = r.package; this.allowance = r.allowance; this.notify('اتعتمدت الخطة ✓');
+      return true;
+    },
+    async cancelPlan() {
+      var written = this.withContent().length;
+      if (!confirm(this.pkg.state === 'approved' && !written ? 'نلغي الحملة؟ هترجع لباقتك لأن لسه مفيش منشور اتكتب.' : 'نلغي الحملة؟' + (this.pkg.state === 'approved' ? ' مش هترجع للباقة لأن فيه منشورات اتكتبت (بتفضل في المكتبة).' : ''))) return;
+      var r = await SpreadAPI.post('campaign-flow', 'plan_cancel', { id: this.c.id });
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.pkg = r.package; this.allowance = r.allowance; this.notify(r.released ? 'اتلغت ورجعت لباقتك' : 'اتلغت');
+    },
+    async setTargets() {
+      var r = await SpreadAPI.post('campaign-flow', 'plan_targets', { id: this.c.id, posts: +this.pkgT.posts || 0, videos: +this.pkgT.videos || 0 });
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.pkg = r.package; this.pkgT.posts = r.package.posts.limit; this.pkgT.videos = r.package.videos.limit;
+    },
+    async altIdea(i) {
+      var self = this;
+      await this.runBulk([i], 'بيجيب فكرة بديلة', MSG.ideas, async function (x) {
+        var r = await SpreadAPI.post('campaign-flow', 'idea_alt', { id: self.c.id, idea_id: x.id });
+        if (r.ok) {
+          var k = self.ideas.findIndex(function (y) { return y.id === r.replaced; });
+          if (k >= 0) self.ideas.splice(k, 1, r.idea);
+          if (r.package) self.pkg = r.package;
+          if (r.balance !== undefined) self.costs.balance = r.balance;
+        }
+        return r;
+      });
+    },
+    /* ── الشغل في الخلفية (طابور الشغل) ── */
+    async bgStart(action, extra, label) {
+      var r = await SpreadAPI.post('campaign-flow', action, Object.assign({ id: this.c.id }, extra || {}));
+      if (!r.ok) return this.notify(r.error, 'danger');
+      await this.bgFollow(r.job, label, r.count);
+    },
+    async bgFollow(job, label, count) {
+      var self = this;
+      this.bulk.on = true; this.bulk.stop = false; this.bulk.total = count || 1; this.bulk.done = 0; this.bulk.label = label || 'شغالين';
+      this.ai.on = true; this.ai.msg = 'شغالين في الخلفية — تقدر تقفل الصفحة وترجع، الشغل مكمّل';
+      while (job && job.active) {
+        if (this.bulk.stop) { await SpreadAPI.post('campaign-flow', 'job_cancel', { id: this.c.id, job_id: job.id }); this.notify('وقفنا — اللي خلص اتحفظ', 'info'); break; }
+        var s = await SpreadAPI.post('campaign-flow', 'job_step', { id: this.c.id, job_id: job.id });
+        if (!s.ok) break;
+        job = s.job;
+        this.bulk.done = Math.round((job.progress || 0) * this.bulk.total / 100);
+        if (s.balance !== undefined) this.costs.balance = s.balance;
+        await this.reload();
+        if (job.active) await new Promise(function (res) { setTimeout(res, s.worker ? 2500 : 300); });
+      }
+      this.bulk.on = false; this.ai.on = false;
+      if (job && !job.active && job.result) {
+        var rr = job.result;
+        this.notify(rr.stopped ? 'وقفنا: ' + rr.stopped : 'خلص ✓ ' + rr.ok + ' من ' + rr.total + (rr.failed ? ' · ' + rr.failed + ' ماخلصش' : ''), rr.stopped || rr.failed ? 'warning' : 'success');
+      } else if (job && job.status === 'failed') this.notify(job.error || 'الشغل وقف', 'danger');
+      await this.reload();
+    },
+
     /* ── المراحل ── */
+    // الكتابة + التقييم في طلب واحد ← خطوة «التقييم» لوحدها مالهاش لازمة (التقييم جنب كل منشور في «المحتوى»)
+    stepList: function () { return this.writeMode === 'single' ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; },
+    nextStep: function (s, d) { var l = this.stepList(), k = l.indexOf(s); if (k < 0) return s + d; return l[Math.max(0, Math.min(l.length - 1, k + d))]; },
     canGo: function (n) { return n <= this.c.max_stage + 1 && n >= 1 && !(n > 1 && !this.health.unlocked && n !== this.c.stage); },
     stepCls: function (n) { return { on: this.c.stage === n, done: n <= this.c.max_stage && n !== this.c.stage, locked: !this.canGo(n) }; },
     stageDone: function (k) {
@@ -902,6 +999,7 @@ document.addEventListener('DOMContentLoaded', function () {
     navInfo: function () {
       var s = this.c.stage, sel = this.selectedCount(), wc = this.withContent().length;
       if (s === 1) return { title: 'تم اختيار ' + sel + ' ' + (sel === 1 ? 'فكرة' : 'أفكار'), sub: !this.health.unlocked ? 'كمّل هوية البراند لـ ' + this.health.gate + '% علشان نكمل' : 'التالي: المحتوى', cta: 'تحويل الأفكار إلى محتوى' };
+      if (s === 2 && this.writeMode === 'single') return { title: sel + ' أفكار · ' + (wc === sel ? 'المحتوى جاهز' : wc + ' جاهز') + ' · ' + this.evalCount('ready') + ' عدّوا التقييم', sub: 'التالي: التصميم', cta: 'اعتماد المحتوى والتصميم' };
       if (s === 2) return { title: sel + ' أفكار · ' + (wc === sel ? 'المحتوى جاهز' : wc + ' جاهز'), sub: 'التالي: التقييم', cta: 'التالي: تقييم المحتوى' };
       if (s === 3) return { title: this.evalCount('ready') + ' من ' + wc + ' جاهزة', sub: 'التالي: التصميم', cta: 'اعتماد المحتوى' };
       if (s === 4) { var self4 = this, dd = this.plannable(), d = dd.filter(function (i) { return self4.designDone(i); }).length; return { title: d + ' من ' + dd.length + ' تم تصميمها' + (this.videoIdeas().length ? ' · ' + this.videoIdeas().length + ' فيديو' : ''), sub: 'التالي: الجدولة', cta: 'التالي: جدولة المحتوى' }; }
@@ -921,17 +1019,20 @@ document.addEventListener('DOMContentLoaded', function () {
     async next() {
       var s = this.c.stage;
       if (!this.canNext()) return;
-      if (s === 3) { await SpreadAPI.post('campaign-flow', 'approve', { id: this.c.id }); await this.reload(); }
-      await this.go(s + 1);
+      if (s === 3 || (s === 2 && this.writeMode === 'single')) { await SpreadAPI.post('campaign-flow', 'approve', { id: this.c.id }); await this.reload(); }
+      // الحملة في الباقة: قبل الكتابة لازم «اعتمد الخطة»
+      if (s === 1 && this.pkg && this.pkg.state === 'draft' && !(await this.approvePlan())) return;
+      await this.go(this.nextStep(s, 1));
       // الانتقال بالزرار = ابدأ الشغل تلقائي (زي التصميم)
       if (s === 1 && this.missingContent().length) this.genContent();
-      if (s === 2 && this.withContent().some(function (i) { return !i.eval; }) && !this.c.eval_skipped && !this.costs.eval) this.runEval();
+      if (s === 2 && this.writeMode !== 'single' && this.withContent().some(function (i) { return !i.eval; }) && !this.c.eval_skipped && !this.costs.eval) this.runEval();
       if (s === 4 && !this.plannable().some(function (i) { return i.plan; }) && this.plannable().length) this.autoPlan();
     },
     async reload() {
       var r = await SpreadAPI.get('campaign-flow', { action: 'board', id: this.c.id });
       if (!r.ok) return;
       this.setIdeas(r.ideas); this.counts = r.counts; this.costs = r.costs; this.pub = r.publish; this.health = r.health; this.brief = r.brief || null;
+      this.pkg = r.package || null; this.allowance = r.allowance || null;
       this.c.eval_skipped = r.campaign.eval_skipped;
     },
     // تحديث الفكرة في مكانها — v-for بالـ key بيعيد استخدام نفس العنصر، فاستبدال الكائن كله مابيوصلش للشاشة
@@ -1041,6 +1142,9 @@ document.addEventListener('DOMContentLoaded', function () {
     async genContent() {
       var self = this, list = this.missingContent();
       if (!list.length) return;
+      if (this.pkg && this.pkg.state === 'draft' && !(await this.approvePlan())) return;
+      // خطة الحملات §4: الكتابة الجماعية على طابور الشغل — قفل الصفحة مابيوقفهاش
+      if (this.bg && list.length > 1) { if (!this.active && list[0]) this.active = list[0].id; return this.bgStart('bulk_write', {}, 'بيكتب المنشورات'); }
       if (this.costs.balance < list.length * this.costs.content) {
         if (!confirm(window.SPREAD_CR !== false ? 'رصيدك (' + this.costs.balance + ') يكفي ' + Math.floor(this.costs.balance / Math.max(1, this.costs.content)) + ' منشور بس من ' + list.length + ' — نكمّل باللي يكفي؟' : 'باقة الشهر مش هتكفي كل المنشورات دي — نكمّل باللي يكفي؟')) return;
       }
@@ -1254,6 +1358,11 @@ document.addEventListener('DOMContentLoaded', function () {
     b64: function (s) { return btoa(unescape(encodeURIComponent(s))); },
     async designSelected() {
       var self = this, s = this.dsel, tasks = [];
+      // كل المنشورات المختارة لسه ماتصممتش ← التصميم الجماعي في الخلفية
+      var picked = this.designable().filter(function (i) { return s[i.id] && !self.locked(i); });
+      if (this.bg && picked.length > 1 && picked.every(function (i) { return !self.designDone(i); })) {
+        return this.bgStart('bulk_design', { content_ids: picked.map(function (i) { return i.content.id; }), ratio: this.ratio }, 'بيصمم');
+      }
       this.designable().filter(function (i) { return s[i.id] && !self.locked(i); }).forEach(function (i) { tasks = tasks.concat(self.designTasks(i, false)); });
       if (this.costs.balance < tasks.length * this.costs.design && !confirm(window.SPREAD_CR !== false ? 'رصيدك يكفي ' + Math.floor(this.costs.balance / Math.max(1, this.costs.design)) + ' تصميم بس من ' + tasks.length + ' — نكمّل؟' : 'باقة الشهر مش هتكفي كل التصميمات دي — نكمّل باللي يكفي؟')) return;
       var res = await this.runBulk(tasks, 'بيصمم', MSG.design, async function (t) {
@@ -1440,5 +1549,7 @@ document.addEventListener('DOMContentLoaded', function () {
   app.active = (app.selected()[0] || {}).id || 0;
   SpreadApp.mount('#cf', app);
   if (new URLSearchParams(location.search).get('resumed') !== '0' && app.c.max_stage > 1) app.notify('رجعناك لآخر مكان وقفت فيه', 'info');
+  // شغل في الخلفية لسه شغال (الصفحة اتقفلت واترجع لها) ← نكمّل متابعته
+  ['camp_write', 'camp_design'].forEach(function (k) { var j = init.jobs && init.jobs[k]; if (j && j.active) app.bgFollow(j, k === 'camp_write' ? 'بيكتب المنشورات' : 'بيصمم', 0); });
 });
 </script>

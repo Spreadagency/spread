@@ -21,6 +21,8 @@ require_once __DIR__ . '/../../includes/social.php';
 require_once __DIR__ . '/../../includes/campaign-flow.php';
 require_once __DIR__ . '/../../includes/campaign-quality.php';   // خطة الحملات §5: كتابة + تقييم في طلب واحد
 require_once __DIR__ . '/../../includes/campaign-allowance.php'; // خطة الحملات §2: الحملة وحدة في الباقة
+require_once __DIR__ . '/../../includes/campaign-write.php';     // كتابة الفكرة (نفس المسار للصفحة وشغل الخلفية)
+require_once __DIR__ . '/../../includes/campaign-jobs.php';      // camp_write · camp_design على الطابور
 require_once __DIR__ . '/../../includes/brand-brain.php';
 require_once __DIR__ . '/../../includes/brand-kit.php';
 
@@ -53,31 +55,10 @@ function cf_idea_out(array $c, int $uid, int $ideaId): array
     return campaign_idea_api($i, $content ?: null, $designs);
 }
 
-/** overrides البريف من الفكرة: الخدمة (بالاسم) · الموضوع · الاتجاه · الشكل — إعادة الكتابة بتحافظ على اختيارات المرة اللي فاتت */
+/** overrides البريف — includes/campaign-write.php */
 function cf_brief_overrides(int $uid, array $idea, string $fmt, ?array $old): array
 {
-    $ib = bk_arr($idea['brief_json'] ?? '');
-    $o = ['format' => bk_platform_to_format($fmt), 'topic' => (string) (($ib['topic'] ?? '') ?: $idea['title'])];
-    if (!empty($ib['pillar'])) $o['pillar'] = (string) $ib['pillar'];
-    if (!empty($ib['service'])) {
-        foreach (bk_services($uid, true) as $s) {
-            if (mb_strtolower(trim($s['name'])) === mb_strtolower(trim($ib['service']))) { $o['service_id'] = (int) $s['id']; break; }
-        }
-    }
-    // إعداد الحملة: الشخصيات اللي العميل اختارها (بالتناوب) — أو «من غير شخصيات»
-    if (!empty($ib['character_ids'])) {
-        $ids = array_values(array_map('intval', (array) $ib['character_ids']));
-        $o['character_id'] = $ids[((int) ($idea['sort_order'] ?? 0)) % count($ids)];
-    } elseif (!empty($ib['no_characters'])) {
-        $o['character_id'] = 0;
-    }
-    if ($old) {
-        $prev = bk_arr($old['brief_json'] ?? '');
-        foreach (['service_id', 'method_id', 'pillar'] as $k) if (!isset($o[$k]) && !empty($prev[$k])) $o[$k] = $prev[$k];
-        if (array_key_exists('character_id', $prev)) $o['character_id'] = (int) $prev['character_id'];
-        $o = array_merge($o, array_diff_key(bk_arr($old['brand_overrides'] ?? ''), ['format' => 1]));
-    }
-    return $o;
+    return cw_brief_overrides($uid, $idea, $fmt, $old);
 }
 
 /** المحتوى والتقييم والتصميم محتاجين هوية البراند فوق الحد (الأفكار مفتوحة) */
@@ -104,14 +85,32 @@ function cf_refund(int $uid, int $cost, string $note, ?int $refId): void
     if ($cost > 0) credits_add($uid, $cost, 'استرداد: ' . $note, null, 'refund', $refId);
 }
 
-/** نوع المنشور في المكتبة من زاوية الفكرة */
+/** «مرفوضة» بدل المسح (لو الترحيل اتشغّل) */
+function cf_reject_idea(array $c, array $i): bool
+{
+    if (!function_exists('ca_ready') || !ca_ready()) return false;
+    db_run('UPDATE campaign_ideas SET rejected = 1, selected = 0 WHERE id = ? AND campaign_id = ?', [(int) $i['id'], (int) $c['id']]);
+    return true;
+}
+
+/** آخر 100 فكرة مرفوضة للعميل (قايمة «ماتكررهاش») */
+function cf_rejected_titles(int $uid): array
+{
+    if (!function_exists('ca_ready') || !ca_ready()) return [];
+    return array_column(db_all('SELECT title FROM campaign_ideas WHERE user_id = ? AND rejected = 1 ORDER BY id DESC LIMIT 100', [$uid]), 'title');
+}
+
+/** أسئلة البريف من الـ Skill (خطوة الإعداد) */
+function cf_brief_questions(array $c): array
+{
+    if (!function_exists('ce_skill_questions')) return [];
+    $brand = brand_for_user((int) $c['user_id']) ?: [];
+    return ce_skill_questions(campaign_skill($brand, $c));
+}
+
 function cf_type(string $angle): string
 {
-    foreach ([['تعليم', 'educational'], ['تفاعل', 'engaging'], ['عرض', 'offer'], ['خصم', 'offer'], ['ترند', 'trend'],
-              ['قصة', 'storytelling'], ['كواليس', 'storytelling'], ['وعي', 'awareness'], ['توعي', 'awareness']] as [$k, $v]) {
-        if (str_contains($angle, $k)) return $v;
-    }
-    return 'marketing';
+    return cw_type($angle);
 }
 
 /** الشكل وعدد الشرائح المطلوبين (من الطلب أو الفكرة) */
@@ -123,34 +122,74 @@ function cf_format_req(array $i): array
     return [$f, $n];
 }
 
-/** الفيديو اتبعت للتنفيذ؟ (السكريبت والبريف بيتقفلوا) */
 function cf_video_locked(?array $content): bool
 {
-    return $content && in_array((string) ($content['video_status'] ?? ''), ['sent', 'in_production', 'ready', 'delivered'], true);
+    return cw_video_locked($content);
 }
 
-/** حقول الشكل في المحتوى من رد الـ AI */
 function cf_format_fields(string $format, int $slides, array $p, ?array $old): array
 {
-    $f = ['format' => $format, 'slides_count' => $format === 'carousel' ? $slides : null,
-          'slides_json' => $format === 'carousel' ? json_encode(campaign_parse_slides($p['slides_raw'], $slides), JSON_UNESCAPED_UNICODE) : null];
-    if ($format === 'video') {
-        $b = $old && content_format_key($old['format'] ?? '') === 'video' ? video_brief($old) : video_brief([]);
-        $b['script'] = ['hook' => $p['hook'], 'body' => $p['script'], 'cta' => $p['cta'], 'shoot' => $p['shoot']];
-        $f['video_brief_json'] = json_encode($b, JSON_UNESCAPED_UNICODE);
-        $f['video_status'] = 'script';
-    } else {
-        $f['video_brief_json'] = null;
-        $f['video_status'] = null;
-    }
-    return $f;
+    return cw_format_fields($format, $slides, $p, $old);
 }
 
 switch ($action) {
 
     /* ══════════ اللوحة ══════════ */
     case 'board':
-        api_ok(campaign_board_payload($c, $uid) + ['package' => ca_campaign_view($c), 'allowance' => ca_status($uid)]);
+        api_ok(campaign_board_payload($c, $uid) + ['package' => ca_campaign_view($c), 'allowance' => ca_status($uid), 'jobs' => cj_active($uid, (int) $c['id']),
+            'write_mode' => campaign_write_mode(), 'worker' => ce_worker_alive(), 'questions' => cf_brief_questions($c)]);
+
+    /* ══════════ الشغل في الخلفية (خطة الحملات §4) — قفل التاب مابيوقفش الشغل ══════════ */
+    case 'bulk_write':
+        cf_gate($uid);
+        $r = cj_start_write($uid, $c, array_map('intval', (array) (api_input()['idea_ids'] ?? [])));
+        if (!$r['ok']) api_fail($r['error'] ?? 'مقدرناش نبدأ', $r['code'] ?? 'error', 409);
+        api_ok(['job' => ce_job_public($r['job']), 'count' => $r['count'], 'existing' => !empty($r['existing'])]);
+
+    case 'bulk_design':
+        cf_gate($uid);
+        $r = cj_start_design($uid, $c, array_map('intval', (array) (api_input()['content_ids'] ?? [])), api_str('ratio', 8));
+        if (!$r['ok']) api_fail($r['error'] ?? 'مقدرناش نبدأ', $r['code'] ?? 'error', 409);
+        api_ok(['job' => ce_job_public($r['job']), 'count' => $r['count'], 'existing' => !empty($r['existing'])]);
+
+    case 'job_step':
+        $j = ce_job_get(api_int('job_id'), $uid);
+        if (!$j || !in_array($j['kind'], CJ_KINDS, true) || (int) $j['ref_id'] !== (int) $c['id']) api_fail('مش موجودة', 'not_found', 404);
+        if (in_array($j['status'], ['queued', 'running'], true) && ($after = ce_job_step((int) $j['id']))) $j = $after;
+        api_ok(['job' => ce_job_public($j), 'worker' => ce_worker_alive(), 'balance' => credits_balance($uid)]);
+
+    case 'job_cancel':
+        $j = ce_job_get(api_int('job_id'), $uid);
+        if (!$j || !in_array($j['kind'], CJ_KINDS, true) || (int) $j['ref_id'] !== (int) $c['id']) api_fail('مش موجودة', 'not_found', 404);
+        if (!ce_job_cancel((int) $j['id'], $uid)) api_fail('مينفعش تتلغي دلوقتي', 'state', 409);
+        api_ok(['job' => ce_job_public(ce_job_get((int) $j['id'], $uid))]);
+
+    /* ══════════ فكرة بديلة واحدة (المسودة: أول 5 ببلاش — §2.2) ══════════ */
+    case 'idea_alt':
+        $brand = brand_for_user($uid) ?: [];
+        $i = cf_idea($c, $uid);
+        if ($i['content_id']) api_fail('الفكرة دي اتكتبت — امسحها أو أعد كتابتها', 'has_content', 409);
+        if (!rate_limit('camp_ideas', 'u' . $uid, 12, 600)) api_fail('ولّدت أفكار كتير بسرعة — استنى شوية', 'rate_limit', 429);
+        $c = ca_adopt($c);
+        $alt = ca_draft_alt($c);
+        $cost = $alt['free'] ? 0 : idea_credits_for(1);
+        cf_charge($uid, $cost, 'فكرة بديلة في حملة «' . mb_substr($c['title'], 0, 60) . '»', 'campaign', (int) $c['id']);
+        $avoid = array_merge(array_column(db_all('SELECT title FROM campaign_ideas WHERE campaign_id = ? ORDER BY id DESC LIMIT 40', [$c['id']]), 'title'), cf_rejected_titles($uid));
+        $ai = campaign_ai(campaign_ideas_prompt($brand, $c, 1, $avoid), campaign_ideas_tokens(1), 'campaign_ideas',
+            ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
+        $new = $ai['ok'] ? (campaign_parse_ideas((string) $ai['response'])[0] ?? null) : null;
+        if (!$new) {
+            cf_refund($uid, $cost, 'فكرة بديلة #' . $c['id'], (int) $c['id']);
+            if ($alt['free']) db_run('UPDATE campaigns SET draft_alts = GREATEST(draft_alts - 1, 0) WHERE id = ?', [$c['id']]);
+            api_fail('الرد مكانش مظبوط — جرّب تاني', 'ai_failed', 502);
+        }
+        // الفكرة القديمة بتتعلّم «مرفوضة» (مش بتتمسح) والجديدة مكانها بنفس الشكل والترتيب
+        if (!cf_reject_idea($c, $i)) db_run('DELETE FROM campaign_ideas WHERE id = ?', [$i['id']]);
+        $nid = (int) db_insert('INSERT INTO campaign_ideas (campaign_id, user_id, sort_order, angle, title, description, audience, hook, formats, selected, brief_json, format, slides_count)
+                   VALUES (?,?,?,?,?,?,?,?,?,1,?,?,?)', [$c['id'], $uid, (int) $i['sort_order'], $new['angle'], $new['title'], $new['desc'], $new['audience'], $new['hook'],
+                   implode('|', $new['formats']), $i['brief_json'], $i['format'], $i['slides_count']]);
+        api_ok(['idea' => cf_idea_out($c, $uid, $nid), 'replaced' => (int) $i['id'], 'balance' => credits_balance($uid), 'free' => $alt['free'],
+                'package' => ca_campaign_view(db_one('SELECT * FROM campaigns WHERE id = ?', [$c['id']]))]);
 
     /* ══════════ الحملة في الباقة (خطة الحملات §2.2) ══════════ */
     case 'plan_approve':
@@ -194,7 +233,7 @@ switch ($action) {
             $cost = $__draft['free'] ? 0 : idea_credits_for($total);
             cf_charge($uid, $cost, 'أفكار حملة «' . mb_substr($c['title'], 0, 60) . '» (' . $total . ')', 'campaign', (int) $c['id']);
             // جيل جديد: بنمسح المقترح بس — المختار وأي فكرة ليها محتوى بيفضلوا
-            db_run('DELETE FROM campaign_ideas WHERE campaign_id = ? AND selected = 0 AND content_id IS NULL', [$c['id']]);
+            db_run('DELETE FROM campaign_ideas WHERE campaign_id = ? AND selected = 0 AND content_id IS NULL' . (ca_ready() ? ' AND rejected = 0' : ''), [$c['id']]);   // المرفوضة بتفضل للذاكرة
             $_SESSION[$key] = ['total' => $total, 'next' => 0, 'cost' => $cost, 'at' => time()];
         }
         $g = $_SESSION[$key] ?? null;
@@ -204,44 +243,17 @@ switch ($action) {
         }
 
         $n = min(CAMP_IDEAS_BATCH, $total - $batch * CAMP_IDEAS_BATCH);
-        $avoid = array_column(db_all('SELECT title FROM campaign_ideas WHERE campaign_id = ? ORDER BY id DESC LIMIT 40', [$c['id']]), 'title');
-        $fmtSlice = $seq ? array_slice($seq, $batch * CAMP_IDEAS_BATCH, $n) : [];
-        $plan = $seq ? campaign_setup_plan($uid, $setup, $n, $fmtSlice) : '';
         @set_time_limit(180); ignore_user_abort(true);   // ممكن طلبين AI ورا بعض — والأفكار تتحفظ حتى لو المتصفح قفل
-        // التوكنز على قد الأفكار (العربي + بيانات الإعداد بتطوّل الرد — والموديلات اللي بتفكّر بتصرف من نفس الحد)
-        $tok = campaign_ideas_tokens($n);
-        $ai = campaign_ai(campaign_ideas_prompt($brand, $c, $n, $avoid, $plan), $tok, 'campaign_ideas',
-            ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
-        $ideas = $ai['ok'] ? campaign_parse_ideas((string) $ai['response']) : [];
-        // الرد اتقطع أو جاب أقل من المطلوب ← نكمّل الناقص بطلب واحد (من غير ما نكرر اللي طلع)
-        if ($ideas && count($ideas) < $n) {
-            $miss = $n - count($ideas);
-            $avoid2 = array_merge(array_column($ideas, 'title'), $avoid);
-            $plan2 = $seq ? campaign_setup_plan($uid, $setup, $miss, array_slice($fmtSlice, count($ideas))) : '';
-            $ai2 = campaign_ai(campaign_ideas_prompt($brand, $c, $miss, $avoid2, $plan2), campaign_ideas_tokens($miss), 'campaign_ideas',
-                ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
-            if ($ai2['ok']) $ideas = array_merge($ideas, campaign_parse_ideas((string) $ai2['response']));
-        }
-        if (!$ideas) {
+        // includes/campaign-write.php — نفس المسار للوكيل
+        $__b = cw_ideas_batch($uid, $c, $brand, $n, $batch, $seq, $setup, cf_rejected_titles($uid));
+        if (!$__b['ok']) {
             // الدفعة الأولى فشلت = مفيش ولا فكرة ← نرجّع الكريدت كله · بعدها العميل يقدر يكمّل الباقي مجانًا
             if ($batch === 0) {
                 cf_refund($uid, (int) $g['cost'], 'أفكار حملة #' . $c['id'], (int) $c['id']);
                 unset($_SESSION[$key]);
                 if (ca_is_package($c)) db_run('UPDATE campaigns SET draft_plans = GREATEST(draft_plans - 1, 0), draft_regens = IF(draft_plans > 1, GREATEST(draft_regens - 1, 0), draft_regens) WHERE id = ?', [$c['id']]);
             }
-            api_fail($ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'ai_failed', 502, ['refunded' => $batch === 0]);
-        }
-        $order = (int) (db_one('SELECT COALESCE(MAX(sort_order), 0) m FROM campaign_ideas WHERE campaign_id = ?', [$c['id']])['m'] ?? 0);
-        foreach (array_slice($ideas, 0, $n) as $k => $i) {
-            $gk = $batch * CAMP_IDEAS_BATCH + $k;
-            $fmt = $fmtSlice[$k] ?? null;
-            $brief = $seq ? campaign_setup_assign($uid, $setup, $i, $gk) : $i['brief'];
-            db_insert('INSERT INTO campaign_ideas (campaign_id, user_id, sort_order, angle, title, description, audience, hook, formats, selected, brief_json, format, slides_count)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                [$c['id'], $uid, ++$order, $i['angle'], $i['title'], $i['desc'], $i['audience'], $i['hook'], implode('|', $i['formats']),
-                 // مع إعداد الحملة كل الأفكار مختارة (العميل حدد العدد) — غير كده أول 4 (العميل يغيّر براحته)
-                 $seq ? 1 : (($batch === 0 && $k < 4) ? 1 : 0), $brief ? bk_json($brief) : null,
-                 $fmt, $fmt === 'carousel' ? carousel_limits()[2] : null]);
+            api_fail($__b['error'], 'ai_failed', 502, ['refunded' => $batch === 0]);
         }
         // بريف الحملة (الهوية وقت الأفكار) — بيظهر للعميل في الحملة
         if ($batch === 0 && bk_enabled()) {
@@ -291,6 +303,8 @@ switch ($action) {
 
     case 'idea_delete':
         $i = cf_idea($c, $uid);
+        // خطة الحملات §7 (الذاكرة): الفكرة اللي لسه ماتكتبتش بتتعلّم «مرفوضة» بدل المسح — وبتدخل قايمة «ماتكررهاش»
+        if (!$i['content_id'] && cf_reject_idea($c, $i)) api_ok(['rejected' => true]);
         // المنشور نفسه بيفضل في المكتبة — بيتفك من الحملة بس
         if ($i['content_id']) db_run('UPDATE contents SET campaign_id = NULL WHERE id = ? AND user_id = ?', [$i['content_id'], $uid]);
         db_run('DELETE FROM campaign_ideas WHERE id = ?', [$i['id']]);
@@ -300,96 +314,10 @@ switch ($action) {
     case 'content_generate':
         $brand = cf_gate($uid);
         $i = cf_idea($c, $uid);
-        $regen = api_int('regen') === 1;
-        if ($i['content_id'] && !$regen) api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'already' => true]);
-        if (!rate_limit('camp_content', 'u' . $uid, 45, 600)) api_fail('وقفة قصيرة — أنتجت محتوى كتير بسرعة، كمّل بعد دقايق', 'rate_limit', 429);
-
-        $old = $i['content_id'] ? db_one('SELECT * FROM contents WHERE id = ? AND user_id = ?', [$i['content_id'], $uid]) : null;
-        if ($old && in_array((string) $old['publish_status'], ['published', 'scheduled', 'processing', 'pending'], true)) {
-            api_fail('المنشور ده اتسلّم للنشر خلاص — مش هنعيد كتابته', 'locked', 409);
-        }
-        // قبل أي خصم أو حصة — الفيديو المقفول مايتحسبش عليه
-        if ($old && cf_video_locked($old)) api_fail('الفيديو ده اتبعت للتنفيذ — مش هنعيد كتابته', 'locked', 409);
-        [$fmt, $slides] = cf_format_req($i);
-        // الحملة في الباقة: المنشورات والفيديوهات من حد الحملة · الإعادة من رصيد التعديلات · الكاروسيل لحد carousel_max_slides
-        if ($fmt === 'carousel' && ($__mx = ca_max_slides($c)) > 0 && $slides > $__mx) $slides = $__mx;
-        $__ca = ca_write_allow($c, (int) $i['id'], $fmt, $old ? (content_format_key((string) ($old['format'] ?? 'post')) === 'video' ? 'video' : 'post') : null);
-        if (!$__ca['ok']) api_fail($__ca['error'], $__ca['code'] ?? 'campaign_limit', 402);
-        // 8-ب: حصة الشهر — منشور جديد (أو سكريبت فيديو) بيتحسب؛ إعادة الكتابة لأ
-        // تغيير الشكل بين فيديو ومنشور بينقل الحصة → بيتحسب على الوحدة الجديدة
-        $__unitNew = $fmt === 'video' ? 'videos' : 'posts';
-        $__unitOld = $old ? ((string) ($old['format'] ?? 'post') === 'video' ? 'videos' : 'posts') : null;
-        if ($__ca['mode'] === 'off' && (!$old || $__unitOld !== $__unitNew) && ($__g = plan_gate($uid, $__unitNew))) api_fail($__g, 'quota', 402, ['upgrade' => plan_upgrade_link()]);
-        $cost = $__ca['cost'] >= 0 ? (int) $__ca['cost'] : ($old ? cost_for('content_regeneration_cost') : cost_for_format($fmt));
-        if ($cost > 0 && (credits_balance($uid) < $cost)) ca_write_release($c, (int) $i['id'], $fmt, $__ca);
-        cf_charge($uid, $cost, ($old ? 'إعادة كتابة' : 'محتوى') . ' فكرة: ' . mb_substr($i['title'], 0, 60), 'campaign_idea', (int) $i['id']);
-
-        $formatChanged = $old && ($old['format'] !== $fmt || ($fmt === 'carousel' && (int) $old['slides_count'] !== $slides));
-        $extra = $old && !$formatChanged ? "اكتب نسخة جديدة مختلفة عن اللي فات (Hook مختلف وزاوية طرح مختلفة)." : '';
-        $dur = $fmt === 'video' && $old ? video_brief($old)['duration'] : '30 ثانية';
-        // Brand Kit: بريف البوست من الفكرة (خدمة · موضوع · اتجاه) + شكلها — والباقي من الهوية
-        $bkO = cf_brief_overrides($uid, $i, $fmt, $old);
-        $bkBrief = bk_enabled() ? BrandContext::brief($uid, $bkO) : null;
-        $__tok = $fmt === 'carousel' ? 2600 : 1800;
-        $__aiCtx = ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id']];
-        $__parse = function (string $r) use ($uid, $fmt): ?array {
-            $p = campaign_parse_content(BrandContext::stripWhy($r));
-            foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);   // الممنوعات دايمًا
-            if ($fmt === 'video' && $p['script'] === '') return null;          // فيديو من غير سكريبت = رد ناقص
-            return ($p['body'] === '' && $p['hook'] === '') ? null : $p;
-        };
-        $__eval = null;
-        if (campaign_write_mode() === 'single') {
-            // خطة الحملات §5: الكتابة + التقييم في طلب واحد + فحص بالكود + تحسين تلقائي مرة تحت الحد (مش بيتخصم)
-            $__w = campaign_write_with_eval(
-                fn(string $x) => campaign_content_prompt($brand, $c, $i, trim($extra . ($x !== '' ? "\n\n" . $x : '')), $fmt, $slides, $dur, $bkBrief),
-                fn(string $pr, bool $imp) => campaign_ai($pr, $__tok, $imp ? 'campaign_improve' : 'campaign_content', $__aiCtx + ($imp ? ['temperature' => 0.7] : [])),
-                $__parse,
-                ['fmt' => $fmt, 'slides' => $slides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => $old ? (int) $old['id'] : 0]);
-            $ai = $__w['ai'];
-            $p = $__w['p'];
-            $__eval = $__w['eval'];
-        } else {
-            $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $fmt, $slides, $dur, $bkBrief), $__tok, 'campaign_content', $__aiCtx);
-            $p = $ai['ok'] ? $__parse((string) $ai['response']) : null;
-        }
-        if (!$p) {
-            cf_refund($uid, $cost, 'محتوى فكرة #' . $i['id'], (int) $i['id']);
-            ca_write_release($c, (int) $i['id'], $fmt, $__ca);
-            api_fail(!empty($ai['ok']) ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'ai_failed', 502);
-        }
-        $text = campaign_compose_text($p['hook'], $p['body']);
-        $ff = cf_format_fields($fmt, $slides, $p, $old);
-        if ($old) {
-            db_run('UPDATE contents SET generated_text = ?, hashtags = ?, cta = ?, design_direction = ?, image_prompt = ?, status = "generated",
-                    workflow_flag = "none", format = ?, slides_count = ?, slides_json = ?, video_brief_json = ?, video_status = ?,
-                    video_status_at = IF(? IS NULL, video_status_at, NOW()) WHERE id = ?',
-                [$text, $p['tags'] ?: null, $p['cta'] ?: null, $p['design'] ?: null, $p['image_prompt'] ?: null,
-                 $ff['format'], $ff['slides_count'], $ff['slides_json'], $ff['video_brief_json'], $ff['video_status'], $ff['video_status'], $old['id']]);
-            save_content_version((int) $old['id'], $text, $p['tags'] ?: null, $p['cta'] ?: null, 'ai', 'إعادة كتابة من الحملة');
-            $cid = (int) $old['id'];
-        } else {
-            $cid = db_insert_row('contents', [
-                'user_id' => $uid, 'brand_profile_id' => (int) ($brand['id'] ?? 0), 'content_type' => cf_type((string) $i['angle']),
-                'platform' => 'both', 'length' => 'medium', 'tone' => $brand['tone'] ?? null,
-                'extra_notes' => 'من حملة «' . mb_substr($c['title'], 0, 100) . '» — فكرة: ' . mb_substr($i['title'], 0, 150),
-                'generated_text' => $text, 'hashtags' => $p['tags'] ?: null, 'cta' => $p['cta'] ?: null,
-                'design_direction' => $p['design'] ?: null, 'image_prompt' => $p['image_prompt'] ?: null,
-                'status' => 'generated', 'credits_used' => $cost, 'campaign_id' => (int) $c['id'],
-            ] + $ff + ($fmt === 'video' ? ['video_status_at' => date('Y-m-d H:i:s')] : []));
-            save_content_version($cid, $text, $p['tags'] ?: null, $p['cta'] ?: null, 'ai', 'من الحملة');
-        }
-        if ($bkBrief) BrandContext::attach($cid, $uid, $bkBrief, BrandContext::parseWhy((string) $ai['response']), $bkO);
-        // السكريبت على الفكرة (للتصدير والأرقام) — للفيديو بس
-        $script = ['hook' => $p['hook'], 'body' => $p['script'], 'cta' => $p['cta'], 'tags' => $p['tags'], 'design' => $p['shoot']];
-        // محتوى جديد = تقييم قديم مايبقاش صالح (الطريقة الجديدة: التقييم الجديد جاي مع الكتابة)
-        db_run('UPDATE campaign_ideas SET content_id = ?, script_json = ?, format = ?, slides_count = ?, selected = 1, eval_score = ?, eval_json = ?, approved = ? WHERE id = ?',
-            [$cid, $fmt === 'video' ? json_encode($script, JSON_UNESCAPED_UNICODE) : null, $fmt, $slides ?: null,
-             $__eval && empty($__eval['missing']) ? $__eval['score'] : null, $__eval ? json_encode($__eval, JSON_UNESCAPED_UNICODE) : null,
-             $__eval && $__eval['pass'] ? 1 : 0, $i['id']]);
-        if ($__eval) content_set_flag($cid, $uid, $__eval['pass'] ? 'needs_design' : 'needs_review', $__eval['pass'] ? null : mb_substr((string) $__eval['issues'], 0, 250));
-        if (function_exists('ai_log_usage')) ai_log_usage($uid, 'generate', $ai['model'] ?? 'router', $ai['usage'] ?? [], $cid);
-        ai_stamp('contents', $cid, 'campaign_content', $ai);
+        // includes/campaign-write.php — نفس المسار لشغل الخلفية (camp_write)
+        $r = campaign_write_idea($uid, $c, $i, ['brand' => $brand, 'regen' => api_int('regen') === 1, 'format' => api_str('format', 12), 'slides' => api_int('slides')]);
+        if (!$r['ok']) api_fail($r['error'], $r['code'], $r['http'], $r['extra']);
+        if (!empty($r['already'])) api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'already' => true]);
         api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'balance' => credits_balance($uid)]);
 
     case 'content_save':

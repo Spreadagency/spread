@@ -67,10 +67,11 @@ function drive(int $runId, int $max = 1500): array
     return $run;
 }
 
-$keys = ['assistant_support_enabled', 'assistant_agent_enabled', 'assistant_support_cost', 'assistant_agent_msg_cost', 'assistant_agent_fee', 'assistant_agent_daily', 'ce_worker_last_run'];
+// مسار المحرك (الوكيل القديم) — مسار «حملاتي» (الافتراضي من خطة الحملات) في tests/cc5-ui-agent.php
+$keys = ['assistant_support_enabled', 'assistant_agent_enabled', 'assistant_support_cost', 'assistant_agent_msg_cost', 'assistant_agent_fee', 'assistant_agent_daily', 'ce_worker_last_run', 'assistant_agent_path'];
 $saved = [];
 foreach ($keys as $k) $saved[$k] = get_setting($k, null);
-foreach (['assistant_support_enabled' => '1', 'assistant_agent_enabled' => '1', 'assistant_support_cost' => '0', 'assistant_agent_msg_cost' => '0', 'assistant_agent_fee' => '2', 'assistant_agent_daily' => '3', 'ce_worker_last_run' => ''] as $k => $v) set_setting($k, $v);
+foreach (['assistant_support_enabled' => '1', 'assistant_agent_enabled' => '1', 'assistant_support_cost' => '0', 'assistant_agent_msg_cost' => '0', 'assistant_agent_fee' => '2', 'assistant_agent_daily' => '3', 'ce_worker_last_run' => '', 'assistant_agent_path' => 'engine'] as $k => $v) set_setting($k, $v);
 db_run('DELETE FROM rate_limits');
 $uids = []; $pkgs = [];
 $mk = function (bool $agent) use (&$uids, &$pkgs) {

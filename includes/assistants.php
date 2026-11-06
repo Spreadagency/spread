@@ -44,7 +44,9 @@ function as_blocked(int $uid, string $kind): ?string
     if ($kind === 'support') return $paid && isset($p['assistant_support']) && !(int) $p['assistant_support'] ? 'الدعم بالمساعد مش في باقتك' : null;
     if (!$paid || !(int) ($p['assistant_agent'] ?? 0)) return 'الوكيل مش في باقتك — رقّي باقتك علشان يشتغل مكانك';
     if (!function_exists('ce_enabled_for')) require_once __DIR__ . '/ce-jobs.php';
-    if (!ce_enabled_for($uid)) return 'الوكيل بيشتغل بمحرك المحتوى — والمحرك لسه مش متاح لحسابك';
+    // مسار الحملة (الافتراضي) مش محتاج المحرك — الطابور بنية مشتركة
+    if (as_agent_path() === 'engine' && !ce_enabled_for($uid)) return 'الوكيل بيشتغل بمحرك المحتوى — والمحرك لسه مش متاح لحسابك';
+    if (as_agent_path() === 'campaign' && (!function_exists('ce_ready') || !ce_ready())) return 'طابور الشغل لسه مش متركّب';
     return null;
 }
 
@@ -299,7 +301,7 @@ function as_agent_system(int $uid): string
     $ch = implode(' · ', array_map(fn($c) => $c['key'] . '=' . $c['label'], $opt['channels']));
     $connected = db_one('SELECT id FROM social_connections WHERE user_id = ? AND status = "active" LIMIT 1', [$uid]) ? 'أيوه' : 'لأ';
     return "ROLE: SPREAD_AGENT\n"
-        . "إنت «الوكيل» في منصة Spread AI: بتنفّذ حملات سوشيال ميديا كاملة مكان العميل (الخطة · الكتابة · التصميم · الجدولة) بمحرك المحتوى. بتتكلم بالمصري، قصير وعملي.\n"
+        . "إنت «الوكيل» في منصة Spread AI: بتنفّذ حملات سوشيال ميديا كاملة مكان العميل (الخطة · الكتابة · التصميم · الجدولة) في «حملاتي». بتتكلم بالمصري، قصير وعملي.\n"
         . "مهمتك في المحادثة: تفهم المطلوب بأقل أسئلة ممكنة (سؤال واحد في المرة، وبحد أقصى 3 أسئلة)، وبعدين تطلع بريف الحملة. لو العميل قال كفاية أو «نفّذ» استخدم الافتراضيات.\n\n"
         . "اللي تعرفه عن العميل:\n- خدماته: {$svc}\n- عملاؤه: {$per}\n- الرصيد: " . credits_balance($uid) . " كريدت\n- صفحة فيسبوك/إنستجرام مربوطة: {$connected}\n\n"
         . "الاختيارات:\n- goal: {$goals}\n- formats: post (بوست) · carousel (كاروسيل) · reel (ريلز/فيديو قصير) — العدد لكل نوع (الإجمالي من 1 لـ " . (int) $opt['max_pieces'] . ")\n"
@@ -437,7 +439,7 @@ function as_run_public(?array $r): ?array
     $cur = array_search($r['stage'], $keys, true);
     foreach (AS_STAGES as $k => $lbl) {
         if ($k === 'publish' && ($o['publish'] ?? 'none') !== 'schedule') continue;
-        if ($k === 'dna' && empty($o['needs_dna'])) continue;
+        if ($k === 'dna' && (empty($o['needs_dna']) || ($o['path'] ?? '') === 'campaign')) continue;
         $i = array_search($k, $keys, true);
         $stages[] = ['key' => $k, 'label' => $lbl, 'state' => $r['status'] === 'done' || ($cur !== false && $i < $cur) ? 'done' : ($k === $r['stage'] ? $r['status'] : 'todo')];
     }
@@ -447,7 +449,7 @@ function as_run_public(?array $r): ?array
         'pieces' => (int) ($est['pieces'] ?? array_sum((array) ($b['formats'] ?? []))), 'formats' => $b['formats'] ?? [], 'days' => (int) ($b['days'] ?? 0),
         'credits' => (int) ($est['credits'] ?? 0), 'designs' => (int) ($est['images'] ?? 0), 'fee' => (int) $r['fee_credits'],
         'publish' => ($o['publish'] ?? 'none'), 'campaign_id' => $r['campaign_id'] ? (int) $r['campaign_id'] : null,
-        'campaign_url' => $r['campaign_id'] ? url('engine.php?campaign=' . (int) $r['campaign_id']) : null,
+        'campaign_url' => $r['campaign_id'] ? url((($o['path'] ?? 'engine') === 'campaign' ? 'campaign.php?id=' : 'engine.php?campaign=') . (int) $r['campaign_id']) : null,
         'log' => array_slice(json_decode((string) ($r['log_json'] ?? ''), true) ?: [], -6),
         'active' => in_array($r['status'], ['running', 'paused'], true),
     ];
@@ -492,6 +494,23 @@ function as_agent_confirm(int $uid, int $runId, array $in = []): array
     }
     require_once __DIR__ . '/ce-design.php';
     $brief = json_decode((string) $run['brief_json'], true) ?: [];
+    // خطة الحملات §4: الوكيل بيشغّل نفس خطوات الحملة (الأفكار ← «اعتمد الخطة» ← الكتابة ← التصميم ← المواعيد) — مش المحرك
+    if (as_agent_path() === 'campaign') {
+        $cc = as_campaign_create($uid, $brief, (string) $run['title']);
+        if (!$cc['ok']) {
+            if ($fee > 0) credits_add($uid, $fee, 'استرداد: رسوم الوكيل', null, 'refund', $runId);
+            return ['ok' => false, 'error' => $cc['error'], 'code' => $cc['code'] ?? 'brief'];
+        }
+        $o['path'] = 'campaign';
+        $o['fee_paid'] = $fee;
+        $st = db()->prepare('UPDATE agent_runs SET status = "running", stage = "plan", campaign_id = ?, opts_json = ? WHERE id = ? AND status = "pending"');
+        $st->execute([(int) $cc['id'], json_encode($o, JSON_UNESCAPED_UNICODE), $runId]);
+        if ($st->rowCount() !== 1) return ['ok' => false, 'error' => 'المهمة اتغيرت — حدّث', 'code' => 'state'];
+        $run = as_run($runId);
+        as_run_log($run, 'بدأت ✓ — الحملة اتعملت في «حملاتي»' . ($fee ? ' · رسوم التنفيذ ' . $fee . ' كريدت' : ''));
+        as_agent_tick($run);
+        return ['ok' => true, 'run' => as_run_public(as_run($runId))];
+    }
     $cs = ce_campaign_save($uid, $brief);
     if (!$cs['ok']) {
         if ($fee > 0) credits_add($uid, $fee, 'استرداد: رسوم الوكيل', null, 'refund', $runId);
@@ -622,6 +641,7 @@ function as_job_retry(array &$run, string $what): bool
 function as_agent_tick(array $run, bool $stepIfNoWorker = true): array
 {
     if (!in_array($run['status'], ['running', 'paused'], true)) return $run;
+    if ((as_run_opts($run)['path'] ?? 'engine') === 'campaign') return as_agent_tick_campaign($run, $stepIfNoWorker);
     require_once __DIR__ . '/ce-design.php';
     require_once __DIR__ . '/ce-publish.php';
     $uid = (int) $run['user_id'];
@@ -746,4 +766,155 @@ function as_agent_tick_all(int $limit = 10): int
     }
     if (function_exists('qt_price_user')) qt_price_user(null, true);
     return $n;
+}
+
+/* ═══════════════════ الوكيل على مسار الحملة (خطة الحملات §4) ═══════════════════ */
+
+/** campaign (الافتراضي) = نفس خطوات «حملاتي» · engine = المحرك زي الأول — assistant_agent_path */
+function as_agent_path(): string
+{
+    return get_setting('assistant_agent_path', 'campaign') === 'engine' ? 'engine' : 'campaign';
+}
+
+/** بريف الوكيل ← حملة في «حملاتي» بإعدادها (الأشكال · الخدمات · العملاء) */
+function as_campaign_create(int $uid, array $brief, string $title): array
+{
+    require_once __DIR__ . '/campaign-flow.php';
+    require_once __DIR__ . '/brand-brain.php';
+    $brand = brand_for_user($uid) ?: [];
+    if (empty($brand['business_name'])) return ['ok' => false, 'code' => 'brand', 'error' => 'اكتب اسم نشاطك في هوية البراند الأول'];
+    $h = brand_health($brand);
+    if (!$h['unlocked']) return ['ok' => false, 'code' => 'brand_gate', 'error' => 'هوية البراند محتاجة تعدّي ' . $h['gate'] . '% (دلوقتي ' . $h['pct'] . '%) — كمّلها وأنا أبدأ'];
+    $goalMap = ['new_product' => 'product', 'offer' => 'offer', 'sales' => 'sales', 'awareness' => 'awareness', 'seasonal' => 'season', 'educational' => 'education', 'other' => 'other'];
+    $basis = $goalMap[$brief['goal'] ?? ''] ?? 'other';
+    $f = (array) ($brief['formats'] ?? []);
+    $setup = campaign_setup_clean($uid, [
+        'counts' => ['post' => (int) ($f['post'] ?? 0), 'carousel' => (int) ($f['carousel'] ?? 0), 'story' => 0, 'video' => (int) ($f['reel'] ?? 0)],
+        'services' => !empty($brief['all_services']) ? [] : (array) ($brief['service_ids'] ?? []),
+        'personas' => (array) ($brief['persona_ids'] ?? []),
+    ]);
+    if (array_sum($setup['counts']) < 1) return ['ok' => false, 'code' => 'brief', 'error' => 'حدد عدد منشور واحد على الأقل'];
+    $offer = (array) ($brief['offer'] ?? []);
+    $topic = trim((string) ($brief['goal_other'] ?? '') . (!empty($offer['what']) ? ' — عرض: ' . $offer['what'] . (!empty($offer['value']) ? ' ' . $offer['value'] : '') : ''));
+    $notes = trim(implode("\n", array_filter([(string) ($brief['notes'] ?? ''), !empty($brief['exclusions']) ? 'من غير: ' . implode('، ', (array) $brief['exclusions']) : ''])));
+    $id = (int) db_insert('INSERT INTO campaigns (user_id, title, goal, basis, topic, ideas_count, notes, period_month, prefs_json) VALUES (?,?,?,?,?,?,?,?,?)', [
+        $uid, mb_substr($title ?: 'حملة من الوكيل', 0, 150), $basis, $basis, mb_substr($topic, 0, 300), min(255, array_sum($setup['counts'])),
+        mb_substr('🤖 من الوكيل' . ($notes !== '' ? "\n" . $notes : ''), 0, 2000), date('Y-m'),
+        json_encode(['platform' => 'facebook', 'setup' => $setup], JSON_UNESCAPED_UNICODE)]);
+    return ['ok' => true, 'id' => $id];
+}
+
+/** الشغلانة المحفوظة للمرحلة دي ← active · done · failed · cancelled · none */
+function as_cj_wait(array &$run, bool $stepIfNoWorker): array
+{
+    $o = as_run_opts($run);
+    if (empty($o['job_id'])) return ['none', null];
+    $j = ce_job_get((int) $o['job_id'], (int) $run['user_id']);
+    if (!$j) return ['none', null];
+    if (in_array($j['status'], ['queued', 'running'], true)) {
+        if ($stepIfNoWorker && !ce_worker_alive()) $j = ce_job_step((int) $j['id']) ?: $j;
+        if (in_array($j['status'], ['queued', 'running'], true)) return ['active', $j];
+    }
+    return [(string) $j['status'], $j];
+}
+
+/** خطوة من مهمة الوكيل على مسار الحملة */
+function as_agent_tick_campaign(array $run, bool $stepIfNoWorker = true): array
+{
+    require_once __DIR__ . '/campaign-write.php';
+    require_once __DIR__ . '/campaign-jobs.php';
+    $uid = (int) $run['user_id'];
+    if (function_exists('qt_price_user')) qt_price_user($uid, true);
+    $cid = (int) $run['campaign_id'];
+    $c = $cid ? db_one('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [$cid, $uid]) : null;
+    if (!$c) { as_run_fail($run, 'الحملة اتمسحت'); return $run; }
+    $brand = brand_for_user($uid) ?: [];
+
+    switch ($run['stage']) {
+        case 'plan':
+            $have = (int) (db_one('SELECT COUNT(*) n FROM campaign_ideas WHERE campaign_id = ? AND selected = 1' . (ca_ready() ? ' AND rejected = 0' : ''), [$cid])['n'] ?? 0);
+            if ($have === 0) {
+                $setup = campaign_setup($c);
+                $seq = $setup['set'] ? campaign_format_sequence($setup['counts']) : [];
+                $total = max(1, min(CAMP_MAX_IDEAS, $seq ? count($seq) : (int) $c['ideas_count']));
+                // نفس قواعد الصفحة: المسودة في الباقة (الخطة الأولى ببلاش) — غير كده سعر الأفكار
+                $c = ca_adopt($c);
+                $d = ca_draft_plan($c);
+                if (!$d['ok']) { as_run_pause($run, $d['error']); break; }
+                $cost = $d['free'] ? 0 : idea_credits_for($total);
+                if ($cost > 0 && !credits_consume($uid, $cost, 'أفكار حملة «' . mb_substr((string) $c['title'], 0, 60) . '» (' . $total . ')', 'campaign', $cid)) {
+                    as_run_pause($run, credits_short_msg($cost, 'الأفكار') . ' — اشحن وأنا هكمّل لوحدي.');
+                    break;
+                }
+                $made = 0;
+                for ($b = 0; $b * CAMP_IDEAS_BATCH < $total; $b++) {
+                    $r = cw_ideas_batch($uid, $c, $brand, min(CAMP_IDEAS_BATCH, $total - $b * CAMP_IDEAS_BATCH), $b, $seq, $setup);
+                    if (!$r['ok']) break;
+                    $made += $r['n'];
+                }
+                if ($made === 0) {
+                    if ($cost > 0) credits_add($uid, $cost, 'استرداد: أفكار حملة #' . $cid, null, 'refund', $cid);
+                    if (!as_job_retry($run, 'الأفكار')) break;
+                    break;
+                }
+                db_run('UPDATE campaigns SET stage = GREATEST(stage, 1), max_stage = GREATEST(max_stage, 1) WHERE id = ?', [$cid]);
+                as_run_log($run, '✓ الخطة: ' . $made . ' فكرة');
+                $c = db_one('SELECT * FROM campaigns WHERE id = ?', [$cid]);
+            }
+            // «اعتمد الخطة» بنفس الدالة (العدّ مرة واحدة حتى لو العميل والوكيل مع بعض)
+            if (ca_is_package($c) && $c['pkg_state'] === 'draft') {
+                $a = ca_approve($uid, $cid);
+                if (!$a['ok']) { as_run_pause($run, $a['error'] . ' — وأنا هكمّل لوحدي لما يبقى فيه مكان.'); break; }
+                as_run_log($run, '✓ الخطة اتعتمدت — اتحسبت حملة من باقتك');
+            }
+            as_run_next($run, 'write', '▶ الكتابة');
+            break;
+
+        case 'write':
+        case 'design':
+            $isW = $run['stage'] === 'write';
+            [$st, $j] = as_cj_wait($run, $stepIfNoWorker);
+            if ($st === 'active') break;
+            if ($st === 'done') {
+                $res = json_decode((string) ($j['result_json'] ?? ''), true) ?: [];
+                if (!empty($res['stopped'])) { as_run_pause($run, 'وقفت في ' . ($isW ? 'الكتابة' : 'التصميم') . ': ' . $res['stopped'] . ' — وأنا هكمّل لوحدي لما يتحل.'); $o = as_run_opts($run); unset($o['job_id']); as_run_set((int) $run['id'], ['opts_json' => $o]); break; }
+                if ($isW) {
+                    $ok = (int) (db_one('SELECT COUNT(*) n FROM campaign_ideas WHERE campaign_id = ? AND selected = 1 AND content_id IS NOT NULL', [$cid])['n'] ?? 0);
+                    if ($ok === 0) { as_run_fail($run, 'الكتابة خلصت من غير ولا منشور — افتح الحملة وشوف.'); break; }
+                    // الوكيل شغال مكان العميل: بيعتمد المحتوى اللي عدّى (نفس «اعتمد الجاهز»)
+                    db_run('UPDATE campaign_ideas SET approved = 1 WHERE campaign_id = ? AND selected = 1 AND content_id IS NOT NULL', [$cid]);
+                    db_run('UPDATE campaigns SET eval_skipped = 1, stage = GREATEST(stage, 4), max_stage = GREATEST(max_stage, 4) WHERE id = ?', [$cid]);
+                    as_run_next($run, 'design', '✓ الكتابة خلصت — ' . $ok . ' منشور');
+                } else {
+                    $pub = (as_run_opts($run)['publish'] ?? 'none') === 'schedule';
+                    as_run_next($run, $pub ? 'publish' : 'done', '✓ التصميم خلص — ' . (int) ($res['ok'] ?? 0) . ' تصميم');
+                    if (!$pub) as_run_finish($run);
+                }
+                break;
+            }
+            if (in_array($st, ['failed', 'cancelled'], true) && !as_job_retry($run, $isW ? 'الكتابة' : 'التصميم')) break;
+            $r = $isW ? cj_start_write($uid, $c) : cj_start_design($uid, $c);
+            if (!$r['ok'] && ($r['code'] ?? '') === 'empty') {
+                if ($isW) { as_run_next($run, 'design', '✓ كل الأفكار مكتوبة'); break; }
+                $pub = (as_run_opts($run)['publish'] ?? 'none') === 'schedule';
+                as_run_next($run, $pub ? 'publish' : 'done', '✓ كل المنشورات متصممة');
+                if (!$pub) as_run_finish($run);
+                break;
+            }
+            as_job_started($run, $r, $isW ? 'الكتابة' : 'التصميم');
+            break;
+
+        case 'publish':
+            // المواعيد على الشهر (نفس «وزّع لوحدك») — النشر نفسه العميل بيأكده من الحملة
+            $o = as_run_opts($run);
+            $platform = in_array(($o['platforms'] ?? ['facebook'])[0] ?? 'facebook', ['facebook', 'instagram'], true) ? $o['platforms'][0] : 'facebook';
+            $rows = db_all('SELECT ci.*, c.publish_status, c.format AS cformat FROM campaign_ideas ci LEFT JOIN contents c ON c.id = ci.content_id WHERE ci.campaign_id = ? AND ci.user_id = ? ORDER BY ci.sort_order, ci.id', [$cid, $uid]);
+            $rows = array_values(array_filter($rows, fn($r) => !in_array((string) $r['publish_status'], ['published', 'scheduled', 'processing', 'pending'], true)));
+            $n = campaign_auto_distribute($c, $rows, $platform, true);
+            db_run('UPDATE campaigns SET stage = GREATEST(stage, 5), max_stage = GREATEST(max_stage, 5) WHERE id = ?', [$cid]);
+            as_run_next($run, 'done', '✓ حطّيت مواعيد ' . $n . ' منشور على الشهر — راجعها ودوس «انشر» من الحملة');
+            as_run_finish($run);
+            break;
+    }
+    return as_run((int) $run['id']) ?? $run;
 }

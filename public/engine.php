@@ -13,6 +13,8 @@ if (is_file(__DIR__ . '/../includes/ui-v2.php')) require_once __DIR__ . '/../inc
 require_login();
 $user = current_user();
 if (!ce_enabled_for((int) $user['id'])) redirect('campaigns.php');
+// خطة الحملات §4: الحملات الجديدة من «حملاتي» — المحرك بيفضل للي عنده حملات قديمة
+if (!ce_engine_new_open() && !ce_engine_has_campaigns((int) $user['id'])) redirect('campaigns.php');
 
 $__v2 = function_exists('ui_v2_enabled') && ui_v2_enabled();
 $active = 'engine';

@@ -86,10 +86,11 @@ function ui_sections(): array
     if (is_file(__DIR__ . '/ce-jobs.php') && function_exists('current_user')) {
         require_once __DIR__ . '/ce-jobs.php';
         $__u = current_user();
-        $__ce = $__u && ce_enabled_for((int) $__u['id']);
+        // خطة الحملات §4: معالج المحرك اتشال من القايمة — بيفضل للي عنده حملات محرك قديمة بس
+        $__ce = $__u && ce_enabled_for((int) $__u['id']) && (ce_engine_new_open() || ce_engine_has_campaigns((int) $__u['id']));
     }
     $__campSubs = [['حملاتي', 'campaigns.php', 'campaigns', null]];
-    if ($__ce) $__campSubs[] = ['محرك المحتوى ✨', 'engine.php', 'engine', null];
+    if ($__ce) $__campSubs[] = [ce_engine_new_open() ? 'محرك المحتوى ✨' : 'حملات المحرك (القديمة)', 'engine.php', 'engine', null];
     $__campSubs[] = ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'];
     return [
         'dashboard' => ['الرئيسية', 'home', 'dashboard.php', ['dashboard'], []],

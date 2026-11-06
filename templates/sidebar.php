@@ -31,9 +31,10 @@ $balance = user_credits();
             <span class="ico">📣</span> حملاتي
         </a>
         <?php endif; ?>
-        <?php if (is_file(__DIR__ . '/../includes/ce-jobs.php') && (require_once __DIR__ . '/../includes/ce-jobs.php') && ce_enabled_for((int) ($user['id'] ?? (current_user()['id'] ?? 0)))): ?>
+        <?php if (is_file(__DIR__ . '/../includes/ce-jobs.php') && (require_once __DIR__ . '/../includes/ce-jobs.php') && ($__ceU = (int) ($user['id'] ?? (current_user()['id'] ?? 0))) && ce_enabled_for($__ceU)
+                  && (ce_engine_new_open() || ce_engine_has_campaigns($__ceU))): /* خطة الحملات §4: المعالج اتشال — بيفضل للحملات القديمة بس */ ?>
         <a href="<?= url('engine.php') ?>" class="<?= $active === 'engine' ? 'active' : '' ?>">
-            <span class="ico">✨</span> محرك المحتوى
+            <span class="ico">✨</span> <?= ce_engine_new_open() ? 'محرك المحتوى' : 'حملات المحرك (القديمة)' ?>
         </a>
         <?php endif; ?>
         <a href="<?= url('create-content.php') ?>" class="<?= $active === 'create' ? 'active' : '' ?>">

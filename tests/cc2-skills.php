@@ -182,8 +182,8 @@ $inputs = json_encode([$b1['inputs'], mock_since($off)], JSON_UNESCAPED_UNICODE)
 t('design_build بالـ Skill: قسم التصميم و«ممنوع في الصورة» دخلوا', str_contains($b1['prompt'] . $inputs, "تصميم-cc2-$tag") && str_contains($b1['prompt'] . $inputs, "no-cc2-$tag"),
     mb_substr($b1['prompt'], 0, 200));
 t('من غير Skill: نفس التصميم القديم', !str_contains($b0['prompt'], "cc2-$tag"));
-$src = (string) file_get_contents(__DIR__ . '/../public/ajax/generate-design.php');
-t('generate-design.php بيبعت الـ Skill لتصميمات الحملات بس', str_contains($src, "if (!empty(\$content['campaign_id']))") && str_contains($src, "'skill' => \$__skill"));
+$src = (string) file_get_contents(__DIR__ . '/../includes/design-generate.php');   // المنطق اتنقل من public/ajax/generate-design.php
+t('design-generate.php بيبعت الـ Skill لتصميمات الحملات بس', str_contains($src, "if (!empty(\$content['campaign_id']))") && str_contains($src, "'skill' => \$__skill"));
 
 /* ─── 6) خريطة المراحل ─── */
 echo "خريطة المراحل\n";

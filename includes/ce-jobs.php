@@ -39,6 +39,37 @@ function ce_ready(): bool
     }
 }
 
+/* ═══ خطة الحملات §4: الحملات الجديدة من «حملاتي» — المحرك بيكمّل حملاته القديمة بس ═══
+ * ce_engine_new_campaigns = 1 بيرجّع «حملة جديدة» في المحرك · بعد 60 يوم من الإطلاق (ce_engine_sunset_at)
+ * أنواع شغل حملات المحرك (الخطة · الكتابة · التصميم) بتتقفل والحملات بتفضل تتعرض بس. الطابور نفسه بيفضل شغال. */
+function ce_engine_new_open(): bool
+{
+    return (string) get_setting('ce_engine_new_campaigns', '0') === '1';
+}
+
+function ce_engine_sunset_at(): ?string
+{
+    $v = trim((string) get_setting('ce_engine_sunset_at', ''));
+    if ($v === '') {
+        $since = trim((string) get_setting('campaign_pkg_since', ''));
+        if ($since === '' || !strtotime($since)) return null;
+        $v = date('Y-m-d H:i:s', strtotime($since) + 60 * 86400);
+    }
+    return strtotime($v) ? $v : null;
+}
+
+function ce_engine_jobs_open(): bool
+{
+    $at = ce_engine_sunset_at();
+    return $at === null || time() < strtotime($at);
+}
+
+/** العميل عنده حملات محرك قديمة؟ (علشان يفضل يشوفها) */
+function ce_engine_has_campaigns(int $uid): bool
+{
+    try { return (bool) db_one('SELECT id FROM ce_campaigns WHERE user_id = ? LIMIT 1', [$uid]); } catch (\Throwable $e) { return false; }
+}
+
 /** المحرك الجديد متاح للعميل ده؟ (الترحيل اتشغّل + الميزة مفتوحة له من «الميزات») */
 function ce_enabled_for(int $uid): bool
 {
@@ -147,7 +178,8 @@ function ce_job_register(string $kind, string $fn, string $label, ?string $onCan
 function ce_job_handlers(): array
 {
     // كل وحدة بتسجّل الـ handlers بتاعتها لما تتحمّل
-    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php', 'ce-write.php', 'ce-design.php'] as $f) {
+    // + الحملات (campaign-jobs.php): camp_write · camp_design — الطابور بنية مشتركة
+    foreach (['ce-dna.php', 'ce-campaign.php', 'ce-plan.php', 'ce-write.php', 'ce-design.php', 'campaign-jobs.php'] as $f) {
         if (is_file(__DIR__ . '/' . $f)) require_once __DIR__ . '/' . $f;
     }
     return $GLOBALS['__ce_job_handlers'] ?? [];
@@ -161,6 +193,9 @@ function ce_job_handlers(): array
 function ce_job_create(int $uid, string $kind, array $state = [], array $opt = []): array
 {
     if (!isset(ce_job_handlers()[$kind])) return ['ok' => false, 'code' => 'kind', 'error' => 'نوع شغل مش معروف'];
+    if (in_array($kind, ['campaign_plan', 'campaign_write', 'campaign_design'], true) && !ce_engine_jobs_open()) {
+        return ['ok' => false, 'code' => 'sunset', 'error' => 'حملات المحرك اتقفلت — الحملات الجديدة بقت من «حملاتي» (وحملاتك القديمة موجودة للعرض)'];
+    }
     $idem = isset($opt['idem_key']) && $opt['idem_key'] !== '' ? mb_substr((string) $opt['idem_key'], 0, 100) : null;
     $credits = max(0, (int) ($opt['credits'] ?? 0));
     // مستوى الجودة: الأعلى بيتنفذ الأول في الطابور

@@ -255,6 +255,8 @@ switch ($action) {
         api_ok(['design' => ce_design_view($uid, $c)]);
 
     case 'campaign_save':
+        // خطة الحملات §4: مفيش حملات محرك جديدة (تعديل اللي موجودة مسموح)
+        if (!api_int('id') && !ce_engine_new_open()) api_fail('الحملات الجديدة بقت من «حملاتي» 📣', 'closed', 409, ['url' => url('campaigns.php')]);
         $in = (array) (api_input()['brief'] ?? []);
         if (!empty(api_input()['partial'])) $in['partial'] = 1;
         $r = ce_campaign_save($uid, $in, api_int('id'));
