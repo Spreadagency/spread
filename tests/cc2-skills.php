@@ -146,8 +146,8 @@ db_run('DELETE FROM ce_brand_dna WHERE user_id = ?', [$uid]);
 set_setting('campaign_skills_enabled', '0');
 t('مفتاح الطوارئ campaign_skills_enabled = 0 ← من غير Skill', campaign_skill($brand, $c) === null && campaign_content_prompt($brand, $c, $idea, '', 'post') === campaign_content_prompt_base($brand, $c, $idea, '', 'post'));
 db_run('DELETE FROM settings WHERE setting_key = "campaign_skills_enabled"');
-t('حملة مربوطة بنسخة (skill_version_id) بتفضل عليها', (campaign_skill($brand2, $c + ['skill_version_id' => $spec['version_id']])['skey'] ?? '') === "cc2_$tag"
-    && campaign_skill($brand, $c + ['skill_version_id' => 0]) === null);
+t('حملة مربوطة بنسخة (skill_version_id) بتفضل عليها', (campaign_skill($brand2, array_merge($c, ['skill_version_id' => $spec['version_id']]))['skey'] ?? '') === "cc2_$tag"
+    && campaign_skill($brand, array_merge($c, ['skill_version_id' => 0])) === null);
 
 // لما مفيش Skills خالص: زي القديم بالحرف
 db_run('UPDATE ce_skills SET is_enabled = 0 WHERE id IN (' . implode(',', [$gen['id'], $spec['id']]) . ')');

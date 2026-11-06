@@ -165,12 +165,22 @@ function cc_report(array $shapeIn = []): array
     foreach ($pkgs as $pkg) {
         $tier = (string) ($pkg['quality_tier'] ?? 'standard') ?: 'standard';
         $byTier[$tier] ??= cc_step_costs($tier);
-        $cc = cc_campaign_cost($byTier[$tier], $shape);
+        // الباقة اللي ليها حدود حملات (المرحلة 4) بتتحسب بأرقامها هي — غير كده بشكل الحملة من الفورم
+        $ps = $shape;
+        if ((int) ($pkg['campaigns_month'] ?? 0) > 0) {
+            $ps['campaigns'] = (int) $pkg['campaigns_month'];
+            $ps['posts'] = (int) $pkg['posts_per_campaign'];
+            $ps['videos'] = (int) $pkg['videos_per_campaign'];
+            $ps['edits'] = (int) $pkg['free_edits_per_campaign'];
+            if ((int) $pkg['carousel_max_slides'] > 0) $ps['slides'] = (int) $pkg['carousel_max_slides'];
+        }
+        $cc = cc_campaign_cost($byTier[$tier], $ps);
         $month = cc_package_month_price($pkg);
-        $avgM = $cc['avg_usd'] * $shape['campaigns'] * $fx;
-        $worstM = $cc['worst_usd'] * $shape['campaigns'] * $fx;
+        $avgM = $cc['avg_usd'] * $ps['campaigns'] * $fx;
+        $worstM = $cc['worst_usd'] * $ps['campaigns'] * $fx;
         $rows[] = [
             'id' => (int) $pkg['id'], 'name' => (string) $pkg['name'], 'tier' => $tier, 'price' => $month,
+            'shape_source' => (int) ($pkg['campaigns_month'] ?? 0) > 0 ? 'package' : 'form', 'campaigns' => $ps['campaigns'],
             'campaign_avg_egp' => round($cc['avg_usd'] * $fx, 2), 'campaign_worst_egp' => round($cc['worst_usd'] * $fx, 2),
             'month_avg_egp' => round($avgM, 2), 'month_worst_egp' => round($worstM, 2),
             'margin_avg' => $month ? round(($month - $avgM) / $month * 100, 1) : null,

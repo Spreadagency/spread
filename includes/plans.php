@@ -81,6 +81,10 @@ function plan_active(int $uid, bool $fresh = false): array
                     'quality_tier' => (string) ($r['quality_tier'] ?? 'standard'), 'allow_research' => (int) ($r['allow_research'] ?? 1),
                     'video_discount_pct' => (float) ($r['video_discount_pct'] ?? 0),
                     'assistant_support' => (int) ($r['assistant_support'] ?? 1), 'assistant_agent' => (int) ($r['assistant_agent'] ?? 0),
+                    // خطة الحملات (المرحلة 4) — 0 = الحملات بالكريدت
+                    'campaigns_month' => (int) ($r['campaigns_month'] ?? 0), 'posts_per_campaign' => (int) ($r['posts_per_campaign'] ?? 0),
+                    'videos_per_campaign' => (int) ($r['videos_per_campaign'] ?? 0), 'free_edits_per_campaign' => (int) ($r['free_edits_per_campaign'] ?? 0),
+                    'carousel_max_slides' => (int) ($r['carousel_max_slides'] ?? 0),
                 ];
             }
         } catch (\Throwable $e) {
@@ -131,8 +135,14 @@ function plan_used(int $uid, string $unit, string $from, string $to): int
                 }
             case 'designs':
                 // تصميمات الموقع: اللي اتولّدت بالـ AI (اتخصم عليها كريدت قديمًا أو متعلّم عليها الموديل) — المرفوع والمنسوخ من الاستوديو مابيتحسبش
-                $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?
-                                    AND (credits_used > 0 OR (provider IS NOT NULL AND COALESCE(model, "") <> "upload"))', [$uid, $from, $to])['n'] ?? 0);
+                // تصميمات الحملة اللي من حصة الحملة (campaign_alloc = 1) مابتتحسبش هنا (خطة الحملات §2.3)
+                try {
+                    $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ? AND campaign_alloc = 0
+                                        AND (credits_used > 0 OR (provider IS NOT NULL AND COALESCE(model, "") <> "upload"))', [$uid, $from, $to])['n'] ?? 0);
+                } catch (\Throwable $e) {
+                    $n = (int) (db_one('SELECT COUNT(*) n FROM content_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?
+                                        AND (credits_used > 0 OR (provider IS NOT NULL AND COALESCE(model, "") <> "upload"))', [$uid, $from, $to])['n'] ?? 0);
+                }
                 try {
                     $n += (int) (db_one('SELECT COUNT(*) n FROM studio_designs WHERE user_id = ? AND created_at >= ? AND created_at < ?', [$uid, $from, $to])['n'] ?? 0);
                 } catch (\Throwable $e) {}
@@ -377,6 +387,14 @@ function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, 
         // المرحلة 7: المساعدين في الباقة (لقطة وقت الاشتراك)
         if ($id && $pkg && array_key_exists('assistant_agent', $pkg)) {
             try { db_run('UPDATE user_plans SET assistant_support = ?, assistant_agent = ? WHERE id = ?', [(int) $pkg['assistant_support'] ? 1 : 0, (int) $pkg['assistant_agent'] ? 1 : 0, $id]); } catch (\Throwable $e) {}
+        }
+        // خطة الحملات (المرحلة 4): الحملات في الباقة وحدود الحملة (لقطة وقت الاشتراك)
+        if ($id && $pkg && array_key_exists('campaigns_month', $pkg)) {
+            try {
+                db_run('UPDATE user_plans SET campaigns_month = ?, posts_per_campaign = ?, videos_per_campaign = ?, free_edits_per_campaign = ?, carousel_max_slides = ? WHERE id = ?', [
+                    (int) $pkg['campaigns_month'], (int) $pkg['posts_per_campaign'], (int) $pkg['videos_per_campaign'],
+                    (int) $pkg['free_edits_per_campaign'], (int) $pkg['carousel_max_slides'], $id]);
+            } catch (\Throwable $e) {}
         }
         // المرحلة 6: خصم الفيديو بتاع الباقة (لقطة وقت الاشتراك)
         if ($id && $pkg && array_key_exists('video_discount_pct', $pkg)) {

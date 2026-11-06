@@ -80,6 +80,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['assistant_support'] = !empty($_POST['assistant_support']) ? 1 : 0;
             $data['assistant_agent'] = !empty($_POST['assistant_agent']) ? 1 : 0;
         }
+        // خطة الحملات (المرحلة 4): الحملات في الباقة وحدود الحملة — 0 حملات = بالكريدت زي دلوقتي
+        require_once __DIR__ . '/../includes/campaign-allowance.php';
+        if (ca_ready()) {
+            $data['campaigns_month'] = max(0, min(100, (int) ($_POST['campaigns_month'] ?? 0)));
+            $data['posts_per_campaign'] = max(0, min(200, (int) ($_POST['posts_per_campaign'] ?? 0)));
+            $data['videos_per_campaign'] = max(0, min(50, (int) ($_POST['videos_per_campaign'] ?? 0)));
+            $data['free_edits_per_campaign'] = max(0, min(200, (int) ($_POST['free_edits_per_campaign'] ?? 0)));
+            $data['carousel_max_slides'] = max(0, min(10, (int) ($_POST['carousel_max_slides'] ?? 0)));
+            if ($data['campaigns_month'] > 0 && $data['posts_per_campaign'] + $data['videos_per_campaign'] === 0) {
+                flash_set('danger', 'الحملات في الباقة محتاجة عدد منشورات أو فيديوهات للحملة');
+                redirect('admin/packages.php' . ($id > 0 ? '?edit=' . $id : ''));
+            }
+        }
         // المرحلة 6: خصم الفيديو للباقة (% من سعر الفيديو — الفيديو بيتدفع بالفلوس)
         if (vp_ready()) $data['video_discount_pct'] = round(max(0, min(100, (float) ($_POST['video_discount_pct'] ?? 0))), 2);
         // 8-ب: حصص الباقة في الدورة (0 = مفتوح في حدود الكريدت)
@@ -294,6 +307,36 @@ include __DIR__ . '/../templates/admin-header.php';
                 </div>
                 <?php endif; ?>
 
+                <?php require_once __DIR__ . '/../includes/campaign-allowance.php'; if (ca_ready()): ?>
+                <div class="field-row">
+                    <div class="field">
+                        <label>📣 حملات في الشهر</label>
+                        <input type="number" name="campaigns_month" class="input" min="0" max="100" value="<?= (int) ($editing['campaigns_month'] ?? 0) ?>">
+                        <div class="field-help">0 = الحملات بالكريدت زي دلوقتي · كل 30 يوم من بداية الاشتراك وتراكمي · الحملة بتتحسب لما العميل يدوس «اعتمد الخطة»</div>
+                    </div>
+                    <div class="field">
+                        <label>📝 منشورات في الحملة</label>
+                        <input type="number" name="posts_per_campaign" class="input" min="0" max="200" value="<?= (int) ($editing['posts_per_campaign'] ?? 0) ?>">
+                        <div class="field-help">ومعاها تصميم واحد لكل منشور ببلاش (برّه حد التصميمات العادي)</div>
+                    </div>
+                    <div class="field">
+                        <label>🎬 سكريبتات فيديو في الحملة</label>
+                        <input type="number" name="videos_per_campaign" class="input" min="0" max="50" value="<?= (int) ($editing['videos_per_campaign'] ?? 0) ?>">
+                    </div>
+                    <div class="field">
+                        <label>✏️ تعديلات ببلاش للحملة</label>
+                        <input type="number" name="free_edits_per_campaign" class="input" min="0" max="200" value="<?= (int) ($editing['free_edits_per_campaign'] ?? 0) ?>">
+                        <div class="field-help">أي إعادة كتابة أو إعادة تصميم أو «حسّن» بطلب العميل · بعدها بالكريدت</div>
+                    </div>
+                    <div class="field">
+                        <label>🎞 أقصى شرايح للكاروسيل</label>
+                        <input type="number" name="carousel_max_slides" class="input" min="0" max="10" value="<?= (int) ($editing['carousel_max_slides'] ?? 0) ?>">
+                        <div class="field-help">0 = الحد العام</div>
+                    </div>
+                </div>
+                <div class="field-help" style="margin:-4px 0 12px">التكلفة والهامش لكل باقة في «التقارير ← 🧮 تكلفة الحملة». التغيير بيسري على الاشتراكات الجديدة بس.</div>
+                <?php endif; ?>
+
                 <?php if ($__v2): $__prices = $editing ? pkg_prices((int) $editing['id'], false) : []; ?>
                 <div class="field-row">
                     <div class="field">
@@ -421,6 +464,7 @@ include __DIR__ . '/../templates/admin-header.php';
                                 <span class="chip"><?= e(pkg_tiers()[$p['quality_tier'] ?? 'standard'] ?? '') ?></span>
                                 <?php if ((int) ($p['weekly_credits'] ?? 0) || (int) ($p['weekly_designs'] ?? 0)): ?><span class="chip">⏱ أسبوعيًا <?= (int) $p['weekly_credits'] ?> ◇ / <?= (int) $p['weekly_designs'] ?> 🎨</span><?php endif; ?>
                                 <?php if (!(int) ($p['allow_research'] ?? 1)): ?><span class="chip">من غير بحث</span><?php endif; ?>
+                                <?php if ((int) ($p['campaigns_month'] ?? 0) > 0): ?><span class="chip">📣 <?= (int) $p['campaigns_month'] ?> حملة/شهر · <?= (int) $p['posts_per_campaign'] ?> منشور<?= (int) $p['videos_per_campaign'] ? ' · ' . (int) $p['videos_per_campaign'] . ' فيديو' : '' ?></span><?php endif; ?>
                             </div>
                         <?php endif; ?>
                         <?php if (function_exists('plan_quotas_decode')): $__pq = array_filter(plan_quotas_decode($p['quotas_json'] ?? null)); ?>

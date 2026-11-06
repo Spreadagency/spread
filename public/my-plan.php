@@ -41,6 +41,10 @@ $units = [];
 foreach (($pu['units'] ?? []) as $u) $units[$u['key']] = $u;
 $wkC = function_exists('pkg_weekly_credits') ? pkg_weekly_credits($uid) : null;
 $wkD = function_exists('pkg_weekly_designs') ? pkg_weekly_designs($uid) : null;
+require_once __DIR__ . '/../includes/campaign-allowance.php';
+$caS = $paid ? ca_status($uid) : null;   // خطة الحملات: الحملات في الباقة (null = بالكريدت)
+$caList = $caS ? db_all('SELECT id, title, pkg_state, posts_used, posts_target, videos_used, videos_target, edits_used FROM campaigns
+                          WHERE user_id = ? AND pkg_state IN ("draft", "approved") AND status = "active" ORDER BY id DESC LIMIT 6', [$uid]) : [];
 $tier = function_exists('pkg_quality_tier') && $paid ? (pkg_tiers()[pkg_quality_tier($uid)] ?? '') : '';
 $pendingN = billing_ready() ? (int) (db_one('SELECT COUNT(*) n FROM payment_requests WHERE user_id = ? AND status IN ("pending","under_review")', [$uid])['n'] ?? 0) : 0;
 $hasAddons = function_exists('addon_packs') && $paid && addon_packs();
@@ -88,6 +92,17 @@ include __DIR__ . '/../templates/header.php';
                     <span>التصميمات</span>
                     <b><?= $d['open'] ? 'مفتوحة' : (int) $d['left'] . ' <small>من ' . (int) $d['limit'] . '</small>' ?></b>
                     <?php if (!$d['open']): ?><i class="mp-bar"><i style="width:<?= (int) $d['pct'] ?>%"></i></i><?php endif; ?>
+                </div>
+                <?php endif; ?>
+                <?php if ($caS): ?>
+                <div class="mp-m">
+                    <span>📣 الحملات (الشهر <?= (int) $caS['month'] ?>)</span>
+                    <b>فاضل <?= (int) $caS['left'] ?> من <?= (int) $caS['allow'] ?></b>
+                    <i class="mp-bar"><i style="width:<?= (int) min(100, round(100 * $caS['used'] / max(1, $caS['allow']))) ?>%"></i></i>
+                    <?php foreach ($caList as $__cl): ?>
+                    <small style="display:block"><a href="<?= e(url('campaign.php?id=' . (int) $__cl['id'])) ?>"><?= e(mb_substr((string) $__cl['title'], 0, 40)) ?></a> — <?= $__cl['pkg_state'] === 'draft' ? 'مسودة (لسه ماتحسبتش)' : (int) $__cl['posts_used'] . '/' . (int) $__cl['posts_target'] . ' منشور' . ((int) $__cl['videos_target'] ? ' · ' . (int) $__cl['videos_used'] . '/' . (int) $__cl['videos_target'] . ' فيديو' : '') . ' · ' . max(0, (int) $caS['edits'] - (int) $__cl['edits_used']) . ' تعديل فاضل' ?></small>
+                    <?php endforeach; ?>
+                    <small class="sub">كل حملة لحد <?= (int) $caS['posts'] ?> منشور بتصميمه<?= $caS['videos'] ? ' و' . (int) $caS['videos'] . ' فيديو' : '' ?> · بتتحسب لما تعتمد الخطة · حملة جديدة يوم <?= e(fmt_date((string) $caS['next'])) ?> واللي ماتستخدمش بيفضل</small>
                 </div>
                 <?php endif; ?>
                 <?php if ($wkC || $wkD): ?>

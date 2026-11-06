@@ -116,11 +116,19 @@ if ($format === 'carousel') {
     $__miss = content_design_progress($content)['missing'] ?? [];
     if (in_array($slideNo, $__miss, true)) $__need = max(1, count($__miss));
 }
-if ($__g = plan_gate((int) $user['id'], 'designs', $__need)) {
+// خطة الحملات §2.3: تصميم منشور من حملة في الباقة ← من حصة الحملة (العدّاد العادي والحد الأسبوعي بيستثنوه)
+//   الإعادة من رصيد التعديلات ← ولو خلص بالكريدت بس · غير كده المسار العادي زي ما هو
+require_once __DIR__ . '/../../includes/campaign-allowance.php';
+$__cad = ca_design_allow($content, $slideNo, ($_POST['design_edit'] ?? '') === '1');
+if ($__cad['mode'] === 'none') {
+    json_response(['ok' => false, 'error' => $__cad['error'] ?: 'الحملة دي مش معتمدة']);
+}
+if ($__cad['mode'] === 'off' && ($__g = plan_gate((int) $user['id'], 'designs', $__need))) {
     json_response(['ok' => false, 'error' => $__g, 'code' => 'quota']);
 }
-$cost = design_credit_cost();
-if (!credits_consume((int) $user['id'], $cost, 'توليد تصميم للمحتوى #' . $contentId . ($slideNo ? ' — شريحة ' . $slideNo : ''), 'design', $contentId)) {
+$cost = $__cad['mode'] === 'off' ? design_credit_cost() : (int) $__cad['cost'];
+if ($cost > 0 && !credits_consume((int) $user['id'], $cost, 'توليد تصميم للمحتوى #' . $contentId . ($slideNo ? ' — شريحة ' . $slideNo : ''), 'design', $contentId)) {
+    ca_design_release($__cad);
     json_response(['ok' => false, 'error' => credits_short_msg($cost)]);
 }
 
@@ -175,7 +183,8 @@ if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
 }
 
 if (!$result['ok']) {
-    credits_add((int) $user['id'], $cost, 'استرداد: فشل توليد التصميم #' . $contentId, null, 'refund', $contentId);
+    if ($cost > 0) credits_add((int) $user['id'], $cost, 'استرداد: فشل توليد التصميم #' . $contentId, null, 'refund', $contentId);
+    ca_design_release($__cad);
     json_response(['ok' => false, 'error' => $result['error']]);
 }
 
@@ -202,7 +211,8 @@ $designId = db_insert_row('content_designs', [
     'model' => $result['model'],
     'credits_used' => $cost,
     'ratio' => $__exact ? mb_substr($__exact[0] . 'x' . $__exact[1], 0, 10) : $ratioKey,
-] + (formats_ready() ? ['slide_no' => $slideNo, 'refs_json' => $refLog ? json_encode($refLog, JSON_UNESCAPED_UNICODE) : null] : []));
+] + (formats_ready() ? ['slide_no' => $slideNo, 'refs_json' => $refLog ? json_encode($refLog, JSON_UNESCAPED_UNICODE) : null] : [])
+  + ($__cad['mode'] !== 'off' ? ['campaign_alloc' => 1] : []));
 
 ai_stamp('content_designs', (int) $designId, 'design_base', $result);   // الإصدار والمزود (نظام الجودة)
 

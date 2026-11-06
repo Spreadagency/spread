@@ -111,6 +111,7 @@ include __DIR__ . '/../templates/header.php';
                 <?php if ($q || $feats): ?>
                 <ul class="bl-feats">
                     <?php foreach ($q as $k => $n): ?><li><?= plan_units()[$k][0] ?? '•' ?> <b class="<?= $k === 'designs' ? 'bl-ds' : ($k === 'research' ? 'bl-rs' : '') ?>"><?= (int) $n ?></b> <?= e(plan_units()[$k][1] ?? $k) ?></li><?php endforeach; ?>
+                    <?php if ((int) ($p['campaigns_month'] ?? 0) > 0): ?><li>📣 <b><?= (int) $p['campaigns_month'] ?></b> حملة في الشهر — كل حملة لحد <?= (int) $p['posts_per_campaign'] ?> منشور بتصميمه<?= (int) $p['videos_per_campaign'] ? ' و' . (int) $p['videos_per_campaign'] . ' سكريبت فيديو' : '' ?><?= (int) $p['free_edits_per_campaign'] ? ' · ' . (int) $p['free_edits_per_campaign'] . ' تعديل ببلاش' : '' ?></li><?php endif; ?>
                     <?php if (function_exists('pkg_tiers') && isset($p['quality_tier'])): ?><li>⭐ جودة <?= e(pkg_tiers()[$p['quality_tier']] ?? 'عادي') ?></li><?php endif; ?>
                     <?php if (isset($p['allow_research']) && !(int) $p['allow_research']): ?><li class="sub">من غير بحث عميق</li><?php endif; ?>
                     <?php if ((int) ($p['assistant_agent'] ?? 0) && get_setting('assistant_agent_enabled', '1') === '1'): ?><li>🤖 الوكيل بينفّذ حملاتك مكانك</li><?php endif; ?>

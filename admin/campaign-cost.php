@@ -62,7 +62,7 @@ include __DIR__ . '/../templates/admin-header.php';
                 <tbody>
                 <?php foreach ($rep['rows'] as $r): ?>
                     <tr>
-                        <td><b><?= e($r['name']) ?></b> <span class="a2-muted">· <?= e($tierNames[$r['tier']] ?? $r['tier']) ?></span></td>
+                        <td><b><?= e($r['name']) ?></b> <span class="a2-muted">· <?= e($tierNames[$r['tier']] ?? $r['tier']) ?><?= ($r['shape_source'] ?? '') === 'package' ? ' · 📣 ' . (int) $r['campaigns'] . ' حملة من حدود الباقة' : '' ?></span></td>
                         <td class="num"><?= $r['price'] !== null ? a2n($r['price'], 2) : '<span class="a2-muted">—</span>' ?></td>
                         <td class="num"><?= a2n($r['campaign_avg_egp'], 2) ?> / <?= a2n($r['campaign_worst_egp'], 2) ?></td>
                         <td class="num"><?= a2n($r['month_avg_egp'], 2) ?> / <?= a2n($r['month_worst_egp'], 2) ?></td>

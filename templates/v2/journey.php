@@ -112,6 +112,7 @@
     <div class="toast-container" v-if="toast"><div class="toast" :class="toast.type">{{ toast.msg }}</div></div>
 </div>
 
+<script src="<?= url('assets/js/campaign-approve.js') ?>?v=<?= @filemtime(__DIR__ . '/../../assets/js/campaign-approve.js') ?: time() ?>" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   var init = <?= json_encode($jrInit, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?>;

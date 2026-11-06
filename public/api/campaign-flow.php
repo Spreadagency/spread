@@ -20,6 +20,7 @@ require_once __DIR__ . '/../../includes/api.php';
 require_once __DIR__ . '/../../includes/social.php';
 require_once __DIR__ . '/../../includes/campaign-flow.php';
 require_once __DIR__ . '/../../includes/campaign-quality.php';   // خطة الحملات §5: كتابة + تقييم في طلب واحد
+require_once __DIR__ . '/../../includes/campaign-allowance.php'; // خطة الحملات §2: الحملة وحدة في الباقة
 require_once __DIR__ . '/../../includes/brand-brain.php';
 require_once __DIR__ . '/../../includes/brand-kit.php';
 
@@ -149,7 +150,26 @@ switch ($action) {
 
     /* ══════════ اللوحة ══════════ */
     case 'board':
-        api_ok(campaign_board_payload($c, $uid));
+        api_ok(campaign_board_payload($c, $uid) + ['package' => ca_campaign_view($c), 'allowance' => ca_status($uid)]);
+
+    /* ══════════ الحملة في الباقة (خطة الحملات §2.2) ══════════ */
+    case 'plan_approve':
+        $r = ca_approve($uid, (int) $c['id']);
+        if (!$r['ok']) api_fail($r['error'], $r['code'] ?? 'approve', 409);
+        $c = db_one('SELECT * FROM campaigns WHERE id = ?', [$c['id']]);
+        api_ok(['package' => ca_campaign_view($c), 'allowance' => ca_status($uid), 'already' => !empty($r['already'])]);
+
+    case 'plan_cancel':
+        $r = ca_cancel($uid, (int) $c['id']);
+        if (!$r['ok']) api_fail($r['error'], 'cancel', 409);
+        $c = db_one('SELECT * FROM campaigns WHERE id = ?', [$c['id']]);
+        api_ok(['package' => ca_campaign_view($c), 'allowance' => ca_status($uid), 'released' => $r['released']]);
+
+    case 'plan_targets':
+        $c = ca_adopt($c);
+        $r = ca_set_targets($c, api_param('posts') !== null ? api_int('posts', 0, 0, 500) : null, api_param('videos') !== null ? api_int('videos', 0, 0, 500) : null);
+        if (!$r['ok']) api_fail($r['error'], 'targets', 409);
+        api_ok(['package' => ca_campaign_view(db_one('SELECT * FROM campaigns WHERE id = ?', [$c['id']]))]);
 
     /* ══════════ ① الأفكار ══════════ */
     case 'ideas_generate':
@@ -164,9 +184,14 @@ switch ($action) {
         $key = 'camp_gen_' . $c['id'];
         $batches = (int) ceil($total / CAMP_IDEAS_BATCH);
 
+        $__draft = null;
         if ($batch === 0) {
             if (!rate_limit('camp_ideas', 'u' . $uid, 6, 600)) api_fail('ولّدت أفكار كتير بسرعة — استنى شوية', 'rate_limit', 429);
-            $cost = idea_credits_for($total);
+            // الحملة في الباقة: بتبقى مسودة · الخطة الأولى + إعادتين ببلاش · أقصى حملتين مسودة
+            $c = ca_adopt($c);
+            $__draft = ca_draft_plan($c);
+            if (!$__draft['ok']) api_fail($__draft['error'], 'draft_limit', 409);
+            $cost = $__draft['free'] ? 0 : idea_credits_for($total);
             cf_charge($uid, $cost, 'أفكار حملة «' . mb_substr($c['title'], 0, 60) . '» (' . $total . ')', 'campaign', (int) $c['id']);
             // جيل جديد: بنمسح المقترح بس — المختار وأي فكرة ليها محتوى بيفضلوا
             db_run('DELETE FROM campaign_ideas WHERE campaign_id = ? AND selected = 0 AND content_id IS NULL', [$c['id']]);
@@ -202,6 +227,7 @@ switch ($action) {
             if ($batch === 0) {
                 cf_refund($uid, (int) $g['cost'], 'أفكار حملة #' . $c['id'], (int) $c['id']);
                 unset($_SESSION[$key]);
+                if (ca_is_package($c)) db_run('UPDATE campaigns SET draft_plans = GREATEST(draft_plans - 1, 0), draft_regens = IF(draft_plans > 1, GREATEST(draft_regens - 1, 0), draft_regens) WHERE id = ?', [$c['id']]);
             }
             api_fail($ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'ai_failed', 502, ['refunded' => $batch === 0]);
         }
@@ -285,12 +311,17 @@ switch ($action) {
         // قبل أي خصم أو حصة — الفيديو المقفول مايتحسبش عليه
         if ($old && cf_video_locked($old)) api_fail('الفيديو ده اتبعت للتنفيذ — مش هنعيد كتابته', 'locked', 409);
         [$fmt, $slides] = cf_format_req($i);
+        // الحملة في الباقة: المنشورات والفيديوهات من حد الحملة · الإعادة من رصيد التعديلات · الكاروسيل لحد carousel_max_slides
+        if ($fmt === 'carousel' && ($__mx = ca_max_slides($c)) > 0 && $slides > $__mx) $slides = $__mx;
+        $__ca = ca_write_allow($c, (int) $i['id'], $fmt, $old ? (content_format_key((string) ($old['format'] ?? 'post')) === 'video' ? 'video' : 'post') : null);
+        if (!$__ca['ok']) api_fail($__ca['error'], $__ca['code'] ?? 'campaign_limit', 402);
         // 8-ب: حصة الشهر — منشور جديد (أو سكريبت فيديو) بيتحسب؛ إعادة الكتابة لأ
         // تغيير الشكل بين فيديو ومنشور بينقل الحصة → بيتحسب على الوحدة الجديدة
         $__unitNew = $fmt === 'video' ? 'videos' : 'posts';
         $__unitOld = $old ? ((string) ($old['format'] ?? 'post') === 'video' ? 'videos' : 'posts') : null;
-        if ((!$old || $__unitOld !== $__unitNew) && ($__g = plan_gate($uid, $__unitNew))) api_fail($__g, 'quota', 402, ['upgrade' => plan_upgrade_link()]);
-        $cost = $old ? cost_for('content_regeneration_cost') : cost_for_format($fmt);
+        if ($__ca['mode'] === 'off' && (!$old || $__unitOld !== $__unitNew) && ($__g = plan_gate($uid, $__unitNew))) api_fail($__g, 'quota', 402, ['upgrade' => plan_upgrade_link()]);
+        $cost = $__ca['cost'] >= 0 ? (int) $__ca['cost'] : ($old ? cost_for('content_regeneration_cost') : cost_for_format($fmt));
+        if ($cost > 0 && (credits_balance($uid) < $cost)) ca_write_release($c, (int) $i['id'], $fmt, $__ca);
         cf_charge($uid, $cost, ($old ? 'إعادة كتابة' : 'محتوى') . ' فكرة: ' . mb_substr($i['title'], 0, 60), 'campaign_idea', (int) $i['id']);
 
         $formatChanged = $old && ($old['format'] !== $fmt || ($fmt === 'carousel' && (int) $old['slides_count'] !== $slides));
@@ -324,6 +355,7 @@ switch ($action) {
         }
         if (!$p) {
             cf_refund($uid, $cost, 'محتوى فكرة #' . $i['id'], (int) $i['id']);
+            ca_write_release($c, (int) $i['id'], $fmt, $__ca);
             api_fail(!empty($ai['ok']) ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'ai_failed', 502);
         }
         $text = campaign_compose_text($p['hook'], $p['body']);
@@ -448,6 +480,12 @@ switch ($action) {
         }
         if (!rate_limit('camp_content', 'u' . $uid, 45, 600)) api_fail('وقفة قصيرة — كمّل بعد دقايق', 'rate_limit', 429);
         $cost = cost_for('content_regeneration_cost');
+        if (cf_video_locked($content)) api_fail('الفيديو اتبعت للتنفيذ', 'locked', 409);   // قبل أي خصم
+        // الحملة في الباقة: «حسّن» من رصيد التعديلات ← ولو خلص بالكريدت
+        $__ce = ca_edit_allow($c, $cost);
+        if (!$__ce['ok']) api_fail($__ce['error'], 'closed', 409);
+        if ($__ce['cost'] >= 0) $cost = (int) $__ce['cost'];
+        if ($cost > 0 && credits_balance($uid) < $cost) ca_edit_release($c, $__ce);
         cf_charge($uid, $cost, 'تحسين منشور #' . $content['id'], 'campaign_idea', (int) $i['id']);
         $issues = (($ev['issues'] ?? '') ?: 'قوّي الـ Hook والـ CTA ووضّح الرسالة');
         // برومبت «تحسين بعد التقييم» الكامل (v1) بياخد المنشور والتقييم في متغيراته — غير كده بيتضاف لبرومبت الكتابة زي الأول
@@ -495,6 +533,7 @@ switch ($action) {
         }
         if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
             cf_refund($uid, $cost, 'تحسين منشور #' . $content['id'], (int) $i['id']);
+            ca_edit_release($c, $__ce);
             api_fail(!empty($ai['ok']) ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التحسين'), 'ai_failed', 502);
         }
         $text = campaign_compose_text($p['hook'], $p['body']);
