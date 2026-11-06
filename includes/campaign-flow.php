@@ -103,6 +103,40 @@ function campaign_ai_call(string $prompt, int $maxTokens, string $task, array $c
         'error' => 'محرك الذكاء الاصطناعي مشغول حاليًا — جرّب تاني بعد دقيقة', 'usage' => ['in' => 0, 'out' => 0]], $t0, $primary);
 }
 
+/**
+ * الـ Skill بتاعة الحملة (خطة الحملات §7): اختيار العميل في ملف البراند ← التخصص من المجال ← «تسويق عام» (general)
+ * «none» = من غير Skill · الحملة اللي اتربطت بنسخة (campaigns.skill_version_id) بتفضل عليها
+ * مفتاح الطوارئ: الإعداد campaign_skills_enabled = 0 بيقفلها في الحملات بس (المحرك زي ما هو)
+ */
+function campaign_skill(array $brand, array $c = []): ?array
+{
+    if (get_setting('campaign_skills_enabled', '1') !== '1') return null;
+    if (!function_exists('ce_skill_block')) require_once __DIR__ . '/ce-skills.php';
+    if (!ce_skills_ready()) return null;
+    if (array_key_exists('skill_version_id', $c) && $c['skill_version_id'] !== null) {
+        return (int) $c['skill_version_id'] > 0 ? ce_skill_version_load((int) $c['skill_version_id']) : null;
+    }
+    $uid = (int) ($brand['user_id'] ?? ($c['user_id'] ?? 0));
+    $dna = [];
+    if ($uid > 0) {
+        try {
+            if (!function_exists('ce_dna_get')) require_once __DIR__ . '/ce-dna.php';
+            $dna = ce_dna_get($uid) ?? [];
+        } catch (\Throwable $e) { $dna = []; }
+    }
+    if (trim((string) ($dna['brand']['sector'] ?? '')) === '') $dna['brand']['sector'] = (string) ($brand['industry'] ?? '');
+    $sk = ce_skill_for_dna($dna);
+    if (!empty($c['id']) && array_key_exists('skill_version_id', $c)) ce_skill_bind_campaign((int) $c['id'], $sk, 'campaigns');
+    return $sk;
+}
+
+/** بلوك الـ Skill في أول برومبت المرحلة (ثابت لنفس البراند — أحسن للكاش) — فاضي لو مفيش */
+function campaign_skill_prefix(string $stage, array $brand, array $c = []): string
+{
+    $b = ce_skill_block($stage, campaign_skill($brand, $c));
+    return $b === '' ? '' : ltrim($b) . "\n\n";
+}
+
 /** سطور هوية البراند للبرومبتات — + Brand Kit للـ Agent ده (والبريف لو بوست واحد) */
 function campaign_brand_block(array $brand, string $agent = 'copy', ?array $brief = null): string
 {
@@ -135,6 +169,11 @@ function campaign_dialect(array $brand): string
 
 /** برومبت دفعة أفكار (JSON) — بيتجنب الأفكار اللي طلعت قبل كده · التعليمات من الأدمن (campaign_ideas) */
 function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitles, string $plan = ''): string
+{
+    return campaign_skill_prefix('campaign_ideas', $brand, $c) . campaign_ideas_prompt_base($brand, $c, $n, $avoidTitles, $plan);
+}
+
+function campaign_ideas_prompt_base(array $brand, array $c, int $n, array $avoidTitles, string $plan = ''): string
 {
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? (campaign_bases()[$c['basis'] ?? ''] ?? 'تسويق عام');
     $details = trim((string) ($c['topic'] ?? '') . "\n" . (string) ($c['notes'] ?? ''));
@@ -277,6 +316,12 @@ function campaign_idea_format(array $idea): string
  *   video    → كابشن + سكريبت مشاهد حسب المدة + فكرة التصوير
  */
 function campaign_content_prompt(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null, array $task = []): string
+{
+    return campaign_skill_prefix('campaign_content', $brand, $c)
+        . campaign_content_prompt_base($brand, $c, $idea, $extra, $format, $slides, $duration, $brief, $task);
+}
+
+function campaign_content_prompt_base(array $brand, array $c, array $idea, string $extra = '', ?string $format = null, int $slides = 0, string $duration = '30 ثانية', ?array $brief = null, array $task = []): string
 {
     $format = $format ?: campaign_idea_format($idea);
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? 'تسويق عام';
@@ -423,6 +468,11 @@ function campaign_split_text(string $text): array
 
 /** برومبت التقييم (JSON) — التعليمات والمعايير ودرجة النجاح من الأدمن (campaign_eval) */
 function campaign_eval_prompt(array $brand, array $c, array $idea, array $content): string
+{
+    return campaign_skill_prefix('campaign_eval', $brand, $c) . campaign_eval_prompt_base($brand, $c, $idea, $content);
+}
+
+function campaign_eval_prompt_base(array $brand, array $c, array $idea, array $content): string
 {
     $cats = eval_criteria();
     $data = campaign_brand_block($brand) . "\n\n"

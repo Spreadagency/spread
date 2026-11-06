@@ -554,7 +554,9 @@ function ce_lab_skill_brand(array $skill): int
     foreach (db_all('SELECT user_id, dna_json FROM ce_brand_dna ORDER BY updated_at DESC LIMIT 300') as $r) {
         $dna = json_decode((string) $r['dna_json'], true) ?: [];
         $choice = (string) ($dna['brand']['skill'] ?? '');
-        if ($choice === $skill['skey'] || ($choice === '' && ($d = ce_skill_detect((string) ($dna['brand']['sector'] ?? ''))) && $d['skey'] === $skill['skey'])) return (int) $r['user_id'];
+        if ($choice === 'none') continue;
+        $d = $choice === '' ? ce_skill_detect((string) ($dna['brand']['sector'] ?? '')) : null;
+        if ($choice === $skill['skey'] || ($choice === '' && ($d ? $d['skey'] === $skill['skey'] : $skill['skey'] === CE_SKILL_GENERAL))) return (int) $r['user_id'];
     }
     return 0;
 }

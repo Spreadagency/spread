@@ -126,7 +126,15 @@ if (!credits_consume((int) $user['id'], $cost, 'توليد تصميم للمحت
 
 // ═══ تجهيز التصميم (المدخلات + البرومبت) — includes/design-builder.php (نفس المنطق للمحرك) ═══
 require_once __DIR__ . '/../../includes/design-builder.php';
+// الـ Skill (قسم «التصميم» و«ممنوع في الصورة») لتصميمات الحملات بس — المنشور السريع والاستوديو بعدين (خطة الحملات §7)
+$__skill = null;
+if (!empty($content['campaign_id'])) {
+    require_once __DIR__ . '/../../includes/campaign-flow.php';
+    $__camp = db_one('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [(int) $content['campaign_id'], (int) $user['id']]);
+    if ($__camp) $__skill = campaign_skill($brand, $__camp);
+}
 $__built = design_build([
+    'skill' => $__skill,
     'uid' => (int) $user['id'], 'brand' => $brand, 'content' => $content, 'format' => $format,
     'slide' => $slide, 'slide_no' => $slideNo, 'slides_total' => $slidesTotal ?? 1,
     'include_logo' => $includeLogo, 'include_images' => $includeImages, 'custom_prompt' => $customPrompt,

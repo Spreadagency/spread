@@ -42,7 +42,15 @@ const CE_SKILL_STAGE_MAP = [
     'ce_critic' => ['rules', 'forbidden', 'critic'],
     'ce_design_prompt' => ['visual', 'visual_avoid'],
     'ce_vision_qa' => ['visual_avoid'],
+    // الحملات القديمة (خطة الحملات §7) — نفس أقسام مراحل المحرك المقابلة، فاختبار الرجوع على المحرك بيغطي نفس المحتوى
+    'campaign_ideas' => ['knowledge', 'hooks', 'rules', 'extra'],
+    'campaign_content' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra'],
+    'campaign_eval' => ['rules', 'forbidden', 'critic'],
+    'design_base' => ['visual', 'visual_avoid'],
 ];
+
+/** الـ Skill العامة: بتشتغل لما مفيش تخصص (ومش بتتعرف بكلمات) */
+const CE_SKILL_GENERAL = 'general';
 
 /** أقسام بنقرا منها قايمة (- بند) للكود */
 const CE_SKILL_LIST_SECTIONS = ['forbidden', 'visual_avoid', 'brief_questions'];
@@ -274,6 +282,7 @@ function ce_skill_detect(string $sector): ?array
     $best = null;
     $bestLen = 0;
     foreach (ce_skill_active_list() as $s) {
+        if ($s['skey'] === CE_SKILL_GENERAL) continue;
         $words = array_merge([$s['name']], explode(',', $s['match']));
         foreach ($words as $w) {
             $w = ce_skill_norm($w);
@@ -294,7 +303,7 @@ function ce_skill_for_dna(array $dna): ?array
     if ($choice === 'none') return null;
     $list = ce_skill_active_list();
     if ($choice !== '' && isset($list[$choice])) return $list[$choice];
-    return ce_skill_detect((string) ($dna['brand']['sector'] ?? ''));
+    return ce_skill_detect((string) ($dna['brand']['sector'] ?? '')) ?? ($list[CE_SKILL_GENERAL] ?? null);
 }
 
 /** الحملة بتفضل على نسخة الـ Skill اللي بدأت بيها (0 = من غير Skill) — null = لسه ماتربطتش */
@@ -306,11 +315,12 @@ function ce_skill_for_campaign(array $c, array $dna): ?array
     return ce_skill_for_dna($dna);
 }
 
-function ce_skill_bind_campaign(int $cid, ?array $skill): void
+/** ربط الحملة بنسخة الـ Skill — ce_campaigns (المحرك) أو campaigns (الحملات القديمة · العمود بييجي مع ترحيل الباقات) */
+function ce_skill_bind_campaign(int $cid, ?array $skill, string $table = 'ce_campaigns'): void
 {
-    if (!ce_skills_ready()) return;
+    if (!ce_skills_ready() || !in_array($table, ['ce_campaigns', 'campaigns'], true)) return;
     try {
-        db_run('UPDATE ce_campaigns SET skill_version_id = ? WHERE id = ?', [$skill ? (int) $skill['version_id'] : 0, $cid]);
+        db_run('UPDATE ' . $table . ' SET skill_version_id = ? WHERE id = ?', [$skill ? (int) $skill['version_id'] : 0, $cid]);
     } catch (\Throwable $e) {}
 }
 

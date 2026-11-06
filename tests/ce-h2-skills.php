@@ -83,7 +83,7 @@ t('تعليقات HTML بتتشال', !str_contains(json_encode($p['sections'], 
 t('عناوين بالإنجليزي مقبولة', isset(ce_skill_parse("## Rules\n- x\n## Visual Avoid\n- y")['sections']['visual_avoid']));
 t('ملف مفيهوش ولا قسم معروف ← مرفوض', (bool) ce_skill_parse("# بس\nكلام")['errors']);
 t('ملف أكبر من الحد ← مرفوض', (bool) ce_skill_parse(str_repeat('ا', CE_SKILL_MAX_BYTES))['errors']);
-t('الأمثلة اللي مع المنصة: 5 تخصصات كلها بتتقري من غير أخطاء', count(ce_skill_samples()) === 5 && !array_filter(ce_skill_samples(), fn($s) => $s['key'] === ''));
+t('الأمثلة اللي مع المنصة: 5 تخصصات + «تسويق عام» كلها بتتقري من غير أخطاء', count(ce_skill_samples()) === 6 && !array_filter(ce_skill_samples(), fn($s) => $s['key'] === ''));
 $tplP = ce_skill_parse(ce_skill_template());
 t('القالب فيه كل الأقسام ومن غير أخطاء', !$tplP['errors'] && count(array_diff(array_keys(CE_SKILL_SECTIONS), array_keys($tplP['sections']), ['extra'])) === 0, json_encode(array_keys($tplP['sections'])));
 
@@ -211,8 +211,8 @@ t('بدء اختبار رجوع للـ Skill من الـ API', $c8 === 200 && (j
 /* ─── 8) الأمثلة ─── */
 echo "الأمثلة اللي مع المنصة\n";
 $added = ce_skill_import_samples(null);
-t('استيراد الأمثلة كمسودات (مش شغالة)', count($added) + count(array_intersect($preSamples, ['dental', 'restaurant', 'real_estate', 'gym', 'beauty'])) === 5
-    && !array_filter(ce_skill_active_list(true), fn($s) => in_array($s['skey'], ['dental', 'restaurant', 'real_estate', 'gym', 'beauty'], true) && !in_array($s['skey'], $preSamples, true)), json_encode($added, JSON_UNESCAPED_UNICODE));
+t('استيراد الأمثلة كمسودات (مش شغالة)', count($added) + count(array_intersect($preSamples, ['dental', 'restaurant', 'real_estate', 'gym', 'beauty', 'general'])) === 6
+    && !array_filter(ce_skill_active_list(true), fn($s) => in_array($s['skey'], ['dental', 'restaurant', 'real_estate', 'gym', 'beauty', 'general'], true) && !in_array($s['skey'], $preSamples, true)), json_encode($added, JSON_UNESCAPED_UNICODE));
 t('استيراد تاني مايكرّرش', ce_skill_import_samples(null) === []);
 
 /* ─── 9) حملة كاملة بـ Skill (الخطة ← الكتابة ← التصميم) ─── */
@@ -265,7 +265,7 @@ db_run('DELETE FROM credit_transactions WHERE user_id IS NULL AND (notes LIKE "C
 db_run('UPDATE ce_brand_dna SET dna_json = ?, prev_json = ?, edited_json = ?, tokens_est = ?, version = ? WHERE user_id = ?',
     [$dnaRow['dna_json'], $dnaRow['prev_json'], $dnaRow['edited_json'], $dnaRow['tokens_est'], $dnaRow['version'], $uid]);
 $cleanup();
-foreach (['dental', 'restaurant', 'real_estate', 'gym', 'beauty'] as $k) {
+foreach (['dental', 'restaurant', 'real_estate', 'gym', 'beauty', 'general'] as $k) {
     if (in_array($k, $preSamples, true)) continue;
     $s = db_one('SELECT id FROM ce_skills WHERE skey = ?', [$k]);
     if ($s) { db_run('DELETE FROM ce_skill_versions WHERE skill_id = ?', [$s['id']]); db_run('DELETE FROM ce_skills WHERE id = ?', [$s['id']]); }
