@@ -1,219 +1,303 @@
-# Goldfish Annotated Review Report
+# تقرير المراجعة والحلول المقترحة
 
-**Target:** `docs/PLAN_CAMPAIGNS_V2.md` (lines 1–157 · Stage 7, round 1)
-**Source:** `docs/egm-review/critic_report.md` (+ cross-references to Stages 5 and 6)
+**الملف:** `docs/PLAN_CAMPAIGNS_V2.md` (السطور 1–157 · المرحلة 7، الجولة 1)
+**المصدر:** `docs/egm-review/critic_report.md` (ومعاه ملاحظات المرحلتين 5 و 6)
 
-**Classification summary:** 27 PROPOSE FIX · 0 CONTEST · 0 ESCALATE · 4 DECLINE
+**الملخص:** 27 «تعديل مقترح» · 0 «اعتراض» · 0 «محتاج رأيك» · 4 «نسيبها»
 
-> No contest: I checked every claim against the code and they're accurate. For example, the old flow's `cf_charge` (campaign-flow.php:92) has no idempotency key, `plan_used('designs')` counts designs even at zero cost, and `CE_SKILL_STAGE_MAP` has no stages for the old tasks.
-> Several fixes depend on a business decision. In those I wrote **a default proposal** and marked it «(مقترح — §11)», so you can change it.
-
----
-
-## Prioritized Findings & AI Suggestions
-
-### [Issue 1] C-B1 [`egm-design`, `egm-structural`] — Severity: Blocker
-* **Affected Scope:** [Lines 1–157](../PLAN_CAMPAIGNS_V2.md#L1-L157)
-* **Discrepancy:** No «Alternatives Considered» section.
-* **Rationale:** The standard fails a spec that proposes one path without comparing it to others.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Justification:*** The alternatives were discussed in the conversation (cache, a separate critic, image + text) but never written into the file.
-* ***Proposed Edit:***
-  * Location: a new section `## 1.5) البدائل اللي اتدرست` after §1.
-  * Change: a table with columns «البديل · ميزته · عيبه · القرار وليه»:
-    - (أ) keep the 9-step engine and simplify the screens only → rejected: cost stays at 4+ requests per post, and the design stays "image + text";
-    - (ب) campaigns priced in credits + the weekly cap → rejected: the client can't see what they're buying, and the margin can't be predicted;
-    - (ج) count posts and designs inside the existing quotas, no new unit → rejected: no "campaign" for the client to see and buy, and the carousel counts as 5 designs;
-    - (د) a separate critic with another provider (`ce_critic_target`) → kept for the higher tiers only (§5.3): it doubles the cost per post;
-    - (هـ) image + text on top (`ce-overlay.php`) → kept as an option: guaranteed spelling, but it looks "stock";
-    - (و) count the campaign at creation / per post / at approval → approval chosen (§2.2), with an idea-generation limit (Issue 4).
-
-### [Issue 2] C-B2 [`egm-design`, `egm-structural`] — Severity: Blocker
-* **Affected Scope:** [Lines 5–12](../PLAN_CAMPAIGNS_V2.md#L5-L12), 95, 149
-* **Discrepancy:** No problem statement, goals, or non-goals, and the scope expands silently.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:***
-  * Location: replace §1 with `## 1) المشكلة والأهداف`.
-  * Change:
-    - **المشكلة:** (١) the engine's design comes out as an image with no text plus a box on top, and it looks bad · (٢) the cost per post is high (4+ text requests + up to 3 images) · (٣) the 9 steps are hard on the client · (٤) the package doesn't sell a clear "campaign".
-    - **الأهداف (measurable):** cost per campaign ≤ a target that comes out of the report (§3) · ≤ 2 text requests per post on average · campaign completion rate ≥ the old flow's · the 👍 rate on designs doesn't drop.
-    - **مش ضمن الخطة:** changing video production · the mobile apps · changing prices of existing packages before the report · deleting the engine's code.
-    - **نطاق صريح:** the Skills also go into the quick post and the studio (§7) · the 🤖 agent moves onto the new path (§4).
-  * Also: a short glossary: «القديم» = `public/api/campaign-flow.php` + tables `campaigns` / `campaign_ideas` · «المحرك» = `includes/ce-*.php` + tables `ce_*`.
-
-### [Issue 3] C-B3 [`egm-design`, `egm-structural`] — Severity: Blocker
-* **Affected Scope:** [Lines 1–157](../PLAN_CAMPAIGNS_V2.md#L1-L157) (+ §10)
-* **Discrepancy:** No risks inside the spec, and the dimensions it requires are missing.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:***
-  * Location: move §10 inside the spec as `## 8) المخاطر` (before the database section) and add rows:
-    - **abuse of drafts and cancellation** → Issue 4;
-    - **double counting** (double click · two tabs · the agent) → one idempotency key per action + `SELECT … FOR UPDATE` on the campaign row while counting;
-    - **broken JSON reply from the combined call** → one retry with the error in the prompt (like `ce_content_check`), then "needs review" without counting the post;
-    - **cost blow-up on carousels** → `carousel_max_slides` + a monthly cost alert per package;
-    - **cache miss** → the saving isn't counted in pricing (§3);
-    - **skill regressions in the old prompts** → Issue 19.
-
-### [Issue 4] C-B4 [`egm-design`] — Severity: Blocker
-* **Affected Scope:** [Lines 33–35, 62, 90](../PLAN_CAMPAIGNS_V2.md#L33-L35)
-* **Discrepancy:** Free drafts = unlimited idea generation.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:***
-  * Location: §2.2, a new row + a paragraph.
-  * Change: «الخطة الأولى + **إعادتين للخطة** + **5 أفكار بديلة** ببلاش لكل حملة. بعد كده بكريدت (`plan_ideas_cost` زي دلوقتي). وأقصى **2 حملة مسودة** في نفس الوقت». In §3.1 the plan count becomes «1 + إعادات (أقصى 2)».
-
-### [Issue 5] C-M1 [`egm-design`, `egm-style`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Lines 34–36](../PLAN_CAMPAIGNS_V2.md#L34-L36), 95
-* **Discrepancy:** The counting point isn't tied to a state.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** In §2.2:
-  * the states: `draft → approved → (completed | cancelled)`;
-  * **الخصم لحظة زرار «اعتمد الخطة»** (a new `plan_approve` action that sets `counted_at` and writes `usage_events` with unit `campaigns`);
-  * cancelling before any post is written → `plan_event_release`;
-  * the agent: the client approves the plan in chat before the agent writes;
-  * old `campaigns` from before launch: they stay on the credits system until they finish.
-
-### [Issue 6] C-M2 [`egm-design`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Line 28](../PLAN_CAMPAIGNS_V2.md#L28), 18
-* **Discrepancy:** Accumulating vs expiring, and "month" undefined.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:** Replace line 28 with: «الشهر = كل 30 يوم من بداية الاشتراك (`starts_at`). الحملات **بتتراكم** زي الحد الأسبوعي بالظبط (`pkg_week`): في الشهر التالت مسموح لحد 3 × العدد (مقترح — §11.3). حدود الحملات على الباقة، ومدة السعر (`package_prices`) مابتغيّرهاش في الإصدار الأول.» And update §11.3 to match.
-
-### [Issue 7] C-M3 [`egm-design`] — Severity: Major
-* **Affected Scope:** [Lines 21, 169](../PLAN_CAMPAIGNS_V2.md#L21)
-* **Discrepancy:** The 0 value would take campaigns away from everyone.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «`campaigns_month = 0` = **الحملات بالكريدت زي دلوقتي** (مفيش تغيير لأي حد). القيمة الموجبة = حملات من الباقة.» The same for the free plan, the signup package, and the "extension" period: credits.
-
-### [Issue 8] C-M4 [`egm-design`] — Severity: Major
-* **Affected Scope:** [Lines 41–42](../PLAN_CAMPAIGNS_V2.md#L41-L42)
-* **Discrepancy:** Campaign designs would still count against the quota, and the carousel counts per slide.
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «تصميم المنشور جوه حملة بيتعلّم (`content_designs.campaign_alloc = 1`) و`plan_used('designs')` بيستثنيه. الكاروسيل = تصميم واحد في عداد الحملة مهما كان عدد شرايحه (لحد `carousel_max_slides`).»
-
-### [Issue 9] C-M5 [`egm-design`, `egm-style`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Line 43](../PLAN_CAMPAIGNS_V2.md#L43)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «الإعادة الزيادة: من الحصة العادية الأول (الشهرية والأسبوعية)، ولو خلصت بكريدت (`content_design_cost`). العميل بيشوف قبل ما يدوس هيتحسب من فين.»
-
-### [Issue 10] C-M6 [`egm-design`, `egm-style`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Lines 62–75, 81](../PLAN_CAMPAIGNS_V2.md#L62-L75)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** Two formulas:
-  * **average:** the current one, with 0.3 labelled «تقدير مبدئي لحد ما `ai_runs` يجيب الرقم الحقيقي»;
-  * **worst case:** خطة × (1+2 إعادات) + منشورات × [(1 + إعادات مجانية) × كتابة + (1 + إعادات تصميم) × شرايح × (كاتب التصميم + صورة) + Vision لو مفتوحة] + فيديو × سكريبت، × 1.2 للمحاولات التانية.
-  * And in §3.1, the design is "a design-writer call + an image" **per slide**.
-
-### [Issue 11] C-M7 [`egm-design`] — Severity: Major
-* **Affected Scope:** [Line 74](../PLAN_CAMPAIGNS_V2.md#L74)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «قبل الإطلاق: تقدير من أسعار `ai_prices` × توكنز متوقعة لكل خطوة. بعد الإطلاق: متوسط آخر 30 يوم. أي طلب تكلفته $0 أو من غير usage بيظهر «تكلفة مجهولة» ومابيدخلش المتوسط.»
-
-### [Issue 12] C-M8 [`egm-design`, `egm-structural`, `egm-style`] — Severity: Major
-* **Affected Scope:** [Lines 103–118](../PLAN_CAMPAIGNS_V2.md#L103-L118)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** The schema uses the same keys and scale as `CE_QA_WEIGHTS` (out of 100): 5 criteria `hook · audience_fit · value · trust · cta_business` with renormalised weights (30 · 20 · 20 · 15 · 15). `ce_qa_score` computes the total (not the model). A hard violation (forbidden word or CTA missing) = **no pass** whatever the score, the same as `ce_qa_score` today.
-
-### [Issue 13] C-M9 [`egm-structural`, `egm-design`] — Severity: Major
-* **Affected Scope:** [Lines 80, 121](../PLAN_CAMPAIGNS_V2.md#L121)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «حد النجاح = `pass_total` بتاع مستوى الجودة (الافتراضي 85)، و`eval_ready_score` القديم بيتساب للحملات القديمة بس. عدد التحسينات التلقائية = 1، والمستوى الأعلى ممكن يخليه 2 (`qa_rounds`).»
-
-### [Issue 14] C-M10 [`egm-design`, `egm-style`] — Severity: Major
-* **Affected Scope:** [Line 123](../PLAN_CAMPAIGNS_V2.md#L123)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** Remove «ده الضعف الوحيد» and replace it with: «مخاطر التقييم الذاتي: الموديل بيدّي نفسه درجات عالية · بيكتب علشان يعدّي المقياس · لو الرد اتقطع بيضيع المنشور والتقييم مع بعض. العلاج: فحص الكود · قراءة متوسط الدرجات قدام 👍👎 كل شهر · ناقد منفصل للمستوى الأعلى.»
-
-### [Issue 15] C-M11 [`egm-design`] — Severity: Major
-* **Affected Scope:** [Lines 8, 85–96](../PLAN_CAMPAIGNS_V2.md#L85-L96)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «الواجهة قديمة، بس التنفيذ **في الخلفية** على `ce_jobs` + الـ worker (الكتابة الجماعية والتصميم): قفل التاب مابيوقفش الشغل. كل خطوة بتتخصم أو بتتعدّ بمفتاح idempotency، والفشل الغير متوقع بيرجّع العدّ.»
-
-### [Issue 16] C-M12 [`egm-design`, `egm-style`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Lines 39–40, 52, 121–122](../PLAN_CAMPAIGNS_V2.md#L39-L40)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** a small table in §2.3:
-  * a format change between post and video moves the count to the new type, if there's room;
-  * deleting an idea before it's written → nothing to return · after it's written → the slot doesn't come back;
-  * the client picks the number at setup (≤ the package limit) and can raise it later up to the limit at no charge;
-  * the automatic improvement **doesn't** count against the free regens.
-
-### [Issue 17] C-M13 [`egm-design`] — Severity: Major
-* **Affected Scope:** [Lines 46–49](../PLAN_CAMPAIGNS_V2.md#L46-L49)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** Remove the add-ons from v1 (Stage 5 M9) and put them under «بعدين»: they need new kinds in `addon_packs` + a grant at campaign scope + a quick activation path. In v1, the client who wants more pays credits for each extra post.
-
-### [Issue 18] C-M14 [`egm-design`, `egm-style`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Line 150](../PLAN_CAMPAIGNS_V2.md#L150)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «**هيتعمل (المرحلة 3):** نعيد ترتيب البرومبتات: ملف البراند + الـ Skill كاملة (مش أقسام المرحلة) **في الأول وثابتين**، وتعليمات الخطوة بعدهم. ده محتاج تعديل قوالب الأدمن القديمة. التوفير **مش مضمون** (الكاش عند المزوّد محتاج 1024 توكن ثابت على الأقل وبيروح بعد دقايق)، فمش داخل في التسعير. `tokens_cached` موجود فعلًا ونقيس بيه.»
-
-### [Issue 19] C-M15 [`egm-design`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Lines 144–149](../PLAN_CAMPAIGNS_V2.md#L144-L149)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:***
-  * «`general` = **Skill عادية** بتتعمل من عينة جديدة `includes/ce-skills/general.md` (جديد)، وبتتفعّل باختبار الرجوع زي أي Skill. بتشتغل بس لو `ce_skill_detect` مالقاش تخصص **و** العميل مااختارش «من غير Skill» (`none` بيفضل من غير Skill).»
-  * «نضيف للخريطة (`CE_SKILL_STAGE_MAP`) مراحل القديم: `campaign_ideas` · `campaign_content` · `design_base` · `quick_post` · `studio`، واختبار الرجوع يغطيهم.»
-
-### [Issue 20] C-M16 [`egm-design`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Lines 116, 136, 152–153](../PLAN_CAMPAIGNS_V2.md#L136)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:***
-  * the saved style lives on the brand (`brand_profiles.design_ref_path`), not on the campaign;
-  * the rejected ideas: `idea_delete` saves the title in `campaign_idea_rejects` (user_id, title, created_at), and the last 100 go into the avoid list;
-  * the duplicate check: against the last 60 posts only.
-
-### [Issue 21] C-M17 [`egm-style`, `egm-design`, `egm-structural`] — Severity: Major
-* **Affected Scope:** [Lines 18–26, 67, 110, 116, 121, 137, 144, 150](../PLAN_CAMPAIGNS_V2.md#L67)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:***
-  * every technical name gets a short plain-Arabic description first, with the name in brackets;
-  * line 67: «من الكود (`ce_write_job` · `ce_design_job`) بالإعدادات الافتراضية: 4 لـ 11 طلب كتابة ولحد 3 صور — والإعدادات الأعلى بتوصل أكتر»;
-  * line 137: «للمستوى الأعلى بس: لو المراجعة لقت كتابة غلط أو الصورة بعيدة عن الفكرة، بتتعمل إعادة واحدة».
-
-### [Issue 22] C-N1 [`egm-design`] — Severity: Nit
-* **Affected Scope:** [Lines 105, 134](../PLAN_CAMPAIGNS_V2.md#L105)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «`design_brief` = نفس حقول `CE_BRIEF_FIELDS`» in both places.
-
-### [Issue 23] C-N2 [`egm-design`] — Severity: Nit
-* **Affected Scope:** [Line 136](../PLAN_CAMPAIGNS_V2.md#L136)
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «الستايل المحفوظ بياخد مكان "تصميمات بتعجبك" في الـ 4 صور. والموافقة = زرار «اعتمد التصميم» جديد في خطوة التصميم.»
-
-### [Issue 24] C-N3 [`egm-design`] — Severity: Nit
-* ***AI Suggestion:*** PROPOSE FIX (covered in Issue 10: Vision is in the worst-case formula and in §3.1).
-
-### [Issue 25] C-N4 [`egm-design`] — Severity: Nit
-* **Affected Scope:** [Line 96](../PLAN_CAMPAIGNS_V2.md#L96) vs 195
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «حملات المحرك الشغالة بتكمّل لحد ما تخلص، ومفيش حملات محرك جديدة للعملاء. بعد 60 يوم من الإطلاق شغل المحرك بيتقفل والعرض بيفضل.»
-
-### [Issue 26] C-N5 [`egm-structural`] — Severity: Nit
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** Add «(مقترح — §11)» next to every open decision in lines 34, 42, and 44, and mention the rollover in §2 (covered by Issue 6).
-
-### [Issue 27] C-N6 [`egm-structural`] — Severity: Nit
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** Every file name becomes a full path from the root (`includes/ce-overlay.php` · `includes/ce-learning.php` · `public/ajax/generate-design.php`).
-
-### [Issue 28] C-N7 [`egm-structural`] — Severity: Nit
-* ***AI Suggestion:*** PROPOSE FIX (covered in Issue 19: «(جديد)»).
-
-### [Issue 29] C-N8 [`egm-structural`] — Severity: Nit
-* ***AI Suggestion:*** DECLINE
-* ***Justification:*** Splitting §7 into three is purely about formatting. Section 7 is short, and the fixes in Issues 18–20 already make each part clear.
-
-### [Issue 30] C-N9 [`egm-style`] — Severity: Nit
-* ***AI Suggestion:*** PROPOSE FIX
-* ***Proposed Edit:*** «مضمون 100%» → «مضمون (النص بيتكتب بالكود مش بالموديل)».
-
-### [Issue 31] C-N10 [`egm-style`] — Severity: Nit
-* ***AI Suggestion:*** DECLINE (partial)
-* ***Justification:*** «2 حملة» is the UI format with a number; the code handles the plural. «بيحمي التكلفة» goes away with the line 28 fix (Issue 6). «التعلّم من النتايج» goes away with the §1 rewrite (Issue 2). «اللي كتبتها» → «اللي في الباقة» gets fixed along the way.
+> مفيش اعتراض على أي ملاحظة: راجعت كل ادعاء في الكود ولقيته صح. مثلًا:
+> - `cf_charge` في الحملات القديمة (campaign-flow.php:92) مافيهاش حماية من الخصم مرتين.
+> - `plan_used('designs')` بيعدّ التصميم حتى لو اتعمل ببلاش.
+> - `CE_SKILL_STAGE_MAP` مافيهاش مراحل للنظام القديم.
+>
+> فيه تعديلات معتمدة على قرار تجاري. في دي كتبت **اقتراح افتراضي** وعلّمته «(مقترح — §11)»، وتقدر تغيّره.
 
 ---
 
-## Deferred to the next stages (outside lines 1–157)
-- The database section (§8 in the file) will change because of Issues 5, 8, 16, and 20. Stage 9 reviews it.
-- Stage 5 M2 (two engines) is covered by Issues 15 and 25. Stage 5 M6 (the package fields copied in three places) goes to Stage 9.
+## الملاحظات بالترتيب والحل المقترح لكل واحدة
+
+### [1] C-B1 — مانع (Blocker): مفيش قسم «البدائل اللي اتدرست»
+* **المكان:** السطور 1–157
+* **المشكلة:** الخطة بتقدّم طريق واحد، من غير ما تقارنه بطرق تانية. المعيار بيعتبر ده رسوب تلقائي.
+* **القرار:** تعديل مقترح. البدائل اتناقشت في المحادثة (الكاش · الناقد المنفصل · صورة + نص فوقها)، بس ماتكتبتش في الملف.
+* **التعديل:** قسم جديد `## 1.5) البدائل اللي اتدرست` بعد §1. جدول أعمدته: «البديل · ميزته · عيبه · القرار وليه»:
+
+| البديل | القرار وليه |
+|---|---|
+| (أ) نسيب المحرك بالـ 9 خطوات ونبسّط الشاشات بس | اترفض: التكلفة بتفضل 4+ طلبات للمنشور، والتصميم بيفضل «صورة + نص» |
+| (ب) الحملات بالكريدت + الحد الأسبوعي | اترفض: العميل مش شايف هو بيشتري إيه، والهامش مش متوقع |
+| (ج) نعدّ المنشورات والتصميمات في الحصص الموجودة من غير وحدة جديدة | اترفض: مفيش «حملة» العميل يشوفها ويشتريها، والكاروسيل بيتحسب 5 تصميمات |
+| (د) ناقد منفصل بمزوّد تاني (`ce_critic_target`) | اتساب للمستوى الأعلى بس (§5.3)، لأنه بيضاعف التكلفة للمنشور |
+| (هـ) صورة + نص فوقها (`ce-overlay.php`) | اتساب اختيار: الإملاء مضمون، بس الشكل «ستوك» |
+| (و) الحملة تتحسب عند الإنشاء / مع كل منشور / عند الموافقة | اتختار عند الموافقة (§2.2)، مع حد لتوليد الأفكار (الملاحظة 4) |
+
+### [2] C-B2 — مانع: مفيش مشكلة مكتوبة ولا أهداف
+* **المكان:** السطور 5–12، و95، و149
+* **المشكلة:** §1 بيوصف الحل مش المشكلة، ومفيش أهداف ولا «مش ضمن الخطة». والنطاق بيكبر من غير ما يتقال (المنشور السريع والاستوديو، والوكيل).
+* **القرار:** تعديل مقترح.
+* **التعديل:** §1 يتغيّر لـ `## 1) المشكلة والأهداف`:
+  - **المشكلة:**
+    1. تصميم المحرك بيطلع صورة من غير كتابة وعليها مربع، وشكله وحش.
+    2. التكلفة للمنشور عالية: 4+ طلبات كتابة ولحد 3 صور.
+    3. الـ 9 خطوات صعبة على العميل.
+    4. الباقة مابتبيعش «حملة» واضحة.
+  - **الأهداف (تتقاس):**
+    - تكلفة الحملة أقل من أو تساوي هدف يطلع من التقرير (§3).
+    - متوسط طلبات الكتابة للمنشور ≤ 2.
+    - نسبة اللي بيكمّلوا الحملة ≥ القديم.
+    - نسبة 👍 على التصميمات ماتقلّش.
+  - **مش ضمن الخطة:** تنفيذ الفيديو · التطبيقات · تغيير أسعار الباقات قبل التقرير · مسح كود المحرك.
+  - **النطاق صريح:** الـ Skills بتدخل المنشور السريع والاستوديو كمان (§7)، والوكيل 🤖 بينقل على المسار الجديد (§4).
+  - **تعريف المصطلحين:**
+    - «القديم» = `public/api/campaign-flow.php` + جداول `campaigns` / `campaign_ideas`.
+    - «المحرك» = `includes/ce-*.php` + جداول `ce_*`.
+
+### [3] C-B3 — مانع: مفيش مخاطر جوه الخطة
+* **المكان:** السطور 1–157 (والجدول الموجود في §10)
+* **المشكلة:** قسم المخاطر برّه الجزء ده، والجوانب المطلوبة ناقصة.
+* **القرار:** تعديل مقترح.
+* **التعديل:** §10 ينتقل جوه الخطة كـ `## 8) المخاطر`، ويتضاف فيه:
+
+| الخطر | الحل |
+|---|---|
+| استغلال المسودات والإلغاء | الملاحظة 4 |
+| العدّ مرتين (ضغطة مزدوجة · تابين · الوكيل) | مفتاح منع تكرار لكل عملية + قفل صف الحملة وقت العدّ |
+| رد مكسور من الطلب المجمّع | إعادة مرة واحدة والخطأ في البرومبت (زي `ce_content_check`)، وبعدها «محتاج مراجعة» من غير ما المنشور يتحسب |
+| انفجار تكلفة الكاروسيل | `carousel_max_slides` + تنبيه شهري بالتكلفة لكل باقة |
+| الكاش ماينفعش | التوفير مش داخل في التسعير (§3) |
+| تراجع جودة الـ Skills في البرومبتات القديمة | الملاحظة 19 |
+
+### [4] C-B4 — مانع: المسودات ببلاش = توليد أفكار من غير حد
+* **المكان:** السطور 33–35، و62، و90
+* **المشكلة:** المسودة مابتتحسبش، والإلغاء بيرجّع الحملة، و«فكرة بديلة» متاحة. الحد الوحيد 6 مرات كل 10 دقايق، يعني حوالي 860 طلب في اليوم.
+* **القرار:** تعديل مقترح.
+* **التعديل:** صف جديد في §2.2:
+  - ببلاش لكل حملة: الخطة الأولى + **إعادتين للخطة** + **5 أفكار بديلة**.
+  - بعد كده بكريدت (`plan_ideas_cost` زي دلوقتي).
+  - أقصى **حملتين مسودة** في نفس الوقت.
+  - في §3.1: عدد طلبات الخطة = «1 + إعادات (أقصى 2)».
+
+### [5] C-M1 — مهم (Major): لحظة الخصم مش مربوطة بخطوة حقيقية
+* **المكان:** السطور 34–36، و95
+* **المشكلة:** «وافق على الخطة وبدأ يكتب» حدثين مش حدث واحد. والقديم مافيهوش زرار موافقة على الخطة.
+* **القرار:** تعديل مقترح.
+* **التعديل:** في §2.2:
+  - الحالات: مسودة ← معتمدة ← (خلصت | اتلغت).
+  - **الخصم لحظة زرار «اعتمد الخطة»**: عملية جديدة `plan_approve` بتسجّل `counted_at` وتكتب في `usage_events` بالوحدة `campaigns`.
+  - الإلغاء قبل أي منشور يتكتب ← `plan_event_release`.
+  - مع الوكيل: العميل بيوافق على الخطة في الشات قبل ما يكتب.
+  - حملات `campaigns` القديمة اللي قبل الإطلاق: بتفضل بالكريدت لحد ما تخلص.
+
+### [6] C-M2 — مهم: الحد الشهري متناقض ومش متعرّف
+* **المكان:** السطر 28، و18
+* **المشكلة:** «نفس طريقة الحد الأسبوعي» غلط، لأن الأسبوعي بيتراكم وفي §11 مقترح إنه يضيع آخر الشهر. و«الشهر» مش متعرّف.
+* **القرار:** تعديل مقترح.
+* **التعديل:** السطر 28 يبقى:
+  - «الشهر = كل 30 يوم من بداية الاشتراك (`starts_at`).
+  - الحملات **بتتراكم** زي الحد الأسبوعي بالظبط (`pkg_week`): في الشهر التالت مسموح لحد 3 × العدد (مقترح — §11.3).
+  - حدود الحملات على الباقة، ومدة السعر (`package_prices`) مابتغيّرهاش في الإصدار الأول.»
+
+  ونظبط §11.3 عليه.
+
+### [7] C-M3 — مهم: قيمة 0 هتشيل الحملات من الكل
+* **المكان:** السطر 21 و169
+* **المشكلة:** النهارده أي عميل يقدر يعمل حملة بالكريدت. لو 0 = «مفيش حملات»، كلهم هيخسروها يوم الترحيل.
+* **القرار:** تعديل مقترح.
+* **التعديل:** «`campaigns_month = 0` = **الحملات بالكريدت زي دلوقتي** (مفيش تغيير لأي حد)، والقيمة الموجبة = حملات من الباقة. ونفس الكلام للخطة المجانية وباقة التسجيل وفترة التمديد: كريدت.»
+
+### [8] C-M4 — مهم: تصميم الحملة البلاش هيتعدّ برضه في الحصة
+* **المكان:** السطور 41–42
+* **المشكلة:**
+  - `plan_used('designs')` بيعدّ كل تصميم AI حتى لو ببلاش، والحد الأسبوعي بيستخدم نفس العدّ.
+  - الكاروسيل النهارده صف لكل شريحة، يعني 5 شرايح = 5 تصميمات.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - تصميم المنشور جوه حملة بيتعلّم (`content_designs.campaign_alloc = 1`)، و`plan_used('designs')` بيستثنيه.
+  - الكاروسيل = تصميم واحد في عداد الحملة مهما كان عدد شرايحه (لحد `carousel_max_slides`).
+
+### [9] C-M5 — مهم: إعادة التصميم الزيادة من فين الأول؟
+* **المكان:** السطر 43
+* **المشكلة:** «من حصة التصميمات العادية أو بكريدت» مش واضح فيها مين الأول ولا مين اللي بيختار.
+* **القرار:** تعديل مقترح.
+* **التعديل:** «الإعادة الزيادة بتتحسب من الحصة العادية الأول (الشهرية والأسبوعية)، ولو خلصت بكريدت (`content_design_cost`). العميل بيشوف قبل ما يدوس هتتحسب من فين.»
+
+### [10] C-M6 — مهم: معادلة التكلفة مش «أقصى حالة» فعلًا
+* **المكان:** السطور 62–75، و81
+* **المشكلة:** المعادلة ناقصها: الإعادات البلاش، ومراجعة الصورة (Vision) وإعادتها، والأفكار البديلة، والمحاولات التانية عند الفشل، وكاتب برومبت التصميم لكل شريحة. ورقم 0.3 مالوش مصدر.
+* **القرار:** تعديل مقترح.
+* **التعديل:** معادلتين:
+  - **المتوسط:** نفس المعادلة الحالية، ورقم 0.3 مكتوب جنبه «تقدير مبدئي لحد ما سجل الطلبات يجيب الرقم الحقيقي».
+  - **أقصى حالة:**
+    ```
+    خطة × (1 + 2 إعادات)
+    + منشورات × [(1 + إعادات مجانية) × كتابة
+                 + (1 + إعادات تصميم) × شرايح × (كاتب التصميم + صورة)
+                 + Vision لو مفتوحة]
+    + فيديو × سكريبت
+    والمجموع × 1.2 للمحاولات التانية
+    ```
+  - وفي §3.1: التصميم = «كاتب التصميم + صورة» **لكل شريحة**.
+
+### [11] C-M7 — مهم: بيانات الحاسبة ناقصة
+* **المكان:** السطر 74
+* **المشكلة:** الطلب المجمّع مالوش تاريخ في سجل الطلبات لسه، وفيه مزوّدين بيتسجلوا بـ $0، وصور قديمة من غير تكلفة.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - قبل الإطلاق: تقدير من الأسعار (`ai_prices`) × التوكنز المتوقعة لكل خطوة.
+  - بعد الإطلاق: متوسط آخر 30 يوم.
+  - أي طلب تكلفته $0 أو من غير أرقام استهلاك بيظهر «تكلفة مجهولة» ومابيدخلش المتوسط.
+
+### [12] C-M8 — مهم: شكل التقييم مش مطابق للمقياس الموجود
+* **المكان:** السطور 103–118
+* **المشكلة:**
+  - الخطة: 5 معايير من 10. الموجود: 10 معايير من 100 أوزانها مجموعها 100.
+  - `cta` مش موجود؛ الموجود اسمه `cta_business`.
+  - «الدرجة بتقل» مش واضح بكام.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - نفس أسماء ومقياس `CE_QA_WEIGHTS` (من 100).
+  - 5 معايير بأوزان: `hook` 30 · `audience_fit` 20 · `value` 20 · `trust` 15 · `cta_business` 15.
+  - `ce_qa_score` هو اللي بيحسب المجموع، مش الموديل.
+  - أي مخالفة صريحة (كلمة ممنوعة أو مفيش CTA) = **مايعدّيش** مهما كانت الدرجة، زي `ce_qa_score` النهارده.
+
+### [13] C-M9 — مهم: فيه حدّين للنجاح
+* **المكان:** السطور 80 و121
+* **المشكلة:** `eval_ready_score` القديم (80) و`pass_total` بتاع المحرك (85 حسب المستوى)، ومش مكتوب مين يكسب.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - حد النجاح = `pass_total` بتاع مستوى الجودة (الافتراضي 85).
+  - `eval_ready_score` القديم يفضل للحملات القديمة بس.
+  - التحسين التلقائي مرة واحدة، والمستوى الأعلى ممكن يخليه مرتين (`qa_rounds`).
+
+### [14] C-M10 — مهم: خطر التقييم الذاتي متقال أقل من حجمه
+* **المكان:** السطر 123
+* **القرار:** تعديل مقترح.
+* **التعديل:** نشيل «ده الضعف الوحيد» ونكتب:
+  - **المخاطر:**
+    - الموديل بيدّي نفسه درجات عالية.
+    - بيكتب علشان يعدّي المقياس.
+    - لو الرد اتقطع، المنشور والتقييم بيضيعوا مع بعض.
+  - **العلاج:** فحص الكود · قراءة متوسط الدرجات قدام 👍👎 كل شهر · ناقد منفصل للمستوى الأعلى.
+
+### [15] C-M11 — مهم: الرجوع للمسار القديم بيرجّع مشاكل اتحلّت
+* **المكان:** السطور 8، و85–96
+* **المشكلة:** المسار القديم شغال جوه المتصفح (قفل التاب بيوقفه)، ومافيهوش حماية من الضغطة المزدوجة (بتخصم مرتين). ومع الحصة الجديدة، الضغطة المزدوجة هتعدّ مرتين.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - الواجهة قديمة، بس التنفيذ **في الخلفية** على `ce_jobs` + الـ worker (الكتابة الجماعية والتصميم)، فقفل التاب مابيوقفش الشغل.
+  - كل خطوة بتتخصم أو بتتعدّ بمفتاح منع تكرار.
+  - الفشل الغير متوقع بيرجّع العدّ.
+
+### [16] C-M12 — مهم: حالات العدّ جوه الحملة مش مكتوبة
+* **المكان:** السطور 39–40، و52، و121–122
+* **القرار:** تعديل مقترح.
+* **التعديل:** جدول صغير في §2.3:
+
+| الحالة | بيحصل إيه |
+|---|---|
+| تغيير الشكل بين منشور وفيديو | العدّ بينقل للنوع الجديد لو فيه مكان |
+| مسح فكرة قبل ما تتكتب | مفيش حاجة ترجع |
+| مسح فكرة بعد ما تتكتب | الخانة مابترجعش |
+| عدد المنشورات | العميل بيختار العدد في الإعداد (≤ حد الباقة)، ويقدر يزوّده بعدين لحد الحد ببلاش |
+| التحسين التلقائي | **مش** بيتحسب من الإعادات البلاش |
+
+### [17] C-M13 — مهم: الإضافات مش ماشية مع النظام الحالي
+* **المكان:** السطور 46–49
+* **المشكلة:** الإضافات النهارده تصميمات وكريدت بس، ومحتاجة موافقة الأدمن يدوي.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - نشيل الإضافات من الإصدار الأول ونحطها في «بعدين»، لأنها محتاجة أنواع جديدة + منح على مستوى الحملة + تفعيل سريع.
+  - في الإصدار الأول: اللي عايز أكتر يدفع كريدت لكل منشور زيادة.
+
+### [18] C-M14 — مهم: كلام الكاش مش دقيق
+* **المكان:** السطر 150
+* **المشكلة:**
+  - «بقى» معناها إنه اتعمل، وهو لسه.
+  - البداية مش ممكن تكون ثابتة النهارده: أقسام الـ Skill بتتغيّر حسب المرحلة، والهوية بتتبني لكل خطوة، والقوالب القديمة فيها متغيرات في النص.
+* **القرار:** تعديل مقترح.
+* **التعديل:** «**هيتعمل (المرحلة 3):**
+  - نعيد ترتيب البرومبتات: ملف البراند + الـ Skill كاملة **في الأول وثابتين**، وتعليمات الخطوة بعدهم. ده محتاج تعديل قوالب الأدمن القديمة.
+  - التوفير **مش مضمون**: الكاش محتاج 1024 توكن ثابت على الأقل وبيروح بعد دقايق، فمش داخل في التسعير.
+  - `tokens_cached` موجود فعلًا ونقيس بيه.»
+
+### [19] C-M15 — مهم: الـ Skills في القديم مالهاش طريق محدد
+* **المكان:** السطور 144–149
+* **المشكلة:**
+  - `general.md` مجرد عينة، والتفعيل محتاج اختبار رجوع.
+  - `none` معناها «من غير Skill».
+  - خريطة المراحل مافيهاش مراحل القديم، فـ Skill اتجرّبت على المحرك هتدخل القديم من غير تجربة.
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - «`general` = **Skill عادية** بتتعمل من عينة جديدة `includes/ce-skills/general.md` (جديد)، وبتتفعّل باختبار الرجوع زي أي Skill.»
+  - «بتشتغل بس لو مالقيناش تخصص **و** العميل مااختارش «من غير Skill».»
+  - «نضيف لخريطة المراحل مراحل القديم: أفكار الحملة · كتابة الحملة · برومبت التصميم · المنشور السريع · الاستوديو، واختبار الرجوع يغطيهم.»
+
+### [20] C-M16 — مهم: قاعدة البيانات مش شايلة الكلام
+* **المكان:** السطور 116، و136، و152–153
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - الستايل المحفوظ يتخزّن على البراند (`brand_profiles.design_ref_path`)، مش على الحملة.
+  - الأفكار المرفوضة: `idea_delete` بيحفظ العنوان في جدول `campaign_idea_rejects`، وآخر 100 بيدخلوا قايمة «ماتكررهاش».
+  - فحص التكرار: قصاد آخر 60 منشور بس.
+
+### [21] C-M17 — مهم: كلام تقني صعب وأرقام من غير مصدر
+* **المكان:** السطور 18–26، و67، و110، و116، و121، و137، و144، و150
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - كل اسم تقني يتكتب قبله وصف بالعربي البسيط، والاسم بين قوسين.
+  - السطر 67: «من الكود بالإعدادات الافتراضية: 4 لـ 11 طلب كتابة ولحد 3 صور، والإعدادات الأعلى بتوصل أكتر».
+  - السطر 137: «للمستوى الأعلى بس: لو المراجعة لقت كتابة غلط أو الصورة بعيدة عن الفكرة، بتتعمل إعادة واحدة».
+
+### [22] C-N1 — بسيطة (Nit): قايمتين مختلفتين لـ `design_brief`
+* **القرار:** تعديل مقترح.
+* **التعديل:** «`design_brief` = نفس حقول `CE_BRIEF_FIELDS`» في المكانين.
+
+### [23] C-N2 — بسيطة: الستايل المحفوظ والـ 4 صور
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - الستايل المحفوظ بياخد مكان «تصميمات بتعجبك» في الـ 4 صور.
+  - الموافقة = زرار جديد «اعتمد التصميم» في خطوة التصميم.
+
+### [24] C-N3 — بسيطة: مراجعة الصورة طلب مدفوع مش محسوب
+* **القرار:** تعديل مقترح، اتغطّى في الملاحظة 10.
+
+### [25] C-N4 — بسيطة: تناقض بين السطر 96 و195
+* **القرار:** تعديل مقترح.
+* **التعديل:**
+  - حملات المحرك الشغالة بتكمّل لحد ما تخلص.
+  - مفيش حملات محرك جديدة للعملاء.
+  - بعد 60 يوم من الإطلاق، شغل المحرك بيتقفل والعرض بيفضل.
+
+### [26] C-N5 — بسيطة: قرارات مكتوبة كأنها نهائية
+* **القرار:** تعديل مقترح.
+* **التعديل:** «(مقترح — §11)» جنب كل قرار مفتوح في السطور 34 و42 و44، وذكر الترحيل في §2 (اتغطّى في الملاحظة 6).
+
+### [27] C-N6 — بسيطة: أسماء الملفات مش موحّدة
+* **القرار:** تعديل مقترح.
+* **التعديل:** كل اسم ملف بمساره الكامل من أول المشروع.
+
+### [28] C-N7 — بسيطة: `general.md` مش موجود لسه
+* **القرار:** تعديل مقترح، اتغطّى في الملاحظة 19: «(جديد)».
+
+### [29] C-N8 — بسيطة: تقسيم §7 لتلات أجزاء
+* **القرار:** نسيبها.
+* **السبب:** تنسيق بس. القسم قصير، وتعديلات الملاحظات 18–20 بتوضّح كل جزء.
+
+### [30] C-N9 — بسيطة: «مضمون 100%» مبالغة
+* **القرار:** تعديل مقترح.
+* **التعديل:** «مضمون (النص بيتكتب بالكود مش بالموديل)».
+
+### [31] C-N10 — بسيطة: صياغة
+* **القرار:** نسيبها، جزئيًا.
+* **السبب:**
+  - «2 حملة» شكل الواجهة بالرقم.
+  - «بيحمي التكلفة» هتتشال مع تعديل السطر 28 (الملاحظة 6).
+  - «التعلّم من النتايج» هتتشال مع إعادة كتابة §1 (الملاحظة 2).
+  - «اللي كتبتها» هتبقى «اللي في الباقة» في السكة.
+
+---
+
+## اتأجّل للمراحل الجاية (برّه السطور 1–157)
+- قسم قاعدة البيانات هيتغيّر بسبب الملاحظات 5 و8 و16 و20. المرحلة 9 هتراجعه.
+- ملاحظة المرحلة 5 عن المحركين اتغطّت في الملاحظتين 15 و25.
+- ملاحظة المرحلة 5 عن تكرار حقول الباقة في 3 أماكن رايحة للمرحلة 9.
