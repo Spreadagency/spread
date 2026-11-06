@@ -69,6 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('admin/prompts.php?type=campaign_eval');
     }
 
+    if ($action === 'campaign_write_mode') {
+        // خطة الحملات §5: الكتابة + التقييم في طلب واحد (single) أو زي الأول (classic)
+        set_setting('campaign_write_mode', ($_POST['write_mode'] ?? '') === 'classic' ? 'classic' : 'single');
+        set_setting('campaign_auto_improve_rounds', (string) max(0, min(2, (int) ($_POST['rounds'] ?? 1))));
+        admin_log('campaign_write_mode', 'settings', null, get_setting('campaign_write_mode') . ' rounds=' . get_setting('campaign_auto_improve_rounds'));
+        flash_set('success', 'اتحفظت طريقة الكتابة ✓');
+        redirect('admin/prompts.php?type=campaign_eval');
+    }
+
     if ($action === 'add_design_template') {
         $title = trim($_POST['dt_title'] ?? '');
         $snippet = trim($_POST['dt_snippet'] ?? '');
@@ -302,6 +311,19 @@ include __DIR__ . '/../templates/admin-header.php';
                     <div class="field"><label>درجة النجاح (البوست بيبقى «جاهز» من الدرجة دي)</label>
                         <input type="number" name="ready" class="input" min="50" max="95" value="<?= eval_ready_score() ?>" style="max-width:120px"></div>
                     <button class="btn ghost">حفظ المعايير</button>
+                </form>
+                <?php require_once __DIR__ . '/../includes/campaign-quality.php'; $__wm = campaign_write_mode(); ?>
+                <form method="POST" data-safe-post style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+                    <?= csrf_field() ?><input type="hidden" name="action" value="campaign_write_mode">
+                    <h4 style="margin:0 0 6px">طريقة كتابة الحملات</h4>
+                    <div class="field">
+                        <label><input type="radio" name="write_mode" value="single" <?= $__wm === 'single' ? 'checked' : '' ?>> الكتابة + التقييم في طلب واحد (الافتراضي)</label>
+                        <div class="muted" style="font-size:12px">5 معايير (الـ Hook 30 · الجمهور 20 · القيمة 20 · الثقة 15 · الـ CTA 15) والدرجة بيحسبها الكود · فحص ببلاش للكلام الممنوع والـ CTA والطول والتكرار · حد النجاح من مستوى الجودة (الافتراضي 85) — مش «درجة النجاح» اللي فوق</div>
+                        <label><input type="radio" name="write_mode" value="classic" <?= $__wm === 'classic' ? 'checked' : '' ?>> زي الأول: الكتابة لوحدها والتقييم بزرار (بالمعايير اللي فوق)</label>
+                    </div>
+                    <div class="field"><label>تحسين تلقائي لو الدرجة تحت الحد (مرات · مش بيتخصم من العميل)</label>
+                        <input type="number" name="rounds" class="input" min="0" max="2" value="<?= (int) get_setting('campaign_auto_improve_rounds', '1') ?>" style="max-width:120px"></div>
+                    <button class="btn ghost">حفظ الطريقة</button>
                 </form>
                 <?php endif; ?>
             </div>

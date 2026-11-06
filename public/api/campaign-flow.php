@@ -19,6 +19,7 @@
 require_once __DIR__ . '/../../includes/api.php';
 require_once __DIR__ . '/../../includes/social.php';
 require_once __DIR__ . '/../../includes/campaign-flow.php';
+require_once __DIR__ . '/../../includes/campaign-quality.php';   // خطة الحملات §5: كتابة + تقييم في طلب واحد
 require_once __DIR__ . '/../../includes/brand-brain.php';
 require_once __DIR__ . '/../../includes/brand-kit.php';
 
@@ -298,16 +299,32 @@ switch ($action) {
         // Brand Kit: بريف البوست من الفكرة (خدمة · موضوع · اتجاه) + شكلها — والباقي من الهوية
         $bkO = cf_brief_overrides($uid, $i, $fmt, $old);
         $bkBrief = bk_enabled() ? BrandContext::brief($uid, $bkO) : null;
-        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $fmt, $slides, $dur, $bkBrief), $fmt === 'carousel' ? 2600 : 1800, 'campaign_content',
-            ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id']]);
-        $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
-        if ($p) {   // الممنوعات دايمًا
-            foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
+        $__tok = $fmt === 'carousel' ? 2600 : 1800;
+        $__aiCtx = ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id']];
+        $__parse = function (string $r) use ($uid, $fmt): ?array {
+            $p = campaign_parse_content(BrandContext::stripWhy($r));
+            foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);   // الممنوعات دايمًا
+            if ($fmt === 'video' && $p['script'] === '') return null;          // فيديو من غير سكريبت = رد ناقص
+            return ($p['body'] === '' && $p['hook'] === '') ? null : $p;
+        };
+        $__eval = null;
+        if (campaign_write_mode() === 'single') {
+            // خطة الحملات §5: الكتابة + التقييم في طلب واحد + فحص بالكود + تحسين تلقائي مرة تحت الحد (مش بيتخصم)
+            $__w = campaign_write_with_eval(
+                fn(string $x) => campaign_content_prompt($brand, $c, $i, trim($extra . ($x !== '' ? "\n\n" . $x : '')), $fmt, $slides, $dur, $bkBrief),
+                fn(string $pr, bool $imp) => campaign_ai($pr, $__tok, $imp ? 'campaign_improve' : 'campaign_content', $__aiCtx + ($imp ? ['temperature' => 0.7] : [])),
+                $__parse,
+                ['fmt' => $fmt, 'slides' => $slides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => $old ? (int) $old['id'] : 0]);
+            $ai = $__w['ai'];
+            $p = $__w['p'];
+            $__eval = $__w['eval'];
+        } else {
+            $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $fmt, $slides, $dur, $bkBrief), $__tok, 'campaign_content', $__aiCtx);
+            $p = $ai['ok'] ? $__parse((string) $ai['response']) : null;
         }
-        if ($p && $fmt === 'video' && $p['script'] === '') $p = null;          // فيديو من غير سكريبت = رد ناقص
-        if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
+        if (!$p) {
             cf_refund($uid, $cost, 'محتوى فكرة #' . $i['id'], (int) $i['id']);
-            api_fail($ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'ai_failed', 502);
+            api_fail(!empty($ai['ok']) ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'ai_failed', 502);
         }
         $text = campaign_compose_text($p['hook'], $p['body']);
         $ff = cf_format_fields($fmt, $slides, $p, $old);
@@ -333,9 +350,12 @@ switch ($action) {
         if ($bkBrief) BrandContext::attach($cid, $uid, $bkBrief, BrandContext::parseWhy((string) $ai['response']), $bkO);
         // السكريبت على الفكرة (للتصدير والأرقام) — للفيديو بس
         $script = ['hook' => $p['hook'], 'body' => $p['script'], 'cta' => $p['cta'], 'tags' => $p['tags'], 'design' => $p['shoot']];
-        // محتوى جديد = تقييم قديم مايبقاش صالح
-        db_run('UPDATE campaign_ideas SET content_id = ?, script_json = ?, format = ?, slides_count = ?, selected = 1, eval_score = NULL, eval_json = NULL, approved = 0 WHERE id = ?',
-            [$cid, $fmt === 'video' ? json_encode($script, JSON_UNESCAPED_UNICODE) : null, $fmt, $slides ?: null, $i['id']]);
+        // محتوى جديد = تقييم قديم مايبقاش صالح (الطريقة الجديدة: التقييم الجديد جاي مع الكتابة)
+        db_run('UPDATE campaign_ideas SET content_id = ?, script_json = ?, format = ?, slides_count = ?, selected = 1, eval_score = ?, eval_json = ?, approved = ? WHERE id = ?',
+            [$cid, $fmt === 'video' ? json_encode($script, JSON_UNESCAPED_UNICODE) : null, $fmt, $slides ?: null,
+             $__eval && empty($__eval['missing']) ? $__eval['score'] : null, $__eval ? json_encode($__eval, JSON_UNESCAPED_UNICODE) : null,
+             $__eval && $__eval['pass'] ? 1 : 0, $i['id']]);
+        if ($__eval) content_set_flag($cid, $uid, $__eval['pass'] ? 'needs_design' : 'needs_review', $__eval['pass'] ? null : mb_substr((string) $__eval['issues'], 0, 250));
         if (function_exists('ai_log_usage')) ai_log_usage($uid, 'generate', $ai['model'] ?? 'router', $ai['usage'] ?? [], $cid);
         ai_stamp('contents', $cid, 'campaign_content', $ai);
         api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'balance' => credits_balance($uid)]);
@@ -453,16 +473,29 @@ switch ($action) {
         }
         if ($ifmt === 'video') $extra .= "\nالسكريبت الحالي:\n" . mb_substr(video_script_text(video_brief($content)), 0, 2000);
         $bkBrief = bk_enabled() ? bk_brief_for_content($content, $uid) : null;
-        $ai = campaign_ai(campaign_content_prompt($brand, $c, $i, $extra, $ifmt, $islides, video_brief($content)['duration'], $bkBrief, $impTask), $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
+        $__iCall = fn(string $pr) => campaign_ai($pr, $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id'], 'temperature' => 0.7]);
-        $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
+        $__iPrompt = fn(string $x) => campaign_content_prompt($brand, $c, $i, trim($extra . ($x !== '' ? "\n\n" . $x : '')), $ifmt, $islides, video_brief($content)['duration'], $bkBrief, $impTask);
+        $__ieval = null;
+        if (campaign_write_mode() === 'single') {
+            // زرار «حسّن» من العميل: نفس الطلب الواحد (كتابة + تقييم) من غير تحسين تلقائي فوقه
+            $__w = campaign_write_with_eval($__iPrompt, fn(string $pr, bool $imp) => $__iCall($pr),
+                function (string $r) use ($uid): array { $p = campaign_parse_content(BrandContext::stripWhy($r)); foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid); return $p; },
+                ['fmt' => $ifmt, 'slides' => $islides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => (int) $content['id'], 'rounds' => 0]);
+            $ai = $__w['ai'];
+            $p = $__w['p'];
+            $__ieval = $__w['eval'];
+        } else {
+            $ai = $__iCall($__iPrompt(''));
+            $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;
+        }
         if ($p) {
             foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid);
             if ($bkBrief) BrandContext::attach((int) $content['id'], $uid, $bkBrief, BrandContext::parseWhy((string) $ai['response']));
         }
         if (!$p || ($p['body'] === '' && $p['hook'] === '')) {
             cf_refund($uid, $cost, 'تحسين منشور #' . $content['id'], (int) $i['id']);
-            api_fail($ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التحسين'), 'ai_failed', 502);
+            api_fail(!empty($ai['ok']) ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التحسين'), 'ai_failed', 502);
         }
         $text = campaign_compose_text($p['hook'], $p['body']);
         ai_stamp('contents', (int) $content['id'], $impTask ? 'campaign_improve' : 'campaign_content', $ai);
@@ -479,8 +512,15 @@ switch ($action) {
                 'tags' => (string) $content['hashtags'], 'design' => $vb['script']['shoot']], JSON_UNESCAPED_UNICODE), $i['id']]);
         }
         save_content_version((int) $content['id'], $text, $p['tags'] ?: null, $p['cta'] ?: null, 'ai_edit', 'تحسين بعد التقييم');
-        db_run('UPDATE campaign_ideas SET eval_score = NULL, eval_json = ?, approved = 0 WHERE id = ?',
-            [json_encode(['prev' => (int) ($ev['score'] ?? 0), 'prev_text' => mb_substr((string) $content['generated_text'], 0, 3000)], JSON_UNESCAPED_UNICODE), $i['id']]);
+        $__prev = ['prev' => (int) ($ev['score'] ?? 0), 'prev_text' => mb_substr((string) $content['generated_text'], 0, 3000)];
+        if ($__ieval) {
+            // البنود اللي اتحسبت بعد التعديل (الممنوعات اتشالت بالفعل فوق) — الدرجة الجديدة جاية مع الطلب
+            db_run('UPDATE campaign_ideas SET eval_score = ?, eval_json = ?, approved = ? WHERE id = ?',
+                [empty($__ieval['missing']) ? $__ieval['score'] : null, json_encode($__ieval + $__prev, JSON_UNESCAPED_UNICODE), $__ieval['pass'] ? 1 : 0, $i['id']]);
+            content_set_flag((int) $content['id'], $uid, $__ieval['pass'] ? 'needs_design' : 'needs_review', $__ieval['pass'] ? null : mb_substr((string) $__ieval['issues'], 0, 250));
+        } else {
+            db_run('UPDATE campaign_ideas SET eval_score = NULL, eval_json = ?, approved = 0 WHERE id = ?', [json_encode($__prev, JSON_UNESCAPED_UNICODE), $i['id']]);
+        }
         api_ok(['idea' => cf_idea_out($c, $uid, (int) $i['id']), 'balance' => credits_balance($uid)]);
 
     /* ══════════ تقييم الخطة كاملة (فوق مرحلة التقييم) ══════════ */
@@ -540,7 +580,8 @@ switch ($action) {
         // الجاهز (80+) + اللي العميل اختار يعتمده بنفسه (ids)
         $ids = array_filter(array_map('intval', (array) (api_input()['idea_ids'] ?? [])));
         db_run('UPDATE campaign_ideas SET approved = 1 WHERE campaign_id = ? AND user_id = ? AND selected = 1 AND content_id IS NOT NULL
-                AND (eval_score >= ?' . ($ids ? ' OR id IN (' . implode(',', $ids) . ')' : '') . ')', [$c['id'], $uid, eval_ready_score()]);
+                AND ((eval_score >= ? AND (eval_json IS NULL OR eval_json NOT LIKE \'%"mode":"self"%\')) OR approved = 1' . ($ids ? ' OR id IN (' . implode(',', $ids) . ')' : '') . ')', [$c['id'], $uid, eval_ready_score()]);
+        // الطريقة الجديدة (mode = self): الجاهز = اللي عدّى حده ومن غير مخالفات (اتعلّم approved وقت الكتابة)
         foreach (db_all('SELECT content_id FROM campaign_ideas WHERE campaign_id = ? AND approved = 1 AND content_id IS NOT NULL', [$c['id']]) as $r) {
             content_set_flag((int) $r['content_id'], $uid, 'needs_design');
         }

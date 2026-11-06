@@ -110,9 +110,8 @@ function campaign_ai_call(string $prompt, int $maxTokens, string $task, array $c
  */
 function campaign_skill(array $brand, array $c = []): ?array
 {
-    if (get_setting('campaign_skills_enabled', '1') !== '1') return null;
     if (!function_exists('ce_skill_block')) require_once __DIR__ . '/ce-skills.php';
-    if (!ce_skills_ready()) return null;
+    if (get_setting('campaign_skills_enabled', '1') !== '1' || !ce_skills_ready()) return null;
     if (array_key_exists('skill_version_id', $c) && $c['skill_version_id'] !== null) {
         return (int) $c['skill_version_id'] > 0 ? ce_skill_version_load((int) $c['skill_version_id']) : null;
     }
@@ -133,7 +132,9 @@ function campaign_skill(array $brand, array $c = []): ?array
 /** بلوك الـ Skill في أول برومبت المرحلة (ثابت لنفس البراند — أحسن للكاش) — فاضي لو مفيش */
 function campaign_skill_prefix(string $stage, array $brand, array $c = []): string
 {
-    $b = ce_skill_block($stage, campaign_skill($brand, $c));
+    $sk = campaign_skill($brand, $c);   // أول — بتحمّل ce-skills.php (PHP بيدوّر على اسم الدالة قبل ما يحسب المدخلات)
+    if (!$sk) return '';
+    $b = ce_skill_block($stage, $sk);
     return $b === '' ? '' : ltrim($b) . "\n\n";
 }
 
@@ -787,7 +788,7 @@ function campaign_idea_api(array $i, ?array $content, array $designs): array
             array_intersect_key((array) (json_decode((string) ($content['brief_json'] ?? ''), true) ?: []), array_flip(['service', 'topic', 'pillar', 'method', 'character', 'hook'])))) ?: null,
         'reasons' => $content ? (json_decode((string) ($content['ai_reasoning'] ?? ''), true) ?: []) : [],
         'script' => $script,
-        'eval' => $eval ? $eval + ['ready' => (int) ($eval['score'] ?? 0) >= eval_ready_score()] : null,
+        'eval' => $eval ? $eval + ['ready' => isset($eval['pass']) ? (bool) $eval['pass'] : (int) ($eval['score'] ?? 0) >= eval_ready_score()] : null,
         'designs' => $designs,
         'plan' => $i['plan_at'] ? ['at' => substr((string) $i['plan_at'], 0, 16), 'platform' => (string) ($i['plan_platform'] ?: 'facebook')] : null,
     ];

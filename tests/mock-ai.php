@@ -186,6 +186,24 @@ if (isset($content)) {
     // رد المساعد اتحدد فوق
 } elseif ($out !== null) {
     $content = json_encode($out, JSON_UNESCAPED_UNICODE);
+} elseif (str_contains($text, '[SELF_EVAL]{')) {
+    // الحملات القديمة · خطة الحملات §5: المنشور بالتاجات + [SELF_EVAL] في نفس الرد
+    // SE_LOW (أول كتابة ضعيفة) · SE_ALWAYS_LOW · SE_MISSING (من غير تقييم دايمًا) · SE_NOEVAL_ONCE · SE_FORBIDDEN (وعد ممنوع أول مرة) · SE_NOCTA (من غير CTA أول مرة)
+    $imp = str_contains($text, 'تحسين تلقائي');
+    $retry = str_contains($text, 'كان ناقص [SELF_EVAL]');
+    $low = ($has('SE_LOW') && !$imp) || $has('SE_ALWAYS_LOW');
+    $n = preg_match_all('/^شريحة (\d+) \|/mu', $text, $sm) ? count($sm[1]) : 0;
+    $content = "[HOOK]\nبتأجل الكشف ليه؟ " . random_int(100, 999) . "\n[/HOOK]\n\n[CONTENT]\nابتسامتك تستاهل اهتمام. في عيادتنا تعقيم كامل ومواعيد مرنة وخطة علاج واضحة بالسعر قبل ما نبدأ، والكشف بياخد دقايق."
+        . ($has('SE_FORBIDDEN') && !$imp ? ' نتيجة مضمونة.' : '') . ($imp ? ' (نسخة محسّنة)' : '') . "\n[/CONTENT]\n\n"
+        . '[CTA]' . ($has('SE_NOCTA') && !$imp ? '' : 'ابعتلنا على واتساب واحجز') . "[/CTA]\n\n[HASHTAGS]\n#ابتسامة #أسنان\n[/HASHTAGS]\n\n"
+        . ($n ? "[SLIDES]\n" . implode("\n", array_map(fn($k) => "شريحة $k | عنوان $k | نص قصير للشريحة $k | تصميم $k", range(1, $n))) . "\n[/SLIDES]\n\n" : '')
+        . (str_contains($text, '[SCRIPT]') ? "[SCRIPT]\nمشهد 1 (0–3ث): دكتور بيبتسم + «بتأجل الكشف؟»\nمشهد 2 (3–10ث): العيادة\n[/SCRIPT]\n\n[SHOOT]\nفي العيادة بإضاءة طبيعية\n[/SHOOT]\n\n" : '')
+        . "[DESIGN_IDEA]\nتصميم نضيف بألوان البراند وعنوان كبير\n[/DESIGN_IDEA]\n\n[IMAGE_PROMPT]\nclean dental clinic social post\n[/IMAGE_PROMPT]";
+    if (!$has('SE_MISSING') && !($has('SE_NOEVAL_ONCE') && !$retry)) {
+        $v = $low ? 55 : 92;
+        $content .= "\n\n[SELF_EVAL]" . json_encode(['criteria' => ['hook' => $v, 'audience_fit' => $v, 'value' => $v, 'trust' => $v, 'cta_business' => $v],
+            'issues' => $low ? ['الـ Hook ضعيف'] : [], 'fix' => $low ? 'ابدأ بسؤال من واقع العميل' : ''], JSON_UNESCAPED_UNICODE) . '[/SELF_EVAL]';
+    }
 } elseif (preg_match('/PROMPT\s*:|ARABIC_TEXT|design_base|برومبت الصورة|image prompt/iu', $text)) {
     // كاتب برومبت التصميم (القديم): شكل النص اللي generate-design.php بيقراه
     $content = "PROMPT: A clean modern social media design for a dental clinic, brand blue and teal palette, bold Arabic headline at the top, friendly smiling patient, CTA button at the bottom.\n"
