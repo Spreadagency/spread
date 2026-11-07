@@ -54,7 +54,10 @@ if (credits_balance((int) $user['id']) < $cost) {
     json_response(['ok' => false, 'error' => credits_short_msg($cost)]);
 }
 
-$prompt = build_produce_prompt($brand, $idea);
+require_once __DIR__ . '/../../includes/brand-kit.php';
+$bkO = ['topic' => (string) $idea['title']];
+$bkBrief = bk_enabled() ? BrandContext::brief((int) $user['id'], $bkO) : null;
+$prompt = build_produce_prompt($brand, $idea, ['bk_brief' => $bkBrief]);
 
 if (!credits_consume((int) $user['id'], $cost, 'إنتاج بوست من الخطة: ' . mb_substr($idea['title'], 0, 60), 'plan_idea', $ideaId)) {
     json_response(['ok' => false, 'error' => credits_short_msg()]);
@@ -66,7 +69,7 @@ if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
         'job_type' => 'plan_produce', 'max_tokens' => 2500, 'temperature' => 0.8,
     ]);
 } else {
-    $ai = ai_generate($prompt);
+    $ai = ai_generate($prompt, [], ['max_tokens' => 2500, 'temperature' => 0.8]);
 }
 
 if (!$ai['ok']) {
@@ -74,7 +77,9 @@ if (!$ai['ok']) {
     json_response(['ok' => false, 'error' => $ai['error']]);
 }
 
-$parsed = parse_produced_post($ai['response']);
+$parsed = parse_produced_post(BrandContext::stripWhy((string) $ai['response']));
+$parsed['content'] = BrandContext::enforce((string) $parsed['content'], (int) $user['id']);
+$parsed['cta'] = BrandContext::enforce((string) $parsed['cta'], (int) $user['id']);
 if ($parsed['content'] === '') {
     credits_add((int) $user['id'], $cost, 'استرداد: رد غير صالح للفكرة #' . $ideaId, null, 'refund', $ideaId);
     json_response(['ok' => false, 'error' => 'الرد غير صالح — جرب تاني']);
@@ -104,6 +109,7 @@ $contentId = db_insert_row('contents', [
         : null,
 ]);
 
+if ($bkBrief && $contentId) BrandContext::attach((int) $contentId, (int) $user['id'], $bkBrief, BrandContext::parseWhy((string) $ai['response']), $bkO);
 db_run('UPDATE plan_ideas SET status = "produced", content_id = ? WHERE id = ?', [$contentId, $ideaId]);
 db_run('UPDATE content_plans SET status = "producing", credits_used = credits_used + ? WHERE id = ?', [$cost, $idea['plan_id']]);
 
@@ -114,6 +120,7 @@ if ($remaining === 0) {
 }
 
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? 'router', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'plan_produce', $ai);
 
 json_response([
     'ok' => true,

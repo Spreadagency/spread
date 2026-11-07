@@ -1,0 +1,35 @@
+# /etc/systemd/system/spread-mcp.service
+[Unit]
+Description=Spread AI MCP server (quality, monitoring, security)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=spreadmcp
+Group=spreadmcp
+WorkingDirectory=/opt/spread-mcp/app
+# .env بيتقري من WorkingDirectory (process.loadEnvFile)
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+# حماية: مفيش كتابة غير في data/ · مفيش صلاحيات زيادة
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/spread-mcp/app/data
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

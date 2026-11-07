@@ -70,7 +70,12 @@ if (!credits_consume((int) $user['id'], $cost, 'توليد ملخص الهوية
 
 // برومبت الأدمن (لو متظبط من صفحة البرومبت) بيتقدّم على المدمج في الكود
 $__adminPrompt = get_active_prompt('brand_summary');
-if (trim($__adminPrompt) !== '') {
+if (prompt_is_full($__adminPrompt)) {
+    // برومبت «ملخص الهوية» الكامل (v1): البيانات والمستندات في متغيراته — والرد بعناوينه جوه [CONTENT]
+    $prompt = prompt_apply($__adminPrompt, ['brief_answers' => implode("\n", $brandLines), 'documents' => $knowledge !== '' ? mb_substr($knowledge, 0, 6000) : 'مفيش مستندات',
+            'images_note' => $imageUrls ? 'مرفق ' . count($imageUrls) . ' صور: اللوجو وصور البراند — استخدمهم في الهوية البصرية' : 'مفيش صور']
+        + prompt_brand_vars((int) $user['id'], $brand, 'brand', ['identity' => false]), []);
+} elseif (trim($__adminPrompt) !== '') {
     $prompt = $__adminPrompt . "\n\n" . $prompt;
 }
 
@@ -82,8 +87,9 @@ if (!$ai['ok']) {
 }
 
 $summary = trim($ai['response']);
+if (preg_match('/\[CONTENT\](.*?)(\[\/CONTENT\]|$)/su', $summary, $__m)) $summary = $__m[1];   // البرومبت الكامل: الملخص جوه [CONTENT]
 $summary = preg_replace('/\[\/?[A-Z_]+\]/', '', $summary); // تنضيف أي تاجات لو الموديل رجّعها
-$summary = mb_substr(trim(preg_replace('/\n{3,}/', chr(10).chr(10), $summary)), 0, 4000);
+$summary = mb_substr(trim(preg_replace('/\n{3,}/', chr(10).chr(10), $summary)), 0, 8000);
 db_run('UPDATE brand_profiles SET ai_summary = ? WHERE id = ?', [$summary, $brand['id']]);
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? 'router', $ai['usage'] ?? [], null);
 

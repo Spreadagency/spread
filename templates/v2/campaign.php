@@ -24,10 +24,10 @@
             <small class="cf-save" :class="save.state"><?= ui_icon('check', 13) ?> {{ saveText() }}</small>
         </div>
         <ol class="cf-steps">
-            <li v-for="n in [1,2,3,4,5,6]" :key="n" :class="stepCls(n)">
+            <li v-for="n in stepList()" :key="n" :class="stepCls(n)">
                 <button type="button" @click.stop="go(n)" :disabled="!canGo(n)" :aria-current="c.stage === n ? 'step' : null">
                     <span class="cf-step-ic" v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span>
-                    <span class="cf-step-txt"><b>{{ n }}. {{ stages[n].name }}</b><small>{{ stages[n].desc }}</small></span>
+                    <span class="cf-step-txt"><b>{{ stepList().indexOf(n) + 1 }}. {{ stages[n].name }}</b><small>{{ stages[n].desc }}</small></span>
                 </button>
             </li>
         </ol>
@@ -46,7 +46,7 @@
                 <small class="cf-crumb-d"><a :href="base + '/campaigns.php'">حملاتي</a> / {{ c.title }}</small>
                 <div class="cf-crumb-m"><b>{{ c.title }}</b><span class="cf-chip" :class="statusChip().cls">{{ statusChip().label }}</span></div>
                 <small class="cf-crumb-m cf-save" :class="save.state"><?= ui_icon('check', 12) ?> {{ saveText() }}</small>
-                <h1>المرحلة {{ c.stage }} من 6 · {{ stages[c.stage].name }}</h1>
+                <h1>المرحلة {{ stepList().indexOf(c.stage) + 1 }} من {{ stepList().length }} · {{ stages[c.stage].name }}</h1>
             </div>
             <div class="cf-think-pill" v-if="ai.on" aria-live="polite"><span class="cf-orb sm"><i></i></span>{{ ai.msg }}</div>
             <div class="cf-menu" @click.stop>
@@ -62,9 +62,9 @@
 
         <!-- موبايل: المراحل أفقي -->
         <ol class="cf-hsteps" aria-label="مراحل الحملة">
-            <li v-for="n in [1,2,3,4,5,6]" :key="n" :class="stepCls(n)">
+            <li v-for="n in stepList()" :key="n" :class="stepCls(n)">
                 <button type="button" @click.stop="go(n)" :disabled="!canGo(n)">
-                    <span class="cf-step-ic"><em>{{ n }}</em><span v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span></span>
+                    <span class="cf-step-ic"><em>{{ stepList().indexOf(n) + 1 }}</em><span v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span></span>
                     <small>{{ stages[n].name }}</small>
                 </button>
             </li>
@@ -76,7 +76,26 @@
             <b>🔒 لازم هوية البراند تعدّي {{ health.gate }}%</b>
             <p class="sub">هويتك دلوقتي {{ health.pct }}%. المحتوى والتصميم بيتبنوا على Brand Brain علشان الـ AI يكتب ويصمم بأسلوبك.</p>
             <div class="cf-bar"><span :style="{ width: health.pct + '%' }"></span></div>
-            <a :href="base + '/brand-brain.php'" class="cf-btn primary sm">🧠 كمّل Brand Brain</a>
+            <a :href="base + '/brand-brain.php'" class="cf-btn primary sm">🧬 كمّل هوية البراند</a>
+        </div>
+
+        <!-- خطة الحملات: الحملة في الباقة (المسودة ← «اعتمد الخطة» ← حدود الحملة) -->
+        <div class="cf-card cf-pkg" v-if="pkg" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
+            <span class="pv-c" v-if="pkg.state === 'draft'" style="display:contents">
+                <div style="flex:1;min-width:220px"><b>📝 الحملة مسودة — لسه ماتحسبتش من باقتك</b>
+                    <small class="cf-muted" style="display:block">إعادة الخطة ببلاش: فاضل {{ Math.max(0, pkg.draft.free_regens - Math.max(0, pkg.draft.plans - 1)) }} · أفكار بديلة ببلاش: فاضل {{ Math.max(0, pkg.draft.free_alts - pkg.draft.alts) }}<span v-if="allowance"> · حملات متاحة: {{ allowance.left }} من {{ allowance.allow }}</span></small></div>
+                <label class="cf-muted" style="display:flex;gap:6px;align-items:center">منشورات <input type="number" class="cf-input" style="width:70px" min="1" :max="pkg.posts.max" v-model="pkgT.posts" @change="setTargets()"> / {{ pkg.posts.max }}</label>
+                <label class="cf-muted" style="display:flex;gap:6px;align-items:center" v-if="pkg.videos.max">فيديو <input type="number" class="cf-input" style="width:60px" min="0" :max="pkg.videos.max" v-model="pkgT.videos" @change="setTargets()"> / {{ pkg.videos.max }}</label>
+                <button type="button" class="cf-btn primary sm" @click="approvePlan()" :disabled="bulk.on || !selectedCount()">✓ اعتمد الخطة</button>
+            </span>
+            <span class="pv-c" v-if="pkg.state === 'approved'" style="display:contents">
+                <div style="flex:1;min-width:220px"><b>📣 من باقتك</b>
+                    <small class="cf-muted" style="display:block">📝 {{ pkg.posts.used }} من {{ pkg.posts.limit }} منشور<span v-if="pkg.videos.limit"> · 🎬 {{ pkg.videos.used }} من {{ pkg.videos.limit }} فيديو</span> · ✏️ فاضل {{ pkg.edits.left }} تعديل ببلاش (بعدها بالكريدت) · تصميم كل منشور ببلاش</small></div>
+            </span>
+            <span class="pv-c" v-if="pkg.state !== 'draft' && pkg.state !== 'approved'" style="display:contents">
+                <div style="flex:1"><b>الحملة دي {{ pkg.state === 'cancelled' ? 'اتلغت' : 'خلصت' }}</b></div>
+            </span>
+            <button type="button" class="cf-link danger" v-if="pkg.state === 'draft' || pkg.state === 'approved'" @click="cancelPlan()">إلغاء الحملة</button>
         </div>
 
         <!-- التفكير (أي شغل جماعي) -->
@@ -123,19 +142,78 @@
                     <div class="cf-chips">
                         <button type="button" v-for="(label, k) in bases" :key="k" :class="{ on: c.basis === k }" @click="c.basis = k; touch()">{{ label }}</button>
                     </div>
-                    <label class="cf-lbl">كام فكرة تحب نطلع لك؟</label>
-                    <div class="cf-seg" role="radiogroup" aria-label="عدد الأفكار">
-                        <button type="button" v-for="n in [5,10,15,20]" :key="n" role="radio" :aria-checked="count === n" :class="{ on: count === n }" @click="count = n; c.ideas_count = n; touch()">{{ n }}</button>
+
+                    <!-- الخدمة: الخدمات الرئيسية بس (معلومة عامة للحملة كلها) -->
+                    <label class="cf-lbl">🩺 الحملة عن أنهي خدمة؟ <small>(اختار خدمة أو اتنين — أو سيبها لكل الخدمات)</small></label>
+                    <div class="cf-chips" v-if="opts.services.length">
+                        <button type="button" :class="{ on: !setup.services.length }" @click="setup.services.splice(0); touch()">كل الخدمات</button>
+                        <button type="button" v-for="sv in opts.services" :key="sv.id" :class="{ on: setup.services.indexOf(sv.id) > -1 }" @click="pickService(sv.id)">{{ sv.focus ? '⭐ ' : '' }}{{ sv.name }}</button>
                     </div>
+                    <p class="cf-muted sm" v-else>مفيش خدمات في هويتك لسه — <a :href="base + '/brand-kit.php#bk-services'">ضيف خدماتك</a>.</p>
+
+                    <!-- العميل = Buyer Persona -->
+                    <label class="cf-lbl">👥 العميل <small>(Buyer Persona — الحملة هتتكلم معاه)</small></label>
+                    <div class="cf-personas" v-if="opts.personas.length">
+                        <button type="button" v-for="p in personaList()" :key="p.id" class="cf-persona" :class="{ on: setup.personas.indexOf(p.id) > -1, fit: p.fit }" @click="pickArr(setup.personas, p.id, 6)">
+                            <span class="e">{{ p.emoji }}</span>
+                            <span class="t"><b>{{ p.name }}</b><small v-if="p.hint">{{ p.hint }}</small></span>
+                            <em v-if="p.fit">مناسب للخدمة</em>
+                        </button>
+                    </div>
+                    <p class="cf-muted sm" v-else>مفيش عملاء مثاليين لسه — <a :href="base + '/brand-kit.php#bk-personas'">الـ AI يعملهم في ثانية</a>.</p>
+
+                    <!-- صورة الدكتور / الشخصية -->
+                    <label class="cf-lbl">🧑‍⚕️ صورة الدكتور / الشخصية <small>(هتظهر في التصميمات)</small></label>
+                    <div class="cf-faces">
+                        <button type="button" class="cf-face none" :class="{ on: !setup.characters.length }" @click="setup.characters.splice(0); touch()"><span>🚫</span>من غير صورة</button>
+                        <button type="button" v-for="ch in opts.characters" :key="ch.id" class="cf-face" :class="{ on: setup.characters.indexOf(ch.id) > -1 }" @click="pickArr(setup.characters, ch.id, 4)"><img :src="ch.img" alt="">{{ ch.name }}</button>
+                    </div>
+                    <p class="cf-muted sm" v-if="!opts.characters.length"><a :href="base + '/brand-kit.php#bk-characters'">ارفع صورة الدكتور أو ضيف شخصية في الهوية</a> علشان تظهر هنا.</p>
+
+                    <!-- المطلوب -->
+                    <label class="cf-lbl">📦 محتاج كام؟</label>
+                    <div class="cf-steps-n">
+                        <div v-for="f in setupFmts" :key="f.k" class="cf-stepper">
+                            <span>{{ f.e }} {{ f.t }}<small v-if="f.k === 'carousel'"> ({{ limits.def }} صور)</small></span>
+                            <button type="button" @click="bump(f.k, -1)" :disabled="!setup.counts[f.k]" :aria-label="'أقل ' + f.t">−</button>
+                            <b>{{ setup.counts[f.k] }}</b>
+                            <button type="button" @click="bump(f.k, 1)" :disabled="setupTotal() >= 30 || setup.counts[f.k] >= 15" :aria-label="'أكتر ' + f.t">+</button>
+                        </div>
+                    </div>
+                    <small class="cf-muted">المجموع: <b>{{ setupTotal() }}</b> فكرة</small>
+
+                    <label class="cf-lbl" for="cf-cta">📣 الـ CTA <small>(فاضي = الأساسي من هويتك)</small></label>
+                    <input id="cf-cta" class="cf-input" v-model="setup.cta" @input="touch()" maxlength="200" :placeholder="opts.cta || 'مثلًا: احجز دلوقتي على واتساب'">
+
                     <label class="cf-lbl" for="cf-notes">تفاصيل إضافية <small>(اختياري)</small></label>
+                    <div class="cf-muted" v-if="questions.length" style="font-size:13px;margin:-2px 0 6px">💡 جاوب في التفاصيل على اللي يهمك (من خبرة مجالك):
+                        <ul style="margin:4px 0 0;padding-inline-start:18px"><li v-for="q in questions" :key="q">{{ q }}</li></ul></div>
                     <textarea id="cf-notes" class="cf-input" rows="3" v-model="c.notes" @input="touch()" maxlength="2000" placeholder="أضف أي تفاصيل تحب... مثلًا: عرض 30% على التبييض لحد آخر الشهر"></textarea>
-                    <button type="button" class="cf-btn primary big" @click="genIdeas()" :disabled="bulk.on || !c.basis">
+                    <button type="button" class="cf-btn primary big" @click="genIdeas()" :disabled="bulk.on || !c.basis || !setupTotal()">
                         {{ ideas.length ? 'إعادة توليد الأفكار ✨' : 'ابدأ توليد الأفكار ✨' }}
                     </button>
-                    <small class="cf-cost"><span class="cr">{{ costs.ideas[count] || 0 }} كريدت · رصيدك {{ costs.balance }}</span><span v-if="ideas.length"><span class="cr"> · </span>الأفكار المختارة بتفضل زي ما هي</span></small>
+                    <small class="cf-cost"><span class="cr">{{ costs.ideas[setupTotal()] || 0 }} كريدت · رصيدك {{ costs.balance }}</span><span v-if="ideas.length"><span class="cr"> · </span>الأفكار اللي ليها محتوى بتفضل زي ما هي</span></small>
                 </section>
 
                 <section class="cf-ideas">
+                <section class="cf-card cf-cbrief" v-if="brief" style="margin-bottom:12px">
+                    <button type="button" class="cf-split" style="width:100%;border:0;background:none;font:inherit;cursor:pointer;padding:0" @click="briefOpen = !briefOpen" :aria-expanded="briefOpen">
+                        <b>📋 بريف الحملة <small style="font-weight:400;color:var(--mute)">— من مركز الهوية</small></b><span>{{ briefOpen ? '▴' : '▾' }}</span>
+                    </button>
+                    <div v-if="briefOpen" style="font-size:13.5px;line-height:1.9;margin-top:8px">
+                        <div v-if="brief.focus">⭐ <b>تركيز الشهر:</b> {{ brief.focus }}</div>
+                        <div v-if="brief.services && brief.services.length"><b>الخدمات:</b> {{ brief.services.join('، ') }}</div>
+                        <div v-if="brief.pillars && brief.pillars.length"><b>الاتجاهات:</b> {{ brief.pillars.map(p => p.name + ' ' + p.percent + '%').join('، ') }}</div>
+                        <div v-if="brief.topics && brief.topics.length"><b>مواضيع متاحة:</b> {{ brief.topics.slice(0, 10).join('، ') }}</div>
+                        <div v-if="brief.methods && brief.methods.length"><b>طرق الكتابة:</b> {{ brief.methods.join('، ') }}</div>
+                        <div v-if="brief.formats && brief.formats.length"><b>الأشكال في الأسبوع:</b> {{ brief.formats.map(f => f.format + ' ×' + f.per_week).join('، ') }}</div>
+                        <div v-if="brief.voice"><b>طريقة الكلام:</b> {{ brief.voice }}</div>
+                        <div v-if="brief.seasons && brief.seasons.length"><b>المواسم:</b> {{ brief.seasons.join('، ') }}</div>
+                        <div v-if="brief.offers && brief.offers.length"><b>عروض شغالة:</b> {{ brief.offers.map(o => o.title).join('، ') }}</div>
+                        <div v-if="brief.forbidden && brief.forbidden.words && brief.forbidden.words.length">⛔ <b>ممنوع:</b> {{ brief.forbidden.words.join('، ') }}</div>
+                        <a :href="base + '/brand-kit.php'" class="cf-pill" style="display:inline-block;margin-top:6px">عدّل الهوية ←</a>
+                    </div>
+                </section>
                     <div class="cf-split">
                         <h3>أفكار حملتك</h3>
                         <span class="cf-muted" v-if="ideas.length">
@@ -158,6 +236,8 @@
                             <div class="pv-c" v-if="editing !== i.id">
                                 <h4>{{ i.title }}</h4>
                                 <p>{{ i.desc }}</p>
+                                <small class="cf-pbrief" v-if="i.brief && (i.brief.service || i.brief.persona || i.brief.topic || (i.brief.character_names && i.brief.character_names.length))">
+                                    <span v-if="i.brief.service">🩺 {{ i.brief.service }}</span><span v-if="i.brief.persona">{{ i.brief.service ? ' · ' : '' }}👥 {{ i.brief.persona }}</span><span v-if="i.brief.topic"> · 📌 {{ i.brief.topic }}</span><span v-if="i.brief.character_ids && i.brief.character_ids.length" class="cf-mini-faces"> · <img v-for="cid in i.brief.character_ids.filter(x => charImg(x))" :key="cid" :src="charImg(cid)" alt="">{{ (i.brief.character_names || []).join('، ') }}</span></small>
                                 <dl class="cf-idea-meta" v-if="i.audience || i.hook">
                                     <div v-if="i.audience"><dt>الجمهور</dt><dd>{{ i.audience }}</dd></div>
                                     <div v-if="i.hook"><dt>الـ Hook</dt><dd><b>«{{ i.hook }}»</b></dd></div>
@@ -177,6 +257,7 @@
                                 <div class="cf-idea-foot">
                                     <span class="cf-grow"></span>
                                     <span class="cf-have" v-if="i.content">✓ ليها محتوى</span>
+                                    <button type="button" class="cf-link" v-if="!i.content && (!pkg || pkg.state === 'draft')" @click="altIdea(i)" :disabled="bulk.on || null">🔄 فكرة بديلة</button>
                                     <button type="button" class="cf-link" @click="startEdit(i)"><?= ui_icon('edit', 14) ?> تعديل</button>
                                 </div>
                             </div>
@@ -210,9 +291,17 @@
                     <button type="button" v-for="i in selected()" :key="i.id" class="cf-idea-pill" :class="{ on: active === i.id }" @click="active = i.id; mode = ''">
                         <small>الفكرة #{{ i.n }}</small><b>{{ i.title }}</b>
                         <em :class="i.content ? 'ok' : (running[i.id] ? 'run' : '')">{{ i.content ? '✓' : (running[i.id] ? '…' : '○') }}</em>
+                        <small v-if="i.eval && i.eval.mode === 'self'" :style="{ color: i.eval.ready ? 'var(--ok, #12805c)' : 'var(--warn, #b25e00)' }">{{ i.eval.missing ? '⚠ محتاج مراجعة' : (i.eval.ready ? '⭐ ' + i.eval.score : '⚠ ' + i.eval.score) }}</small>
                     </button>
                 </aside>
                 <section class="cf-editor-wrap">
+                    <!-- التقييم جاي مع الكتابة (خطة الحملات §5): الدرجة والملاحظات جنب المنشور -->
+                    <div class="cf-card" v-if="cur() && cur().eval && cur().eval.mode === 'self'" style="margin-bottom:10px;padding:10px 12px">
+                        <b>{{ cur().eval.missing ? '⚠ التقييم مارجعش — راجع المنشور بنفسك' : (cur().eval.ready ? '⭐ ' + cur().eval.score + '/100 — جاهز للتصميم' : '⚠ ' + cur().eval.score + '/100 — محتاج مراجعة (الحد ' + cur().eval.pass_total + ')') }}</b>
+                        <small class="cf-muted" v-if="cur().eval.auto_improved"> · اتحسّن لوحده {{ cur().eval.auto_improved }} مرة</small>
+                        <div class="cf-muted" style="font-size:13px;margin-top:4px" v-if="cur().eval.issues">{{ cur().eval.issues }}</div>
+                        <button type="button" class="cf-btn soft sm" style="margin-top:6px" v-if="cur().eval.missing" @click="evalOne(cur())" :disabled="bulk.on">قيّمه دلوقتي ✨</button>
+                    </div>
                     <div class="cf-split">
                         <div class="cf-tabs" role="tablist" v-if="cur() && modesFor(cur()).length > 1">
                             <button type="button" role="tab" v-for="m in modesFor(cur())" :key="m[0]" :aria-selected="curMode() === m[0]" :class="{ on: curMode() === m[0] }" @click="mode = m[0]">{{ m[1] }}</button>
@@ -224,7 +313,9 @@
                     </div>
                     <div class="cf-card cf-editor" v-if="cur()">
                         <div class="cf-split">
-                            <div><small class="cf-n blue">الفكرة #{{ cur().n }} · {{ fmtOf(cur()).e }} {{ cur().format_label }}<span v-if="cur().format === 'carousel'"> · {{ cur().slides_count }} شرائح</span></small><h3>{{ cur().title }}</h3></div>
+                            <div><small class="cf-n blue">الفكرة #{{ cur().n }} · {{ fmtOf(cur()).e }} {{ cur().format_label }}<span v-if="cur().format === 'carousel'"> · {{ cur().slides_count }} شرائح</span></small><h3>{{ cur().title }}</h3>
+                                <small class="cf-pbrief" v-if="cur().brief" style="display:block;color:var(--mute);font-size:12.5px;margin-top:4px">📋 {{ [cur().brief.service, cur().brief.topic, cur().brief.pillar, cur().brief.method].filter(Boolean).join(' · ') }}</small>
+                                <small v-if="cur().reasons && cur().reasons.length" style="display:block;color:var(--mute);font-size:12px;margin-top:2px" :title="cur().reasons.join(' · ')">💡 {{ cur().reasons[0] }}<span v-if="cur().content"> · <a :href="base + '/content-view.php?id=' + cur().content.id" style="color:inherit;text-decoration:underline">ليه وغيّر الهوية للبوست</a></span></small></div>
                             <div class="cf-row" v-if="cur().content">
                                 <button type="button" class="cf-pill" @click="regen(cur())" :disabled="bulk.on || locked(cur())">↻ إعادة توليد</button>
                                 <button type="button" class="cf-pill" @click="copyCur()">نسخ</button>
@@ -273,6 +364,16 @@
                             <p class="cf-muted">🎬 الـ AI بيجهّز السكريبت — والتنفيذ يدوي بفريق Spread AI من مرحلة «التصميم».</p>
                         </div>
                         <small class="cf-save-line" v-if="cur().content">{{ fieldSave[cur().id] || 'التعديلات بتتحفظ لوحدها' }}</small>
+                        <div class="cf-ask-box" v-if="cur().content && !locked(cur())">
+                            <label class="cf-lbl">💬 عايز تغيّر إيه؟ <small>(اكتب والـ AI يعدّل — وانت تختار)</small></label>
+                            <div class="cf-chips sm"><button type="button" v-for="q in quickAsks" :key="q" @click="ask[cur().id] = q">{{ q }}</button></div>
+                            <div class="cf-row"><input class="cf-input" :value="ask[cur().id] || ''" @input="ask[cur().id] = $event.target.value" maxlength="400" placeholder="مثلًا: غيّر الـ Hook لسؤال، وخلّي الـ CTA واتساب" @keyup.enter="askAI(cur())">
+                                <button type="button" class="cf-btn primary sm" :disabled="!(ask[cur().id] || '').trim() || bulk.on || asking === cur().id" @click="askAI(cur())">{{ asking === cur().id ? '…' : 'غيّر ✨' }} <small class="cr" v-if="costs.ai_edit">· {{ costs.ai_edit }}</small></button></div>
+                            <div class="cf-propose sx-in" v-if="proposal && proposal.id === cur().id">
+                                <div class="cf-two"><div><small>قبل</small><p>{{ proposal.old }}</p></div><div class="new"><small>بعد</small><p>{{ proposal.text }}</p><p v-if="proposal.cta" class="cta">CTA: {{ proposal.cta }}</p></div></div>
+                                <div class="cf-row"><button type="button" class="cf-btn primary sm" @click="acceptProposal(cur())">✓ استخدم الجديد</button><button type="button" class="cf-btn ghost sm" @click="proposal = null">سيبه زي ما هو</button></div>
+                            </div>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -284,6 +385,27 @@
                 <div><h2>خلينا نراجع المحتوى</h2><p>Spread AI سيقيّم كل قطعة محتوى قبل الانتقال للتصميم.</p></div>
                 <button type="button" class="cf-link" @click="skipEval()" :disabled="bulk.on">تخطي التقييم</button>
             </div>
+            <!-- تقييم الخطة كاملة -->
+            <section class="cf-card cf-plan-eval">
+                <div class="cf-split">
+                    <div><b>📋 تقييم الخطة كاملة</b><small class="cf-muted" style="display:block">التوازن · التكرار · تغطية العملاء والخدمات · التسلسل · الـ CTA · مناسبة الهدف</small></div>
+                    <button type="button" class="cf-btn soft sm" @click="planEval()" :disabled="bulk.on || withContent().length < 2">{{ planE ? 'قيّم تاني' : 'قيّم الخطة' }} ✨ <small class="cr" v-if="costs.plan_eval">· {{ costs.plan_eval }}</small></button>
+                </div>
+                <div class="cf-plan-body" v-if="planE">
+                    <div class="cf-plan-top">
+                        <div class="cf-ring" :class="planE.score >= evalReady ? 'ok' : 'warn'" :style="{ '--p': planE.score }"><b>{{ planE.score }}</b><small>/ 100</small></div>
+                        <p>{{ planE.summary }}<small class="cf-muted" v-if="planE.posts !== withContent().length" style="display:block">اتقيّمت على {{ planE.posts }} بوست — فيه تغييرات بعدها، قيّم تاني.</small></p>
+                    </div>
+                    <div class="cf-cats">
+                        <div v-for="(v, k) in planE.cats" :key="k"><span class="cf-split"><small>{{ k }}</small><b>{{ v }}</b></span><div class="cf-bar sm"><span :class="{ hot: v < evalReady }" :style="{ width: v + '%' }"></span></div></div>
+                    </div>
+                    <ol class="cf-plan-notes" v-if="planE.notes.length">
+                        <li v-for="(nt, k) in planE.notes" :key="k"><span><b v-if="nt.post">بوست {{ nt.post }}:</b> {{ nt.issue }}<small v-if="nt.fix"> ← {{ nt.fix }}</small></span>
+                            <button type="button" class="cf-btn primary sm" v-if="nt.idea_id && nt.fix" :disabled="bulk.on || asking" @click="applyNote(nt)">طبّق ✨</button></li>
+                    </ol>
+                </div>
+            </section>
+
             <div class="cf-row cf-sum-chips">
                 <span class="cf-chip ok">{{ evalCount('ready') }} جاهزة</span>
                 <span class="cf-chip warn">{{ evalCount('weak') }} تحتاج تحسين</span>
@@ -306,19 +428,39 @@
                             <span class="cf-chip blue" v-if="i.approved && i.eval && !i.eval.ready">✓ معتمد</span>
                         </div>
                     </div>
-                    <p class="cf-quote">«{{ i.content.hook || i.content.body.slice(0, 90) }}»</p>
+                    <div class="cf-post-full" :id="'cf-ev-' + i.id">
+                        <p :class="{ clip: !open3[i.id] }">{{ fullText(i) }}</p>
+                        <div class="cf-row">
+                            <button type="button" class="cf-link" @click="open3[i.id] = !open3[i.id]">{{ open3[i.id] ? 'أقل' : 'اقرا البوست كامل' }}</button>
+                            <button type="button" class="cf-link" v-if="i.eval && i.eval.prev_text" @click="showPrev[i.id] = !showPrev[i.id]">{{ showPrev[i.id] ? 'إخفاء القديم' : 'شوف قبل التحسين (' + (i.eval.prev || '–') + ')' }}</button>
+                        </div>
+                        <p class="cf-prev" v-if="showPrev[i.id] && i.eval && i.eval.prev_text">{{ i.eval.prev_text }}</p>
+                    </div>
                     <div class="cf-cats" v-if="i.eval && i.eval.cats">
                         <div v-for="(v, k) in i.eval.cats" :key="k">
-                            <span class="cf-split"><small>{{ evalCats[k] }}</small><b>{{ v }}</b></span>
-                            <div class="cf-bar sm"><span :class="{ hot: v < 80 }" :style="{ width: v + '%' }"></span></div>
+                            <span class="cf-split"><small>{{ (i.eval.labels && i.eval.labels[k]) || evalLabels[k] || evalCats[k] }}</small><b>{{ v }}</b></span>
+                            <div class="cf-bar sm"><span :class="{ hot: v < evalReady }" :style="{ width: v + '%' }"></span></div>
                         </div>
                     </div>
+                    <div class="cf-row" v-if="i.eval && i.eval.score !== undefined">
+                        <span class="cf-chip blue" v-if="i.approved">✓ معتمد</span>
+                        <button type="button" class="cf-btn primary sm" v-if="!i.approved" @click="approveOne(i)">✅ اعتمده</button>
+                    </div>
+                        <div class="cf-ask-box" v-if="i.content && !locked(i)">
+                            <label class="cf-lbl">💬 عايز تغيّر إيه؟ <small>(اكتب والـ AI يعدّل — وانت تختار)</small></label>
+                            <div class="cf-chips sm"><button type="button" v-for="q in quickAsks" :key="q" @click="ask[i.id] = q">{{ q }}</button></div>
+                            <div class="cf-row"><input class="cf-input" :value="ask[i.id] || ''" @input="ask[i.id] = $event.target.value" maxlength="400" placeholder="مثلًا: غيّر الـ Hook لسؤال، وخلّي الـ CTA واتساب" @keyup.enter="askAI(i)">
+                                <button type="button" class="cf-btn primary sm" :disabled="!(ask[i.id] || '').trim() || bulk.on || asking === i.id" @click="askAI(i)">{{ asking === i.id ? '…' : 'غيّر ✨' }} <small class="cr" v-if="costs.ai_edit">· {{ costs.ai_edit }}</small></button></div>
+                            <div class="cf-propose sx-in" v-if="proposal && proposal.id === i.id">
+                                <div class="cf-two"><div><small>قبل</small><p>{{ proposal.old }}</p></div><div class="new"><small>بعد</small><p>{{ proposal.text }}</p><p v-if="proposal.cta" class="cta">CTA: {{ proposal.cta }}</p></div></div>
+                                <div class="cf-row"><button type="button" class="cf-btn primary sm" @click="acceptProposal(i)">✓ استخدم الجديد</button><button type="button" class="cf-btn ghost sm" @click="proposal = null">سيبه زي ما هو</button></div>
+                            </div>
+                        </div>
                     <p class="cf-comment ok" v-if="i.eval && i.eval.ready && i.eval.comment">✦ {{ i.eval.comment }}</p>
                     <div class="cf-comment warn" v-if="i.eval && !i.eval.ready">
                         <span>ⓘ {{ i.eval.issues || 'الـ Hook والـ CTA محتاجين يبقوا أقوى.' }}</span>
                         <div class="cf-row">
                             <button type="button" class="cf-btn primary sm" @click="improve(i)" :disabled="bulk.on || locked(i)">تحسين المحتوى ✨ <small class="cr">· {{ costs.regen }} كريدت</small></button>
-                            <button type="button" class="cf-link" v-if="!i.approved" @click="approveOne(i)">اعتمده كده</button>
                         </div>
                     </div>
                     <button type="button" class="cf-btn soft sm" v-if="!i.eval && !running[i.id]" @click="evalOne(i)" :disabled="bulk.on">قيّم المنشور ده</button>
@@ -356,14 +498,15 @@
                         <div class="cf-row" v-if="i.video">
                             <button type="button" class="cf-btn ghost sm" @click="active = i.id; mode = 'script'; go(2)">راجع السكريبت</button>
                             <button type="button" class="cf-btn soft sm grow" v-if="i.video.status.key === 'script'" @click="videoAct(i, 'video_approve')" :disabled="bulk.on">✓ اعتمد السكريبت</button>
-                            <button type="button" class="cf-btn primary sm grow cf-wa" v-if="i.video.status.key === 'approved'" @click="videoRequest(i)" :disabled="bulk.on || !i.video.wa || null">📲 تواصل معنا لتنفيذ الفيديو</button>
+                            <button type="button" class="cf-btn primary sm grow cf-wa" v-if="i.video.status.key === 'approved' && !(i.video.pay && i.video.pay.on)" @click="videoRequest(i)" :disabled="bulk.on || !i.video.wa || null">📲 تواصل معنا لتنفيذ الفيديو</button>
+                            <a class="cf-btn primary sm grow" v-if="i.video.status.key === 'approved' && i.video.pay && i.video.pay.on" :href="base + '/content-history.php?open=' + i.content.id">{{ i.video.pay.order && i.video.pay.order.payment_id ? '⏳ الدفع بيتراجع — تابعه' : '🎬 اختار نوع الفيديو واطلبه' }}</a>
                             <a class="cf-btn ghost sm grow" v-if="['sent', 'in_production', 'ready', 'delivered'].indexOf(i.video.status.key) >= 0" :href="base + '/content-history.php?open=' + i.content.id" target="_blank" rel="noopener">متابعة الطلب</a>
                         </div>
                     </div>
                     <div class="pv-c" v-if="i.format !== 'video'">
-                    <div class="cf-dprev" :class="{ story: i.format === 'story' }">
+                    <div class="cf-dprev" :class="{ story: i.format === 'story' }" @click="openPv(i)" role="button" tabindex="0" :aria-label="'معاينة ' + i.title">
                         <button type="button" class="cf-check" :class="{ on: dsel[i.id] }" role="checkbox" :aria-checked="dsel[i.id] ? 'true' : 'false'"
-                                :aria-label="'تحديد ' + i.title" @click="dsel[i.id] = !dsel[i.id]"><?= ui_icon('check', 14) ?></button>
+                                :aria-label="'تحديد ' + i.title" @click.stop="dsel[i.id] = !dsel[i.id]"><?= ui_icon('check', 14) ?></button>
                         <img v-if="coverOf(i)" :src="coverOf(i)" alt="" loading="lazy">
                         <div class="cf-dtext" v-if="!coverOf(i)"><small>معاينة المحتوى</small><p>{{ i.content.hook || i.content.body.slice(0, 110) }}</p></div>
                         <div class="cf-dbusy" v-if="running[i.id]"><span class="cf-orb"><i></i></span><small>{{ i.format === 'carousel' ? 'بيصمم الشريحة ' + running[i.id] + '…' : 'بيصمم…' }}</small></div>
@@ -384,7 +527,7 @@
                     <div class="cf-row">
                         <button type="button" class="cf-btn soft sm grow" @click="designOne(i)" :disabled="bulk.on || running[i.id] || locked(i)">
                             {{ designBtn(i) }}</button>
-                        <a v-if="i.designs.length" class="cf-pill" :href="base + '/content-history.php?open=' + i.content.id" target="_blank" rel="noopener">تعديل</a>
+                        <button type="button" class="cf-pill" @click="openPv(i)">👁 معاينة وتعديل</button>
                     </div>
                     </div>
                 </article>
@@ -392,6 +535,61 @@
             <p class="cf-muted" v-if="!designable().length">مفيش منشورات معتمدة لسه — ارجع للتقييم واعتمد المحتوى.</p>
             <p class="cf-note" v-if="designable().length && pendingReview()">⚑ {{ pendingReview() }} منشورات لسه محتاجة تحسين ومش هنا — <button type="button" class="cf-link" @click="go(3)">ارجع للتقييم</button> وحسّنها أو اعتمدها كده.</p>
         </div>
+
+
+        <!-- ══════════════ معاينة جانبية: المحتوى + فكرة التصميم قبل التنفيذ ══════════════ -->
+        <div class="cf-pv-back" v-if="pv" @click="pv = 0"></div>
+        <aside class="cf-pv sx-in" v-if="pv && pvIdea()" role="dialog" aria-label="معاينة المنشور" @click.stop>
+            <div class="cf-split cf-pv-head">
+                <div><small class="cf-muted">#{{ pvIdea().n }} · {{ fmtOf(pvIdea()).e }} {{ pvIdea().format_label }}</small><b>{{ pvIdea().title }}</b></div>
+                <button type="button" class="cf-x" @click="pv = 0" aria-label="قفل">×</button>
+            </div>
+            <div class="cf-pv-img" :class="{ story: pvIdea().format === 'story' }" :style="pvAspect()">
+                <img v-if="pvImg()" :src="pvImg()" alt="">
+                <div class="cf-pv-ph" v-if="!pvImg()"><small>{{ pvIdea().format === 'carousel' ? 'شريحة ' + pvN : 'فكرة التصميم' }}</small><b v-if="pvSlide()">{{ pvSlide().title }}</b><p>{{ pvDesignText() }}</p></div>
+                <div class="pv-c" v-if="pvIdea().format === 'carousel'">
+                    <button type="button" class="cf-pv-nav next" @click="pvGo(1)" :disabled="pvN >= pvIdea().slides_count" aria-label="الشريحة اللي بعدها">‹</button>
+                    <button type="button" class="cf-pv-nav prev" @click="pvGo(-1)" :disabled="pvN <= 1" aria-label="الشريحة اللي قبلها">›</button>
+                    <span class="cf-pv-dots"><i v-for="sl in pvIdea().slides" :key="sl.n" :class="{ on: sl.n === pvN, ok: sl.designs.length }" @click="pvN = sl.n"></i></span>
+                </div>
+                <div class="cf-dbusy" v-if="running[pvIdea().id]"><span class="cf-orb"><i></i></span><small>بيصمم…</small></div>
+            </div>
+            <div class="cf-pv-body">
+                <div class="pv-c" v-if="pvSlide()"><b>شريحة {{ pvN }}: {{ pvSlide().title }}</b><p class="cf-pv-text">{{ pvSlide().text }}</p></div>
+                <p class="cf-pv-text">{{ fullText(pvIdea()) }}</p>
+                <small class="cf-muted" v-if="pvIdea().content.tags">{{ pvIdea().content.tags }}</small>
+                <div class="pv-c" v-if="c.stage === 4 && pvIdea().format !== 'video'">
+                    <label class="cf-field"><span class="dot dark">{{ pvSlide() ? 'فكرة تصميم الشريحة ' + pvN : 'فكرة التصميم' }}</span>
+                        <textarea class="cf-input" rows="3" :value="pvDesignText()" @input="pvSetDesign($event.target.value)" :readonly="locked(pvIdea()) || null"></textarea></label>
+                    <div class="cf-lbl">المقاس</div>
+                    <div class="cf-chips sm" v-if="pvIdea().format !== 'story'">
+                        <button type="button" v-for="r in ['1:1','4:5','9:16']" :key="r" :class="{ on: !dopt.custom && dopt.ratio === r }" @click="dopt.ratio = r; dopt.custom = ''" dir="ltr">{{ r }}</button>
+                        <input class="cf-input xs" dir="ltr" v-model="dopt.custom" placeholder="مخصص: 1080x1350" style="max-width:150px">
+                    </div>
+                    <small class="cf-muted" v-if="pvIdea().format === 'story'">الستوري دايمًا 9:16</small>
+                    <div class="pv-c" v-if="designStyles.length"><div class="cf-lbl">استايل الصورة</div>
+                        <div class="cf-chips sm"><button type="button" :class="{ on: !dopt.style }" @click="dopt.style = 0">زي الهوية</button><button type="button" v-for="st in designStyles" :key="st.id" :class="{ on: dopt.style === st.id }" @click="dopt.style = st.id">{{ st.name }}</button></div></div>
+                    <div class="cf-lbl">في التصميم</div>
+                    <div class="cf-chips sm">
+                        <button type="button" :class="{ on: dopt.logo }" @click="dopt.logo = !dopt.logo">🏷 اللوجو</button>
+                        <button type="button" :class="{ on: dopt.chars === null }" @click="dopt.chars = null">🧑 زي البوست</button>
+                        <button type="button" :class="{ on: dopt.chars && !dopt.chars.length }" @click="dopt.chars = []">من غير شخصيات</button>
+                        <button type="button" v-for="ch in opts.characters" :key="ch.id" class="cf-chip-img" :class="{ on: dopt.chars && dopt.chars.indexOf(ch.id) > -1 }" @click="pvChar(ch.id)"><img :src="ch.img" alt="">{{ ch.name }}</button>
+                    </div>
+                    <button type="button" class="cf-btn primary sm cf-pv-go" @click="pvDesign()" :disabled="bulk.on || running[pvIdea().id] || locked(pvIdea())">{{ pvImg() ? 'صمّم تاني' : 'صمّم' }}{{ pvSlide() ? ' الشريحة ' + pvN : '' }} ✨ <small class="cr">· {{ costs.design }}</small></button>
+                    <div class="cf-ask-box" v-if="pvDesignId()">
+                        <label class="cf-lbl">💬 عدّل الصورة <small>(اكتب التعديل والـ AI يعدّل نفس التصميم)</small></label>
+                        <div class="cf-row"><input class="cf-input" v-model="pvEdit" maxlength="400" placeholder="مثلًا: كبّر اللوجو وخلّي الخلفية أفتح" @keyup.enter="pvEditDesign()">
+                            <button type="button" class="cf-btn primary sm" :disabled="!pvEdit.trim() || bulk.on || running[pvIdea().id]" @click="pvEditDesign()">عدّل ✨</button></div>
+                    </div>
+                </div>
+                <div class="pv-c" v-if="c.stage === 5">
+                    <p class="cf-muted" v-if="pvIdea().plan">📅 {{ dayName(pvIdea().plan.at) }} · {{ (platformOpts().find(p => p.k === pvIdea().plan.platform) || {}).label }}</p>
+                    <p class="cf-muted" v-if="!pvIdea().plan">لسه مالوش ميعاد.</p>
+                    <button type="button" class="cf-btn primary sm" @click="pick = pvIdea().id; pv = 0; notify('اضغط على اليوم الجديد في التقويم', 'info')">📅 انقله ليوم تاني</button>
+                </div>
+            </div>
+        </aside>
 
         <!-- ══════════════ ⑤ الجدولة ══════════════ -->
         <div class="pv-c" v-if="c.stage === 5 && health.unlocked">
@@ -420,7 +618,7 @@
                             <span class="cf-day-n" v-if="cell.day">{{ cell.day }}</span>
                             <span class="cf-day-items">
                                 <button type="button" v-for="i in cell.items" :key="i.id" class="cf-chipitem" draggable="true"
-                                        @dragstart="dragId = i.id" @click.stop="pick && pick !== i.id ? pickTo(cell) : (pick = pick === i.id ? null : i.id)" :class="[i.plan.platform, { picked: pick === i.id }]" :title="i.title + ' — ' + i.plan.at.slice(11)">#{{ i.n }}</button>
+                                        @dragstart="dragId = i.id" @click.stop="pick && pick !== i.id ? pickTo(cell) : (pick === i.id ? pick = null : openPv(i))" :class="[i.plan.platform, { picked: pick === i.id }]" :title="i.title + ' — ' + i.plan.at.slice(11)"><img v-if="coverOf(i)" :src="coverOf(i)" alt="">#{{ i.n }}</button>
                             </span>
                         </div>
                     </div>
@@ -441,6 +639,7 @@
                     <section class="cf-card cf-week">
                         <p class="cf-muted" v-if="!weekItems(week).length">مفيش محتوى مجدول في {{ weekName(week) }} لسه.</p>
                         <div class="cf-witem" v-for="i in weekItems(week)" :key="i.id">
+                            <button type="button" class="cf-wthumb" @click="openPv(i)" :aria-label="'معاينة ' + i.title"><img v-if="coverOf(i)" :src="coverOf(i)" alt=""><span v-else>👁</span></button>
                             <div class="cf-grow"><b>#{{ i.n }} {{ i.title }}</b><small>{{ dayName(i.plan.at) }}</small></div>
                             <input type="time" class="cf-input xs" :value="i.plan.at.slice(11, 16)" @change="setTime(i, $event.target.value)" aria-label="الساعة">
                             <select class="cf-input xs" :value="i.plan.platform" @change="setPlat(i, $event.target.value)" aria-label="المنصة">
@@ -473,11 +672,12 @@
 
                 <!-- النشر مش متاح للباقة -->
                 <section class="cf-card cf-upgrade" v-if="!pub.allowed">
-                    <span class="cf-chip dark">باقتك: الأساسية</span>
-                    <h3>النشر المباشر متاح في الباقات الأعلى</h3>
-                    <p>يمكنك تجهيز وجدولة حملتك بالكامل، ثم الترقية للنشر مباشرة من Spread AI.</p>
+                    <span class="cf-chip dark">{{ pub.plan ? 'باقتك: ' + pub.plan : 'مفيش باقة شغالة' }}</span>
+                    <h3>باقتك مافيهاش نشر مباشر</h3>
+                    <p>ابعتلنا الحملة على واتساب وفريق Spread AI ينشرها لك في مواعيدها — أو اشترك في باقة أعلى ويتفعّل لك النشر المباشر تلقائيًا.</p>
                     <div class="cf-row">
-                        <a class="cf-btn primary grow" :href="base + '/profile.php?open=plans'">ترقية الباقة</a>
+                        <a class="cf-btn primary grow cf-wa" v-if="pub.wa" :href="pubWaLink()" target="_blank" rel="noopener">📲 ابعتلنا على واتساب وإحنا ننشرلك</a>
+                        <a class="cf-btn primary grow" :class="{ soft: pub.wa }" :href="pub.packages || (base + '/packages.php')">⬆ اشترك في باقة أعلى لتفعيل النشر المباشر</a>
                         <a class="cf-btn ghost" :href="base + '/campaign-export.php?id=' + c.id">⬇ تصدير المحتوى</a>
                     </div>
                 </section>
@@ -533,7 +733,7 @@
         <!-- ═══════════ شريط التنقل ═══════════ -->
         <footer class="cf-nav">
             <div class="cf-nav-txt"><b>{{ navInfo().title }}</b><small>{{ navInfo().sub }}</small></div>
-            <button type="button" class="cf-btn ghost" @click="go(c.stage - 1)" :disabled="c.stage === 1 || bulk.on"><?= ui_icon('chevron', 16) ?> السابق</button>
+            <button type="button" class="cf-btn ghost" @click="go(nextStep(c.stage, -1))" :disabled="c.stage === 1 || bulk.on"><?= ui_icon('chevron', 16) ?> السابق</button>
             <button type="button" class="cf-btn primary cf-next" v-if="c.stage < 6" @click="next()" :disabled="!canNext() || bulk.on">
                 {{ navInfo().cta }} <span class="cf-arrow"><?= ui_icon('chevron', 16) ?></span></button>
             <a class="cf-btn ghost" v-if="c.stage === 6" :href="base + '/campaigns.php'" @click="saveAndExit()">حفظ والعودة</a>
@@ -543,9 +743,10 @@
     <div class="toast-container" v-if="toast"><div class="toast" :class="toast && toast.type">{{ toast && toast.msg }}</div></div>
 </div>
 
+<script src="<?= url('assets/js/campaign-approve.js') ?>?v=<?= @filemtime(__DIR__ . '/../../assets/js/campaign-approve.js') ?: time() ?>" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  var init = <?= json_encode($cfInit, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?>;
+  var init = <?= json_encode($cfInit, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_INVALID_UTF8_SUBSTITUTE) ?>;
   var base = document.querySelector('meta[name="app-base"]').content;
   var csrf = function () { return document.querySelector('meta[name="csrf-token"]').content; };
   var svg = function (d) { return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>'; };
@@ -560,7 +761,7 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   var app = SpreadApp.reactive({
-    base: base, c: init.campaign, ideas: init.ideas, counts: init.counts, bases: init.bases, stages: init.stages,
+    base: base, c: init.campaign, ideas: init.ideas, brief: init.brief || null, briefOpen: false, counts: init.counts, bases: init.bases, stages: init.stages,
     health: init.health, costs: init.costs, pub: init.publish, brand: init.brand,
     stageKeys: { 1: 'bulb', 2: 'doc', 3: 'star', 4: 'image', 5: 'calendar', 6: 'send' },
     icons: {
@@ -573,6 +774,15 @@ document.addEventListener('DOMContentLoaded', function () {
       send: svg('<path d="M4.5 16.5c-1.5 1.3-2 5-2 5s3.7-.5 5-2c.7-.8.7-2.1-.1-2.9a2.2 2.2 0 0 0-2.9-.1z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.9A12.9 12.9 0 0 1 22 2c0 2.7-.8 7.5-6 11a22.4 22.4 0 0 1-4 2z"/>'),
     },
     evalCats: ['قوة الفكرة', 'قوة الـ Hook', 'مناسبة الجمهور', 'وضوح الرسالة', 'قوة CTA', 'التوافق مع البراند'],
+    evalLabels: init.eval_labels || [], evalReady: init.eval_ready || 80,
+    // إعداد الحملة
+    setup: Object.assign({ services: [], topics: [], personas: [], characters: [], counts: { post: 4, carousel: 2, story: 0, video: 1 }, cta: '' }, init.setup || {}),
+    opts: Object.assign({ services: [], topics: [], personas: [], characters: [], cta: '' }, init.setup_options || {}),
+    setupFmts: [{ k: 'post', e: '🖼', t: 'بوست' }, { k: 'story', e: '📱', t: 'ستوري' }, { k: 'carousel', e: '🎠', t: 'كاروسيل' }, { k: 'video', e: '🎬', t: 'سكريبت فيديو' }],
+    // التعديل بتعليق + تقييم الخطة
+    pv: 0, pvN: 1, pvEdit: '', dopt: { ratio: '1:1', custom: '', style: 0, logo: true, chars: null }, designStyles: init.design_styles || [],
+    ask: {}, asking: 0, proposal: null, planE: init.plan_eval || null, open3: {}, showPrev: {},
+    quickAsks: ['أقصر', 'أوضح وأبسط', 'غيّر الـ Hook', 'غيّر الـ CTA', 'أقرب للعميل المثالي', 'إيموجي أقل'],
     save: { state: 'saved', at: Date.now() }, menu: false, toast: null,
     count: [5, 10, 15, 20].indexOf(init.campaign.ideas_count) >= 0 ? init.campaign.ideas_count : 10,
     editing: 0, draft: {}, propagate: null, active: 0, mode: '', running: {}, fieldSave: {},
@@ -580,6 +790,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // ⑦-ج أشكال المحتوى
     fmtList: [{ k: 'post', e: '🖼', t: 'منشور' }, { k: 'carousel', e: '🎠', t: 'كاروسيل' }, { k: 'video', e: '🎬', t: 'فيديو' }, { k: 'story', e: '📱', t: 'ستوري' }],
     limits: init.limits,
+    // خطة الحملات (المرحلة 5)
+    pkg: init.package || null, allowance: init.allowance || null, writeMode: init.write_mode || 'classic', bg: !!init.bg, questions: init.questions || [],
+    pkgT: { posts: init.package ? init.package.posts.limit : 0, videos: init.package ? init.package.videos.limit : 0 },
     dsel: {}, ratio: '1:1', plat: (init.campaign.prefs && init.campaign.prefs.platform) || 'facebook',
     month: '', week: 1, pick: null, dragId: null, dropOn: '', page: 0, pubRes: {},
 
@@ -690,7 +903,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async videoAct(i, action) {
       var r = await SpreadAPI.post('contents', action, { id: i.content.id });
       if (!r.ok) return this.notify(r.error, 'danger');
-      i.video = r.video; this.notify('اعتمدت السكريبت ✓ — اطلب التنفيذ من فريقنا');
+      i.video = r.video; this.notify(r.video && r.video.pay && r.video.pay.on ? 'اعتمدت السكريبت ✓ — اختار نوع الفيديو واطلبه' : 'اعتمدت السكريبت ✓ — اطلب التنفيذ من فريقنا');
     },
     async videoRequest(i) {
       var w = window.open('about:blank', '_blank');
@@ -701,7 +914,73 @@ document.addEventListener('DOMContentLoaded', function () {
       this.notify('جهّزنا رسالة الطلب على واتساب 📲');
     },
 
+    /* ── الحملة في الباقة (خطة الحملات §2) ── */
+    async approvePlan() {
+      if (!this.pkg || this.pkg.state !== 'draft') return true;
+      if (!confirm('نعتمد الخطة دي؟\nالحملة هتتحسب من حملات باقتك (' + (this.allowance ? 'فاضل ' + this.allowance.left : '') + ')، والمنشورات وتصميم كل منشور من حد الحملة.')) return false;
+      var r = await SpreadAPI.post('campaign-flow', 'plan_approve', { id: this.c.id });
+      if (!r.ok) { this.notify(r.error, 'danger'); return false; }
+      this.pkg = r.package; this.allowance = r.allowance; this.notify('اتعتمدت الخطة ✓');
+      return true;
+    },
+    async cancelPlan() {
+      var written = this.withContent().length;
+      if (!confirm(this.pkg.state === 'approved' && !written ? 'نلغي الحملة؟ هترجع لباقتك لأن لسه مفيش منشور اتكتب.' : 'نلغي الحملة؟' + (this.pkg.state === 'approved' ? ' مش هترجع للباقة لأن فيه منشورات اتكتبت (بتفضل في المكتبة).' : ''))) return;
+      var r = await SpreadAPI.post('campaign-flow', 'plan_cancel', { id: this.c.id });
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.pkg = r.package; this.allowance = r.allowance; this.notify(r.released ? 'اتلغت ورجعت لباقتك' : 'اتلغت');
+    },
+    async setTargets() {
+      var r = await SpreadAPI.post('campaign-flow', 'plan_targets', { id: this.c.id, posts: +this.pkgT.posts || 0, videos: +this.pkgT.videos || 0 });
+      if (!r.ok) return this.notify(r.error, 'danger');
+      this.pkg = r.package; this.pkgT.posts = r.package.posts.limit; this.pkgT.videos = r.package.videos.limit;
+    },
+    async altIdea(i) {
+      var self = this;
+      await this.runBulk([i], 'بيجيب فكرة بديلة', MSG.ideas, async function (x) {
+        var r = await SpreadAPI.post('campaign-flow', 'idea_alt', { id: self.c.id, idea_id: x.id });
+        if (r.ok) {
+          var k = self.ideas.findIndex(function (y) { return y.id === r.replaced; });
+          if (k >= 0) self.ideas.splice(k, 1, r.idea);
+          if (r.package) self.pkg = r.package;
+          if (r.balance !== undefined) self.costs.balance = r.balance;
+        }
+        return r;
+      });
+    },
+    /* ── الشغل في الخلفية (طابور الشغل) ── */
+    async bgStart(action, extra, label) {
+      var r = await SpreadAPI.post('campaign-flow', action, Object.assign({ id: this.c.id }, extra || {}));
+      if (!r.ok) return this.notify(r.error, 'danger');
+      await this.bgFollow(r.job, label, r.count);
+    },
+    async bgFollow(job, label, count) {
+      var self = this;
+      this.bulk.on = true; this.bulk.stop = false; this.bulk.total = count || 1; this.bulk.done = 0; this.bulk.label = label || 'شغالين';
+      this.ai.on = true; this.ai.msg = 'شغالين في الخلفية — تقدر تقفل الصفحة وترجع، الشغل مكمّل';
+      while (job && job.active) {
+        if (this.bulk.stop) { await SpreadAPI.post('campaign-flow', 'job_cancel', { id: this.c.id, job_id: job.id }); this.notify('وقفنا — اللي خلص اتحفظ', 'info'); break; }
+        var s = await SpreadAPI.post('campaign-flow', 'job_step', { id: this.c.id, job_id: job.id });
+        if (!s.ok) break;
+        job = s.job;
+        this.bulk.done = Math.round((job.progress || 0) * this.bulk.total / 100);
+        if (s.balance !== undefined) this.costs.balance = s.balance;
+        await this.reload();
+        if (job.active) await new Promise(function (res) { setTimeout(res, s.worker ? 2500 : 300); });
+      }
+      this.bulk.on = false; this.ai.on = false;
+      if (job && !job.active && job.result) {
+        var rr = job.result;
+        this.notify(rr.stopped ? 'وقفنا: ' + rr.stopped : 'خلص ✓ ' + rr.ok + ' من ' + rr.total + (rr.failed ? ' · ' + rr.failed + ' ماخلصش' : ''), rr.stopped || rr.failed ? 'warning' : 'success');
+      } else if (job && job.status === 'failed') this.notify(job.error || 'الشغل وقف', 'danger');
+      await this.reload();
+    },
+
     /* ── المراحل ── */
+    // الكتابة + التقييم في طلب واحد ← خطوة «التقييم» لوحدها مالهاش لازمة (التقييم جنب كل منشور في «المحتوى»)
+    // (حملة كانت واقفة على «التقييم» قبل التحديث ← الخطوة بتفضل ظاهرة لها علشان تكمّل منها)
+    stepList: function () { return this.writeMode === 'single' && this.c.stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; },
+    nextStep: function (s, d) { var l = this.stepList(), k = l.indexOf(s); if (k < 0) return s + d; return l[Math.max(0, Math.min(l.length - 1, k + d))]; },
     canGo: function (n) { return n <= this.c.max_stage + 1 && n >= 1 && !(n > 1 && !this.health.unlocked && n !== this.c.stage); },
     stepCls: function (n) { return { on: this.c.stage === n, done: n <= this.c.max_stage && n !== this.c.stage, locked: !this.canGo(n) }; },
     stageDone: function (k) {
@@ -722,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', function () {
     navInfo: function () {
       var s = this.c.stage, sel = this.selectedCount(), wc = this.withContent().length;
       if (s === 1) return { title: 'تم اختيار ' + sel + ' ' + (sel === 1 ? 'فكرة' : 'أفكار'), sub: !this.health.unlocked ? 'كمّل هوية البراند لـ ' + this.health.gate + '% علشان نكمل' : 'التالي: المحتوى', cta: 'تحويل الأفكار إلى محتوى' };
+      if (s === 2 && this.writeMode === 'single') return { title: sel + ' أفكار · ' + (wc === sel ? 'المحتوى جاهز' : wc + ' جاهز') + ' · ' + this.evalCount('ready') + ' عدّوا التقييم', sub: 'التالي: التصميم', cta: 'اعتماد المحتوى والتصميم' };
       if (s === 2) return { title: sel + ' أفكار · ' + (wc === sel ? 'المحتوى جاهز' : wc + ' جاهز'), sub: 'التالي: التقييم', cta: 'التالي: تقييم المحتوى' };
       if (s === 3) return { title: this.evalCount('ready') + ' من ' + wc + ' جاهزة', sub: 'التالي: التصميم', cta: 'اعتماد المحتوى' };
       if (s === 4) { var self4 = this, dd = this.plannable(), d = dd.filter(function (i) { return self4.designDone(i); }).length; return { title: d + ' من ' + dd.length + ' تم تصميمها' + (this.videoIdeas().length ? ' · ' + this.videoIdeas().length + ' فيديو' : ''), sub: 'التالي: الجدولة', cta: 'التالي: جدولة المحتوى' }; }
@@ -741,17 +1021,20 @@ document.addEventListener('DOMContentLoaded', function () {
     async next() {
       var s = this.c.stage;
       if (!this.canNext()) return;
-      if (s === 3) { await SpreadAPI.post('campaign-flow', 'approve', { id: this.c.id }); await this.reload(); }
-      await this.go(s + 1);
+      if (s === 3 || (s === 2 && this.writeMode === 'single')) { await SpreadAPI.post('campaign-flow', 'approve', { id: this.c.id }); await this.reload(); }
+      // الحملة في الباقة: قبل الكتابة لازم «اعتمد الخطة»
+      if (s === 1 && this.pkg && this.pkg.state === 'draft' && !(await this.approvePlan())) return;
+      await this.go(this.nextStep(s, 1));
       // الانتقال بالزرار = ابدأ الشغل تلقائي (زي التصميم)
       if (s === 1 && this.missingContent().length) this.genContent();
-      if (s === 2 && this.withContent().some(function (i) { return !i.eval; }) && !this.c.eval_skipped && !this.costs.eval) this.runEval();
+      if (s === 2 && this.writeMode !== 'single' && this.withContent().some(function (i) { return !i.eval; }) && !this.c.eval_skipped && !this.costs.eval) this.runEval();
       if (s === 4 && !this.plannable().some(function (i) { return i.plan; }) && this.plannable().length) this.autoPlan();
     },
     async reload() {
       var r = await SpreadAPI.get('campaign-flow', { action: 'board', id: this.c.id });
       if (!r.ok) return;
-      this.setIdeas(r.ideas); this.counts = r.counts; this.costs = r.costs; this.pub = r.publish; this.health = r.health;
+      this.setIdeas(r.ideas); this.counts = r.counts; this.costs = r.costs; this.pub = r.publish; this.health = r.health; this.brief = r.brief || null;
+      this.pkg = r.package || null; this.allowance = r.allowance || null;
       this.c.eval_skipped = r.campaign.eval_skipped;
     },
     // تحديث الفكرة في مكانها — v-for بالـ key بيعيد استخدام نفس العنصر، فاستبدال الكائن كله مابيوصلش للشاشة
@@ -794,17 +1077,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ── ① الأفكار ── */
     touch: function () { saver.touch(); },
+    setupTotal: function () { var c = this.setup.counts; return (+c.post || 0) + (+c.story || 0) + (+c.carousel || 0) + (+c.video || 0); },
+    bump: function (k, d) { var v = (+this.setup.counts[k] || 0) + d; if (v < 0 || v > 15 || (d > 0 && this.setupTotal() >= 30)) return; this.setup.counts[k] = v; this.touch(); },
+    pickArr: function (arr, v, max) { var i = arr.indexOf(v); if (i > -1) arr.splice(i, 1); else { if (max && arr.length >= max) return this.notify('أقصى حاجة ' + max, 'warning'); arr.push(v); } this.touch(); },
+    // الخدمة: لو لسه مااخترش عملاء ← نختار العملاء المربوطين بالخدمة تلقائيًا
+    pickService: function (id) {
+      this.pickArr(this.setup.services, id, 3);
+      if (!this.setup.personas.length && this.setup.services.indexOf(id) > -1) {
+        var self = this;
+        this.opts.personas.forEach(function (p) { if ((p.services || []).indexOf(id) > -1 && self.setup.personas.length < 6) self.setup.personas.push(p.id); });
+      }
+    },
+    personaList: function () {
+      var sv = this.setup.services;
+      var list = this.opts.personas.map(function (p) { return Object.assign({}, p, { fit: !!sv.length && (p.services || []).some(function (x) { return sv.indexOf(x) > -1; }) }); });
+      return list.sort(function (a, b) { return (b.fit ? 1 : 0) - (a.fit ? 1 : 0); });
+    },
+    charImg: function (id) { var c = this.opts.characters.find(function (x) { return x.id === id; }); return c ? c.img : ''; },
     async genIdeas() {
-      var total = this.count, batches = Math.ceil(total / 5), self = this, list = [];
+      var total = this.setupTotal(), batches = Math.ceil(total / 5), self = this, list = [];
+      if (!total) return this.notify('حدد محتاج كام بوست أو ستوري أو كاروسيل', 'warning');
       if (!this.c.basis) return this.notify('اختار أساس الحملة الأول', 'warning');
       if (this.ideas.length && !confirm('الأفكار اللي مش مختارة هتتبدل بأفكار جديدة — نكمّل؟')) return;
-      await saver.flush();
+      this.touch(); await saver.flush();   // الإعداد لازم يتحفظ قبل التوليد
       for (var k = 0; k < batches; k++) list.push(k);
       var res = await this.runBulk(list, 'دفعة الأفكار', MSG.ideas, async function (batch) {
         var r = await SpreadAPI.post('campaign-flow', 'ideas_generate', { id: self.c.id, batch: batch, total: total });
         if (r.ok) { self.setIdeas(r.ideas); self.costs.balance = r.balance; }
         return r;
       });
+      // لو طلب وقع في النص (مهلة السيرفر/النت) الأفكار ممكن تكون اتحفظت — نقرا اللي في الحملة فعلًا
+      if (res.fail || !this.ideas.length) await this.reload();
       if (res.ok) this.notify('جهزنا أفكار حملتك ✨');
     },
     async toggleIdea(i) {
@@ -841,6 +1144,9 @@ document.addEventListener('DOMContentLoaded', function () {
     async genContent() {
       var self = this, list = this.missingContent();
       if (!list.length) return;
+      if (this.pkg && this.pkg.state === 'draft' && !(await this.approvePlan())) return;
+      // خطة الحملات §4: الكتابة الجماعية على طابور الشغل — قفل الصفحة مابيوقفهاش
+      if (this.bg && list.length > 1) { if (!this.active && list[0]) this.active = list[0].id; return this.bgStart('bulk_write', {}, 'بيكتب المنشورات'); }
       if (this.costs.balance < list.length * this.costs.content) {
         if (!confirm(window.SPREAD_CR !== false ? 'رصيدك (' + this.costs.balance + ') يكفي ' + Math.floor(this.costs.balance / Math.max(1, this.costs.content)) + ' منشور بس من ' + list.length + ' — نكمّل باللي يكفي؟' : 'باقة الشهر مش هتكفي كل المنشورات دي — نكمّل باللي يكفي؟')) return;
       }
@@ -888,12 +1194,57 @@ document.addEventListener('DOMContentLoaded', function () {
         function () { self.notify('اتنسخ ✓'); }, function () { self.notify('انسخ يدويًا', 'warning'); });
     },
 
+    /* ── التعديل بتعليق: الـ AI يقترح ← العميل يختار ── */
+    fullText: function (i) { var c = i.content || {}; return [c.hook, c.body, c.cta].filter(Boolean).join('\n\n'); },
+    async askAI(i) {
+      var t = (this.ask[i.id] || '').trim();
+      if (!t || !i.content) return;
+      this.asking = i.id;
+      var r = await SpreadAPI.post('contents', 'ai_edit', { id: i.content.id, instruction: t });
+      this.asking = 0;
+      if (!r.ok) return this.notify(r.error, 'danger');
+      if (r.balance !== undefined) this.costs.balance = r.balance;
+      this.proposal = { id: i.id, old: r.old.text, text: r.proposal.text, cta: r.proposal.cta !== r.old.cta ? r.proposal.cta : '', tags: r.proposal.hashtags, ctaFull: r.proposal.cta };
+    },
+    acceptProposal: function (i) {
+      var p = this.proposal; if (!p || p.id !== i.id) return;
+      var t = String(p.text || '').replace(/\r\n/g, '\n').trim(), k = t.indexOf('\n\n'), hook = '', body = t;
+      if (k > 0 && k <= 220) { hook = t.slice(0, k).trim(); body = t.slice(k + 2).trim(); }
+      i.content.hook = hook; i.content.body = body; i.content.cta = p.ctaFull || i.content.cta; if (p.tags) i.content.tags = p.tags;
+      this.proposal = null; this.ask[i.id] = '';
+      this.edited(i);
+      this.notify('اتغيّر ✓ — التقييم هيتعمل تاني على النسخة الجديدة');
+    },
+    async planEval() {
+      var r;
+      await this.runBulk([1], 'بيقيّم الخطة', MSG.eval, async () => {
+        r = await SpreadAPI.post('campaign-flow', 'plan_evaluate', { id: this.c.id });
+        if (r.ok) { this.planE = r.plan_eval; if (r.balance !== undefined) this.costs.balance = r.balance; }
+        return r;
+      });
+    },
+    async applyNote(nt) {
+      var i = this.ideaById(nt.idea_id); if (!i.id || !i.content) return;
+      this.ask[i.id] = nt.fix;
+      var el = document.getElementById('cf-ev-' + i.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      await this.askAI(i);
+    },
+
     /* ── ③ التقييم ── */
     evalCount: function (k) {
-      return this.withContent().filter(function (i) { return k === 'none' ? !i.eval : (i.eval && (k === 'ready' ? i.eval.ready : !i.eval.ready)); }).length;
+      return this.withContent().filter(function (i) { return k === 'none' ? (!i.eval || !!i.eval.missing) : (i.eval && !i.eval.missing && (k === 'ready' ? i.eval.ready : !i.eval.ready)); }).length;
+    },
+    async evalOne(i) {
+      var self = this;
+      await this.runBulk([i], 'بيقيّم', MSG.eval, async function (x) {
+        var r = await SpreadAPI.post('campaign-flow', 'evaluate', { id: self.c.id, idea_id: x.id });
+        if (r.ok) self.putIdea(r.idea);
+        return r;
+      });
     },
     async runEval() {
-      var self = this, list = this.withContent().filter(function (i) { return !i.eval; });
+      // + المنشورات اللي تقييمها مارجعش مع الكتابة (eval.missing) — التقييم المنفصل
+      var self = this, list = this.withContent().filter(function (i) { return !i.eval || i.eval.missing; });
       await this.runBulk(list, 'بيقيّم', MSG.eval, async function (i) {
         self.running[i.id] = true;
         var r = await SpreadAPI.post('campaign-flow', 'evaluate', { id: self.c.id, idea_id: i.id });
@@ -927,14 +1278,81 @@ document.addEventListener('DOMContentLoaded', function () {
       await this.go(4);
     },
 
+    pubWaLink: function () {
+      var list = this.plannable(), planned = list.filter(function (i) { return i.plan; });
+      var msg = 'السلام عليكم، عايز تنشرولي حملة «' + this.c.title + '» على صفحتي.\n'
+        + 'عدد المنشورات: ' + list.length + (planned.length ? ' (' + planned.length + ' متجدولين)' : '') + '\n'
+        + 'رقم الحملة: ' + this.c.id + (this.pub.who ? ' — ' + this.pub.who : '');
+      return 'https://wa.me/' + this.pub.wa + '?text=' + encodeURIComponent(msg);
+    },
+
+    /* ── المعاينة الجانبية ── */
+    openPv: function (i) {
+      this.pv = i.id; this.pvEdit = '';
+      if (i.format === 'carousel') { var miss = (i.slides || []).find(function (s) { return !s.designs.length; }); this.pvN = miss ? miss.n : 1; } else this.pvN = 1;
+      this.dopt.ratio = i.format === 'story' ? '9:16' : this.ratio;
+    },
+    pvIdea: function () { return this.ideaById(this.pv); },
+    pvSlide: function () { var i = this.pvIdea(); return i.format === 'carousel' ? (i.slides || []).find((s) => s.n === this.pvN) : null; },
+    pvGo: function (d) { var n = this.pvN + d, i = this.pvIdea(); if (n >= 1 && n <= i.slides_count) { this.pvN = n; this.pvEdit = ''; } },
+    pvImg: function () {
+      var i = this.pvIdea(), sl = this.pvSlide();
+      if (sl) return sl.designs.length ? sl.designs[0].url : '';
+      return i.id ? this.coverOf(i) : '';
+    },
+    pvDesignId: function () {
+      var i = this.pvIdea(), sl = this.pvSlide();
+      if (sl) return sl.designs.length ? sl.designs[0].id : 0;
+      if (!i.designs || !i.designs.length) return 0;
+      return i.content.selected_design || i.designs[0].id;
+    },
+    pvAspect: function () {
+      var i = this.pvIdea(), r = i.format === 'story' ? '9:16' : (this.dopt.custom.match(/^(\d{3,4})\s*[x×*]\s*(\d{3,4})$/) ? this.dopt.custom.replace(/\s/g, '').replace(/[×*]/, 'x').replace('x', ':') : this.dopt.ratio);
+      var p = r.split(':'); return { aspectRatio: (+p[0] || 1) + ' / ' + (+p[1] || 1) };
+    },
+    pvDesignText: function () { var sl = this.pvSlide(), i = this.pvIdea(); return sl ? (sl.design || '') : ((i.content && i.content.design_idea) || ''); },
+    pvSetDesign: function (v) { var sl = this.pvSlide(), i = this.pvIdea(); if (sl) { sl.design = v; this.edited(i, 'slides'); } else { i.content.design_idea = v; this.edited(i); } },
+    pvChar: function (id) { if (!this.dopt.chars) this.dopt.chars = []; var k = this.dopt.chars.indexOf(id); if (k > -1) this.dopt.chars.splice(k, 1); else { if (this.dopt.chars.length >= 2) this.dopt.chars.shift(); this.dopt.chars.push(id); } },
+    pvOpts: function () {
+      var o = { include_logo: this.dopt.logo ? '1' : '0' };
+      if (this.dopt.custom.trim()) o.size_wh = this.dopt.custom.trim(); else o.ratio = this.dopt.ratio;
+      if (this.dopt.style) o.style_preset_id = this.dopt.style;
+      if (this.dopt.chars !== null) o.character_ids = this.dopt.chars.join(',') || '0';
+      return o;
+    },
+    async pvDesign() {
+      var i = this.pvIdea(), self = this, slide = i.format === 'carousel' ? this.pvN : 0, o = this.pvOpts();
+      await this.runBulk([i], 'بيصمم', MSG.design, async function (x) {
+        self.running[x.id] = slide || true; var r = await self.designReq(x, slide, o); self.running[x.id] = false;
+        if (r.ok) self.designAdd(x, r, slide);
+        return r;
+      });
+    },
+    async pvEditDesign() {
+      var i = this.pvIdea(), self = this, slide = i.format === 'carousel' ? this.pvN : 0, did = this.pvDesignId(), text = this.pvEdit.trim();
+      if (!did || !text) return;
+      await this.runBulk([i], 'بيعدّل التصميم', MSG.design, async function (x) {
+        self.running[x.id] = slide || true;
+        var p = { csrf: csrf(), _quiet: '1', content_id: x.content.id, bulk: '1', design_edit: '1', style_ref: 'design:' + did, custom_prompt: self.b64(text), _b64: 'custom_prompt', include_logo: '0' };
+        var cur = (x.designs || []).find(function (d) { return d.id === did; });
+        if (cur && /^\d{3,4}x\d{3,4}$/.test(cur.ratio || '')) p.size_wh = cur.ratio; else p.ratio = (cur && cur.ratio) || self.ratio;
+        if (slide) p.slide_no = slide;
+        var r = await ajaxPost(self.base + '/ajax/generate-design.php', p);
+        self.running[x.id] = false;
+        if (r && r.ok) { self.designAdd(x, r, slide); self.pvEdit = ''; }
+        return r || { ok: false, error: 'تعذّر التعديل' };
+      });
+    },
+
     /* ── ④ التصميم ── */
     designSelCount: function () { var s = this.dsel; return this.designable().filter(function (i) { return s[i.id]; }).length; },
     designSelAll: function () {
       var all = this.designSelCount() < this.designable().length, s = this.dsel;
       this.designable().forEach(function (i) { s[i.id] = all; });
     },
-    async designReq(i, slide) {
+    async designReq(i, slide, opt) {
       var p = { csrf: csrf(), _quiet: '1', content_id: i.content.id, bulk: '1', ratio: i.format === 'story' ? '9:16' : this.ratio, include_logo: '1' };
+      if (opt) { Object.assign(p, opt); if (i.format === 'story') { p.ratio = '9:16'; delete p.size_wh; } }
       if (slide) p.slide_no = slide;   // الكاروسيل: الشريحة بنصها وفكرة تصميمها (من السيرفر) + الشريحة الأولى مرجع
       else { p.custom_prompt = this.b64(i.content.design_idea || ''); p._b64 = 'custom_prompt'; }
       var r = await ajaxPost(this.base + '/ajax/generate-design.php', p);
@@ -951,6 +1369,11 @@ document.addEventListener('DOMContentLoaded', function () {
     b64: function (s) { return btoa(unescape(encodeURIComponent(s))); },
     async designSelected() {
       var self = this, s = this.dsel, tasks = [];
+      // كل المنشورات المختارة لسه ماتصممتش ← التصميم الجماعي في الخلفية
+      var picked = this.designable().filter(function (i) { return s[i.id] && !self.locked(i); });
+      if (this.bg && picked.length > 1 && picked.every(function (i) { return !self.designDone(i); })) {
+        return this.bgStart('bulk_design', { content_ids: picked.map(function (i) { return i.content.id; }), ratio: this.ratio }, 'بيصمم');
+      }
       this.designable().filter(function (i) { return s[i.id] && !self.locked(i); }).forEach(function (i) { tasks = tasks.concat(self.designTasks(i, false)); });
       if (this.costs.balance < tasks.length * this.costs.design && !confirm(window.SPREAD_CR !== false ? 'رصيدك يكفي ' + Math.floor(this.costs.balance / Math.max(1, this.costs.design)) + ' تصميم بس من ' + tasks.length + ' — نكمّل؟' : 'باقة الشهر مش هتكفي كل التصميمات دي — نكمّل باللي يكفي؟')) return;
       var res = await this.runBulk(tasks, 'بيصمم', MSG.design, async function (t) {
@@ -1124,7 +1547,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // حفظ البريف تلقائي (بيبعت رقم النسخة لمنع مسح تعديل من مكان تاني)
   var saver = SpreadAutosave({
     state: app.save, delay: 900,
-    collect: function () { var c = app.c; return { id: c.id, rev: c.revision, title: c.title, basis: c.basis, notes: c.notes, ideas_count: app.count }; },
+    collect: function () { var c = app.c; return { id: c.id, rev: c.revision, title: c.title, basis: c.basis, notes: c.notes, ideas_count: Math.max(3, app.setupTotal()), setup: Object.assign({}, app.setup, { topics: [] }) }; },
     save: async function (data, opts) {
       var r = await SpreadAPI.post('campaigns', 'save', data, opts);
       if (r.ok) { app.c.revision = r.campaign.revision; }
@@ -1137,5 +1560,7 @@ document.addEventListener('DOMContentLoaded', function () {
   app.active = (app.selected()[0] || {}).id || 0;
   SpreadApp.mount('#cf', app);
   if (new URLSearchParams(location.search).get('resumed') !== '0' && app.c.max_stage > 1) app.notify('رجعناك لآخر مكان وقفت فيه', 'info');
+  // شغل في الخلفية لسه شغال (الصفحة اتقفلت واترجع لها) ← نكمّل متابعته
+  ['camp_write', 'camp_design'].forEach(function (k) { var j = init.jobs && init.jobs[k]; if (j && j.active) app.bgFollow(j, k === 'camp_write' ? 'بيكتب المنشورات' : 'بيصمم', 0); });
 });
 </script>

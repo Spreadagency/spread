@@ -144,6 +144,7 @@ switch ($action) {
         if (!$up['ok']) api_fail($up['error'], 'upload', 422);
         if (!empty($brand['logo_path'])) delete_upload($brand['logo_path']);
         db_run('UPDATE brand_profiles SET logo_path = ?, updated_at = NOW() WHERE id = ?', [$up['path'], $brand['id']]);
+        brand_kit_notify($uid, ['logo_path'], 'user', 'لوجو جديد');
         $b = $reload();
         api_ok(['brand' => brand_to_api($b), 'overview' => brand_overview($b, $uid)]);
 

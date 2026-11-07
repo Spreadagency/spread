@@ -127,7 +127,7 @@ switch ($action) {
             'brand'   => ['name' => (string) ($brand['business_name'] ?? ''), 'logo' => !empty($brand['logo_path']) ? upload_url($brand['logo_path']) : null,
                           'health' => $health, 'adds' => $adds],
             'month'   => $month,
-            'costs'   => ['design' => cost_for('content_design_cost'), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
+            'costs'   => ['design' => design_credit_cost(), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
                           'balance' => credits_balance($uid)],
             'ratios'  => array_map(fn($k, $m) => ['key' => $k, 'label' => $m['label'], 'hint' => $m['hint']],
                                    array_keys(design_ratios()), array_values(design_ratios())),
@@ -239,6 +239,9 @@ switch ($action) {
         }
         $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
         $dialect = $dialects[$brand['dialect'] ?? ''] ?? 'العامية المصرية';
+        require_once __DIR__ . '/../../includes/brand-kit.php';
+        $__u = $brand ? bk_brand_block($brand, 'ideas') : null;
+        if ($__u !== null) { $ctx = [str_replace("\n", "\n  ", $__u)]; $dialect = bk_dialect_label((string) ($brand['dialect'] ?? 'egyptian')); }
         $isReel = $t['type'] === 'Reel';
         $prompt = "انت مدير إبداعي. عندك ترند سوشيال ميديا، وعايزين نفصّله على براند العميل — **نستخدم هيكل الترند، مش نسخة منه**.\n\n"
             . trend_blueprint_text($t) . "\n"
@@ -251,6 +254,8 @@ switch ($action) {
             . "- caption: كابشن كامل بـ{$dialect} (40-90 كلمة). hashtags: 5-7 في سطر.\n"
             . ($isReel ? "- script: سكريبت الريل — سطر لكل خطوة من الهيكل بالترتيب، بصيغة «خطوة: اللي بيحصل على الشاشة».\n" : '')
             . "- ممنوع تنسخ الترند الأصلي أو تخترع أسعار/أرقام مش موجودة.";
+        require_once __DIR__ . '/../../includes/post-skills.php';   // الـ Skill حسب المجال في الأول — فاضي لو مفيش
+        $prompt = post_skill_prefix('studio_ideas', $brand ?: []) . $prompt;
         $cost = max(0, (int) get_setting('studio_idea_cost', 1));
         if ($cost > 0 && !credits_consume($uid, $cost, 'أفكار ترند — ' . $t['code'], 'trend_ideas', $t['id'])) {
             api_fail(credits_short_msg($cost), 'credits', 402);
@@ -316,6 +321,13 @@ switch ($action) {
         }
         $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
         $dialect = $dialects[$brand['dialect'] ?? ''] ?? 'العامية المصرية';
+        require_once __DIR__ . '/../../includes/brand-kit.php';
+        $__u = $brand ? bk_brand_block($brand, 'copy') : null;
+        if ($__u !== null) {
+            $__d = bk_brand_block($brand, 'design');
+            $ctx = [str_replace("\n", "\n  ", $__u . "\n" . $__d)];
+            $dialect = bk_dialect_label((string) ($brand['dialect'] ?? 'egyptian'));
+        }
         $kind = ['before_after' => 'تصميم قبل/بعد يوضح نتيجة حقيقية', 'from_image' => 'تصميم إعلاني حوالين صورة حقيقية للعميل',
                  'free' => 'تصميم سوشيال ميديا'][$method] ?? 'تصميم سوشيال ميديا';
 
@@ -333,6 +345,8 @@ switch ($action) {
             . "- hashtags: 5-8 هاشتاجات في سطر واحد. first_comment: أول كومنت يزوّد التفاعل. ad_copy: نص إعلان ممول قصير.\n"
             . "- ممنوع تخترع أسعار أو أرقام أو مواعيد مش مذكورة.";
 
+        require_once __DIR__ . '/../../includes/post-skills.php';   // الـ Skill حسب المجال في الأول — فاضي لو مفيش
+        $prompt = post_skill_prefix('studio_ideas', $brand ?: []) . $prompt;
         $cost = max(0, (int) get_setting('studio_idea_cost', 1));
         if ($cost > 0 && !credits_consume($uid, $cost, 'Creative Brief — الاستوديو', 'studio_brief', null)) {
             api_fail(credits_short_msg($cost), 'credits', 402);

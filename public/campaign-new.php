@@ -20,6 +20,20 @@ if (get_setting('campaigns_enabled', '1') !== '1' || !ui_v2_enabled()) {
     redirect('content-plan.php');
 }
 
+// الإعداد كله بقى جوه الحملة (المواضيع · العملاء · الشخصيات · المطلوب) — البريف القديم بـ ?classic=1
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && empty($_GET['classic'])) {
+    $open = (int) (db_one('SELECT COUNT(*) n FROM campaigns WHERE user_id = ? AND status = "active"', [$uid])['n'] ?? 0);
+    // حملة جديدة فاضية اتعملت النهارده ولسه مااتلمستش؟ نكمّل عليها بدل ما نعمل واحدة تانية
+    $blank = db_one('SELECT c.id FROM campaigns c WHERE c.user_id = ? AND c.status = "active" AND c.created_at >= (NOW() - INTERVAL 1 DAY)
+                     AND c.basis IS NULL AND NOT EXISTS (SELECT 1 FROM campaign_ideas i WHERE i.campaign_id = c.id) ORDER BY c.id DESC LIMIT 1', [$uid]);
+    if ($blank) redirect('campaign.php?id=' . (int) $blank['id']);
+    if ($open >= 30) { flash_set('danger', 'عندك 30 حملة نشطة — خلّص أو أرشف واحدة الأول'); redirect('campaigns.php'); }
+    $months = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    $id = db_insert('INSERT INTO campaigns (user_id, title, ideas_count, period_month, prefs_json) VALUES (?,?,?,?,?)',
+        [$uid, 'حملة ' . $months[(int) date('n')], 7, date('Y-m'), json_encode(['platform' => 'both'], JSON_UNESCAPED_UNICODE)]);
+    redirect('campaign.php?id=' . $id);
+}
+
 $goals = campaign_goals();
 $platforms = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام', 'tiktok' => 'تيك توك', 'linkedin' => 'لينكدإن', 'x' => 'X (تويتر)'];
 $durations = ['7' => 'أسبوع', '14' => 'أسبوعين', '30' => 'شهر', '60' => 'شهرين', '90' => '3 شهور'];

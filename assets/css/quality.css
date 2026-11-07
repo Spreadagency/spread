@@ -1,0 +1,35 @@
+/* Spread AI — «بلّغ عن مشكلة» + تقييم التصميم */
+.sq-modal { position: fixed; inset: 0; z-index: 9990; background: rgba(11, 21, 38, .45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.sq-modal[hidden] { display: none; }
+html.sq-lock { overflow: hidden; }
+.sq-sheet { position: relative; background: var(--surface, #fff); color: var(--ink, #0B1526); width: 100%; max-width: 480px; max-height: 92vh; overflow: auto; border-radius: 18px; padding: 20px; box-shadow: 0 20px 60px rgba(11, 21, 38, .25); direction: rtl; text-align: right; }
+.sq-sheet h3 { margin: 0 0 4px; font-size: 18px; }
+.sq-sub { margin: 0 0 12px; font-size: 13px; color: var(--mute, #6B7A90); }
+.sq-x { position: absolute; top: 10px; inset-inline-start: 10px; width: 34px; height: 34px; border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: inherit; border-radius: 50%; }
+.sq-x:hover { background: rgba(11, 21, 38, .06); }
+.sq-lbl { display: block; font-size: 13px; font-weight: 700; margin: 12px 0 6px; }
+.sq-lbl small { font-weight: 400; color: var(--mute, #6B7A90); }
+.sq-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sq-chips button, .sq-reasons button { border: 1.5px solid #DCE6F0; background: #fff; color: #33435A; border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.sq-chips button.on, .sq-reasons button.on { border-color: #0C87EF; background: #E6F3FF; color: #0A5FCF; font-weight: 700; }
+.sq-sheet textarea, .sq-sheet input[type=file] { width: 100%; box-sizing: border-box; font: inherit; }
+.sq-sheet textarea { border: 1.5px solid #DCE6F0; border-radius: 12px; padding: 10px; resize: vertical; background: #fff; color: inherit; }
+.sq-err { color: #C0392B; font-size: 13px; margin: 10px 0 0; }
+.sq-row { display: flex; gap: 8px; margin-top: 16px; }
+.sq-send { flex: 1; border: 0; border-radius: 12px; padding: 12px; font: inherit; font-weight: 700; color: #fff; background: linear-gradient(135deg, #0C87EF, #0A5FCF); cursor: pointer; }
+.sq-send:disabled { opacity: .6; cursor: wait; }
+.sq-cancel { border: 1.5px solid #DCE6F0; background: #fff; border-radius: 12px; padding: 12px 16px; font: inherit; cursor: pointer; color: #33435A; }
+.sq-toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 9999; background: #0B1526; color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, .2); transition: opacity .4s; max-width: calc(100vw - 32px); }
+.sq-toast.bad { background: #C0392B; }
+.sq-toast.out { opacity: 0; }
+.sq-rate { display: inline-flex; gap: 2px; vertical-align: middle; }
+.sq-rate button { border: 1px solid transparent; background: none; border-radius: 8px; padding: 2px 6px; cursor: pointer; font-size: 15px; filter: grayscale(.6); }
+.sq-rate button.on { filter: none; background: #E6F3FF; border-color: #BFE0FF; }
+.sq-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 12px; align-items: center; }
+.sq-reasons button { padding: 3px 9px; font-size: 12px; }
+.sq-flag { border: 0; background: none; cursor: pointer; color: var(--mute, #6B7A90); font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 8px; }
+.sq-flag:hover { background: rgba(11, 21, 38, .06); color: #C0392B; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .sq-chips button, :root:not([data-theme="light"]) .sq-reasons button,
+    :root:not([data-theme="light"]) .sq-sheet textarea, :root:not([data-theme="light"]) .sq-cancel { background: transparent; color: inherit; }
+}

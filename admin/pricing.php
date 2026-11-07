@@ -15,7 +15,12 @@ function cost_items(): array
     return [
         'content_generation_cost'   => ['✎ توليد منشور', 'كتابة منشور جديد بالكامل', 1],
         'content_regeneration_cost' => ['↻ إعادة توليد منشور', 'إعادة كتابة بملاحظات', 1],
-        'content_design_cost'       => ['🎨 توليد تصميم', 'أي صورة/تصميم (من البوست أو الاستوديو)', 2],
+        'carousel_generation_cost'  => ['🎠 كتابة كاروسيل', 'كاروسيل كامل بكل شرايحه (الموقع والمحرك)', 1],
+        'story_generation_cost'     => ['📱 كتابة ستوري', 'ستوري واحدة', 1],
+        'video_script_cost'         => ['🎬 سكريبت فيديو / ريلز', 'سكريبت فيديو أو ريلز بالمشاهد (الموقع والمحرك)', 1],
+        'ce_plan_cost'              => ['🧭 خطة حملة المحرك', 'بناء الخطة ومراجعتها — مرة للحملة («توليد منشور» فوق = سعر البوست في المحرك)', 2],
+        'publish_cost'              => ['📤 النشر المباشر', 'لكل منشور بينزل على فيسبوك/إنستجرام (مرة حتى لو المنصتين) — بيرجع لو اتلغى أو فشل', 1],
+        'content_design_cost'       => ['🎨 كريدت التصميم', 'بيتخصم بس لو «التصميم بالكريدت كمان» مفتوح تحت — غير كده التصميم من حصة الباقة', 2],
         'logo_generate_cost'        => ['✨ توليد لوجو بالـ AI', 'لوجو للبراند', 3],
         'plan_ideas_cost'           => ['💡 أفكار خطة محتوى', 'توليد كل أفكار الخطة مرة واحدة', 2],
         'studio_idea_cost'          => ['✦ فكرة تصميم', 'اقتراح فكرة تصميم في الاستوديو', 1],
@@ -27,6 +32,14 @@ function cost_items(): array
         'research_cost_quick'       => ['🔬 بحث عميق — سريع', 'طلب بحث ويب واحد + تحليل (بيرجع لو البحث فشل)', 2],
         'research_cost_medium'      => ['🔬 بحث عميق — متوسط', '3 طلبات بحث ويب + تحليل', 4],
         'research_cost_deep'        => ['🔬 بحث عميق — عميق', 'طلب بحث لكل محور + تحليل · والتحديث بنفس التكلفة', 8],
+        'brand_kit_ai_cost'         => ['🧬 مركز الهوية — اقتراح AI', '5 مواضيع مقترحة · «أبسط/أفخم/اقتراحات تانية» في أي قسم', 1],
+        'brand_kit_draft_cost'      => ['🧬 مركز الهوية — مسودة الهوية', 'بناء Brand Kit كامل بالـ AI في الـ Onboarding', 2],
+        'brand_kit_character_cost'  => ['🧑 صورة شخصية بالـ AI', 'بناء الشخصية أو تحويل صورة لشخصية البراند', 2],
+        'brand_kit_persona_cost'    => ['👥 العملاء المثاليين', 'بناء Buyer Personas بالـ AI (مربوطين بالخدمات)', 1],
+        'brand_visual_cost'         => ['🔍 تحليل اللوجو والصور', 'الألوان والاستايل والخطوط من الصور المرفوعة', 1],
+        'brand_insights_cost'       => ['📊 تحليل المحتوى', 'أفضل المنشورات + شكلها + تعليمات التصميم', 1],
+        'campaign_plan_eval_cost'   => ['📋 تقييم الخطة كاملة', 'تقييم الحملة كلها مع بعض', 1],
+        'ai_edit_cost'              => ['💬 التعديل بتعليق', 'لما العميل يكتب «غيّر كذا» والـ AI يعدّل', 1],
     ];
 }
 
@@ -60,6 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_setting($key, (string) $v);
         }
         set_setting('default_credit_validity_days', (string) max(1, min(3650, (int) ($_POST['default_credit_validity_days'] ?? 30))));
+        // الباقات الجديدة: التصميم من الحصة · المحرك بالسعر الثابت
+        set_setting('designs_charge_credits', !empty($_POST['designs_charge_credits']) ? '1' : '0');
+        set_setting('ce_billing_mode', ($_POST['ce_billing_mode'] ?? '') === 'actual' ? 'actual' : 'fixed');
         admin_log('update_costs', 'settings', null, 'تكاليف العمليات');
         flash_set('success', 'تم حفظ التكاليف ✓ — سارية فورًا على كل العملاء');
         redirect('admin/pricing.php');
@@ -127,6 +143,18 @@ include __DIR__ . '/../templates/admin-header.php';
                         <input type="number" name="default_credit_validity_days" class="input" min="1" max="3650"
                                value="<?= (int) get_setting('default_credit_validity_days', 30) ?>" style="max-width:140px">
                         <div class="field-help">بتتطبق على الشحن اليدوي لو ما حددتش مدة تانية</div>
+                    </div>
+
+                    <div class="field" style="margin-top:14px">
+                        <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="designs_charge_credits" value="1" <?= get_setting('designs_charge_credits', '0') === '1' ? 'checked' : '' ?>> التصميم بالكريدت كمان (غير حصة الباقة)</label>
+                        <div class="field-help">مقفول = التصميم من حصة التصميمات في الباقة بس، والتكلفة الفعلية بتتابع داخليًا</div>
+                    </div>
+                    <div class="field">
+                        <label>حساب محرك المحتوى</label>
+                        <select name="ce_billing_mode" class="input" style="max-width:320px">
+                            <option value="fixed" <?= get_setting('ce_billing_mode', 'fixed') !== 'actual' ? 'selected' : '' ?>>سعر ثابت من الجدول ده (الخطة + كل قطعة حسب شكلها)</option>
+                            <option value="actual" <?= get_setting('ce_billing_mode', 'fixed') === 'actual' ? 'selected' : '' ?>>التكلفة الفعلية للـ AI × الهامش (الطريقة القديمة)</option>
+                        </select>
                     </div>
 
                     <button class="btn full">💾 حفظ التكاليف</button>

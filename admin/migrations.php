@@ -45,13 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $list = migrations_status();
-$pending = count(array_filter($list, fn($m) => $m['state'] === 'pending'));
+$pending = count(array_filter($list, fn($m) => $m['state'] === 'pending' || $m['state'] === 'incomplete'));
 $changed = count(array_filter($list, fn($m) => $m['state'] === 'changed'));
 $labels = [
     'applied' => ['✓ مطبّق', '#10A8A0'],
     'pending' => ['⏳ معلّق', '#D98A1F'],
     'changed' => ['⚠ اتغيّر بعد التطبيق', '#6E5BE0'],
     'missing' => ['✕ الملف مفقود', '#E0526A'],
+    'incomplete' => ['❗ متسجّل بس جداوله مش موجودة', '#E0526A'],
 ];
 
 $active = 'migrations';
@@ -100,7 +101,8 @@ include __DIR__ . '/../templates/admin-header.php';
                         <td><?= $i + 1 ?></td>
                         <td dir="ltr" style="text-align:start"><code><?= e($m['file']) ?></code></td>
                         <td><?= e($m['label']) ?></td>
-                        <td><b style="color:<?= $col ?>;font-size:13px"><?= $lbl ?></b></td>
+                        <td><b style="color:<?= $col ?>;font-size:13px"><?= $lbl ?></b>
+                            <?php if (!empty($m['missing_tables'])): ?><div class="sub" dir="ltr" style="font-size:11.5px"><?= e(implode(' · ', $m['missing_tables'])) ?></div><?php endif; ?></td>
                         <td class="sub" style="font-size:12px">
                             <?= $m['applied_at'] ? e(fmt_date($m['applied_at'], true)) . ' · ' . $m['ms'] . ' م.ث' : '—' ?>
                         </td>

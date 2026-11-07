@@ -1,0 +1,150 @@
+### Spread AI — Internal API (VS Code «REST Client» أو JetBrains HTTP Client)
+### غيّر @base و @token — والطلبات لازم تطلع من IP مسموح (INTERNAL_API_IPS)
+
+@base = https://ai.spreadagency.net/internal-api/v1/index.php
+@token = PASTE_INTERNAL_API_TOKEN
+
+### الحالة
+GET {{base}}?r=health
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### أرقام امبارح مقارنة باليوم اللي قبله
+GET {{base}}?r=metrics
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### أرقام فترة
+GET {{base}}?r=metrics&date_from=2026-10-14&date_to=2026-10-20
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### منشورات مش متقيّمة (👎 الأول)
+GET {{base}}?r=posts&unevaluated_only=1&rating=down&limit=20
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### منشور كامل
+GET {{base}}?r=post&post_id=1
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### صورة تصميم (المسار من post → designs[].image)
+GET {{base}}?r=media&path=uploads/designs/FILE.png
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### هوية البراند
+GET {{base}}?r=brand&brand_id=1
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### البرومبتات + أرقام كل إصدار
+GET {{base}}?r=prompt_templates
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### A/B لنوع برومبت
+GET {{base}}?r=ab_results&template_key=campaign_content
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### البلاغات الجديدة
+GET {{base}}?r=issues&status=new
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### أخطاء التوليد
+GET {{base}}?r=ai_errors&date=2026-10-20
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### سجلات الأمان
+GET {{base}}?r=security_logs&date=2026-10-20
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### الاقتراحات (ومعاها المرفوض)
+GET {{base}}?r=change_requests&status=rejected
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test
+
+### حفظ تقييم (ai_write)
+POST {{base}}?r=save_evaluation
+Authorization: Bearer {{token}}
+X-Scope: ai_write
+X-Client: test
+Content-Type: application/json
+
+{
+  "post_id": 1,
+  "content_scores": {"hook": 7, "clarity": 8, "brand_voice_match": 8, "relevance_to_services": 9, "cta": 6, "dialect_correctness": 9, "originality": 6, "platform_fit": 8},
+  "design_scores": {"brand_colors_match": 8, "text_legibility": 7, "arabic_text_correctness": 5, "composition": 7, "idea_match": 8, "watermark_placement": 9},
+  "strengths": "الهوك مصري وطبيعي",
+  "weaknesses": "النص العربي في التصميم فيه حروف مكسورة",
+  "fix_suggestion": "اكتب العنوان كطبقة نص بدل ما الموديل يرسمه"
+}
+
+### تحليل بلاغ (ai_write)
+POST {{base}}?r=analyze_issue
+Authorization: Bearer {{token}}
+X-Scope: ai_write
+X-Client: test
+Content-Type: application/json
+
+{"issue_id": 1, "ai_category": "design_quality", "ai_severity": "high", "root_cause": "…", "fix": "…", "related_issue_ids": []}
+
+### حفظ التقرير اليومي (ai_write)
+POST {{base}}?r=save_report
+Authorization: Bearer {{token}}
+X-Scope: ai_write
+X-Client: test
+Content-Type: application/json
+
+{"type": "daily", "report_date": "2026-10-21", "summary": "…", "payload": {"worst": [], "best": []}}
+
+### اقتراح تعديل (draft — مستني موافقة الأدمن)
+POST {{base}}?r=propose_change
+Authorization: Bearer {{token}}
+X-Scope: draft
+X-Client: test
+Content-Type: application/json
+
+{"type": "prompt", "target": "campaign_content", "diff": "…", "reason": "…", "evidence": {"posts": [1, 2]}, "expected_impact": "…", "priority": "medium"}
+
+### مسودة برومبت (draft)
+POST {{base}}?r=draft_prompt
+Authorization: Bearer {{token}}
+X-Scope: draft
+X-Client: test
+Content-Type: application/json
+
+{"template_key": "campaign_content", "body": "البرومبت كامل…", "reason": "…"}
+
+### مسودة رد على بلاغ (draft)
+POST {{base}}?r=draft_reply
+Authorization: Bearer {{token}}
+X-Scope: draft
+X-Client: test
+Content-Type: application/json
+
+{"issue_id": 1, "body": "أهلاً بيك…", "channel": "inbox"}
+
+### ⛔ لازم يترفض: صلاحية مش مطابقة
+POST {{base}}?r=save_report
+Authorization: Bearer {{token}}
+X-Scope: read
+X-Client: test

@@ -14,33 +14,52 @@ if (!$trialOn) return;
               <?php endforeach; ?>
             </div>
 
-            <!-- ① البيانات -->
+            <!-- ① البيانات: لينك الموقع أو صفحة الفيسبوك ← Spread AI بيقرا ويتعرّف على النشاط -->
             <form class="d-pane on" data-p="form" novalidate>
-              <div class="d-h"><h3>عرّفنا على مشروعك</h3><span>3 معلومات بس — والباقي على Spread AI.</span></div>
-              <div class="d-two">
-                <div class="d-f"><label for="d-biz">اسم النشاط</label><input id="d-biz" class="ws-input" maxlength="200" placeholder="مثلاً: مطعم البيت" autocomplete="organization">
-                  <span class="d-err" id="d-biz-err" role="alert" hidden>اكتب اسم النشاط علشان نبني عليه الأفكار</span></div>
-                <div class="d-f"><label for="d-aud">مين جمهورك؟ <small>(اختياري)</small></label><input id="d-aud" class="ws-input" maxlength="300" placeholder="مثلاً: عائلات في المنصورة"></div>
-              </div>
-              <div class="d-f"><span class="d-lbl" id="d-fl">المجال</span>
-                <div class="d-chips" role="group" aria-labelledby="d-fl">
-                  <?php foreach (['مطعم أو كافيه', 'عيادة أو مركز طبي', 'متجر ملابس', 'أكاديمية أو كورسات', 'خدمات', 'مجال تاني'] as $i => $f): ?>
-                    <button type="button" class="ws-pill<?= $i === 0 ? ' f-on' : '' ?>" data-field="<?= e($f) ?>" aria-pressed="<?= $i === 0 ? 'true' : 'false' ?>"><?= e($f) ?></button>
-                  <?php endforeach; ?>
+              <div data-fv="link">
+                <div class="d-h"><h3>عرّفنا على مشروعك</h3><span>حط لينك موقعك أو صفحة الفيسبوك — وSpread AI هيتعرّف على نشاطك لوحده.</span></div>
+                <div class="d-f d-url-f"><label for="d-url">لينك الموقع أو صفحة الفيسبوك</label>
+                  <div class="d-url"><span class="d-url-ic" aria-hidden="true"><?= s_icon('search', 18, 2) ?></span>
+                    <input id="d-url" class="ws-input" type="url" inputmode="url" dir="ltr" maxlength="500" autocomplete="url" placeholder="facebook.com/yourpage أو yoursite.com"></div>
+                  <span class="d-err" id="d-url-err" role="alert" hidden>حط اللينك علشان نتعرّف على نشاطك</span>
+                  <span class="d-hint">مثلاً: <button type="button" class="ws-link" data-ex="https://www.facebook.com/">صفحة فيسبوك</button> · <button type="button" class="ws-link" data-ex="https://">موقع إلكتروني</button></span>
                 </div>
-                <input id="d-other" class="ws-input" maxlength="150" placeholder="اكتب مجالك (مثلاً: محل حلويات)" hidden>
+                <div class="d-manual" data-manual hidden>
+                  <p class="d-note" data-manual-note></p>
+                  <div class="d-two">
+                    <div class="d-f"><label for="d-biz">اسم النشاط</label><input id="d-biz" class="ws-input" maxlength="200" placeholder="مثلاً: مطعم البيت" autocomplete="organization">
+                      <span class="d-err" id="d-biz-err" role="alert" hidden>اكتب اسم النشاط علشان نكمّل</span></div>
+                    <div class="d-f"><label for="d-ind">المجال <small>(اختياري)</small></label><input id="d-ind" class="ws-input" maxlength="150" placeholder="مثلاً: مطعم مشويات"></div>
+                  </div>
+                </div>
+                <p class="d-msg" data-msg hidden role="alert"></p>
+                <button type="submit" class="ws-btn ws-pri" data-act="analyze" style="align-self:flex-start">
+                  <span class="idle">اتعرّف على مشروعي</span><?= s_icon('sparkle', 18, 2) ?>
+                </button>
               </div>
-              <div class="d-f"><span class="d-lbl" id="d-gl">هدف المنشور</span>
-                <div class="d-chips" role="group" aria-labelledby="d-gl">
-                  <?php foreach (['زيادة المبيعات', 'تعريف بالبراند', 'عرض خاص', 'تفاعل أكتر'] as $i => $g): ?>
-                    <button type="button" class="ws-pill<?= $i === 0 ? ' g-on' : '' ?>" data-goal="<?= e($g) ?>" aria-pressed="<?= $i === 0 ? 'true' : 'false' ?>"><?= e($g) ?></button>
-                  <?php endforeach; ?>
+
+              <!-- اللي Spread AI عرفه من اللينك -->
+              <div data-fv="profile" hidden>
+                <div class="d-h"><h3>عرفنا مشروعك 👌</h3><span>راجع المعلومات — وعدّل الاسم أو المجال لو محتاج.</span></div>
+                <div class="d-prof">
+                  <div class="d-prof-top">
+                    <span class="d-prof-av" id="d-prof-av" aria-hidden="true"></span>
+                    <div class="d-prof-id">
+                      <input id="d-p-name" class="ws-input" maxlength="200" aria-label="اسم النشاط">
+                      <input id="d-p-ind" class="ws-input" maxlength="150" placeholder="المجال" aria-label="المجال">
+                    </div>
+                  </div>
+                  <p class="d-prof-desc" id="d-p-desc" hidden></p>
+                  <ul class="d-prof-svc" id="d-p-svc" hidden></ul>
+                  <a class="d-prof-src" id="d-p-src" target="_blank" rel="noopener nofollow" hidden></a>
+                </div>
+                <p class="d-note">المعلومات دي هتتحفظ في حسابك أول ما تسجّل.</p>
+                <p class="d-msg" data-msg hidden role="alert"></p>
+                <div class="d-row">
+                  <button type="button" class="ws-btn ws-pri" data-act="ideas">ولّد 4 أفكار<?= s_icon('sparkle', 18, 2) ?></button>
+                  <button type="button" class="ws-link" data-act="relink">لينك تاني</button>
                 </div>
               </div>
-              <p class="d-msg" data-msg hidden role="alert"></p>
-              <button type="submit" class="ws-btn ws-pri" data-act="ideas" style="align-self:flex-start">
-                <span class="idle">ولّد 4 أفكار</span><?= s_icon('sparkle', 18, 2) ?>
-              </button>
             </form>
 
             <!-- ② الأفكار -->

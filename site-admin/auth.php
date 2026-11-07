@@ -140,7 +140,7 @@ function sa_require_perm(string $perm): void
 function sa_log(string $action, string $section, string $summary, ?int $targetId = null, ?array $admin = null): void
 {
     $admin = $admin ?? sa_admin();
-    $ip = mb_substr((string) ($_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
+    $ip = mb_substr((string) ($_SERVER['REMOTE_ADDR'] ?? ''), 0, 45);
     s_run('INSERT INTO site_activity_log (admin_id, admin_name, action, section, target_id, summary, ip) VALUES (?,?,?,?,?,?,?)', [
         $admin ? (int) $admin['id'] : null, $admin ? mb_substr((string) $admin['name'], 0, 150) : null,
         mb_substr($action, 0, 40), mb_substr($section, 0, 60), $targetId, mb_substr($summary, 0, 500), $ip,

@@ -64,9 +64,21 @@ function content_format_from_labels(array $labels): string
 function carousel_limits(): array
 {
     $g = fn($k, $d) => function_exists('get_setting') ? (int) get_setting($k, $d) : $d;
-    $max = max(2, min(10, $g('carousel_max_slides', 10)));
+    // مرة واحدة: القيم القديمة (5 افتراضي · 10 أقصى) ← 4 افتراضي · 5 أقصى
+    static $mig = false;
+    if (!$mig && function_exists('get_setting') && function_exists('set_setting') && get_setting('carousel_limits_v', '') !== '2') {
+        $mig = true;
+        try {
+            set_setting('carousel_default_slides', '4');
+            set_setting('carousel_max_slides', '5');
+            set_setting('carousel_limits_v', '2');
+        } catch (\Throwable $e) {
+        }
+    }
+    // الكاروسيل 4 صور، وأقصى حاجة 5 (الأدمن يقدر يقلّل بس)
+    $max = max(2, min(5, $g('carousel_max_slides', 5)));
     $min = max(2, min($max, $g('carousel_min_slides', 2)));
-    $def = max($min, min($max, $g('carousel_default_slides', 5)));
+    $def = max($min, min($max, $g('carousel_default_slides', 4)));
     return [$min, $max, $def];
 }
 
@@ -262,8 +274,17 @@ function video_whatsapp_message(array $user, ?array $brand, array $content): str
         . 'المنصة: ' . $b['platform'] . "\n"
         . 'المقاس: ' . $b['ratio'] . "\n"
         . 'رقم الطلب: #' . (int) $content['id'] . "\n"
+        . video_whatsapp_order_line((int) $content['id'])
         . "السكريبت:\n----------------\n" . mb_substr(video_script_text($b), 0, 3000) . "\n----------------\n"
         . "ملاحظات:\n" . ($b['notes'] !== '' ? $b['notes'] : '—');
+}
+
+/** سطر الطلب المدفوع في رسالة واتساب (لو فيه) */
+function video_whatsapp_order_line(int $contentId): string
+{
+    require_once __DIR__ . '/video-pricing.php';
+    $o = vp_order_for_content($contentId);
+    return $o && $o['status'] === 'paid' ? 'الطلب المدفوع: ' . vp_order_label($o) . ' · ' . vp_money((float) $o['final_egp']) . "\n" : '';
 }
 
 function video_whatsapp_link(array $user, ?array $brand, array $content): string
@@ -292,6 +313,10 @@ function content_format_api(array $content, ?array $bySlide = null): array
         $out['video'] = ['status' => video_status_meta($content['video_status'] ?? null), 'brief' => video_brief($content),
                          'delivery_url' => (string) ($content['video_delivery_url'] ?? ''), 'note' => (string) ($content['video_admin_note'] ?? ''),
                          'at' => $content['video_status_at'] ?? null, 'wa' => video_whatsapp_number() !== ''];
+        // المرحلة 6: الأنواع بأسعار العميل (بعد خصم باقته) + طلب الفيديو المدفوع
+        require_once __DIR__ . '/video-pricing.php';
+        $vpUid = (int) ($content['user_id'] ?? 0) ?: (int) ($_SESSION['user_id'] ?? 0);
+        $out['video']['pay'] = $vpUid ? vp_client($vpUid, $content) : ['on' => false];
     }
     $out['progress'] = content_design_progress($content, $bySlide);
     return $out;

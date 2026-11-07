@@ -199,6 +199,28 @@ body.hv2{margin:0;background:var(--bg);font-family:"IBM Plex Sans Arabic",system
 .d-err{font-size:12px;color:#C2362E}
 .d-err[hidden]{display:none}
 .d-chips{display:flex;flex-wrap:wrap;gap:8px}
+.d-pane[data-p="form"] > div{display:flex;flex-direction:column;gap:18px}
+.d-pane[data-p="form"] > div[hidden]{display:none}
+.d-url{position:relative}
+.d-url .ws-input{padding-inline-start:16px;padding-inline-end:46px;height:58px;font-size:16px;text-align:left}
+.d-url-ic{position:absolute;top:50%;right:16px;transform:translateY(-50%);color:var(--mute-3);display:flex}
+.d-hint{font-size:12.5px;color:var(--mute-3)}
+.d-hint .ws-link{font-size:12.5px}
+.d-note{margin:0;font-size:13px;line-height:1.7;color:var(--mute-2)}
+.d-manual{display:flex;flex-direction:column;gap:12px;padding:14px;border-radius:18px;background:#FFF8EC;border:1px solid #F5DFB8}
+.d-manual[hidden]{display:none}
+.d-prof{padding:16px;border-radius:20px;background:#F7FAFD;border:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.d-prof-top{display:flex;gap:12px;align-items:center}
+.d-prof-av{flex:0 0 56px;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#2EE3CC,#0C87EF) center/cover no-repeat;color:#fff;display:flex;align-items:center;justify-content:center;font-family:"Readex Pro",sans-serif;font-weight:700;font-size:22px}
+.d-prof-id{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:8px}
+.d-prof-id .ws-input{height:44px;border-radius:12px;font-size:14.5px;background:#fff}
+.d-prof-id .ws-input:first-child{font-weight:700}
+.d-prof-desc{margin:0;font-size:14px;line-height:1.8;color:var(--ink-2)}
+.d-prof-svc{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.d-prof-svc li{font-size:12.5px;padding:4px 10px;border-radius:999px;background:#E3F1FF;color:#0A5FCF}
+.d-prof-src{font-size:12.5px;color:var(--mute-3);direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-prof [hidden]{display:none}
+@media (max-width:600px){.d-prof-id{grid-template-columns:1fr}}
 .d-ideas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .d-ideas .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .d-ideas .top .sa-chip{background:#EEF3F9;color:var(--ink-2)}

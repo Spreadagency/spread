@@ -287,8 +287,8 @@ $capLbl = ['text' => 'نص', 'image' => 'صور', 'web' => 'بحث ويب'];
                     <input type="hidden" name="cap" value="text">
                     <?php if ($down): ?><button class="btn sm ghost" type="submit" name="action" value="reset_breaker">رجّعه للسلسلة</button><?php endif; ?>
                     <span class="a2-grow"></span>
-                    <?php if ($p['has_key']): ?><button class="btn sm danger" type="submit" name="action" value="clear_key" onclick="return confirm('تمسح مفتاح <?= e($pn) ?>؟ المزود هيتوقف.')">مسح المفتاح</button><?php endif; ?>
-                    <?php if (!in_array($pn, ['openrouter', 'openai', 'gemini', 'perplexity'], true)): ?><button class="btn sm danger" type="submit" name="action" value="delete" onclick="return confirm('تمسح المزود <?= e($pn) ?> نهائيًا؟')">حذف</button><?php endif; ?>
+                    <?php if ($p['has_key']): ?><button class="btn sm danger" type="submit" name="action" value="clear_key" onclick="return confirm(<?= js_str('تمسح مفتاح ' . $pn . '؟ المزود هيتوقف.') ?>)">مسح المفتاح</button><?php endif; ?>
+                    <?php if (!in_array($pn, ['openrouter', 'openai', 'gemini', 'perplexity'], true)): ?><button class="btn sm danger" type="submit" name="action" value="delete" onclick="return confirm(<?= js_str('تمسح المزود ' . $pn . ' نهائيًا؟') ?>)">حذف</button><?php endif; ?>
                 </div>
             </form>
         <?php endforeach; ?>

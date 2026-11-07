@@ -21,8 +21,13 @@ body.ui-v2 .page-head h1, body.ui-v2 .brand-name {
     color: var(--ink);
     letter-spacing: -.01em;
 }
-body.ui-v2 a:not(.btn):not(.nav a) { color: #0A63C9; }
-body.ui-v2 a:not(.btn):hover { color: #084C9A; }
+body.ui-v2 a:not(.btn):not([class*="btn"]):not([class*="chip"]):not(.nav a) { color: #0A63C9; }
+body.ui-v2 a:not(.btn):not([class*="btn"]):not([class*="chip"]):hover { color: #084C9A; }
+/* الزراير الملونة (لينك أو زرار): الكلام أبيض دايمًا */
+body.ui-v2 .cf-btn.primary, body.ui-v2 a.cf-btn.primary, body.ui-v2 a.cf-btn.primary:hover,
+body.ui-v2 .bk-btn.pri, body.ui-v2 a.bk-btn.pri, body.ui-v2 a.bk-btn.pri:hover,
+body.ui-v2 a.btn:not(.ghost):not(.soft):not(.outline), body.ui-v2 a.btn:not(.ghost):not(.soft):not(.outline):hover,
+body.ui-v2 a.chip-primary, body.ui-v2 .cf-wa, body.ui-v2 a.cf-wa { color: #fff; }
 body.ui-v2 ::selection { background: rgba(46, 227, 204, .35); }
 
 /* الفقاعات الزخرفية القديمة (بنفسجي) */

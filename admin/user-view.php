@@ -17,9 +17,17 @@ if (!$user) {
 }
 
 // Actions
+require_once __DIR__ . '/../includes/managed-clients.php';   // ⭐ «عملاء بنديرهم»
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
     $action = $_POST['action'] ?? '';
+    if ($action === 'toggle_managed') {
+        $on = !mc_is($id);
+        mc_set($id, $on);
+        admin_log($on ? 'managed_on' : 'managed_off', 'user', $id, null);
+        flash_set('success', $on ? 'اتضاف لـ «عملاء بنديرهم» ⭐ — بيظهر الأول في العملاء' : 'اتشال من «عملاء بنديرهم»');
+        redirect('admin/user-view.php?id=' . $id);
+    }
 
     if ($action === 'toggle_active') {
         require_admin_can('approve_users');
@@ -289,8 +297,14 @@ $tabUrl = fn($t) => url('admin/user-view.php?id=' . $id . '&tab=' . $t);
         <div class="page-head with-actions">
             <div>
                 <a href="<?= url('admin/users.php') ?>" class="a2-muted" style="font-size:13px">← العملاء</a>
-                <h1>ملف العميل</h1>
+                <h1><?= mc_is($id) ? '⭐ ' : '' ?>ملف العميل</h1>
                 <div class="sub">Customer 360 · الباقة والاستهلاك والتكلفة والنشاط في مكان واحد</div>
+            </div>
+            <div class="a2-row" style="gap:8px;flex-wrap:wrap">
+                <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_managed">
+                    <button class="btn ghost" type="submit"><?= mc_is($id) ? '★ بنديره (شيل)' : '☆ عميل بنديره' ?></button></form>
+                <a class="btn soft" href="<?= url('admin/user-content-export.php?id=' . $id) ?>">📊 المحتوى Excel</a>
+                <a class="btn soft" href="<?= url('admin/user-designs.php?id=' . $id) ?>">🖼 التصميمات (تنزيل)</a>
             </div>
         </div>
 
@@ -726,7 +740,7 @@ $tabUrl = fn($t) => url('admin/user-view.php?id=' . $id . '&tab=' . $t);
                             $__sess ? ['end_sessions', 'إنهاء كل الجلسات', 'العميل هيخرج من كل الأجهزة'] : null,
                             $__del ? ['cancel_delete', 'إلغاء طلب الحذف', 'إلغاء طلب حذف الحساب؟'] : null,
                         ]) as [$__op, $__lbl, $__cf]): ?>
-                            <form method="POST" style="margin:0" onsubmit="return confirm('<?= e($__cf) ?>')"><?= csrf_field() ?><input type="hidden" name="action" value="security"><input type="hidden" name="op" value="<?= $__op ?>"><button class="btn ghost sm"><?= e($__lbl) ?></button></form>
+                            <form method="POST" style="margin:0" onsubmit="return confirm(<?= js_str($__cf) ?>)"><?= csrf_field() ?><input type="hidden" name="action" value="security"><input type="hidden" name="op" value="<?= $__op ?>"><button class="btn ghost sm"><?= e($__lbl) ?></button></form>
                         <?php endforeach; ?>
                         <?php endif; ?>
                     </div>

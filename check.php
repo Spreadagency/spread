@@ -4,6 +4,7 @@
  * افتحها من المتصفح: https://your-site.com/check.php
  * ⚠️ امسح الملف ده بعد ما تخلص فحص — فيه معلومات عن السيرفر
  */
+require __DIR__ . '/includes/diag-gate.php';
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 header('Content-Type: text/html; charset=utf-8');

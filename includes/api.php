@@ -27,11 +27,15 @@ function api_send(array $payload, int $code = 200): void
     while (ob_get_level() > 0) {
         ob_end_clean();
     }
+    // تطبيق الموبايل: حفظ الرد لمفتاح العملية (منع الخصم المكرر) — مابيتعرّفش غير في /api/v1
+    if (function_exists('mobile_on_response')) {
+        mobile_on_response($payload, $code);
+    }
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     header('X-Content-Type-Options: nosniff');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -139,6 +143,11 @@ function api_boot(bool $requireAuth = true, bool $keepSession = false): array
         }
     }
 
+    // GET مسموح للقراءة بس — أي عملية بتغيّر بيانات لازم POST + CSRF (لينك أو صفحة تانية مايقدروش يعملوها باسم العميل)
+    if ($method === 'GET' && !api_get_allowed(basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? ''), '.php'), api_action())) {
+        api_fail('العملية دي لازم تتبعت POST — حدّث الصفحة وجرّب تاني', 'method', 405);
+    }
+
     // CSRF للطلبات اللي بتغيّر بيانات
     if ($method === 'POST') {
         $tok = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? (api_input()['csrf'] ?? ''));
@@ -161,6 +170,30 @@ function api_boot(bool $requireAuth = true, bool $keepSession = false): array
     }
 
     return $user;
+}
+
+/** عمليات القراءة المسموحة بـ GET لكل endpoint (أي حاجة تانية = POST + CSRF) */
+function api_get_allowed(string $endpoint, string $action): bool
+{
+    static $read = [
+        'brand-kit'     => ['get', 'versions'],
+        'brand'         => ['get', 'overview', 'insp_list'],
+        'campaign-flow' => ['board'],
+        'campaigns'     => ['list', 'get'],
+        'contents'      => ['list', 'get', 'versions', 'library'],
+        'inbox'         => ['unread', 'list'],
+        'journey'       => ['state'],
+        'quality'       => ['reasons'],
+        'quick-post'    => ['options'],
+        'research'      => ['list', 'get'],
+        'settings'      => ['home'],
+        'studio'        => ['home', 'drafts', 'draft', 'size_hint', 'trends', 'design'],
+        'whatsapp'      => ['home'],
+        'billing'       => [],
+        'engine'        => ['home', 'job', 'campaign', 'wizard', 'plan', 'write', 'design'],
+    ];
+    if (!isset($read[$endpoint])) return true;   // endpoint مش في القايمة (wa/v1 ليهم حماية تانية) — نفس السلوك القديم
+    return $action === '' || in_array($action, $read[$endpoint], true);
 }
 
 /** التأكد إن السجل ملك المستخدم (وإلا 404 — مانقولش إنه موجود) */

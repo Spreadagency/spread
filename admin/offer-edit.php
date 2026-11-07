@@ -110,6 +110,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             admin_log('create_offer', 'offer', $id, $code);
             flash_set('success', 'تم إنشاء العرض ✓');
         }
+        // 📲 تبليغ العملاء بالعرض (واتساب + المنصة) — عرض عام شغّال بس
+        if (!empty($_POST['wa_announce']) && $data['is_active'] && $data['type'] !== 'referral' && empty($rules['target'])) {
+            require_once __DIR__ . '/../includes/Notifier.php';
+            $aud = ($rules['eligibility'] ?? 'all') === 'new' ? ['registered_from' => date('Y-m-d', strtotime('-' . (int) ($rules['max_account_age_days'] ?? 7) . ' days'))] : [];
+            array_pop($_SESSION['flash']);
+            $bid = Notifier::eventBroadcast('offer_new', ['offer_title' => $title, 'offer_desc' => (string) ($data['description'] ?? ''), 'code' => $code], 'packages.php', $aud);
+            if ($bid) {
+                $st = wa_broadcast_stats($bid);
+                flash_set('success', 'تم حفظ العرض ✓ واتعملت حملة #' . $bid . ' لـ ' . $st['total'] . ' عميل');
+            } else {
+                flash_set('warning', 'تم حفظ العرض — بس قالب «عرض جديد» مقفول، فمحدش اتبلّغ');
+            }
+        }
     } catch (\Throwable $e) {
         flash_set('danger', str_contains($e->getMessage(), 'uq_offer_code') ? 'الكود ده مستخدم بالفعل' : 'تعذّر الحفظ');
     }
@@ -356,6 +369,13 @@ include __DIR__ . '/../templates/admin-header.php';
                         <label style="display:flex;gap:8px;align-items:center;font-weight:400;padding-top:8px">
                             <input type="checkbox" name="is_active" value="1" <?= ($offer['is_active'] ?? 1) ? 'checked' : '' ?> style="width:auto"> العرض شغّال
                         </label>
+                    </div>
+                    <div class="field">
+                        <label>تبليغ العملاء</label>
+                        <label style="display:flex;gap:8px;align-items:center;font-weight:400;padding-top:8px">
+                            <input type="checkbox" name="wa_announce" value="1" style="width:auto"> 📲 ابعت العرض للعملاء (واتساب + المنصة)
+                        </label>
+                        <div class="field-help">بقالب «عرض جديد» وشروطه (الأدمن ← الرسايل والواتساب ← القوالب). للأكواد العامة بس — مش الإحالة ولا العروض المخصصة لعملاء بعينهم.</div>
                     </div>
                 </div>
             </div>

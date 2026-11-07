@@ -9,6 +9,7 @@
  *
  * ⚠️ امسح الملف ده بعد ما تخلص.
  */
+require __DIR__ . '/../../includes/diag-gate.php';
 $isTest = isset($_GET['scope']);
 $base = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
       . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . ($_SERVER['SCRIPT_NAME'] ?? '');

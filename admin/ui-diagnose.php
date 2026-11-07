@@ -108,7 +108,7 @@ $migs = [];
 if ($hasMig) {
     try { $migs = migrations_status(); } catch (\Throwable $e) { $migs = []; }
 }
-$pending = array_values(array_filter($migs, fn($m) => $m['state'] === 'pending'));
+$pending = array_values(array_filter($migs, fn($m) => $m['state'] === 'pending' || $m['state'] === 'incomplete'));
 $missingSql = array_values(array_filter($migs, fn($m) => $m['state'] === 'missing'));
 
 /* ═══════════ ③ حالة المراحل الأخيرة (اللي العميل بيشوفها) ═══════════ */
@@ -252,12 +252,12 @@ include __DIR__ . '/../templates/admin-header.php';
                     <span class="chip <?= $pending ? 'chip-amber' : 'chip-mint' ?>"><?= $pending ? count($pending) . ' مستني' : 'كله اتشغّل' ?></span></div>
                 <?php if (!$hasMig): ?><div class="a2-empty">ملف الترحيلات مش موجود</div><?php else: ?>
                 <div class="a2-tw" style="border:0"><table class="a2-tbl"><tbody>
-                    <?php foreach (array_reverse($migs) as $m): if (!in_array($m['state'], ['pending', 'missing', 'changed'], true) && !str_contains($m['file'], 'phase8')) continue; ?>
+                    <?php foreach (array_reverse($migs) as $m): if (!in_array($m['state'], ['pending', 'missing', 'changed', 'incomplete'], true) && !str_contains($m['file'], 'phase8')) continue; ?>
                         <tr>
-                            <td><?= ['applied' => '✅', 'pending' => '⏳', 'missing' => '❌', 'changed' => '⚠️'][$m['state']] ?? '•' ?></td>
+                            <td><?= ['applied' => '✅', 'pending' => '⏳', 'missing' => '❌', 'changed' => '⚠️', 'incomplete' => '❗'][$m['state']] ?? '•' ?></td>
                             <td><b dir="ltr" style="font-size:12.5px"><?= e($m['file']) ?></b><div class="a2-muted" style="font-size:12px"><?= e($m['label']) ?></div></td>
-                            <td class="a2-muted" style="white-space:nowrap"><?= $m['state'] === 'applied' ? e(substr((string) $m['applied_at'], 0, 16)) : ['pending' => 'مستني', 'missing' => 'الملف ناقص', 'changed' => 'الملف اتغير بعد التشغيل'][$m['state']] ?>
-                                <?php if ($m['state'] === 'changed'): ?>
+                            <td class="a2-muted" style="white-space:nowrap"><?= $m['state'] === 'applied' ? e(substr((string) $m['applied_at'], 0, 16)) : ['pending' => 'مستني', 'missing' => 'الملف ناقص', 'changed' => 'الملف اتغير بعد التشغيل', 'incomplete' => 'متسجّل بس جداوله مش موجودة: ' . implode(' · ', $m['missing_tables'] ?? [])][$m['state']] ?>
+                                <?php if ($m['state'] === 'changed' || $m['state'] === 'incomplete'): ?>
                                     <form method="post" style="margin:4px 0 0" onsubmit="return confirm('تشغّل الترحيل ده تاني؟ الترحيلات آمنة تتشغّل أكتر من مرة.')"><?= csrf_field() ?><input type="hidden" name="action" value="run_one"><input type="hidden" name="file" value="<?= e($m['file']) ?>"><button class="btn sm ghost">شغّله تاني</button></form>
                                 <?php endif; ?></td>
                         </tr>

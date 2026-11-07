@@ -59,7 +59,7 @@ if (function_exists('smart_ai_enabled') && smart_ai_enabled()) {
         'reference_type' => 'content_plans', 'reference_id' => (int) ($plan['id'] ?? 0),
         'options' => ['ideas_count' => (int) ($plan['ideas_count'] ?? 0), 'credits' => $cost ?? 0],
     ]);
-    $ai = ai_generate($prompt);
+    $ai = ai_generate($prompt, [], ['max_tokens' => 4000, 'temperature' => 0.9, 'json' => true]);
 }
 
 if (!$ai['ok']) {

@@ -13,6 +13,9 @@ require_once __DIR__ . '/../includes/ui-v2.php';
 require_login();
 $user = current_user();
 
+if (empty($_GET['classic']) && brand_kit_on()) {
+    redirect('brand-kit.php' . (!empty($_GET['field']) ? '#bk-basics' : ''));   // صفحة واحدة للهوية
+}
 if (!ui_v2_enabled()) {
     redirect('brand-profile.php');   // الشكل القديم له صفحته
 }

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/integrations.php';
+require_once __DIR__ . '/../includes/usage.php'; // admin_alert
 
 $success = ($_GET['success'] ?? '') === 'true';
 $paymobOrderId = $_GET['order'] ?? '';
@@ -33,22 +34,44 @@ if (!$order) {
     $msg = 'تم شحن رصيدك بنجاح ✓';
     $type = 'success';
 } else {
-    // 8-ب: تحديث مشروط — لو الكول باك وصل مرتين في نفس اللحظة، واحد بس يشحن ويبدأ الدورة
-    $__st = db()->prepare('UPDATE payment_orders SET status = ?, paymob_txn_id = ?, paid_at = ? WHERE id = ? AND status <> ?');
-    $__st->execute(['paid', $txnId, date('Y-m-d H:i:s'), $order['id'], 'paid']);
-    if ($__st->rowCount() !== 1) {
-        flash_set('success', 'تم شحن رصيدك بنجاح ✓');
+    // الدفع + الكريدت + الباقة في transaction واحدة: لو الشحن فشل → كله بيرجع والطلب يفضل pending (يتعاد بأمان)
+    $pdo = db();
+    try {
+        $pdo->beginTransaction();
+        // 8-ب: تحديث مشروط — لو الكول باك وصل مرتين في نفس اللحظة، واحد بس يشحن ويبدأ الدورة
+        $__st = $pdo->prepare('UPDATE payment_orders SET status = ?, paymob_txn_id = ?, paid_at = ? WHERE id = ? AND status <> ?');
+        $__st->execute(['paid', $txnId, date('Y-m-d H:i:s'), $order['id'], 'paid']);
+        if ($__st->rowCount() !== 1) {
+            $pdo->commit();
+            flash_set('success', 'تم شحن رصيدك بنجاح ✓');
+            header('Location: ' . url('credits.php'));
+            exit;
+        }
+        // صلاحية الكريدت = مدة الباقة (نفس نهاية الدورة)
+        $__pkg = !empty($order['package_id']) ? db_one('SELECT validity_days FROM credit_packages WHERE id = ?', [(int) $order['package_id']]) : null;
+        $__ok = credits_add((int) $order['user_id'], (int) $order['credits'],
+            'شحن رصيد: ' . $order['credits'] . ' كريدت (طلب #' . $order['id'] . ')',
+            null, 'purchase', (int) $order['id'], !empty($__pkg['validity_days']) ? (int) $__pkg['validity_days'] : null,
+            ['idem_key' => 'po:' . (int) $order['id']]);
+        if (!$__ok) throw new RuntimeException('credits_add failed');
+        // 8-ب: دورة باقة جديدة (الحصص الشهرية بتبدأ من دلوقتي)
+        if (function_exists('plan_start') && function_exists('plans_ready') && plans_ready()) {
+            if (!plan_start((int) $order['user_id'], (int) $order['package_id'], (int) $order['credits'], null, 'paid', null, 'Paymob #' . $order['id'])) {
+                throw new RuntimeException('plan_start failed');
+            }
+        }
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        integrations_log('paymob', 'order ' . $order['id'] . ' PAID at Paymob but crediting FAILED (rolled back, still pending): ' . $e->getMessage());
+        if (function_exists('admin_alert')) {
+            admin_alert('critical', 'payment', 'دفع Paymob اتم والرصيد ماتضافش — طلب #' . $order['id'],
+                'العميل #' . $order['user_id'] . ' دفع ' . $order['credits'] . ' كريدت والشحن فشل واترجع (الطلب لسه pending). أعد فتح لينك الرجوع أو ضيف الرصيد يدوي. الخطأ: ' . $e->getMessage(),
+                'admin/payments.php', 'paymob_fail:' . $order['id']);
+        }
+        flash_set('danger', 'الدفع وصلنا بس حصلت مشكلة في شحن الرصيد — فريقنا اتبلّغ وهيضيفه في أقرب وقت (طلب #' . $order['id'] . ').');
         header('Location: ' . url('credits.php'));
         exit;
-    }
-    // صلاحية الكريدت = مدة الباقة (نفس نهاية الدورة)
-    $__pkg = !empty($order['package_id']) ? db_one('SELECT validity_days FROM credit_packages WHERE id = ?', [(int) $order['package_id']]) : null;
-    credits_add((int) $order['user_id'], (int) $order['credits'],
-        'شحن رصيد: ' . $order['credits'] . ' كريدت (طلب #' . $order['id'] . ')',
-        null, 'purchase', (int) $order['id'], !empty($__pkg['validity_days']) ? (int) $__pkg['validity_days'] : null);
-    // 8-ب: دورة باقة جديدة (الحصص الشهرية بتبدأ من دلوقتي)
-    if (function_exists('plan_start')) {
-        plan_start((int) $order['user_id'], (int) $order['package_id'], (int) $order['credits'], null, 'paid', null, 'Paymob #' . $order['id']);
     }
     integrations_log('paymob', 'order ' . $order['id'] . ' PAID — +' . $order['credits'] . ' credits for user ' . $order['user_id']);
     $msg = (function_exists('credits_show_numbers') && !credits_show_numbers())

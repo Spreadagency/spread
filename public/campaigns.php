@@ -11,6 +11,9 @@ require_once __DIR__ . '/../includes/campaign-flow.php';   // أرقام الأ�
 
 require_login();
 $user = current_user();
+// حملات محرك المحتوى بتظهر هنا كمان (لو فيه قطع خلصت ولسه مااتنسختش)
+require_once __DIR__ . '/../includes/ce-library.php';
+ce_lib_backfill((int) $user['id']);
 
 if (get_setting('campaigns_enabled', '1') !== '1') {
     flash_set('info', 'الحملات مش متاحة حاليًا');

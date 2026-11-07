@@ -39,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // استحقاق مكافأة المُحيل (لو الحساب جاي من إحالة)
         referral_on_activation($userId);
         admin_log('approve_user', 'user', $userId, $u['email']);
+        // واتساب + داخل المنصة: الحساب اتفعّل
+        require_once __DIR__ . '/../includes/Notifier.php';
+        Notifier::notify($userId, 'account_activated', [], ['url' => 'dashboard.php', 'tone' => 'ok']);
 
         // إيميل ترحيب (فشله مش بيوقف الموافقة)
         try {

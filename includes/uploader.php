@@ -114,24 +114,14 @@ function remote_image_data_uri(string $url): ?string
     if (!preg_match('#^https?://#i', $url) || !filter_var($url, FILTER_VALIDATE_URL)) {
         return null;
     }
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 3,
-        CURLOPT_TIMEOUT => 20,
-        CURLOPT_CONNECTTIMEOUT => 8,
-        CURLOPT_USERAGENT => 'SpreadAI/2.0',
-        CURLOPT_MAXFILESIZE => 8 * 1024 * 1024,
-    ]);
-    $body = curl_exec($ch);
-    $type = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($body === false || $code < 200 || $code >= 300 || strlen($body) > 8 * 1024 * 1024) {
+    // safe_http: بيمنع اللينكات اللي بتشاور على السيرفر نفسه أو شبكته الداخلية (SSRF) — حتى بعد التحويلات
+    require_once __DIR__ . '/safe-http.php';
+    $r = safe_http_get($url, 8 * 1024 * 1024, 20, 3);
+    if (empty($r['ok']) || $r['body'] === '' || (int) $r['status'] < 200 || (int) $r['status'] >= 300) {
         return null;
     }
+    $body = (string) $r['body'];
+    $type = (string) $r['content_type'];
     $type = trim(explode(';', $type)[0]);
     if (strpos($type, 'image/') !== 0) {
         $info = @getimagesizefromstring($body);

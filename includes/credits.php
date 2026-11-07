@@ -53,17 +53,72 @@ function credits_check_expiry(int $userId): void
             $w = db_one('SELECT * FROM credit_wallets WHERE user_id = ?', [$userId]);
         }
 
-        // 2) رصيد مجمّد عدّى عليه أكتر من 3 أيام → سقوط نهائي
+        // 2) رصيد مجمّد عدّى عليه أكتر من 3 أيام → سقوط نهائي (كريدت الإضافات اللي لسه ليها أيام بيفضل واقف لحد التجديد)
         if ((int) ($w['expired_balance'] ?? 0) > 0 && !empty($w['expired_at'])
             && strtotime($w['expired_at']) < strtotime('-3 days')) {
-            db_run('UPDATE credit_wallets SET expired_balance = 0, expired_at = NULL WHERE user_id = ?', [$userId]);
+            $keep = 0;
             if (credits_lots_ready()) {
-                db_run('UPDATE credit_lots SET forfeited = forfeited + frozen, frozen = 0 WHERE user_id = ? AND frozen > 0', [$userId]);
+                $keep = credits_addon_frozen($userId, (string) $w['expired_at']);
+                db_run('UPDATE credit_lots SET forfeited = forfeited + frozen, frozen = 0 WHERE user_id = ? AND frozen > 0 AND NOT (' . credits_addon_paused_sql() . ')', [$userId, $w['expired_at']]);
+            }
+            db_run('UPDATE credit_wallets SET expired_balance = ?, expired_at = IF(? > 0, expired_at, NULL) WHERE user_id = ?', [$keep, $keep, $userId]);
+        }
+
+        // 3) كريدت إضافة خلصت أيامه (والباقة شغالة) → بيسقط
+        if (credits_lots_ready() && empty($w['expired_at'])) {
+            try {
+                $old = db_all('SELECT id, remaining FROM credit_lots WHERE user_id = ? AND addon_until IS NOT NULL AND addon_until < NOW() AND remaining > 0', [$userId]);
+                $sum = array_sum(array_map(fn($l) => (int) $l['remaining'], $old));
+                if ($sum > 0) {
+                    $began = credits_tx_begin();
+                    db_run('UPDATE credit_lots SET forfeited = forfeited + remaining, remaining = 0 WHERE user_id = ? AND addon_until IS NOT NULL AND addon_until < NOW() AND remaining > 0', [$userId]);
+                    db_run('UPDATE credit_wallets SET balance = GREATEST(0, balance - ?) WHERE user_id = ?', [$sum, $userId]);
+                    $bal = (int) (db_one('SELECT balance FROM credit_wallets WHERE user_id = ?', [$userId])['balance'] ?? 0);
+                    credits_tx_insert(['user_id' => $userId, 'action_type' => 'deduct', 'amount' => $sum, 'notes' => 'انتهاء صلاحية كريدت الإضافة', 'source' => 'expiry', 'balance_after' => $bal]);
+                    if ($began) db()->commit();
+                    $began = false;
+                }
+            } catch (\Throwable $e) {
+                if ($began && db()->inTransaction()) db()->rollBack();
+                $began = false;
             }
         }
     } catch (\Throwable $e) {
         if ($began && db()->inTransaction()) db()->rollBack();
         // أعمدة الصلاحية لسه متضافتش — النظام يكمل عادي
+    }
+}
+
+/* ═══════════ كريدت الإضافات (باقات مساعدة) — بيقف لو الباقة خلصت ويكمل مع الجديدة ═══════════ */
+
+/** شرط SQL: دفعة إضافة مجمّدة وكان لسه ليها أيام وقت ما الباقة خلصت (باراميتر: expired_at) */
+function credits_addon_paused_sql(): string
+{
+    return 'addon_until IS NOT NULL AND addon_until > ?';
+}
+
+/** كام كريدت إضافة واقف (مجمّد ولسه ليه أيام) */
+function credits_addon_frozen(int $userId, string $expiredAt): int
+{
+    try {
+        return (int) (db_one('SELECT COALESCE(SUM(frozen), 0) n FROM credit_lots WHERE user_id = ? AND frozen > 0 AND ' . credits_addon_paused_sql(), [$userId, $expiredAt])['n'] ?? 0);
+    } catch (\Throwable $e) {
+        return 0;
+    }
+}
+
+/** تجديد بعد فترة السماح: كريدت الإضافات الواقف بيرجع وأيامه بتتمد بمدة الوقفة ← بيرجّع الكمية */
+function credits_addon_resume(int $userId, string $expiredAt): int
+{
+    try {
+        $n = credits_addon_frozen($userId, $expiredAt);
+        if ($n <= 0) return 0;
+        $pause = max(0, time() - (int) strtotime($expiredAt));
+        db_run('UPDATE credit_lots SET remaining = remaining + frozen, frozen = 0, addon_until = DATE_ADD(addon_until, INTERVAL ? SECOND)
+                WHERE user_id = ? AND frozen > 0 AND ' . credits_addon_paused_sql(), [$pause, $userId, $expiredAt]);
+        return $n;
+    } catch (\Throwable $e) {
+        return 0;
     }
 }
 
@@ -314,6 +369,10 @@ function credits_add(int $userId, int $amount, string $notes = '', ?int $created
                 $lid = db_insert('INSERT INTO credit_lots (user_id, source, credits, remaining, unit_egp, estimated) VALUES (?,?,?,?,?,?)',
                     [$userId, $source, $amount, $amount, $unit, $est]);
                 $alloc = [[$lid, $amount, $unit, $source, $est]];
+                // كريدت إضافة (باقة مساعدة): صالح addon_days يوم استخدام
+                if (!empty($meta['addon_days'])) {
+                    try { db_run('UPDATE credit_lots SET addon_until = DATE_ADD(NOW(), INTERVAL ? DAY) WHERE id = ?', [max(1, (int) $meta['addon_days']), $lid]); } catch (\Throwable $e) {}
+                }
             }
         }
 
@@ -342,6 +401,8 @@ function credits_add(int $userId, int $amount, string $notes = '', ?int $created
                             [$carry, $userId]
                         );
                         if ($lots) {
+                            // كريدت الإضافات: أيامه بتتمد بمدة الوقفة
+                            try { db_run('UPDATE credit_lots SET addon_until = DATE_ADD(addon_until, INTERVAL ? SECOND) WHERE user_id = ? AND frozen > 0 AND addon_until IS NOT NULL', [max(0, time() - (int) strtotime($w['expired_at'])), $userId]); } catch (\Throwable $e) {}
                             db_run('UPDATE credit_lots SET remaining = remaining + frozen, frozen = 0 WHERE user_id = ? AND frozen > 0', [$userId]);
                         }
                         credits_tx_insert([
@@ -350,10 +411,15 @@ function credits_add(int $userId, int $amount, string $notes = '', ?int $created
                             'balance_after' => $before + $amount + $carry,
                         ]);
                     } else {
-                        // تجديد متأخر → المجمّد بيسقط نهائيًا
-                        db_run('UPDATE credit_wallets SET expired_balance = 0, expired_at = NULL WHERE user_id = ?', [$userId]);
+                        // تجديد متأخر → المجمّد بيسقط نهائيًا — إلا كريدت الإضافات: كان واقف وبيكمل مع الباقة الجديدة بالأيام اللي فاضلة
+                        $paused = $lots ? credits_addon_resume($userId, (string) $w['expired_at']) : 0;
+                        db_run('UPDATE credit_wallets SET balance = balance + ?, expired_balance = 0, expired_at = NULL WHERE user_id = ?', [$paused, $userId]);
                         if ($lots) {
                             db_run('UPDATE credit_lots SET forfeited = forfeited + frozen, frozen = 0 WHERE user_id = ? AND frozen > 0', [$userId]);
+                        }
+                        if ($paused > 0) {
+                            credits_tx_insert(['user_id' => $userId, 'action_type' => 'add', 'amount' => $paused, 'notes' => 'كريدت الإضافة رجع مع الباقة الجديدة',
+                                               'source' => 'carryover', 'balance_after' => $before + $amount + $paused]);
                         }
                     }
                 }
@@ -381,6 +447,12 @@ function credits_consume(int $userId, int $amount, string $notes = '', ?string $
 {
     if ($amount <= 0) return true;
     credits_check_expiry($userId);
+    // الحد الأسبوعي للباقة (الباقات الطويلة) — الرسالة بتطلع من credits_short_msg
+    $GLOBALS['credits_block_msg'] = null;
+    if (function_exists('pkg_weekly_block') && ($blk = pkg_weekly_block($userId, $amount))) {
+        $GLOBALS['credits_block_msg'] = $blk;
+        return false;
+    }
     $began = false;
     try {
         $began = credits_tx_begin();
@@ -403,6 +475,11 @@ function credits_consume(int $userId, int $amount, string $notes = '', ?string $
             'alloc' => $alloc !== null ? ['a' => $alloc] : null, 'balance_after' => $balance - $amount,
         ]);
         if ($began) db()->commit();
+        // الرصيد قرب يخلص → إشعار (مرة واحدة لحد ما يشحن)
+        if (is_file(__DIR__ . '/Notifier.php')) {
+            require_once __DIR__ . '/Notifier.php';
+            wa_check_credits_low($userId, $balance - $amount);
+        }
         return true;
     } catch (\Throwable $e) {
         if ($began && db()->inTransaction()) db()->rollBack();
@@ -489,9 +566,48 @@ function cost_for(string $action): int
         'design_cost' => COST_DESIGN,
         'content_design_cost' => COST_DESIGN
     ];
-    return (int) get_setting($action, $defaults[$action] ?? 1);
+    $base = (int) get_setting($action, $defaults[$action] ?? 1);
+    // مستوى الجودة: أسعار الكتابة × معامل مستوى باقة العميل
+    return function_exists('qt_price') ? qt_price($action, $base) : $base;
+}
+
+/**
+ * سعر كتابة قطعة حسب شكلها (الباقات الجديدة: الكتابة بالكريدت) — لو الأدمن ماحددش سعر للشكل ← سعر المنشور
+ * post · carousel · story · video (سكريبت) · reel (= سكريبت فيديو)
+ */
+function cost_for_format(string $format): int
+{
+    $key = ['carousel' => 'carousel_generation_cost', 'story' => 'story_generation_cost', 'video' => 'video_script_cost', 'reel' => 'video_script_cost'][$format] ?? null;
+    $v = $key !== null ? get_setting($key, '') : '';
+    if ($v === '' || $v === null) return cost_for('content_generation_cost');
+    return function_exists('qt_price') ? qt_price((string) $key, max(0, (int) $v)) : max(0, (int) $v);
+}
+
+/** التصميم بيتحسب من حصة الباقة — والكريدت عليه بس لو الأدمن فتح «التصميم بالكريدت كمان» */
+function design_credit_cost(): int
+{
+    return (string) get_setting('designs_charge_credits', '0') === '1' ? cost_for('content_design_cost') : 0;
+}
+
+/** نص سعر التصميم للعميل: «2 كريدت» أو «من حصة التصميمات» */
+function design_cost_text(string $unit = 'كريدت'): string
+{
+    $c = design_credit_cost();
+    return $c > 0 ? $c . ' ' . $unit : 'من حصة التصميمات';
+}
+
+/** كريدت النشر المباشر على فيسبوك/إنستجرام (مرة لكل منشور) */
+function publish_credit_cost(): int
+{
+    return max(0, (int) get_setting('publish_cost', 1));
 }
 
 // 8-ب: الحصص الشهرية والاستهلاك بالنسبة %
 require_once __DIR__ . '/plans.php';
+// الباقات الجديدة: المدد · الحد الأسبوعي · الإضافات · باقة التسجيل
+require_once __DIR__ . '/packages.php';
+// مستويات الجودة: الموديلات · معامل السعر · جولات التحسين · الأولوية
+require_once __DIR__ . '/quality-tiers.php';
+// المرحلة 6: الفيديو بالفلوس (الأنواع والأسعار · خصم الباقة · الطلبات المدفوعة)
+require_once __DIR__ . '/video-pricing.php';
 require_once __DIR__ . '/settings-registry.php';

@@ -5,6 +5,10 @@ require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/uploader.php';
 
 require_login();
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && empty($_GET['classic'])) {
+    require_once __DIR__ . '/../includes/brand-brain.php';
+    if (brand_kit_on()) redirect('brand-kit.php');   // صفحة واحدة للهوية
+}
 
 $user = current_user();
 $brand = user_brand();
@@ -72,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ((string) ($brand[$__f] ?? '') !== (string) ($fresh[$__f] ?? '')) $changed[] = $__f;
             }
             if ($changed) brand_mark_manual($fresh, (int) $user['id'], $changed);
+            if ($changed) brand_kit_notify((int) $user['id'], $changed, 'user', 'تعديل من صفحة الهوية');
         } catch (\Throwable $e) { /* مايوقفش الحفظ */ }
 
         flash_set('success', 'تم حفظ بيانات الهوية بنجاح ✓');
