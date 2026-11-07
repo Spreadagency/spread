@@ -64,6 +64,8 @@ if ($action === 'idea') {
             . "\n\nاكتب الفكرة مباشرة بدون مقدمات.";
     }
 
+    require_once __DIR__ . '/../../includes/post-skills.php';   // الـ Skill حسب المجال (الأفكار) — فاضي لو مفيش
+    $prompt = post_skill_prefix('studio_ideas', $brand ?: []) . $prompt;
     $ai = ai_generate($prompt);
     if (!$ai['ok']) {
         credits_add((int) $user['id'], $cost, 'استرداد: فشل فكرة التصميم', null, 'refund');
@@ -305,6 +307,9 @@ $__typeP = type_prompt('design', $__typeKey);
 if ($__typeP !== '') {
     $designPrompt .= "\n" . $__typeP . "\n";
 }
+// الـ Skill حسب المجال: «التصميم» و«ممنوع في الصورة» (فاضي لو مفيش)
+require_once __DIR__ . '/../../includes/post-skills.php';
+$designPrompt .= post_skill_visual($brand ?: []);
 $designPrompt .= "Style: modern, clean, suitable for Facebook/Instagram. No watermarks, no fake or invented logos.";
 
 // ═══ التوليد ═══

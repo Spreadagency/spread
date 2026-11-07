@@ -254,6 +254,8 @@ switch ($action) {
             . "- caption: كابشن كامل بـ{$dialect} (40-90 كلمة). hashtags: 5-7 في سطر.\n"
             . ($isReel ? "- script: سكريبت الريل — سطر لكل خطوة من الهيكل بالترتيب، بصيغة «خطوة: اللي بيحصل على الشاشة».\n" : '')
             . "- ممنوع تنسخ الترند الأصلي أو تخترع أسعار/أرقام مش موجودة.";
+        require_once __DIR__ . '/../../includes/post-skills.php';   // الـ Skill حسب المجال في الأول — فاضي لو مفيش
+        $prompt = post_skill_prefix('studio_ideas', $brand ?: []) . $prompt;
         $cost = max(0, (int) get_setting('studio_idea_cost', 1));
         if ($cost > 0 && !credits_consume($uid, $cost, 'أفكار ترند — ' . $t['code'], 'trend_ideas', $t['id'])) {
             api_fail(credits_short_msg($cost), 'credits', 402);
@@ -343,6 +345,8 @@ switch ($action) {
             . "- hashtags: 5-8 هاشتاجات في سطر واحد. first_comment: أول كومنت يزوّد التفاعل. ad_copy: نص إعلان ممول قصير.\n"
             . "- ممنوع تخترع أسعار أو أرقام أو مواعيد مش مذكورة.";
 
+        require_once __DIR__ . '/../../includes/post-skills.php';   // الـ Skill حسب المجال في الأول — فاضي لو مفيش
+        $prompt = post_skill_prefix('studio_ideas', $brand ?: []) . $prompt;
         $cost = max(0, (int) get_setting('studio_idea_cost', 1));
         if ($cost > 0 && !credits_consume($uid, $cost, 'Creative Brief — الاستوديو', 'studio_brief', null)) {
             api_fail(credits_short_msg($cost), 'credits', 402);

@@ -125,6 +125,10 @@ function design_generate(array $user, array $in): array
         require_once __DIR__ . '/campaign-flow.php';
         $__camp = db_one('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [(int) $content['campaign_id'], (int) $user['id']]);
         if ($__camp) $__skill = campaign_skill($brand, $__camp);
+    } else {
+        // المنشور السريع (من غير حملة): الـ Skill بتاعة البراند — post_skills_enabled
+        require_once __DIR__ . '/post-skills.php';
+        $__skill = post_skill($brand ?: []);
     }
     $__built = design_build([
         'skill' => $__skill,

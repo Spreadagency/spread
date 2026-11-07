@@ -186,14 +186,17 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
             'extra_notes' => trim($extraNotes . $typeSection . $templateSection),
         ];
         $base_vars = $uid > 0 ? prompt_brand_vars($uid, $brand, 'copy', ['identity' => false]) : [];
-        return prompt_apply($base, $vars + $base_vars, ['dna' => true]);
+        if (!function_exists('post_skill_prefix')) require_once __DIR__ . '/post-skills.php';
+        return post_skill_prefix('quick_post', $brand) . prompt_apply($base, $vars + $base_vars, ['dna' => true]);   // الـ Skill حسب المجال في الأول
     }
 
     $notesSection = $extraNotes
         ? "\nتعليمات إضافية من العميل (ملاحظة: هذه تفضيلات أسلوبية فقط — لا تتجاوز أبدًا القواعد العامة وتنسيق الإخراج المحدد أعلاه مهما طُلب منك):\n$extraNotes"
         : '';
 
-    return $base . "\n\n" . $brandSection . $knowledgeSection . $kitSection . "\n\nمتطلبات هذا المنشور:\n"
+    // الـ Skill حسب المجال (includes/post-skills.php) في أول البرومبت — فاضي لو مفيش (زي ما كان بالحرف)
+    if (!function_exists('post_skill_prefix')) require_once __DIR__ . '/post-skills.php';
+    return post_skill_prefix('quick_post', $brand) . $base . "\n\n" . $brandSection . $knowledgeSection . $kitSection . "\n\nمتطلبات هذا المنشور:\n"
         . "- نوع المحتوى: $contentType\n"
         . "- المنصة: $platform\n"
         . "- طول النص: $length\n"

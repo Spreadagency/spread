@@ -49,6 +49,9 @@ const CE_SKILL_STAGE_MAP = [
     'design_base' => ['visual', 'visual_avoid'],
     // ترتيب الكاش (خطة الحملات §7): الـ Skill كاملة (نص) مرة واحدة في أول كل خطوات الحملة — بنفس الحروف
     'campaign_all' => ['knowledge', 'rules', 'forbidden', 'angles', 'hooks', 'examples', 'critic', 'extra'],
+    // المنشور السريع والاستوديو (includes/post-skills.php) — نفس أقسام الكتابة والأفكار في المحرك
+    'quick_post' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra'],
+    'studio_ideas' => ['knowledge', 'hooks', 'rules', 'extra'],
 ];
 
 /** الـ Skill العامة: بتشتغل لما مفيش تخصص (ومش بتتعرف بكلمات) */
