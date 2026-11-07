@@ -280,7 +280,8 @@ function prompt_feedback_text(int $uid): string
 /** [LEARNINGS] في الرد ← تتحفظ في ذاكرة البراند وتتشال من الرد */
 function prompt_capture_learnings(int $uid, string $response, string $source): string
 {
-    if (!preg_match('/\[LEARNINGS\](.*?)(\[\/LEARNINGS\]|$)/su', $response, $m)) return $response;
+    // مش مقفول ← لحد التاج اللي بعده (مش آخر الرد) — كان بيمسح التقييم أو التاجات اللي بعده
+    if (!preg_match('/\[LEARNINGS\](.*?)(\[\/LEARNINGS\]|(?=\[[A-Z_]{3,}\])|$)/su', $response, $m)) return $response;
     if ($uid > 0) prompt_learnings_add($uid, preg_split('/\R/u', trim($m[1])), $source);
     return trim(str_replace($m[0], '', $response));
 }

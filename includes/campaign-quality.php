@@ -43,36 +43,61 @@ function campaign_self_eval_instructions(): string
 {
     $keys = array_keys(CAMP_SELF_WEIGHTS);
     $lines = array_map(fn($k) => '- ' . $k . ': ' . CAMP_SELF_LABELS[$k], $keys);
-    return "\n\nبعد المحتوى، قيّم اللي كتبته بصراحة كأنك مراجع صارم مش كاتبه (الدرجة العالية من غير سبب بتبوّظ الحملة):\n"
+    // مهم: التقييم «إضافة» في الآخر — مش بديل عن أي تاج (فكرة التصميم والشرائح كانت بتقع لما الموديل يبدأ بالتقييم)
+    return "\n\nبعد ما تكتب كل التاجات المطلوبة فوق كاملة وبالترتيب (ماتشيلش ولا تختصر ولا واحد منهم — خصوصًا [DESIGN_IDEA] و[SLIDES] لو مطلوبين)، "
+        . "ضيف في الآخر خالص تقييمك للي كتبته بصراحة كأنك مراجع صارم مش كاتبه:\n"
         . implode("\n", $lines) . "\n"
-        . "كل معيار من 100. issues = المشاكل الحقيقية بالظبط (فاضية لو مفيش). fix = التعديل اللي يرفع الدرجة في جملة.\n"
-        . "اكتبه في الآخر بالشكل ده بالظبط (JSON في سطر واحد):\n"
+        . "كل معيار رقم من 100. issues = المشاكل الحقيقية بالظبط (فاضية لو مفيش). fix = التعديل اللي يرفع الدرجة في جملة.\n"
+        . "بالشكل ده بالظبط في سطر واحد، واقفل التاج:\n"
         . '[SELF_EVAL]{"criteria":{"hook":0,"audience_fit":0,"value":0,"trust":0,"cta_business":0},"issues":["…"],"fix":"…"}[/SELF_EVAL]';
 }
 
 /** التقييم الذاتي من الرد ← null لو ناقص أو مكسور */
 function campaign_parse_self_eval(string $response): ?array
 {
-    if (!preg_match('/\[SELF_EVAL\](.*?)\[\/SELF_EVAL\]/su', $response, $m)) return null;
-    $raw = trim($m[1]);
-    $raw = preg_replace('/^```(?:json)?|```$/u', '', $raw);
-    $j = json_decode(trim((string) $raw), true);
-    if (!is_array($j) || !is_array($j['criteria'] ?? null)) return null;
+    // مقفول أو لأ (الموديل ساعات بينسى [/SELF_EVAL]) — وبناخد الـ JSON من أول { لآخر }
+    if (!preg_match('/\[SELF_EVAL\](.*?)(\[\/SELF_EVAL\]|$)/su', $response, $m)) return null;
+    $raw = (string) $m[1];
+    $a = strpos($raw, '{');
+    $b = strrpos($raw, '}');
+    if ($a === false || $b === false || $b <= $a) return null;
+    $j = json_decode(substr($raw, $a, $b - $a + 1), true);
+    if (!is_array($j)) return null;
+    $cr = is_array($j['criteria'] ?? null) ? $j['criteria'] : $j;   // بعض الموديلات بتحط المعايير برّه criteria
     $crit = [];
     foreach (CAMP_SELF_WEIGHTS as $k => $_) {
-        $v = $j['criteria'][$k] ?? null;
+        $v = $cr[$k] ?? null;
         if (is_array($v)) $v = $v['score'] ?? null;
+        if (is_string($v) && preg_match('/\d+(?:\.\d+)?/', strtr($v, ['٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']), $d)) $v = $d[0];
         if (!is_numeric($v)) return null;
         $crit[$k] = max(0, min(100, (int) round((float) $v)));
     }
-    $issues = array_values(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 200), array_filter((array) ($j['issues'] ?? []), 'is_scalar'))));
+    $iss = $j['issues'] ?? [];
+    if (is_string($iss)) $iss = preg_split('/\R|·|؛/u', $iss);
+    $issues = array_values(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 200), array_filter((array) $iss, 'is_scalar'))));
     return ['criteria' => $crit, 'issues' => array_slice($issues, 0, 6), 'fix' => mb_substr(trim((string) ($j['fix'] ?? '')), 0, 300)];
 }
 
 /** الرد من غير بلوك التقييم (علشان مايدخلش في النص) */
 function campaign_strip_self_eval(string $response): string
 {
-    return trim(preg_replace('/\[SELF_EVAL\].*?(\[\/SELF_EVAL\]|$)/su', '', $response));
+    $r = preg_replace('/\[SELF_EVAL\].*?\[\/SELF_EVAL\]/su', '', $response);
+    // مش مقفول: بنشيل سطر التقييم بس — مش كل اللي بعده (كان بيمسح فكرة التصميم والشرائح لو جم بعده)
+    $r = preg_replace('/\[SELF_EVAL\][^\n]*\n?/u', '', (string) $r);
+    return trim((string) $r);
+}
+
+/** التاجات الأساسية اللي ناقصة من الرد (الكاروسيل من غير شرائح · غير الفيديو من غير فكرة تصميم) */
+function campaign_content_missing(array $p, string $fmt): array
+{
+    $miss = [];
+    if ($fmt === 'carousel') {
+        $n = 0;
+        foreach (preg_split('/\n+/u', (string) ($p['slides_raw'] ?? '')) as $l) if (trim($l) !== '') $n++;
+        if ($n < 2) $miss[] = '[SLIDES]';
+    }
+    if ($fmt !== 'video' && trim((string) ($p['design'] ?? '')) === '') $miss[] = '[DESIGN_IDEA]';
+    return $miss;
 }
 
 function campaign_text_norm(string $s): string
@@ -230,20 +255,45 @@ function campaign_write_with_eval(callable $prompt, callable $call, callable $pa
     [$ai, $p, $se] = $run($extra, false);
     if (!$p) return ['ok' => false, 'p' => null, 'ai' => $ai, 'eval' => null, 'calls' => $calls, 'improved' => 0, 'usage' => $usage,
                      'error' => !empty($ai['ok']) ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد')];
-    // التقييم مارجعش مظبوط ← إعادة مرة واحدة والخطأ في البرومبت
-    if (!$se) {
-        [$ai2, $p2, $se2] = $run(trim($extra . "\n\nالرد اللي فات كان ناقص [SELF_EVAL] أو الـ JSON بتاعه مكسور — لازم يرجع كامل بالشكل المطلوب."), false);
-        if ($p2 && $se2) [$ai, $p, $se] = [$ai2, $p2, $se2];
+    // الرد ناقص (التقييم · الشرائح · فكرة التصميم) ← إعادة مرة واحدة والناقص مكتوب في البرومبت
+    $miss = campaign_content_missing($p, $fmt);
+    if (!$se || $miss) {
+        $what = array_merge($miss, $se ? [] : ['[SELF_EVAL]']);
+        [$ai2, $p2, $se2] = $run(trim($extra . "\n\nالرد اللي فات كان ناقص: " . implode(' · ', $what) . " — لازم كل التاجات ترجع كاملة بالشكل المطلوب."), false);
+        if ($p2) {
+            $miss2 = campaign_content_missing($p2, $fmt);
+            // الأحسن: اللي ناقصه أقل (والتقييم بيفرق في التعادل)
+            if (count($miss2) < count($miss) || (count($miss2) === count($miss) && $se2 && !$se)) [$ai, $p, $se, $miss] = [$ai2, $p2, $se2 ?: $se, $miss2];
+            elseif (!$se && $se2 && $miss2 === $miss) $se = $se2;
+        }
+    }
+    // التقييم لسه مارجعش ← التقييم المنفصل (طلب صغير) بدل ما المنشور يفضل من غير مراجعة
+    $fallback = false;
+    if (!$se && isset($o['fallback_eval']) && is_callable($o['fallback_eval'])) {
+        $fb = ($o['fallback_eval'])($p);
+        $calls++;
+        if (is_array($fb) && !empty($fb['cats'])) {
+            $cats = array_values($fb['cats']);
+            $k = 0;
+            $crit = [];
+            // المعايير القديمة (من الأدمن) ← المتوسط على المعايير الخمسة
+            $avg = (int) round(array_sum($cats) / max(1, count($cats)));
+            foreach (CAMP_SELF_WEIGHTS as $ck => $_) $crit[$ck] = isset($cats[$k]) ? max(0, min(100, (int) $cats[$k++])) : $avg;
+            $se = ['criteria' => $crit, 'issues' => array_filter([(string) ($fb['issues'] ?? '')]), 'fix' => ''];
+            $fallback = true;
+        }
     }
     $chk = $o + ['fmt' => $fmt];
     $eval = campaign_self_score($se, campaign_code_check($p, $chk), $uid);
+    if ($fallback) $eval['fallback'] = true;
+    if ($miss) $eval['notes'] = array_values(array_unique(array_merge($eval['notes'] ?? [], ['الرد ناقص: ' . implode(' · ', $miss)])));
 
     $improved = 0;
     $rounds = isset($o['rounds']) ? max(0, min(2, (int) $o['rounds'])) : campaign_auto_rounds($uid);
     while (!$eval['pass'] && empty($eval['missing']) && $improved < $rounds) {
         [$aiI, $pI, $seI] = $run(campaign_improve_extra($p, $eval, $fmt), true);
         $improved++;
-        if (!$pI || !$seI) continue;
+        if (!$pI || !$seI || count(campaign_content_missing($pI, $fmt)) > count($miss)) continue;   // التحسين مايضيّعش الشرائح أو فكرة التصميم
         $evI = campaign_self_score($seI, campaign_code_check($pI, $chk), $uid);
         // النسخة الجديدة بتكسب لو مخالفاتها أقل، أو نفس المخالفات ودرجتها مش أقل
         if (count($evI['flags']) < count($eval['flags']) || (count($evI['flags']) === count($eval['flags']) && $evI['score'] >= $eval['score'])) {

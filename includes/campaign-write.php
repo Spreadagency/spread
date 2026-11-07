@@ -121,7 +121,8 @@ function campaign_write_idea(int $uid, array $c, array $i, array $o = []): array
     // Brand Kit: بريف البوست من الفكرة (خدمة · موضوع · اتجاه) + شكلها — والباقي من الهوية
     $bkO = cw_brief_overrides($uid, $i, $fmt, $old);
     $bkBrief = bk_enabled() ? BrandContext::brief($uid, $bkO) : null;
-    $__tok = $fmt === 'carousel' ? 2600 : 1800;
+    // الكتابة + التقييم في طلب واحد ← حد توكنز أعلى (الرد كان بيتقطع في الآخر: فكرة التصميم والشرائح)
+    $__tok = ($fmt === 'carousel' ? 2600 : 1800) + (campaign_write_mode() === 'single' ? 900 : 0);
     $__aiCtx = ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id']];
     $__parse = function (string $r) use ($uid, $fmt): ?array {
         $p = campaign_parse_content(BrandContext::stripWhy($r));
@@ -136,7 +137,8 @@ function campaign_write_idea(int $uid, array $c, array $i, array $o = []): array
             fn(string $x) => campaign_content_prompt($brand, $c, $i, trim($extra . ($x !== '' ? "\n\n" . $x : '')), $fmt, $slides, $dur, $bkBrief),
             fn(string $pr, bool $imp) => campaign_ai($pr, $__tok, $imp ? 'campaign_improve' : 'campaign_content', $__aiCtx + ($imp ? ['temperature' => 0.7] : [])),
             $__parse,
-            ['fmt' => $fmt, 'slides' => $slides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => $old ? (int) $old['id'] : 0]);
+            ['fmt' => $fmt, 'slides' => $slides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => $old ? (int) $old['id'] : 0,
+             'fallback_eval' => cw_fallback_eval($uid, $brand, $c, $i, $fmt, $slides)]);
         $ai = $__w['ai'];
         $p = $__w['p'];
         $__eval = $__w['eval'];
@@ -222,4 +224,17 @@ function cw_ideas_batch(int $uid, array $c, array $brand, int $n, int $batch, ar
              $fmt, $fmt === 'carousel' ? carousel_limits()[2] : null]);
     }
     return ['ok' => true, 'n' => min($n, count($ideas))];
+}
+
+/** التقييم المنفصل (زي زرار «قيّم» القديم) — بيتنده بس لو التقييم مارجعش مع الكتابة */
+function cw_fallback_eval(int $uid, array $brand, array $c, array $i, string $fmt, int $slides): callable
+{
+    return function (array $p) use ($uid, $brand, $c, $i, $fmt, $slides): ?array {
+        $content = ['generated_text' => campaign_compose_text((string) $p['hook'], (string) $p['body']), 'format' => $fmt, 'cta' => (string) ($p['cta'] ?? ''),
+                    'slides_count' => $slides, 'slides_json' => $fmt === 'carousel' ? json_encode(campaign_parse_slides((string) ($p['slides_raw'] ?? ''), $slides), JSON_UNESCAPED_UNICODE) : null,
+                    'video_brief_json' => null];
+        $ai = campaign_ai(campaign_eval_prompt($brand, $c, $i, $content), 900, 'campaign_eval',
+            ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id'], 'temperature' => 0.3, 'json_mode' => true]);
+        return !empty($ai['ok']) ? campaign_parse_eval((string) $ai['response']) : null;
+    };
 }

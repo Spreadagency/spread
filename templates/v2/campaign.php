@@ -300,6 +300,7 @@
                         <b>{{ cur().eval.missing ? '⚠ التقييم مارجعش — راجع المنشور بنفسك' : (cur().eval.ready ? '⭐ ' + cur().eval.score + '/100 — جاهز للتصميم' : '⚠ ' + cur().eval.score + '/100 — محتاج مراجعة (الحد ' + cur().eval.pass_total + ')') }}</b>
                         <small class="cf-muted" v-if="cur().eval.auto_improved"> · اتحسّن لوحده {{ cur().eval.auto_improved }} مرة</small>
                         <div class="cf-muted" style="font-size:13px;margin-top:4px" v-if="cur().eval.issues">{{ cur().eval.issues }}</div>
+                        <button type="button" class="cf-btn soft sm" style="margin-top:6px" v-if="cur().eval.missing" @click="evalOne(cur())" :disabled="bulk.on">قيّمه دلوقتي ✨</button>
                     </div>
                     <div class="cf-split">
                         <div class="cf-tabs" role="tablist" v-if="cur() && modesFor(cur()).length > 1">
@@ -977,7 +978,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ── المراحل ── */
     // الكتابة + التقييم في طلب واحد ← خطوة «التقييم» لوحدها مالهاش لازمة (التقييم جنب كل منشور في «المحتوى»)
-    stepList: function () { return this.writeMode === 'single' ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; },
+    // (حملة كانت واقفة على «التقييم» قبل التحديث ← الخطوة بتفضل ظاهرة لها علشان تكمّل منها)
+    stepList: function () { return this.writeMode === 'single' && this.c.stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; },
     nextStep: function (s, d) { var l = this.stepList(), k = l.indexOf(s); if (k < 0) return s + d; return l[Math.max(0, Math.min(l.length - 1, k + d))]; },
     canGo: function (n) { return n <= this.c.max_stage + 1 && n >= 1 && !(n > 1 && !this.health.unlocked && n !== this.c.stage); },
     stepCls: function (n) { return { on: this.c.stage === n, done: n <= this.c.max_stage && n !== this.c.stage, locked: !this.canGo(n) }; },
@@ -1230,10 +1232,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* ── ③ التقييم ── */
     evalCount: function (k) {
-      return this.withContent().filter(function (i) { return k === 'none' ? !i.eval : (i.eval && (k === 'ready' ? i.eval.ready : !i.eval.ready)); }).length;
+      return this.withContent().filter(function (i) { return k === 'none' ? (!i.eval || !!i.eval.missing) : (i.eval && !i.eval.missing && (k === 'ready' ? i.eval.ready : !i.eval.ready)); }).length;
+    },
+    async evalOne(i) {
+      var self = this;
+      await this.runBulk([i], 'بيقيّم', MSG.eval, async function (x) {
+        var r = await SpreadAPI.post('campaign-flow', 'evaluate', { id: self.c.id, idea_id: x.id });
+        if (r.ok) self.putIdea(r.idea);
+        return r;
+      });
     },
     async runEval() {
-      var self = this, list = this.withContent().filter(function (i) { return !i.eval; });
+      // + المنشورات اللي تقييمها مارجعش مع الكتابة (eval.missing) — التقييم المنفصل
+      var self = this, list = this.withContent().filter(function (i) { return !i.eval || i.eval.missing; });
       await this.runBulk(list, 'بيقيّم', MSG.eval, async function (i) {
         self.running[i.id] = true;
         var r = await SpreadAPI.post('campaign-flow', 'evaluate', { id: self.c.id, idea_id: i.id });

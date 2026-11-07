@@ -190,7 +190,7 @@ if (isset($content)) {
     // الحملات القديمة · خطة الحملات §5: المنشور بالتاجات + [SELF_EVAL] في نفس الرد
     // SE_LOW (أول كتابة ضعيفة) · SE_ALWAYS_LOW · SE_MISSING (من غير تقييم دايمًا) · SE_NOEVAL_ONCE · SE_FORBIDDEN (وعد ممنوع أول مرة) · SE_NOCTA (من غير CTA أول مرة)
     $imp = str_contains($text, 'تحسين تلقائي');
-    $retry = str_contains($text, 'كان ناقص [SELF_EVAL]');
+    $retry = (bool) preg_match('/كان ناقص:?[^\n]*\[SELF_EVAL\]/u', $text);
     $low = ($has('SE_LOW') && !$imp) || $has('SE_ALWAYS_LOW');
     $n = preg_match_all('/^شريحة (\d+) \|/mu', $text, $sm) ? count($sm[1]) : 0;
     $content = "[HOOK]\nبتأجل الكشف ليه؟ " . random_int(100, 999) . "\n[/HOOK]\n\n[CONTENT]\nابتسامتك تستاهل اهتمام. في عيادتنا تعقيم كامل ومواعيد مرنة وخطة علاج واضحة بالسعر قبل ما نبدأ، والكشف بياخد دقايق."
@@ -199,11 +199,19 @@ if (isset($content)) {
         . ($n ? "[SLIDES]\n" . implode("\n", array_map(fn($k) => "شريحة $k | عنوان $k | نص قصير للشريحة $k | تصميم $k", range(1, $n))) . "\n[/SLIDES]\n\n" : '')
         . (str_contains($text, '[SCRIPT]') ? "[SCRIPT]\nمشهد 1 (0–3ث): دكتور بيبتسم + «بتأجل الكشف؟»\nمشهد 2 (3–10ث): العيادة\n[/SCRIPT]\n\n[SHOOT]\nفي العيادة بإضاءة طبيعية\n[/SHOOT]\n\n" : '')
         . "[DESIGN_IDEA]\nتصميم نضيف بألوان البراند وعنوان كبير\n[/DESIGN_IDEA]\n\n[IMAGE_PROMPT]\nclean dental clinic social post\n[/IMAGE_PROMPT]";
+    // SE_UNCLOSED: التقييم في النص ومن غير [/SELF_EVAL] · SE_FIRST: التقييم قبل المنشور · SE_NOSLIDES/SE_NODESIGN: أول رد ناقص · LEARN_OPEN: [LEARNINGS] مش مقفول
+    $retryAny = str_contains($text, 'الرد اللي فات كان ناقص');
+    if ($has('SE_NOSLIDES') && !$retryAny) $content = preg_replace('/\[SLIDES\].*?\[\/SLIDES\]\n*/su', '', $content);
+    if ($has('SE_NODESIGN') && !$retryAny) $content = preg_replace('/\[DESIGN_IDEA\].*?\[\/DESIGN_IDEA\]\n*/su', '', $content);
     if (!$has('SE_MISSING') && !($has('SE_NOEVAL_ONCE') && !$retry)) {
         $v = $low ? 55 : 92;
-        $content .= "\n\n[SELF_EVAL]" . json_encode(['criteria' => ['hook' => $v, 'audience_fit' => $v, 'value' => $v, 'trust' => $v, 'cta_business' => $v],
-            'issues' => $low ? ['الـ Hook ضعيف'] : [], 'fix' => $low ? 'ابدأ بسؤال من واقع العميل' : ''], JSON_UNESCAPED_UNICODE) . '[/SELF_EVAL]';
+        $se = '[SELF_EVAL]' . json_encode(['criteria' => ['hook' => $v, 'audience_fit' => $v, 'value' => $v, 'trust' => $v, 'cta_business' => $v],
+            'issues' => $low ? ['الـ Hook ضعيف'] : [], 'fix' => $low ? 'ابدأ بسؤال من واقع العميل' : ''], JSON_UNESCAPED_UNICODE);
+        if ($has('SE_UNCLOSED')) $content = str_replace('[DESIGN_IDEA]', $se . "\n\n[DESIGN_IDEA]", $content);
+        elseif ($has('SE_FIRST')) $content = $se . "[/SELF_EVAL]\n\n" . $content;
+        else $content .= "\n\n" . $se . '[/SELF_EVAL]';
     }
+    if ($has('LEARN_OPEN')) $content = str_replace('[HASHTAGS]', "[LEARNINGS]\n- العميل بيحب الإيموجي\n\n[HASHTAGS]", $content);
 } elseif (preg_match('/PROMPT\s*:|ARABIC_TEXT|design_base|برومبت الصورة|image prompt/iu', $text)) {
     // كاتب برومبت التصميم (القديم): شكل النص اللي generate-design.php بيقراه
     $content = "PROMPT: A clean modern social media design for a dental clinic, brand blue and teal palette, bold Arabic headline at the top, friendly smiling patient, CTA button at the bottom.\n"
@@ -211,7 +219,7 @@ if (isset($content)) {
 } elseif ($wantsJson) {
     $content = json_encode(['ok' => true, 'title' => 'عنوان تجريبي', 'text' => 'نص تجريبي من الخادم الوهمي', 'ideas' => [
         ['title' => 'فكرة 1', 'hook' => 'بداية قوية', 'format' => 'post'], ['title' => 'فكرة 2', 'hook' => 'سؤال', 'format' => 'carousel']],
-        'score' => 85, 'issues' => '', 'summary' => 'تمام'], JSON_UNESCAPED_UNICODE);
+        'score' => 85, 'cats' => [84, 86, 85, 83, 87, 85], 'issues' => 'التقييم المنفصل', 'comment' => 'تمام', 'summary' => 'تمام'], JSON_UNESCAPED_UNICODE);
 } else {
     $content = "ابتسامتك تستاهل اهتمام 😁\nفي عيادتنا هتلاقي تعقيم كامل ومواعيد مرنة.\nاحجز كشفك النهارده وابعتلنا على واتساب.\n#ابتسامة #أسنان";
 }

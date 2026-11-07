@@ -27,6 +27,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     redirect('admin/users.php');
 }
 
+// ⭐ «عملاء بنديرهم»: بيظهروا الأول + فلتر ليهم
+require_once __DIR__ . '/../includes/managed-clients.php';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'toggle_managed') {
+    require_csrf();
+    $uid = (int) ($_POST['uid'] ?? 0);
+    if ($uid > 0 && db_one('SELECT id FROM users WHERE id = ?', [$uid])) {
+        $on = !mc_is($uid);
+        mc_set($uid, $on);
+        admin_log($on ? 'managed_on' : 'managed_off', 'user', $uid, null);
+        flash_set('success', $on ? 'اتضاف لـ «عملاء بنديرهم» ⭐' : 'اتشال من «عملاء بنديرهم»');
+    }
+    redirect('admin/users.php' . (!empty($_GET) ? '?' . http_build_query($_GET) : ''));
+}
+
 // 8-ب: قواعد مؤشرات صحة العميل
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'health_rules') {
     require_csrf();
@@ -67,6 +81,9 @@ if ($q !== '') {
 if ($status === 'active') $where .= " AND u.status = 'active'";
 if ($status === 'inactive') $where .= " AND u.status IN ('inactive', 'blocked')";
 if ($status === 'unverified') $where .= ' AND u.email_verified_at IS NULL';
+$managed = !empty($_GET['managed']);
+$mcCsv = mc_csv();   // أرقام بس (int) — آمنة جوه SQL
+if ($managed) $where .= " AND FIND_IN_SET(u.id, '$mcCsv')";
 
 // 8-ب: الباقة والاستهلاك ومؤشرات الصحة (بقواعد معلنة)
 $plansOn = function_exists('plans_ready') && plans_ready();
@@ -128,11 +145,12 @@ $total = $health ? $hCounts[$health] : (int) ($agg['total'] ?? 0);
 $totalPages = max(1, (int) ceil($total / $perPage));
 
 if ($health) {
-    $users = db_all("SELECT * FROM ($outerAll) f WHERE {$hWhere[$health]} ORDER BY id DESC LIMIT $perPage OFFSET $offset", $params);
+    $users = db_all("SELECT * FROM ($outerAll) f WHERE {$hWhere[$health]} ORDER BY FIND_IN_SET(id, '$mcCsv') > 0 DESC, id DESC LIMIT $perPage OFFSET $offset", $params);
 } else {
     // من غير فلتر صحة: هات أرقام الصفحة الأول، واحسب الاستهلاك ليهم بس
-    $ids = array_map('intval', array_column(db_all("SELECT u.id FROM users u WHERE $where ORDER BY u.id DESC LIMIT $perPage OFFSET $offset", $params), 'id'));
-    $users = $ids ? db_all('SELECT * FROM (' . str_replace('{IDS}', 'AND u.id IN (' . implode(',', $ids) . ')', $outer) . ') f ORDER BY id DESC', $params) : [];
+    // ⭐ «عملاء بنديرهم» الأول
+    $ids = array_map('intval', array_column(db_all("SELECT u.id FROM users u WHERE $where ORDER BY FIND_IN_SET(u.id, '$mcCsv') > 0 DESC, u.id DESC LIMIT $perPage OFFSET $offset", $params), 'id'));
+    $users = $ids ? db_all('SELECT * FROM (' . str_replace('{IDS}', 'AND u.id IN (' . implode(',', $ids) . ')', $outer) . ") f ORDER BY FIND_IN_SET(id, '$mcCsv') > 0 DESC, id DESC", $params) : [];
 }
 
 // المؤشرات الكاملة (بما فيها حصص الخدمات) للصفوف الظاهرة بس
@@ -200,8 +218,9 @@ include __DIR__ . '/../templates/admin-header.php';
                 <option value="inactive" <?= $status === 'inactive' ? 'selected' : '' ?>>معطّل</option>
                 <option value="unverified" <?= $status === 'unverified' ? 'selected' : '' ?>>لم يفعّل البريد</option>
             </select>
+            <label class="a2-row" style="gap:6px;flex-wrap:nowrap;white-space:nowrap"><input type="checkbox" name="managed" value="1" <?= $managed ? 'checked' : '' ?> onchange="this.form.submit()"> ⭐ عملاء بنديرهم (<?= count(mc_ids()) ?>)</label>
             <button class="btn">بحث</button>
-            <?php if ($q !== '' || $status !== '' || $health !== ''): ?><a class="btn ghost" href="<?= url('admin/users.php') ?>">مسح</a><?php endif; ?>
+            <?php if ($q !== '' || $status !== '' || $health !== '' || $managed): ?><a class="btn ghost" href="<?= url('admin/users.php') ?>">مسح</a><?php endif; ?>
         </form>
 
         <div class="card" style="padding:0">
@@ -215,7 +234,7 @@ include __DIR__ . '/../templates/admin-header.php';
                         <td>
                             <a class="a2-row" style="gap:10px;flex-wrap:nowrap;color:inherit" href="<?= url('admin/user-view.php?id=' . $uid) ?>">
                                 <span class="avi" style="background:<?= e(color_from_string($u['email'])) ?>;flex-shrink:0"><?= e(initials($u['name'])) ?></span>
-                                <span style="min-width:0"><b><?= e($u['name']) ?></b>
+                                <span style="min-width:0"><?= mc_is($uid) ? '<span title="عميل بنديره">⭐</span> ' : '' ?><b><?= e($u['name']) ?></b>
                                     <?php if (empty($u['email_verified_at'])): ?> <span class="chip chip-amber">لم يفعّل</span><?php elseif ($u['status'] !== 'active'): ?> <span class="chip chip-coral">معطّل</span><?php endif; ?>
                                     <span class="a2-muted" style="display:block;font-size:12px" dir="ltr"><?= e($u['email']) ?></span></span>
                             </a>
@@ -234,6 +253,8 @@ include __DIR__ . '/../templates/admin-header.php';
                                 <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="quick_verify"><input type="hidden" name="uid" value="<?= $uid ?>">
                                     <button class="btn sm soft" title="تفعيل البريد" onclick="return confirm(<?= js_str('تفعيل بريد ' . $u['email'] . '؟') ?>)">✓ تفعيل</button></form>
                             <?php endif; ?>
+                            <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_managed"><input type="hidden" name="uid" value="<?= $uid ?>">
+                                <button class="btn sm ghost" title="<?= mc_is($uid) ? 'شيله من «عملاء بنديرهم»' : 'ضيفه لـ «عملاء بنديرهم» (بيظهر الأول)' ?>"><?= mc_is($uid) ? '★' : '☆' ?></button></form>
                             <a href="<?= url('admin/user-view.php?id=' . $uid) ?>" class="btn sm">الملف</a>
                             <?php if (admin_can('impersonate')): ?><a href="<?= url('admin/impersonate.php?user_id=' . $uid) ?>" class="btn sm ghost" title="ادخل بحسابه وساعده">👁</a><?php endif; ?>
                             <?php if (admin_can('delete_user')): ?>

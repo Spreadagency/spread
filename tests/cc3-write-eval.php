@@ -190,12 +190,34 @@ t('بعد التحسين الـ CTA رجع والمنشور عدّى', !empty($e
 echo "الرد المكسور\n";
 [, $iid, $c, , $reqs] = $gen('SE_NOEVAL_ONCE');
 $row = $idea($iid);
-t('التقييم مارجعش ← إعادة مرة والخطأ في البرومبت ← تمام', $c === 200 && count($reqs) === 2 && str_contains($reqs[1] ?? '', 'كان ناقص [SELF_EVAL]') && (int) $row['eval_score'] === 92,
+t('التقييم مارجعش ← إعادة مرة والخطأ في البرومبت ← تمام', $c === 200 && count($reqs) === 2 && str_contains($reqs[1] ?? '', 'كان ناقص: [SELF_EVAL]') && (int) $row['eval_score'] === 92,
     $c . ' · ' . count($reqs) . ' · ' . json_encode($row['eval_score']) . ' · ' . (int) str_contains($reqs[1] ?? '', 'كان ناقص'));
 [$cid, $iid, $c, , $reqs] = $gen('SE_MISSING');
 $row = $idea($iid);
 $e = $evj($row);
-t('مارجعش تاني ← المنشور اتحفظ و«محتاج مراجعة» من غير درجة', $c === 200 && count($reqs) === 2 && $row['content_id'] && $row['eval_score'] === null && !empty($e['missing']) && (int) $row['approved'] === 0);
+t('مارجعش تاني ← التقييم المنفصل (طلب صغير) بدل ما المنشور يفضل من غير مراجعة', $c === 200 && count($reqs) >= 2 && $row['content_id'] && (int) $row['eval_score'] === 85 && !empty($e['fallback']),
+    json_encode([$c, count($reqs), $row['eval_score'], $e['fallback'] ?? null]));
+
+/* ─── 5ب) ردود الموديلات الحقيقية: تقييم مش مقفول · التقييم في الأول · شرائح أو فكرة تصميم ناقصة · [LEARNINGS] مفتوح ─── */
+echo "ردود ناقصة أو متلخبطة\n";
+$cnt = fn(int $iid) => db_one('SELECT c.* FROM campaign_ideas i JOIN contents c ON c.id = i.content_id WHERE i.id = ?', [$iid]) ?: [];
+foreach (['SE_UNCLOSED' => 'تقييم من غير [/SELF_EVAL] في النص', 'SE_FIRST' => 'التقييم قبل المنشور', 'LEARN_OPEN' => '[LEARNINGS] مش مقفول'] as $mk => $lbl) {
+    [, $iidX, $cX] = $gen($mk);
+    $co = $cnt($iidX);
+    t($lbl . ' ← فكرة التصميم والتقييم سليمين', $cX === 200 && trim((string) ($co['design_direction'] ?? '')) !== '' && (int) $idea($iidX)['eval_score'] === 92
+        && !str_contains((string) ($co['generated_text'] ?? ''), 'SELF_EVAL') && !str_contains((string) ($co['generated_text'] ?? ''), 'LEARNINGS'),
+        json_encode([$cX, $co['design_direction'] ?? null, $idea($iidX)['eval_score']], JSON_UNESCAPED_UNICODE));
+}
+[, $iidD, $cD, , $reqsD] = $gen('SE_NODESIGN');
+t('فكرة التصميم ناقصة ← إعادة مرة والناقص مكتوب ← اتكتبت', $cD === 200 && count($reqsD) === 2 && str_contains($reqsD[1] ?? '', '[DESIGN_IDEA]') && trim((string) ($cnt($iidD)['design_direction'] ?? '')) !== '');
+[$cidK, $iidK] = $camp('SE_NOSLIDES');
+db_run('UPDATE campaign_ideas SET format = "carousel", slides_count = 4 WHERE id = ?', [$iidK]);
+$offK = $logSize();
+[$cK] = $api(['action' => 'content_generate', 'id' => $cidK, 'idea_id' => $iidK]);
+$reqsK = mock_texts($offK, "فكرة $code SE_NOSLIDES");
+$slK = json_decode((string) ($cnt($iidK)['slides_json'] ?? ''), true) ?: [];
+t('الكاروسيل من غير شرائح ← إعادة مرة ← الشرائح اتكتبت', $cK === 200 && count($reqsK) === 2 && str_contains($reqsK[1] ?? '', '[SLIDES]') && count(array_filter($slK, fn($x) => trim((string) ($x['text'] ?? '')) !== '')) >= 2,
+    json_encode([$cK, count($reqsK), $slK], JSON_UNESCAPED_UNICODE));
 
 /* ─── 6) زرار «حسّن» من العميل ─── */
 echo "زرار «حسّن»\n";

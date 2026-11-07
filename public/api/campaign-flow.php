@@ -439,7 +439,7 @@ switch ($action) {
         }
         if ($ifmt === 'video') $extra .= "\nالسكريبت الحالي:\n" . mb_substr(video_script_text(video_brief($content)), 0, 2000);
         $bkBrief = bk_enabled() ? bk_brief_for_content($content, $uid) : null;
-        $__iCall = fn(string $pr) => campaign_ai($pr, $ifmt === 'carousel' ? 2600 : 1800, 'campaign_improve',
+        $__iCall = fn(string $pr) => campaign_ai($pr, ($ifmt === 'carousel' ? 2600 : 1800) + (campaign_write_mode() === 'single' ? 900 : 0), 'campaign_improve',
             ['user_id' => $uid, 'reference_type' => 'campaign_idea', 'reference_id' => (int) $i['id'], 'temperature' => 0.7]);
         $__iPrompt = fn(string $x) => campaign_content_prompt($brand, $c, $i, trim($extra . ($x !== '' ? "\n\n" . $x : '')), $ifmt, $islides, video_brief($content)['duration'], $bkBrief, $impTask);
         $__ieval = null;
@@ -447,7 +447,8 @@ switch ($action) {
             // زرار «حسّن» من العميل: نفس الطلب الواحد (كتابة + تقييم) من غير تحسين تلقائي فوقه
             $__w = campaign_write_with_eval($__iPrompt, fn(string $pr, bool $imp) => $__iCall($pr),
                 function (string $r) use ($uid): array { $p = campaign_parse_content(BrandContext::stripWhy($r)); foreach (['hook', 'body', 'cta', 'script', 'tags'] as $__k) $p[$__k] = BrandContext::enforce((string) $p[$__k], $uid); return $p; },
-                ['fmt' => $ifmt, 'slides' => $islides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => (int) $content['id'], 'rounds' => 0]);
+                ['fmt' => $ifmt, 'slides' => $islides, 'brand' => $brand, 'skill' => campaign_skill($brand, $c), 'uid' => $uid, 'except' => (int) $content['id'], 'rounds' => 0,
+                 'fallback_eval' => cw_fallback_eval($uid, $brand, $c, $i, $ifmt, $islides)]);
             $ai = $__w['ai'];
             $p = $__w['p'];
             $__ieval = $__w['eval'];
