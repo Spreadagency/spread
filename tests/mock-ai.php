@@ -162,6 +162,23 @@ if (preg_match('/CE:([a-z_]+)/', $text, $mm)) {
     }
 }
 
+// مسودة الهوية (Brand Kit) — صفحة «ابدأ» وزرار «املاها بالـ AI»
+if ($out === null && str_contains($text, 'ابني مسودة Brand Kit')) {
+    $out = [
+        'business' => ['name' => 'عيادة تجريبية', 'sector' => 'عيادة أسنان', 'location' => 'القاهرة', 'usp' => 'كشف من غير انتظار', 'price_range' => ''],
+        'audience' => ['description' => 'أسر وأطفال في القاهرة', 'age' => '25-45', 'gender' => 'الكل', 'pains' => ['الخوف من الألم'], 'objections' => ['السعر']],
+        'personality' => ['ودود', 'موثوق', 'بسيط'],
+        'voice' => ['formal_friendly' => 70, 'serious_fun' => 40, 'scientific_simple' => 75, 'dialect' => 'egyptian', 'emoji' => true, 'words_use' => ['ابتسامتك'], 'words_avoid' => [], 'sample_lines' => ['ابتسامتك تستاهل اهتمام.', 'تعالى نطمنك.']],
+        'pillars' => [['name' => 'توعية', 'percent' => 40], ['name' => 'خدمات', 'percent' => 40], ['name' => 'ثقة', 'percent' => 20]],
+        'content' => ['goal' => 'bookings', 'hooks' => ['question', 'tip'], 'caption_length' => 'medium', 'platforms' => ['facebook', 'instagram'], 'posts_per_month' => 12],
+        'visuals' => ['kind' => 'photo', 'light' => 'bright', 'people' => 'egyptian', 'places' => ['العيادة'], 'brand_color_in_photos' => 'subtle', 'avoid' => []],
+        'services' => [['name' => 'تبييض الأسنان', 'description' => 'جلسة تبييض آمنة', 'priority' => 'high']],
+        'topics' => ['إزاي تحافظ على أسنانك', 'أسئلة شائعة عن التبييض'],
+        'colors' => ['primary' => '#2B7A78', 'secondary' => '#3AAFA9', 'accent' => '#F4A261'],
+        'confidence' => ['business' => 0.9, 'audience' => 0.6, 'personality' => 0.7, 'voice' => 0.7, 'pillars' => 0.7, 'content' => 0.6, 'visuals' => 0.5, 'services' => 0.8],
+    ];
+}
+
 if ($out === null && preg_match('/ROLE:\s*SPREAD_AGENT/u', $text)) {
     if (preg_match('/نفذ|نفّذ|اعمل(ها)? دلوقتي/u', $lastUser)) {
         $out = ['reply' => 'تمام، هعمل حملة 3 قطع لخدماتك.', 'task' => ['goal' => 'awareness', 'goal_other' => '', 'services' => 'all', 'formats' => ['post' => 1, 'carousel' => 1, 'reel' => 1],

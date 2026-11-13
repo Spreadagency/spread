@@ -13,7 +13,7 @@ $balance = user_credits();
 
 if (!$brand || empty($brand['business_name'])) {
     flash_set('warning', 'كمّل بيانات هويتك الأساسية الأول علشان نقدر نولد محتوى مناسب');
-    redirect('brand-profile.php');
+    redirect(onb_enabled() ? 'start.php' : 'brand-profile.php');   // البداية السريعة: 3 خطوات بدل فورم الهوية
 }
 
 $cost = cost_for('content_generation_cost');
@@ -81,6 +81,8 @@ include __DIR__ . '/../templates/header.php';
                     <span class="chip chip-primary cr">◇ <?= $cost ?> كريدت</span>
                 </div>
 
+                <?php $__adv = onb_enabled() ? ' cc-adv' : '';   // الفورم البسيط (المرحلة 1): 3 حقول ظاهرة والباقي تحت «إعدادات أكتر» بنفس القيم الافتراضية ?>
+                <?php if ($__adv): ?><style>#create-form:not(.show-adv) .cc-adv { display: none; }</style><?php endif; ?>
                 <form id="create-form">
                     <?php if ($fromCampaign): ?>
                         <input type="hidden" name="campaign_id" value="<?= (int) $fromCampaign['id'] ?>">
@@ -108,7 +110,7 @@ include __DIR__ . '/../templates/header.php';
                             <input type="hidden" name="platform" value="both">
                         </div>
 
-                        <div class="field">
+                        <div class="field<?= $__adv ?>">
                             <label>طول النص</label>
                             <div class="seg">
                                 <button type="button" data-val="short" onclick="setSeg(this, 'length')">قصير</button>
@@ -119,7 +121,7 @@ include __DIR__ . '/../templates/header.php';
                         </div>
                     </div>
 
-                    <div class="field">
+                    <div class="field<?= $__adv ?>">
                         <label>نبرة الكلام</label>
                         <div class="seg">
                             <?php $__bkOn = is_file(__DIR__ . '/../includes/brand-kit.php') && (require_once __DIR__ . '/../includes/brand-kit.php') && bk_enabled();
@@ -156,14 +158,14 @@ include __DIR__ . '/../templates/header.php';
                     </div>
 
                     <div class="field">
-                        <label>تعليمات إضافية</label>
+                        <label><?= $__adv ? 'البوست عن إيه؟' : 'تعليمات إضافية' ?></label>
                         <textarea name="extra_notes" class="textarea auto" rows="3"
                                   placeholder="مثال: ركز على الخصم اللي قدره 30%، اذكر أسم العيادة في البداية..."></textarea>
                         <div class="field-help">اختياري — أي ملاحظات تحب الـ AI ياخدها في الاعتبار</div>
                     </div>
 
                     <!-- Image options -->
-                    <div class="field">
+                    <div class="field<?= $__adv ?>">
                         <label>إعدادات التصميم</label>
                         <div class="split split-flex" style="--c1:1fr;--c2:1fr;gap:8px">
                             <label class="checkbox">
@@ -177,6 +179,10 @@ include __DIR__ . '/../templates/header.php';
                         </div>
                     </div>
 
+                    <?php if ($__adv): ?>
+                        <button type="button" class="btn ghost sm" id="adv-toggle" style="margin-bottom:12px" aria-expanded="false"
+                                onclick="var f=document.getElementById('create-form'),o=f.classList.toggle('show-adv');this.setAttribute('aria-expanded',o);this.textContent=o?'إخفاء الإعدادات ▴':'إعدادات أكتر ▾'">إعدادات أكتر ▾</button>
+                    <?php endif; ?>
                     <button type="submit" class="btn lg full" id="generate-btn" <?= $balance < $cost ? 'disabled' : '' ?>>
                         ✨ توليد المحتوى<span class="cr"> — <?= $cost ?> كريدت</span>
                     </button>

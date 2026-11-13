@@ -7,6 +7,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/account.php';   // الجلسات النشطة · التحقق بخطوتين (⑥-أ)
 require_once __DIR__ . '/remember.php';  // «افتكرني» — دخول مستمر بتوكن آمن (10)
+require_once __DIR__ . '/onboarding.php'; // البداية السريعة (خريطة التطوير · المرحلة 1)
 
 /**
  * Currently logged in user
@@ -39,8 +40,19 @@ function require_login(): void
     // Block inactive / unverified users
     $u = current_user();
     if (!$u['email_verified_at']) {
-        flash_set('warning', 'الحساب لسه مش مفعل. راجع بريدك أو أعد إرسال التفعيل.');
-        redirect('login.php');
+        // البداية السريعة (المرحلة 1): الحساب الجديد بيجرّب في صفحات محددة قبل تأكيد الإيميل — النشر والشراء لأ
+        if (!onb_unverified_ok($u)) {
+            $msg = 'فعّل إيميلك الأول عشان تكمّل — هتلاقي رابط التفعيل في بريدك.';
+            if (strpos((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '/ajax/') !== false) {
+                json_response(['ok' => false, 'error' => $msg, 'code' => 'verify'], 403);
+            }
+            if (onb_enabled() && onb_in_window($u)) {
+                redirect('start.php?verify=1');
+            }
+            unset($_SESSION['user_id']);
+            flash_set('warning', 'الحساب لسه مش مفعل. راجع بريدك أو أعد إرسال التفعيل.');
+            redirect('login.php');
+        }
     }
     if (($u['approval_status'] ?? 'approved') !== 'approved') {
         session_destroy();

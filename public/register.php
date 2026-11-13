@@ -65,6 +65,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Notify Spread CRM (fire-and-forget, never blocks signup)
             crm_notify_signup($name, $email);
 
+            // البداية السريعة (المرحلة 1): دخول تلقائي ← لينكات + 5 أسئلة + أول بوست — التفعيل بيتطلب قبل النشر والشراء
+            if (onb_enabled()) {
+                login_user((int) $result['user_id'], false);
+                $__trialContent = trial_claim((int) $result['user_id']);
+                redirect($__trialContent ? 'content-view.php?id=' . $__trialContent : 'start.php');
+            }
+
             flash_set('success', get_setting('manual_approval', '0') === '1'
                 ? 'تم إنشاء حسابك! فعّل بريدك، وبعدها الإدارة هتراجع حسابك وتوافق عليه قريبًا.'
                 : 'تم إنشاء حسابك بنجاح! فتّش بريدك (والإسبام) لتفعيل الحساب.');
@@ -138,14 +145,14 @@ include __DIR__ . '/../templates/header.php';
 
                     <div class="field">
                 <label>كلمة المرور <span class="req">*</span></label>
-                <input type="password" name="password" class="input" required minlength="6"
+                <input type="password" name="password" class="input" required minlength="8"
                        placeholder="6 حروف على الأقل">
                 <div class="field-help">على الأقل 6 حروف. خلّيها قوية شوية 💪</div>
             </div>
 
             <div class="field">
                 <label>تأكيد كلمة المرور <span class="req">*</span></label>
-                <input type="password" name="password_confirm" class="input" required minlength="6"
+                <input type="password" name="password_confirm" class="input" required minlength="8"
                        placeholder="أعد كلمة المرور">
             </div>
 

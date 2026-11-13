@@ -136,6 +136,13 @@ function api_boot(bool $requireAuth = true, bool $keepSession = false): array
         if (!$user || ($user['status'] ?? 'active') !== 'active') {
             api_fail('الحساب موقوف', 'auth', 403);
         }
+        // حساب لسه ما أكّدش إيميله (البداية السريعة): قراءة + بناء الهوية بس
+        if (empty($user['email_verified_at'])) {
+            require_once __DIR__ . '/onboarding.php';
+            if (!onb_unverified_api_ok($user, $method, basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')))) {
+                api_fail('فعّل إيميلك الأول عشان تكمّل — هتلاقي رابط التفعيل في بريدك.', 'verify', 403);
+            }
+        }
         // جلسة اتنهت من جهاز تاني (⑥-أ)
         if (function_exists('account_session_check') && !account_session_check((int) $user['id'])) {
             unset($_SESSION['user_id']);

@@ -28,7 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($result['ok']) {
         $user = $result['user'];
-        if (!$user['email_verified_at']) {
+        if (!$user['email_verified_at'] && onb_enabled() && onb_in_window($user)) {
+            // البداية السريعة: يدخل يكمّل التجربة — التفعيل مطلوب قبل النشر والشراء
+            login_user((int) $user['id'], !empty($_POST['remember']));
+            $__trialContent = trial_claim((int) $user['id']);
+            redirect($__trialContent ? 'content-view.php?id=' . $__trialContent : (onb_done((int) $user['id']) ? 'dashboard.php' : 'start.php'));
+        } elseif (!$user['email_verified_at']) {
             $errors[] = 'الحساب لسه مش مفعل. تشيك على بريدك، أو اطلب رابط تفعيل جديد من هنا: ' . url('resend-verification.php');
         } elseif (($user['approval_status'] ?? 'approved') === 'pending') {
             $errors[] = 'حسابك تحت المراجعة — الإدارة هتوافق عليه قريبًا وهيوصلك إيميل تأكيد.';
