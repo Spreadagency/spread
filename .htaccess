@@ -16,6 +16,8 @@ DirectoryIndex public/index.php index.php
     RewriteRule ^(includes|sql)/ - [F,L]
     RewriteRule ^site/(config|db)\.php$ - [F,L]
     RewriteRule ^storage/logs/ - [F,L]
+    # مستندات العملاء (PDF/Word) مابتتفتحش بلينك مباشر — التنزيل من source-download.php بس (بيتأكد من صاحب الملف)
+    RewriteRule ^storage/uploads/sources/ - [F,L]
     RewriteRule ^storage/.*\.log$ - [F,L]
 
     # ─── Pass through real folders ────────────────────────────

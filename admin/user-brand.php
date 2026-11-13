@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/uploader.php';
 
 require_admin();
+require_admin_can('view_users');
 $admin = current_admin();
 
 $userId = (int) ($_GET['user_id'] ?? $_POST['user_id'] ?? 0);

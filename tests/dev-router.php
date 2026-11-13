@@ -7,7 +7,7 @@
 if (PHP_SAPI !== 'cli-server') exit(1);
 $root = dirname(__DIR__);
 $uri = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
-if (str_contains($uri, '..') || preg_match('#^/(includes|sql)/|^/storage/logs/|^/site/(config|db)\.php$#', $uri)) { http_response_code(403); exit('Forbidden'); }
+if (str_contains($uri, '..') || preg_match('#^/(includes|sql)/|^/storage/logs/|^/storage/uploads/sources/|^/site/(config|db)\.php$#', $uri)) { http_response_code(403); exit('Forbidden'); }
 if ($uri === '/' || $uri === '') return false;                       // index.php في الجذر
 if (is_file($root . $uri) || (is_dir($root . $uri) && is_file(rtrim($root . $uri, '/') . '/index.php'))) return false;
 if (preg_match('#^/(admin|site-admin)/?$#', $uri, $m)) { header('Location: /' . $m[1] . '/login.php'); exit; }

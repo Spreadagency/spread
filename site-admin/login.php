@@ -5,10 +5,16 @@ if (sa_admin()) s_redirect('site-admin/dashboard.php');
 $err = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     s_check_csrf();
-    if (sa_login((string) ($_POST['email'] ?? ''), (string) ($_POST['password'] ?? ''))) {
+    $__ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    $__em = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
+    if (!sa_login_allowed($__ip, $__em)) {
+        $err = 'محاولات كتير — استنى 15 دقيقة وجرّب تاني';
+    } elseif (sa_login((string) ($_POST['email'] ?? ''), (string) ($_POST['password'] ?? ''))) {
         s_redirect('site-admin/dashboard.php');
+    } else {
+        sa_login_failed($__ip, $__em);
+        $err = 'بيانات الدخول غير صحيحة';
     }
-    $err = 'بيانات الدخول غير صحيحة';
 }
 $__v = @filemtime(dirname(__DIR__) . '/site-assets/css/site-admin.css') ?: 1;
 ?><!DOCTYPE html>

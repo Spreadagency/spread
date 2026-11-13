@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 require_admin();
+require_admin_can('view_users');
 
 $onlyBroken = isset($_GET['broken']);
 $where = $onlyBroken ? "sc.status != 'active'" : '1';

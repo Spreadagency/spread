@@ -19,6 +19,53 @@ function sa_require(): void
     }
 }
 
+/* ═══════════════ حد محاولات الدخول (5 كل 15 دقيقة لكل IP ولكل إيميل) ═══════════════
+ * قاعدة الموقع التعريفي مافيهاش جدول rate_limits — المحاولات الفاشلة بتتسجل في إعداد واحد (login_throttle) وبتتنضّف لوحدها. */
+const SA_LOGIN_MAX = 5;
+const SA_LOGIN_WINDOW = 900;
+
+function sa_login_throttle(): array
+{
+    // قراءة مباشرة (مش من كاش s_setting) عشان العدّاد يبقى دايمًا آخر قيمة
+    $j = json_decode((string) (s_one('SELECT setting_value FROM site_settings WHERE setting_key = ?', ['login_throttle'])['setting_value'] ?? '{}'), true);
+    $now = time();
+    $out = [];
+    foreach (is_array($j) ? $j : [] as $k => $times) {
+        $times = array_values(array_filter((array) $times, fn($t) => is_int($t) && $t > $now - SA_LOGIN_WINDOW));
+        if ($times) $out[(string) $k] = $times;
+    }
+    return $out;
+}
+
+function sa_login_keys(string $ip, string $email): array
+{
+    return ['i' . substr(hash('sha256', $ip), 0, 16), 'e' . substr(hash('sha256', $email), 0, 16)];
+}
+
+function sa_login_allowed(string $ip, string $email): bool
+{
+    try {
+        $t = sa_login_throttle();
+        foreach (sa_login_keys($ip, $email) as $k) if (count($t[$k] ?? []) >= SA_LOGIN_MAX) return false;
+    } catch (\Throwable $e) {
+        error_log('[site-admin] throttle: ' . $e->getMessage());
+        return false;   // مفيش دخول من غير عدّاد شغال
+    }
+    return true;
+}
+
+function sa_login_failed(string $ip, string $email): void
+{
+    try {
+        $t = sa_login_throttle();
+        foreach (sa_login_keys($ip, $email) as $k) $t[$k][] = time();
+        if (count($t) > 500) $t = array_slice($t, -500, null, true);
+        s_set('login_throttle', json_encode($t));
+    } catch (\Throwable $e) {
+        error_log('[site-admin] throttle: ' . $e->getMessage());
+    }
+}
+
 function sa_login(string $email, string $pass): bool
 {
     $u = s_one('SELECT * FROM site_admins WHERE email = ? AND status = "active"', [mb_strtolower(trim($email))]);

@@ -128,6 +128,9 @@ foreach ($claimed as $content) {
         $r = social_publish($content, $conn, $tg);
         if ($r['ok']) {
             $postIds[] = $tg . ':' . $r['post_id'];
+            // احفظ نجاح المنصة دي فورًا: لو المنصة التانية فشلت أو السكربت وقع، إعادة المحاولة مش هتنشر عليها تاني (بوست مكرر)
+            $already = trim($already . ($already !== '' ? ' | ' : '') . $tg . ':' . $r['post_id']);
+            db_run('UPDATE contents SET publish_post_id = ? WHERE id = ?', [mb_substr($already, 0, 250), $cid]);
         } else {
             $ok = false;
             $lastErr = '[' . $tg . '] ' . $r['error'];
@@ -139,7 +142,7 @@ foreach ($claimed as $content) {
     if ($ok) {
         db_run(
             'UPDATE contents SET publish_status = "published", published_at = NOW(), publish_post_id = ?, publish_error = NULL, lock_token = NULL WHERE id = ?',
-            [implode(' | ', $postIds), $cid]
+            [mb_substr($already, 0, 250), $cid]
         );
         echo "#$cid published (" . implode(', ', $postIds) . ")\n";
         if (class_exists('Notifier')) {

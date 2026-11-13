@@ -78,6 +78,8 @@ $finalPrompt = build_final_prompt($brand, $options, $options['extra_notes']);
 if ($__g = plan_gate((int) $user['id'], 'posts')) {
     sse_fail($__g);
 }
+// الكريدت اتخصم ← الطلب يكمّل حتى لو العميل قفل الصفحة (المنشور يتحفظ بدل ما الكريدت يروح على الفاضي)
+ignore_user_abort(true);
 // Credits first — refund on failure
 if (!credits_consume((int) $user['id'], $cost, 'توليد محتوى', 'content', null)) {
     sse_fail(credits_short_msg($cost));
@@ -98,28 +100,44 @@ $parsed['content'] = BrandContext::enforce(BrandContext::stripWhy($parsed['conte
 $parsed['cta'] = BrandContext::enforce((string) $parsed['cta'], (int) $user['id']);
 $parsed['hashtags'] = BrandContext::enforce((string) $parsed['hashtags'], (int) $user['id']);
 
-$contentId = db_insert_row('contents', [
-    'user_id'            => $user['id'],
-    'brand_profile_id'   => $brand['id'],
-    'content_type'       => $options['content_type'],
-    'platform'           => $options['platform'],
-    'length'             => $options['length'],
-    'tone'               => $options['tone'] ?: null,
-    'dialect'            => $options['dialect'],
-    'template_id'        => $options['template_id'] ?: null,
-    'model'              => $ai['model'] ?? null,
-    'tokens_in'          => $ai['usage']['in'] ?? 0,
-    'tokens_out'         => $ai['usage']['out'] ?? 0,
-    'extra_notes'        => $options['extra_notes'],
-    'use_logo'           => !empty($_POST['use_logo']) ? 1 : 0,
-    'use_personal_image' => !empty($_POST['use_personal_image']) ? 1 : 0,
-    'final_prompt'       => $finalPrompt,
-    'generated_text'     => $parsed['content'],
-    'hashtags'           => $parsed['hashtags'],
-    'cta'                => $parsed['cta'],
-    'status'             => 'generated',
-    'credits_used'       => $cost,
-]);
+// رد فاضي = مفيش منشور ← الكريدت يرجع
+if (trim((string) $parsed['content']) === '') {
+    credits_add((int) $user['id'], $cost, 'استرداد: الرد جه فاضي', null, 'refund', null);
+    sse_fail('الرد جه فاضي — الكريدت رجعلك، جرّب تاني');
+}
+
+// الحفظ فشل = مفيش منشور ← الكريدت يرجع
+try {
+    $contentId = db_insert_row('contents', [
+        'user_id'            => $user['id'],
+        'brand_profile_id'   => $brand['id'],
+        'content_type'       => $options['content_type'],
+        'platform'           => $options['platform'],
+        'length'             => $options['length'],
+        'tone'               => $options['tone'] ?: null,
+        'dialect'            => $options['dialect'],
+        'template_id'        => $options['template_id'] ?: null,
+        'model'              => $ai['model'] ?? null,
+        'tokens_in'          => $ai['usage']['in'] ?? 0,
+        'tokens_out'         => $ai['usage']['out'] ?? 0,
+        'extra_notes'        => $options['extra_notes'],
+        'use_logo'           => !empty($_POST['use_logo']) ? 1 : 0,
+        'use_personal_image' => !empty($_POST['use_personal_image']) ? 1 : 0,
+        'final_prompt'       => $finalPrompt,
+        'generated_text'     => $parsed['content'],
+        'hashtags'           => $parsed['hashtags'],
+        'cta'                => $parsed['cta'],
+        'status'             => 'generated',
+        'credits_used'       => $cost,
+    ]);
+} catch (\Throwable $e) {
+    error_log('[generate] save: ' . $e->getMessage());
+    $contentId = 0;
+}
+if (!$contentId) {
+    credits_add((int) $user['id'], $cost, 'استرداد: المنشور ماتحفظش', null, 'refund', null);
+    sse_fail('معرفناش نحفظ المنشور — الكريدت رجعلك، جرّب تاني');
+}
 
 // ربط المنشور بالحملة لو جاي منها (المرحلة 1)
 $__campaignId = (int) ($_POST['campaign_id'] ?? 0);

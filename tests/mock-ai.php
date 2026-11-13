@@ -162,6 +162,11 @@ if (preg_match('/CE:([a-z_]+)/', $text, $mm)) {
     }
 }
 
+// رد فاضي (اختبار استرداد الكريدت — tests/p0-fixes.php)
+if ($out === null && !isset($content) && str_contains($text, 'MOCK_EMPTY_REPLY')) {
+    $content = '';
+}
+
 // مسودة الهوية (Brand Kit) — صفحة «ابدأ» وزرار «املاها بالـ AI»
 if ($out === null && str_contains($text, 'ابني مسودة Brand Kit')) {
     $out = [

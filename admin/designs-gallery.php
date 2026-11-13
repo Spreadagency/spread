@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 require_admin();
+require_admin_can('view_content');
 $admin = current_admin();
 
 $modelFilter = trim($_GET['model'] ?? '');
