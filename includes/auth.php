@@ -72,6 +72,11 @@ function require_login(): void
         flash_set('warning', 'الجلسة دي اتنهت من جهاز تاني — سجّل دخول تاني');
         redirect('login.php');
     }
+    // الفريق داخل بحساب عميل مُدار ← المنشورات اللي بتتعمل بتتعلّم باسمه (إدارة الحسابات · المرحلة 2)
+    if (!empty($_SESSION['impersonator_admin_id'])) {
+        require_once __DIR__ . '/managed-accounts.php';
+        ma_impersonation_hook();
+    }
     // حساب جوجل من غير رقم موبايل ← لازم يكمّل بياناته الأول (10)
     if (account_needs_phone($u) && basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) !== 'complete-account.php' && empty($_SESSION['impersonator_admin_id'])) {
         redirect('complete-account.php');

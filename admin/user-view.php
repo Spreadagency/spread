@@ -303,6 +303,7 @@ $tabUrl = fn($t) => url('admin/user-view.php?id=' . $id . '&tab=' . $t);
             <div class="a2-row" style="gap:8px;flex-wrap:wrap">
                 <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="action" value="toggle_managed">
                     <button class="btn ghost" type="submit"><?= mc_is($id) ? '★ بنديره (شيل)' : '☆ عميل بنديره' ?></button></form>
+                <?php if (mc_is($id) && mc_table()): ?><a class="btn" href="<?= url('admin/workspace.php?id=' . $id) ?>">مساحة العميل ←</a><?php endif; ?>
                 <a class="btn soft" href="<?= url('admin/user-content-export.php?id=' . $id) ?>">📊 المحتوى Excel</a>
                 <a class="btn soft" href="<?= url('admin/user-designs.php?id=' . $id) ?>">🖼 التصميمات (تنزيل)</a>
             </div>

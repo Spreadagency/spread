@@ -136,6 +136,10 @@ function api_boot(bool $requireAuth = true, bool $keepSession = false): array
         if (!$user || ($user['status'] ?? 'active') !== 'active') {
             api_fail('الحساب موقوف', 'auth', 403);
         }
+        if (!empty($_SESSION['impersonator_admin_id'])) {
+            require_once __DIR__ . '/managed-accounts.php';
+            ma_impersonation_hook();
+        }
         // حساب لسه ما أكّدش إيميله (البداية السريعة): قراءة + بناء الهوية بس
         if (empty($user['email_verified_at'])) {
             require_once __DIR__ . '/onboarding.php';

@@ -63,6 +63,10 @@ db_run(
 /* ═══════════ المسار الجديد: اتصالات المستخدمين ═══════════ */
 $uuid = bin2hex(random_bytes(18));
 
+// إدارة الحسابات (المرحلة 2): منشور في مسار الموافقة مايتنشرش قبل ما العميل يوافق
+require_once __DIR__ . '/../includes/managed-accounts.php';
+$__maSql = ma_publish_sql();
+
 // حجز ذري للصفوف المستحقة
 db_run(
     'UPDATE contents
@@ -70,7 +74,7 @@ db_run(
      WHERE publish_status = "pending"
        AND connection_id IS NOT NULL
        AND scheduled_at IS NOT NULL AND scheduled_at <= NOW()
-       AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
+       AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())' . $__maSql . '
      ORDER BY scheduled_at ASC
      LIMIT 10',
     [$uuid]

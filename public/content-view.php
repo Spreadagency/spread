@@ -56,6 +56,11 @@ include __DIR__ . '/../templates/header.php';
                     <span class="chip chip-primary"><?= e(content_type_label($content['content_type'])) ?></span>
                     <span class="chip chip-line"><?= e(platform_label($content['platform'])) ?></span>
                     <span class="chip <?= e(status_chip($content['status'])) ?>"><?= e(status_label($content['status'])) ?></span>
+                    <?php /* إدارة الحسابات (المرحلة 2): العميل بيشوف إن الفريق هو اللي عمل المنشور وحالة موافقته */
+                    if (!empty($content['acted_by_admin_id'])): ?><span class="chip chip-line">اتعمل بواسطة فريق Spread</span><?php endif; ?>
+                    <?php if (($content['approval_status'] ?? '') === 'pending'): ?><a class="chip chip-primary" href="<?= url('approvals.php') ?>">مستني موافقتك ←</a>
+                    <?php elseif (($content['approval_status'] ?? '') === 'approved'): ?><span class="chip chip-line">وافقت عليه ✓</span>
+                    <?php elseif (($content['approval_status'] ?? '') === 'changes'): ?><span class="chip chip-line">طلبت تعديل</span><?php endif; ?>
                     <span class="text-mute">· <?= e(fmt_date($content['created_at'], true)) ?></span>
                 </div>
             </div>

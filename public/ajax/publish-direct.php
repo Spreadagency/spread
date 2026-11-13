@@ -32,6 +32,10 @@ if (!$content) {
 require_once __DIR__ . '/../../includes/ce-library.php';
 if ($__ce = ce_lib_engine_publishing($contentId)) json_response(['ok' => false, 'error' => $__ce, 'code' => 'engine']);
 
+// إدارة الحسابات (المرحلة 2): المنشور اللي مستني موافقة العميل مايتنشرش
+require_once __DIR__ . '/../../includes/managed-accounts.php';
+if ($__ma = ma_publish_block($content)) json_response(['ok' => false, 'error' => $__ma, 'code' => 'approval']);
+
 $conn = connection_for_user((int) ($_POST['connection_id'] ?? 0), (int) $user['id']);
 if (!$conn || $conn['status'] !== 'active') {
     json_response(['ok' => false, 'error' => 'الصفحة المختارة غير متاحة — أعد ربطها من «حساباتي المربوطة»']);

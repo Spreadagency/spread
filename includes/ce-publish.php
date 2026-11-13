@@ -70,6 +70,14 @@ function ce_publish_images(int $slotId): array
 function ce_publish_problem(array $content, array $conn, string $platform): ?string
 {
     if (!in_array($content['status'], ['pass', 'manual'], true)) return 'القطعة لسه ماخلصتش';
+    // إدارة الحسابات (المرحلة 2): نسخة القطعة في المكتبة مستنية موافقة العميل ← ماتتنشرش
+    if ((int) ($content['lib_content_id'] ?? 0) > 0) {
+        require_once __DIR__ . '/managed-accounts.php';
+        if (ma_ready()) {
+            $__lib = db_one('SELECT user_id, approval_status FROM contents WHERE id = ?', [(int) $content['lib_content_id']]);
+            if ($__lib && ($__why = ma_publish_block($__lib))) return $__why;
+        }
+    }
     if ($content['format'] === 'reel') return 'الريلز محتاجة تصوير — مابتتنشرش من هنا';
     if ($conn['status'] !== 'active') return 'الصفحة مش مربوطة — اربطها تاني';
     if ($platform === 'instagram' && empty($conn['ig_user_id'])) return 'الصفحة دي مش مربوط بيها حساب إنستجرام بيزنس';

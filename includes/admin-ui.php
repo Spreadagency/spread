@@ -73,6 +73,7 @@ function admin_nav(): array
         ],
         'CUSTOMERS' => [
             ['users', 'العملاء', 'Customers', 'users', 'admin/users.php', 'view_users', ['users']],
+            ['my-accounts', 'حساباتي', 'My accounts', 'users', 'admin/my-accounts.php', 'view_users', ['my-accounts']],
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
             ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
             ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],

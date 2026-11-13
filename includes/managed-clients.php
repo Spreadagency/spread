@@ -7,8 +7,16 @@ function mc_ids(bool $fresh = false): array
 {
     static $ids = null;
     if ($ids !== null && !$fresh) return $ids;
+    // بعد ترحيل المرحلة 2: المصدر جدول managed_accounts (العلامات القديمة بتتنقل له مرة واحدة)
+    if (mc_table()) return $ids = ma_ids();
     $v = json_decode((string) get_setting('managed_client_ids', '[]'), true);
     return $ids = array_values(array_unique(array_filter(array_map('intval', is_array($v) ? $v : []))));
+}
+
+function mc_table(): bool
+{
+    require_once __DIR__ . '/managed-accounts.php';
+    return ma_ready();
 }
 
 function mc_is(int $uid): bool
@@ -19,6 +27,9 @@ function mc_is(int $uid): bool
 /** ⭐ / شيل العلامة */
 function mc_set(int $uid, bool $on): void
 {
+    if (mc_table()) {
+        $on ? ma_add($uid) : ma_remove($uid);
+    }
     $ids = mc_ids(true);
     $ids = $on ? array_values(array_unique(array_merge($ids, [$uid]))) : array_values(array_diff($ids, [$uid]));
     set_setting('managed_client_ids', json_encode(array_map('intval', $ids)));

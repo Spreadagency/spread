@@ -86,6 +86,17 @@ include __DIR__ . '/../templates/header.php';
 
     <main class="main">
         <?php include __DIR__ . '/../templates/topbar.php'; ?>
+        <?php /* إدارة الحسابات (المرحلة 2): منشورات الفريق المستنية موافقة العميل */
+        $__maPending = 0;
+        if (is_file(__DIR__ . '/../includes/managed-accounts.php')) {
+            require_once __DIR__ . '/../includes/managed-accounts.php';
+            $__maPending = count(ma_pending_for_user((int) $user['id']));
+        }
+        if ($__maPending > 0): ?>
+            <a class="alert success" href="<?= url('approvals.php') ?>" style="display:block;text-decoration:none">
+                ✅ فريق Spread جهّزلك <b><?= $__maPending ?></b> منشور — راجعهم ووافق بضغطة ←
+            </a>
+        <?php endif; ?>
 
         <!-- Greeting Hero -->
         <div class="greet-card">
