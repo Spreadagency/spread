@@ -169,8 +169,11 @@ function ma_send_for_approval(int $uid, array $contentIds, int $adminId): int
     }
     if ($n > 0) {
         try {
-            if (!function_exists('wa_inapp_insert') && is_file(__DIR__ . '/Notifier.php')) require_once __DIR__ . '/Notifier.php';
-            if (function_exists('wa_inapp_insert')) {
+            // إشعار جوه المنصة + واتساب بلينك الموافقة الموقّع (قالب approval_request) — ولو القالب مش متاح: إشعار جوه المنصة بس
+            if (!class_exists('Notifier') && is_file(__DIR__ . '/Notifier.php')) require_once __DIR__ . '/Notifier.php';
+            $sent = class_exists('Notifier') ? Notifier::notify($uid, 'approval_request', ['count' => $n], ['url' => 'approvals.php?t=' . ma_token($uid)]) : null;
+            if (!$sent && function_exists('wa_inapp_insert')
+                && !db_one('SELECT id FROM user_notifications WHERE user_id = ? AND kind = "approval_request" AND created_at >= NOW() - INTERVAL 30 MINUTE', [$uid])) {
                 wa_inapp_insert($uid, 'approval_request', 'منشورات جاهزة لمراجعتك', 'فريق Spread جهّزلك ' . $n . ' منشور — راجعهم ووافق بضغطة.', 'approvals.php');
             }
         } catch (\Throwable $e) {

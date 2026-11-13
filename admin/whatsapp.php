@@ -241,6 +241,7 @@ function wa_filter_fields(array $packages, array $val = [], string $prefix = '')
 <div class="app">
     <?php include __DIR__ . '/../templates/admin-sidebar.php'; ?>
     <main class="main">
+        <?php $msgTab = 'whatsapp'; include __DIR__ . '/../templates/admin-messages-tabs.php';   // شريط «الرسائل» الموحد (المرحلة 3) ?>
         <div class="page-head with-actions">
             <div>
                 <h1>الرسايل والواتساب 💬</h1>

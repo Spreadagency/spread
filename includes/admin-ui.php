@@ -77,6 +77,7 @@ function admin_nav(): array
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
             ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
             ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],
+            ['inbox', 'صندوق الوارد', 'Inbox', 'send', 'admin/inbox.php', 'view_users', ['inbox'], 'inbox'],
             ['whatsapp', 'الرسايل والواتساب', 'Messages & WhatsApp', 'send', 'admin/whatsapp.php', 'view_users', ['whatsapp']],
         ],
         'CONTENT' => [
@@ -165,6 +166,10 @@ function admin_nav_count(string $kind): int
     try {
         if ($kind === 'video') {
             return (int) (db_one('SELECT COUNT(*) n FROM contents WHERE format = "video" AND video_status IN ("sent","in_production")')['n'] ?? 0);
+        }
+        if ($kind === 'inbox') {
+            require_once __DIR__ . '/messaging.php';
+            return msg_unhandled_count();
         }
         if ($kind === 'approvals') {
             return (int) (db_one('SELECT COUNT(*) n FROM users WHERE approval_status = "pending"')['n'] ?? 0);

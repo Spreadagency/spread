@@ -135,6 +135,7 @@ include __DIR__ . '/../templates/admin-header.php';
 <div class="app">
     <?php include __DIR__ . '/../templates/admin-sidebar.php'; ?>
     <main class="main">
+        <?php $msgTab = 'announcements'; include __DIR__ . '/../templates/admin-messages-tabs.php';   // شريط «الرسائل» الموحد (المرحلة 3) ?>
         <div class="page-head">
             <h1>الإعلانات والعروض 📣</h1>
             <div class="sub">سلايدر الرئيسية: صورة + معلومة سريعة + زرار — لكل العملاء أو لباقة معيّنة، بتاريخ بداية ونهاية. لو مفيش إعلانات، الأساسي «تواصل مع خدمة العملاء» (وبيفضل موجود مع الإعلانات).</div>

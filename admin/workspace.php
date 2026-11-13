@@ -2,7 +2,7 @@
 /**
  * Spread AI — الأدمن: «مساحة العميل» (خريطة التطوير · المرحلة 2)
  *   admin/workspace.php?id=العميل [&tab=content|brand|notes|report] [&m=YYYY-MM]
- * 4 تبويبات: المحتوى والموافقات · الهوية · ملاحظات ومهام · تقرير الشهر
+ * 5 تبويبات: المحتوى والموافقات · الهوية · الرسائل · ملاحظات ومهام · تقرير الشهر
  * الدخول بحساب العميل نفسه زي ما هو (admin/impersonate.php) — من هنا لينك ليه بس.
  * الصلاحية: assistant = حساباته بس · manager و super = الكل. مفيش أي حاجة هنا بتلمس الكريدت أو الباقات.
  */
@@ -10,6 +10,8 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/managed-accounts.php';
 require_once __DIR__ . '/../includes/content-formats.php';
+require_once __DIR__ . '/../includes/messaging.php';
+require_once __DIR__ . '/../includes/rate-limit.php';
 
 require_admin();
 require_admin_can('view_users');
@@ -36,7 +38,7 @@ if (!ma_can_access($id)) {
 }
 $me = current_admin();
 $senior = in_array(($me['role'] ?? 'super'), ['manager', 'super'], true);
-$tabs = ['content' => 'المحتوى والموافقات', 'brand' => 'الهوية', 'notes' => 'ملاحظات ومهام', 'report' => 'تقرير الشهر'];
+$tabs = ['content' => 'المحتوى والموافقات', 'brand' => 'الهوية', 'messages' => 'الرسائل', 'notes' => 'ملاحظات ومهام', 'report' => 'تقرير الشهر'];
 $tab = isset($tabs[$_GET['tab'] ?? '']) ? $_GET['tab'] : 'content';
 $back = fn(string $t) => 'admin/workspace.php?id=' . $id . '&tab=' . $t;
 
@@ -75,6 +77,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('success', $kind === 'task' ? 'المهمة اتضافت ✓' : 'الملاحظة اتضافت ✓');
         }
         redirect($back('notes'));
+    }
+    if ($action === 'message_send') {
+        $body = mb_substr(trim((string) ($_POST['body'] ?? '')), 0, 1500);
+        if ($body === '') {
+            flash_set('warning', 'اكتب الرسالة');
+        } elseif (!rate_limit('ma_msg', 'a' . (int) $me['id'], 30, 600)) {
+            flash_set('warning', 'رسائل كتير بسرعة — استنى شوية');
+        } else {
+            try {
+                $mid = Notifier::direct($id, 'رسالة من فريق ' . (function_exists('site_name') ? site_name() : APP_NAME), $body, 'both', null, null, (int) $me['id']);
+                // الرد على العميل بيقفل رسائله المفتوحة في صندوق الوارد
+                if (msg_ready()) db_run('UPDATE message_inbound SET handled_at = NOW(), handled_by = ? WHERE user_id = ? AND handled_at IS NULL', [(int) $me['id'], $id]);
+                admin_log('managed_message', 'user', $id, 'message #' . $mid);
+                $st = (string) (db_one('SELECT wa_status FROM messages WHERE id = ?', [$mid])['wa_status'] ?? '');
+                flash_set('success', 'الرسالة اتبعتت ✓' . (in_array($st, ['skipped', 'none'], true) ? ' (جوه المنصة بس — الواتساب مش متاح للعميل ده)' : ''));
+            } catch (\Throwable $e) {
+                flash_set('danger', 'الرسالة ماتبعتتش: ' . $e->getMessage());
+            }
+        }
+        redirect($back('messages'));
+    }
+    if ($action === 'inbound_done') {
+        $in = msg_ready() ? db_one('SELECT * FROM message_inbound WHERE id = ? AND user_id = ?', [(int) ($_POST['inbound_id'] ?? 0), $id]) : null;
+        if ($in) msg_mark_handled((int) $in['id'], (int) $me['id']);
+        redirect($back('messages'));
+    }
+    if ($action === 'report_send') {
+        $st = ma_month_stats($id, $_POST['m'] ?? null);
+        $sent = Notifier::notify($id, 'monthly_report', ['month' => $st['ym'], 'made' => $st['made'], 'published' => $st['published']], ['url' => 'content-history.php']);
+        if ($sent) admin_log('managed_report_send', 'user', $id, $st['ym']);
+        flash_set($sent ? 'success' : 'warning', $sent ? 'التقرير اتبعت للعميل ✓' : 'التقرير ماتبعتش (اتبعت من أقل من نص ساعة، أو القالب مقفول)');
+        redirect($back('report') . '&m=' . $st['ym']);
     }
     if ($action === 'task_done') {
         db_run('UPDATE managed_notes SET done_at = IF(done_at IS NULL, NOW(), NULL) WHERE id = ? AND user_id = ? AND kind = "task"', [(int) ($_POST['note_id'] ?? 0), $id]);
@@ -205,6 +239,48 @@ include __DIR__ . '/../templates/admin-header.php';
             <?php if (!$bp): ?><div class="empty">العميل لسه ماعملش هوية.</div><?php endif; ?>
         </div>
 
+<?php elseif ($tab === 'messages'):
+    $conv = msg_conversation($id, 80);
+    $waWhy = wa_block_reason(wa_user($id) ?: []);
+    $waLabels = ['sent' => 'وصل واتساب', 'pending' => 'في طابور الواتساب', 'processing' => 'بيتبعت', 'failed' => 'فشل الواتساب', 'skipped' => 'جوه المنصة بس', 'none' => 'جوه المنصة']; ?>
+        <?php if ($waWhy !== ''): ?>
+            <div class="alert warning">الواتساب مش هيوصل للعميل ده دلوقتي (<?= e(['wa_disabled' => 'الواتساب مقفول في المنصة', 'opted_out' => 'العميل وقّف رسائل الواتساب', 'not_verified' => 'رقمه مش متحقق', 'no_phone' => 'مفيش رقم'][$waWhy] ?? $waWhy) ?>) — الرسالة هتظهرله جوه المنصة.</div>
+        <?php endif; ?>
+        <div class="card" style="padding:14px;margin-bottom:14px;max-height:520px;overflow:auto" id="ma-conv">
+            <?php if (!$conv): ?><div class="empty" style="padding:20px;text-align:center">مفيش رسائل مع العميل ده لسه.</div><?php endif; ?>
+            <?php foreach ($conv as $m): $in = $m['dir'] === 'in'; ?>
+                <div style="display:flex;justify-content:<?= $in ? 'flex-start' : 'flex-end' ?>;margin-bottom:10px">
+                    <div style="max-width:78%;border-radius:14px;padding:10px 12px;background:<?= $in ? 'var(--surface-2, #f3f3f8)' : 'rgba(124,109,242,.14)' ?>">
+                        <div style="white-space:pre-wrap;line-height:1.7;font-size:14px;overflow-wrap:anywhere"><?= e($m['body']) ?></div>
+                        <div class="text-mute" style="font-size:11px;margin-top:4px">
+                            <?= e(substr((string) $m['at'], 0, 16)) ?> ·
+                            <?php if ($in): ?>
+                                العميل<?= $m['action_result'] !== '' ? ' · ' . e($m['action_result']) : '' ?>
+                                <?php if (!$m['handled']): ?>
+                                    <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="inbound_done"><input type="hidden" name="inbound_id" value="<?= (int) $m['id'] ?>">
+                                        <button class="btn sm ghost" type="submit">اتعامل معاها ✓</button></form>
+                                <?php endif; ?>
+                            <?php else: ?>
+                                <?= $m['type'] === 'direct' ? 'الفريق' : 'تلقائي' ?> · <?= e($waLabels[$m['wa_status']] ?? $m['wa_status']) ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <form method="POST" class="card" style="padding:14px">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="message_send">
+            <textarea name="body" class="textarea" rows="3" maxlength="1500" required placeholder="اكتب رسالة للعميل — هتوصله جوه المنصة وعلى الواتساب لو متاح"></textarea>
+            <div class="a2-row" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+                <button class="btn" type="submit">ابعت</button>
+                <?php if ($acct['service_level'] === 'approval' && $stats['pending']): ?>
+                    <button class="btn ghost" type="button" onclick="this.form.body.value='أهلًا 👋 فيه <?= (int) $stats['pending'] ?> منشور مستني موافقتك: <?= e($approvalLink) ?>'">حط لينك الموافقة</button>
+                <?php endif; ?>
+            </div>
+        </form>
+        <script>(function(){var c=document.getElementById('ma-conv');if(c)c.scrollTop=c.scrollHeight;})();</script>
+
 <?php elseif ($tab === 'notes'):
     $notes = db_all('SELECT n.*, a.name admin_name FROM managed_notes n LEFT JOIN admin_users a ON a.id = n.admin_id WHERE n.user_id = ? ORDER BY (n.kind = "task" AND n.done_at IS NULL) DESC, n.id DESC LIMIT 100', [$id]); ?>
         <form method="POST" class="card" style="padding:14px;margin-bottom:14px">
@@ -244,6 +320,8 @@ include __DIR__ . '/../templates/admin-header.php';
                     <a class="btn sm ghost" href="<?= url($back('report') . '&m=' . $prev) ?>">‹ الشهر اللي قبله</a>
                     <?php if ($next <= date('Y-m')): ?><a class="btn sm ghost" href="<?= url($back('report') . '&m=' . $next) ?>">اللي بعده ›</a><?php endif; ?>
                     <button type="button" class="btn sm" onclick="window.print()">طباعة / PDF</button>
+                    <form method="POST" style="display:inline"><?= csrf_field() ?><input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="report_send"><input type="hidden" name="m" value="<?= e($stats['ym']) ?>">
+                        <button class="btn sm ghost" type="submit">ابعته للعميل</button></form>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:8px">

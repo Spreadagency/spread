@@ -91,7 +91,7 @@ t('فلتر «بنديرهم» القديم لسه شغال', $c === 200 && str_
 t('«حساباتي» بتعرض الكارت ولينك مساحة العميل', $c === 200 && str_contains($h, 'workspace.php?id=' . $uid), (string) $c);
 [$c, $h] = http('GET', "$base/admin/workspace.php?id=$uid", [], $jar);
 $csrf = csrf_of($h);
-t('مساحة العميل بتفتح بـ 4 تبويبات', $c === 200 && substr_count($h, 'role="tab"') === 4, (string) $c);
+t('مساحة العميل بتفتح بـ 5 تبويبات', $c === 200 && substr_count($h, 'role="tab"') === 5, (string) $c);
 http('POST', "$base/admin/workspace.php", ['csrf' => $csrf, 'id' => $uid, 'action' => 'save_settings', 'manager_admin_id' => $superId, 'service_level' => 'approval', 'monthly_posts' => 8], $jar);
 $m = ma_get($uid);
 t('تعيين المسؤول ومستوى الخدمة والمطلوب في الشهر', (int) $m['manager_admin_id'] === $superId && $m['service_level'] === 'approval' && (int) $m['monthly_posts'] === 8, json_encode($m));
@@ -212,7 +212,7 @@ $st = ma_month_stats($uid);
 t('أرقام الشهر صح', $st['made'] === 4 && $st['by_team'] === 3 && $st['approved'] === 2 && $st['changes'] === 1, json_encode($st));
 [$c, $h] = http('GET', "$base/admin/workspace.php?id=$uid&tab=report", [], $jar);
 t('تبويب التقرير بيفتح', $c === 200 && str_contains($h, 'id="ma-report"'), (string) $c);
-foreach (['content', 'brand', 'notes'] as $tb) { [$c] = http('GET', "$base/admin/workspace.php?id=$uid&tab=$tb", [], $jar); if ($c !== 200) t("تبويب $tb", false, (string) $c); }
+foreach (['content', 'brand', 'messages', 'notes'] as $tb) { [$c] = http('GET', "$base/admin/workspace.php?id=$uid&tab=$tb", [], $jar); if ($c !== 200) t("تبويب $tb", false, (string) $c); }
 t('الكريدت ماتلمسش من الإدارة (غير تكلفة التوليد)', (int) db_one('SELECT COUNT(*) n FROM credit_transactions WHERE user_id = ? AND action_type = "add"', [$uid])['n'] === 0);
 
 /* ─── تنضيف ─── */

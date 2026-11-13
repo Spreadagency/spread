@@ -71,7 +71,17 @@ try {
 }
 echo "inactive_reminder: $n2\n";
 
-// ③ تنظيف
+// ③ تذكير بالمنشورات المستنية موافقة العميل من أكتر من 24 ساعة (الحسابات المُدارة)
+$n3 = 0;
+try {
+    require_once __DIR__ . '/../includes/messaging.php';
+    $n3 = msg_approval_reminders();
+} catch (\Throwable $e) {
+    echo 'approval_reminder: ' . $e->getMessage() . "\n";
+}
+echo "approval_reminder: $n3\n";
+
+// ④ تنظيف
 try {
     db_run('DELETE FROM wa_otps WHERE created_at < NOW() - INTERVAL 7 DAY');
     wa_release_scheduled();

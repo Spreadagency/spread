@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS `managed_accounts` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`user_id`),
-  KEY `idx_ma_manager` (`manager_admin_id`)
+  KEY `idx_ma_manager` (`manager_admin_id`),
+  CONSTRAINT `fk_ma_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `managed_notes` (
@@ -29,7 +30,8 @@ CREATE TABLE IF NOT EXISTS `managed_notes` (
   `done_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_mn_user` (`user_id`, `kind`, `done_at`)
+  KEY `idx_mn_user` (`user_id`, `kind`, `done_at`),
+  CONSTRAINT `fk_mn_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contents' AND COLUMN_NAME = 'approval_status');

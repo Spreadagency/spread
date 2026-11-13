@@ -20,7 +20,7 @@
 if (!function_exists('db')) require_once __DIR__ . '/db.php';
 if (!function_exists('get_setting')) require_once __DIR__ . '/credits.php';
 
-const WA_SCHEMA_V = '1';
+const WA_SCHEMA_V = '1+ma3';
 const WA_DEDUPE_MIN = 30;        // نفس الحدث لنفس العميل خلال 30 دقيقة مايتسجلش تاني
 const WA_MAX_ATTEMPTS = 3;
 const WA_OTP_TTL_MIN = 10;
@@ -200,6 +200,13 @@ function wa_event_catalog(): array
             'اتعلمنا من تعديلاتك 💡', "💡 {{message}}\nوافق أو ارفض من مركز الهوية 👈 {{link}}", 1],
         'brand_refresh'         => ['تذكير تحديث الهوية (كل 90 يوم)', [], 0, 'both',
             'في جديد عندك؟ ✨', "أهلًا {{first_name}} 👋\nفي خدمات أو عروض جديدة عندك؟ حدّثها في مركز الهوية علشان المحتوى يطلع عنها 👈 {{link}}", 1],
+        // إدارة الحسابات والرسائل (خريطة التطوير · المرحلة 3)
+        'approval_request'      => ['منشورات جاهزة لموافقة العميل (حساب مُدار)', ['count'], 1, 'both',
+            'منشورات جاهزة لمراجعتك', "أهلًا {{first_name}} 👋\nفريق Spread جهّزلك {{count}} منشور. راجعهم ووافق بضغطة 👈 {{link}}\nأو رد بكلمة *موافق* للموافقة على الكل.", 1],
+        'approval_reminder'     => ['تذكير بمنشورات مستنية موافقة العميل', ['count'], 0, 'both',
+            'منشوراتك لسه مستنياك', "{{first_name}}، لسه فيه {{count}} منشور مستني موافقتك عشان يتنشر في معاده 👈 {{link}}", 1],
+        'monthly_report'        => ['تقرير الشهر للحساب المُدار', ['month', 'made', 'published'], 0, 'both',
+            'تقرير شهر {{month}}', "تقرير شهر {{month}} 📊\nالمنشورات اللي اتعملت: {{made}}\nاللي اتنشر: {{published}}\nالتفاصيل 👈 {{link}}", 1],
         'otp'                   => ['كود التحقق من رقم الواتساب', ['code'], 1, 'whatsapp',
             'كود التحقق', 'كود التحقق بتاعك في Spread AI: *{{code}}* (صالح 10 دقايق)', 1],
     ];
