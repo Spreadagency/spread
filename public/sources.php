@@ -18,8 +18,8 @@ if (!$brand || empty($brand['business_name'])) {
 }
 $brandId = (int) $brand['id'];
 
-$MAX_SOURCES = 15;
-$MAX_SIZE = 20 * 1024 * 1024; // 20MB
+$MAX_SOURCES = setting_int('limit_sources_max', 15, 1, 100);            // الإعدادات ← عام ← الحدود
+$MAX_SIZE = setting_int('limit_source_mb', 20, 1, 50) * 1024 * 1024;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();

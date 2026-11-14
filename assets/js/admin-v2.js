@@ -101,12 +101,27 @@
             sh.forEach(function (x) { html += '<a href="' + esc(x.u) + '">' + esc(x.t) + '<small>' + esc(x.g) + '</small></a>'; });
         }
         if (data.users) {
-            html += '<div class="a2-pop-h">العملاء</div><a href="' + esc(data.users) + '?q=' + encodeURIComponent(v) + '">ابحث عن «' + esc(v) + '» في العملاء<small>Enter</small></a>';
+            html += '<div class="a2-pop-h">العملاء</div><div id="a2-qcl"></div><a href="' + esc(data.users) + '?q=' + encodeURIComponent(v) + '">ابحث عن «' + esc(v) + '» في العملاء<small>Enter</small></a>';
         }
         if (!html) html = '<div class="a2-empty">مفيش قسم بالاسم ده.</div>';
         qp.innerHTML = html;
         qp.hidden = false;
         sel = -1;
+        clients(v);
+    }
+    // المرحلة 5: العملاء بالاسم/الإيميل/الموبايل ← «مساحة العميل» (المُدار) أو ملف العميل — بعد ما الكتابة تقف
+    var ct = null, cseq = 0;
+    function clients(v) {
+        if (!data.clients || v.length < 2) return;
+        clearTimeout(ct);
+        var my = ++cseq;
+        ct = setTimeout(function () {
+            fetch(data.clients + '?q=' + encodeURIComponent(v), { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
+                var box = document.getElementById('a2-qcl');
+                if (my !== cseq || !box) return;
+                box.innerHTML = (j.clients || []).map(function (c) { return '<a href="' + esc(c.url) + '">' + esc(c.name) + '<small>' + esc(c.sub) + '</small></a>'; }).join('');
+            }).catch(function () {});
+        }, 250);
     }
     if (q && qp) {
         q.addEventListener('input', render);

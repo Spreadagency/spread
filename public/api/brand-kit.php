@@ -453,8 +453,10 @@ function bkapi_read_source(int $uid, array $bp, string $url, ?array $file): arra
     }
     $types = ['pdf' => 'pdf', 'docx' => 'docx', 'txt' => 'txt'];
     if (!isset($types[$ext])) api_fail('النوع ده مش مدعوم — ارفع PDF أو Word أو TXT أو صورة', 'invalid', 422);
-    if (($file['error'] ?? 1) !== UPLOAD_ERR_OK || (int) $file['size'] > 20 * 1024 * 1024) api_fail('فشل الرفع أو الملف أكبر من 20 ميجا', 'invalid', 422);
-    if ((int) (db_one('SELECT COUNT(*) n FROM brand_sources WHERE brand_profile_id = ?', [$bp['id']])['n'] ?? 0) >= 15) api_fail('عندك 15 مصدر — امسح مصدر قديم الأول', 'limit', 422);
+    $__mb = setting_int('limit_source_mb', 20, 1, 50);
+    if (($file['error'] ?? 1) !== UPLOAD_ERR_OK || (int) $file['size'] > $__mb * 1024 * 1024) api_fail('فشل الرفع أو الملف أكبر من ' . $__mb . ' ميجا', 'invalid', 422);
+    $__max = setting_int('limit_sources_max', 15, 1, 100);
+    if ((int) (db_one('SELECT COUNT(*) n FROM brand_sources WHERE brand_profile_id = ?', [$bp['id']])['n'] ?? 0) >= $__max) api_fail('عندك ' . $__max . ' مصدر — امسح مصدر قديم الأول', 'limit', 422);
     $dir = UPLOADS_PATH . '/sources';
     if (!is_dir($dir)) @mkdir($dir, 0755, true);
     $safe = 'src_' . $uid . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;

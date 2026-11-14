@@ -41,7 +41,7 @@ function sse_fail(string $error): void
     exit;
 }
 
-if (!rate_limit('generate', 'u' . $user['id'], 10, 600)) {
+if (!rate_limit('generate', 'u' . $user['id'], setting_int('limit_generate_per_10min', 10, 1, 200), 600)) {
     sse_fail('وصلت للحد الأقصى من التوليد. استنى شوية وجرب تاني.');
 }
 if (!$brand || empty($brand['business_name'])) {

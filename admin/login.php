@@ -3,7 +3,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/rate-limit.php';
 
 if (is_admin_logged_in()) {
-    redirect('admin/dashboard.php');
+    redirect('admin/today.php');   // المرحلة 5: أول صفحة = «اليوم» (اللوحة لسه admin/dashboard.php)
 }
 
 $errors = [];
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($result['ok']) {
         login_admin((int) $result['admin']['id']);
         admin_log('login', null, null, 'admin login');
-        redirect('admin/dashboard.php');
+        redirect('admin/today.php');   // المرحلة 5: أول صفحة = «اليوم» (اللوحة لسه admin/dashboard.php)
     } else {
         $errors[] = $result['error'];
     }

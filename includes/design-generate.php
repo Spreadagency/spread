@@ -58,7 +58,7 @@ function design_generate(array $user, array $in): array
 
     // التصميم الجماعي من الحملة (⑥-ب): حد أعلى — كل تصميم بيتخصم من الكريدت برضه
     $__bulk = ($in['bulk'] ?? '') === '1';
-    if (empty($in['no_rate_limit']) && !($__bulk ? rate_limit('design_bulk', 'u' . $user['id'], 30, 600) : rate_limit('design', 'u' . $user['id'], 6, 600))) {
+    if (empty($in['no_rate_limit']) && !($__bulk ? rate_limit('design_bulk', 'u' . $user['id'], setting_int('limit_design_bulk_per_10min', 30, 1, 500), 600) : rate_limit('design', 'u' . $user['id'], setting_int('limit_design_per_10min', 6, 1, 200), 600))) {
         return (['ok' => false, 'error' => 'وصلت للحد الأقصى لتوليد التصميمات. استنى شوية.']);
     }
 

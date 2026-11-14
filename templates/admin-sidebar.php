@@ -143,5 +143,5 @@ if (function_exists('admin_can') && admin_can('site_settings') && is_file(__DIR_
             $__sets[] = ['t' => $__f['label'], 'k' => $__f['key'], 'g' => $__t['label'], 'u' => url('admin/settings.php?tab=' . $__tk) . '#f-' . $__f['key']];
         }
     }
-    echo json_encode(['nav' => $__flat, 'sets' => $__sets, 'users' => admin_can('view_users') ? url('admin/users.php') : null], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
+    echo json_encode(['nav' => $__flat, 'sets' => $__sets, 'users' => admin_can('view_users') ? url('admin/users.php') : null, 'clients' => admin_can('view_users') ? url('admin/search-clients.php') : null], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP);
 ?></script>

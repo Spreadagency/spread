@@ -81,6 +81,13 @@ function csrf_token(): string
  * PHP بيقفل ملف الجلسة طول الطلب — فطلب تصميم بياخد دقيقة كان بيوقّف أي صفحة تانية
  * لنفس العميل لحد ما يخلص («السيستم كله بيقف» على Apache). القراءة من $_SESSION بتفضل شغالة بعدها.
  */
+/** حد رقمي من الإعدادات (خريطة التطوير · المرحلة 5) — القيمة الافتراضية = اللي كان مكتوب في الكود */
+function setting_int(string $key, int $default, int $min = 1, int $max = 100000): int
+{
+    $v = function_exists('get_setting') ? (int) get_setting($key, (string) $default) : $default;
+    return $v >= $min && $v <= $max ? $v : $default;
+}
+
 function session_release(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {

@@ -17,7 +17,7 @@ $user = current_user();
 $brand = user_brand();
 
 // Rate limit: 10 generations per 10 minutes per user
-if (!rate_limit('generate', 'u' . $user['id'], 10, 600)) {
+if (!rate_limit('generate', 'u' . $user['id'], setting_int('limit_generate_per_10min', 10, 1, 200), 600)) {
     json_response(['ok' => false, 'error' => 'وصلت للحد الأقصى من التوليد. استنى شوية وجرب تاني.']);
 }
 

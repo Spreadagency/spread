@@ -50,6 +50,13 @@ function settings_registry(): array
                     ['key' => 'trial_ideas_count', 'label' => 'عدد الأفكار في التجربة', 'type' => 'number', 'default' => '4', 'min' => 3, 'max' => 6],
                     ['key' => 'trial_per_ip_hour', 'label' => 'أقصى محاولات لكل IP في الساعة', 'type' => 'number', 'default' => '5', 'min' => 1, 'max' => 50],
                 ]],
+                ['title' => 'الحدود (كانت مكتوبة في الكود)', 'fields' => [
+                    ['key' => 'limit_sources_max', 'label' => 'أقصى عدد مستندات للبراند الواحد', 'type' => 'number', 'default' => '15', 'min' => 1, 'max' => 100],
+                    ['key' => 'limit_source_mb', 'label' => 'أقصى حجم للمستند (ميجا)', 'type' => 'number', 'default' => '20', 'min' => 1, 'max' => 50, 'help' => 'لازم يكون أقل من upload_max_filesize على السيرفر'],
+                    ['key' => 'limit_generate_per_10min', 'label' => 'أقصى توليد منشورات لكل عميل كل 10 دقايق', 'type' => 'number', 'default' => '10', 'min' => 1, 'max' => 200],
+                    ['key' => 'limit_design_per_10min', 'label' => 'أقصى تصميمات لكل عميل كل 10 دقايق', 'type' => 'number', 'default' => '6', 'min' => 1, 'max' => 200],
+                    ['key' => 'limit_design_bulk_per_10min', 'label' => 'أقصى تصميمات بالجملة (الحملات) كل 10 دقايق', 'type' => 'number', 'default' => '30', 'min' => 1, 'max' => 500],
+                ]],
                 ['title' => 'المدفوعات', 'fields' => [
                     ['key' => 'billing_email_notify', 'label' => 'إيميل للعميل عند اعتماد/رفض الدفع أو طلب معلومات', 'type' => 'bool', 'default' => '1'],
                 ]],

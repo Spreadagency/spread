@@ -67,77 +67,70 @@ function admin_icon(string $name, int $size = 19): string
  */
 function admin_nav(): array
 {
+    // خريطة التطوير · المرحلة 5: 6 أقسام بدل 10 — نفس الصفحات ونفس الصلاحيات ونفس اللينكات (مفيش صفحة اتمسحت أو اتنقلت)
     return [
         '' => [
+            ['today', 'اليوم', 'Today', 'check', 'admin/today.php', null, ['today']],
             ['dashboard', 'لوحة التشغيل', 'Dashboard', 'home', 'admin/dashboard.php', null, ['dashboard']],
         ],
-        'CUSTOMERS' => [
+        'العملاء' => [
             ['users', 'العملاء', 'Customers', 'users', 'admin/users.php', 'view_users', ['users']],
             ['my-accounts', 'حساباتي', 'My accounts', 'users', 'admin/my-accounts.php', 'view_users', ['my-accounts']],
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
-            ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
-            ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],
-            ['inbox', 'صندوق الوارد', 'Inbox', 'send', 'admin/inbox.php', 'view_users', ['inbox'], 'inbox'],
-            ['whatsapp', 'الرسايل والواتساب', 'Messages & WhatsApp', 'send', 'admin/whatsapp.php', 'view_users', ['whatsapp']],
+            ['brand-kits', 'هويات العملاء (Brand Kit)', 'Brand Kits', 'palette', 'admin/brand-kits.php', 'view_users', ['brand-kits']],
+            ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
         ],
-        'CONTENT' => [
+        'المحتوى' => [
             ['content', 'المحتوى', 'Content', 'pen', 'admin/content-history.php', 'view_content', ['content']],
             ['gallery', 'التصميمات المُنتجة', 'Generated Designs', 'image', 'admin/designs-gallery.php', 'view_content', ['gallery']],
             ['video-requests', 'طلبات الفيديو', 'Video Requests', 'video', 'admin/video-requests.php', 'view_content', ['video-requests'], 'video'],
             ['studio', 'مكتبة التصميمات', 'Design Library', 'palette', 'admin/media-library.php', 'studio_media', ['studio']],
-        ],
-        'DESIGN' => [
-            ['studio-settings', 'إعدادات التصميم', 'Design Settings', 'spark', 'admin/studio-settings.php', 'site_settings', ['studio-settings']],
             ['templates', 'القوالب', 'Templates', 'layout', 'admin/templates.php', 'view_content', ['templates']],
-            ['watermark', 'العلامة المائية', 'Watermark', 'drop', 'admin/watermark.php', 'site_settings', ['watermark']],
+            ['ce-skills', 'Skills التخصصات', 'Sector Skills', 'text', 'admin/ce-skills.php', 'ai_settings', ['ce-skills']],
         ],
-        // محرك المحتوى الجديد ومراقبته: مجموعة لوحدها
-        'CONTENT ENGINE' => [
+        'الرسائل' => [
+            ['inbox', 'صندوق الوارد', 'Inbox', 'send', 'admin/inbox.php', 'view_users', ['inbox'], 'inbox'],
+            ['whatsapp', 'الرسايل والواتساب', 'Messages & WhatsApp', 'send', 'admin/whatsapp.php', 'view_users', ['whatsapp']],
+            ['announcements', 'الإعلانات', 'Announcements', 'megaphone', 'admin/announcements.php', 'site_settings', ['announcements']],
+        ],
+        'الفلوس' => [
+            ['payments', 'المدفوعات', 'Payments', 'card', 'admin/payments.php', 'view_users', ['payments'], 'payments'],
+            ['credits', 'الـ Credits والمحافظ', 'Credits & Wallets', 'wallet', 'admin/credits.php', 'add_credits', ['credits']],
+            ['packages', 'الباقات والأسعار', 'Plans & Pricing', 'card', 'admin/packages.php', 'manage_packages', ['packages']],
+            ['pricing', 'تسعير العمليات', 'Credits Pricing', 'diamond', 'admin/pricing.php', 'manage_packages', ['pricing']],
+            ['offers', 'العروض', 'Offers', 'gift', 'admin/offers.php', 'manage_packages', ['offers']],
+            ['referrals', 'الإحالات والأفلييت', 'Referrals', 'share', 'admin/referrals.php', 'manage_packages', ['referrals']],
+            ['video-types', 'أنواع الفيديو وأسعارها', 'Video Pricing', 'video', 'admin/video-types.php', 'manage_packages', ['video-types']],
+            ['assistants', 'المساعدين (الدعم والوكيل)', 'Assistants', 'spark', 'admin/assistants.php', 'manage_packages', ['assistants']],
+            ['profitability', 'ربحية الباقات', 'Plan Profitability', 'chart', 'admin/profitability.php', 'view_costs', ['profitability']],
+            ['campaign_cost', 'تكلفة الحملة', 'Campaign Cost', 'chart', 'admin/campaign-cost.php', 'view_costs', ['campaign_cost']],
+            ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
+            ['users-export', 'تصدير العملاء', 'Customer Export', 'download', 'admin/users-export.php', 'manage_packages', ['users-export']],
+        ],
+        'الإعدادات' => [
+            ['system-health', 'صحة النظام', 'System Health', 'gauge', 'admin/system-health.php', 'site_settings', ['system-health']],
+            ['settings', 'مركز الإعدادات', 'Settings Center', 'gear', 'admin/settings.php', 'site_settings', ['settings', 'integrations', 'google-auth']],
+            ['admins', 'الفريق والصلاحيات', 'Team & Roles', 'shield', 'admin/admins.php', 'manage_admins', ['admins']],
+            ['logs', 'سجل النشاط', 'Activity Logs', 'list', 'admin/logs.php', 'view_users', ['logs']],
+            ['alerts', 'الإشعارات والتنبيهات', 'Notifications', 'bell', 'admin/alerts.php', 'view_costs', ['alerts'], 'alerts'],
+            ['features', 'المزايا والنشر', 'Features', 'toggle', 'admin/features.php', 'features', ['features']],
+            ['appearance', 'المظهر', 'Appearance', 'sliders', 'admin/appearance.php', 'site_settings', ['appearance']],
+            ['studio-settings', 'إعدادات التصميم', 'Design Settings', 'spark', 'admin/studio-settings.php', 'site_settings', ['studio-settings']],
+            ['watermark', 'العلامة المائية', 'Watermark', 'drop', 'admin/watermark.php', 'site_settings', ['watermark']],
             ['ce-settings', 'محرك المحتوى', 'Content Engine', 'spark', 'admin/ce-settings.php', 'ai_settings', ['ce-settings']],
             ['ce-lab', 'البرومبتات والـ Playground', 'Prompts & Playground', 'flask', 'admin/ce-lab.php', 'ai_settings', ['ce-lab']],
-            ['ce-skills', 'Skills التخصصات', 'Sector Skills', 'text', 'admin/ce-skills.php', 'ai_settings', ['ce-skills']],
             ['ce-insights', 'الاستخدام والتعلّم', 'Usage & Learning', 'chart', 'admin/ce-insights.php', 'ai_settings', ['ce-insights']],
-            // مركز الجودة: زرار واحد — الصفحات الخمسة (التقرير · التقييمات · البلاغات · سجل الـ MCP · الإعدادات) تبويبات جوّاه
             ['ai-quality', 'مركز الجودة', 'AI Quality', 'gauge', 'admin/ai-report.php', 'ai_settings', ['ai-report', 'ai-evaluations', 'ai-issues', 'ai-changes', 'ai-ab', 'ai-security', 'ai-mcp-log', 'ai-quality-settings'], 'issues'],
             ['mcp-setup', 'إعدادات الـ MCP', 'MCP Setup', 'shield', 'admin/mcp-setup.php', 'ai_settings', ['mcp-setup']],
-        ],
-        'AI CENTER' => [
             ['ai-providers', 'مزودين الـ AI', 'AI Providers', 'plug', 'admin/ai-providers.php', 'ai_settings', ['ai-providers', 'ai-connection', 'ai']],
             ['ai-models', 'الموديلات (السجل والمراحل)', 'Model Registry', 'cpu', 'admin/ai-models.php', 'ai_settings', ['ai-models']],
             ['ai-router', 'الموديلات والـ Router', 'Models & Router', 'cpu', 'admin/ai-router.php', 'ai_settings', ['ai-router']],
             ['quality-tiers', 'مستويات الجودة', 'Quality Tiers', 'sliders', 'admin/quality-tiers.php', 'ai_settings', ['quality-tiers']],
             ['prompts', 'مكتبة البرومبتات', 'Prompt Library', 'text', 'admin/prompts.php', 'ai_settings', ['prompts', 'type-prompts']],
             ['brand-learning', 'مكتبة التعلّم', 'Learning Library', 'flask', 'admin/brand-learning.php', 'ai_settings', ['brand-learning']],
-            ['brand-kits', 'هويات العملاء (Brand Kit)', 'Brand Kits', 'palette', 'admin/brand-kits.php', 'view_users', ['brand-kits']],
             ['sector-templates', 'قوالب القطاعات', 'Sector Templates', 'layout', 'admin/sector-templates.php', 'ai_settings', ['sector-templates']],
             ['style-presets', 'مكتبة الـ Presets', 'Style Presets', 'sliders', 'admin/style-presets.php', 'ai_settings', ['style-presets']],
             ['ai-logs', 'سجل طلبات الـ AI', 'AI Request Logs', 'list', 'admin/ai-runs.php', 'view_costs', ['ai-logs', 'ai-runs']],
-            ['ai-costs', 'تكاليف الـ AI', 'AI Costs', 'coin', 'admin/ai-costs.php', 'view_costs', ['ai-costs']],
-        ],
-        'PUBLISHING' => [
-            ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
-        ],
-        'COMMERCIAL' => [
-            ['payments', 'المدفوعات', 'Payments', 'card', 'admin/payments.php', 'view_users', ['payments'], 'payments'],
-            ['packages', 'الباقات والأسعار', 'Plans & Pricing', 'card', 'admin/packages.php', 'manage_packages', ['packages']],
-            ['video-types', 'أنواع الفيديو وأسعارها', 'Video Pricing', 'video', 'admin/video-types.php', 'manage_packages', ['video-types']],
-            ['assistants', 'المساعدين (الدعم والوكيل)', 'Assistants', 'spark', 'admin/assistants.php', 'manage_packages', ['assistants']],
-            ['pricing', 'تسعير العمليات', 'Credits Pricing', 'diamond', 'admin/pricing.php', 'manage_packages', ['pricing']],
-            ['offers', 'العروض', 'Offers', 'gift', 'admin/offers.php', 'manage_packages', ['offers']],
-        ],
-        'REPORTS' => [
-            ['profitability', 'ربحية الباقات', 'Plan Profitability', 'chart', 'admin/profitability.php', 'view_costs', ['profitability']],
-            ['campaign_cost', 'تكلفة الحملة', 'Campaign Cost', 'chart', 'admin/campaign-cost.php', 'view_costs', ['campaign_cost']],
-            ['users-export', 'تصدير العملاء', 'Customer Export', 'download', 'admin/users-export.php', 'manage_packages', ['users-export']],
-            ['logs', 'سجل النشاط', 'Activity Logs', 'list', 'admin/logs.php', 'view_users', ['logs']],
-        ],
-        'SYSTEM' => [
-            ['admins', 'الفريق والصلاحيات', 'Team & Roles', 'shield', 'admin/admins.php', 'manage_admins', ['admins']],
-            ['alerts', 'الإشعارات والتنبيهات', 'Notifications', 'bell', 'admin/alerts.php', 'view_costs', ['alerts'], 'alerts'],
-            ['announcements', 'الإعلانات', 'Announcements', 'megaphone', 'admin/announcements.php', 'site_settings', ['announcements']],
-            ['features', 'المزايا والنشر', 'Features', 'toggle', 'admin/features.php', 'features', ['features']],
-            ['appearance', 'المظهر', 'Appearance', 'sliders', 'admin/appearance.php', 'site_settings', ['appearance']],
-            ['settings', 'مركز الإعدادات', 'Settings Center', 'gear', 'admin/settings.php', 'site_settings', ['settings', 'integrations', 'google-auth']],
             ['security-keys', 'مفاتيح التشفير', 'Encryption Keys', 'lock', 'admin/security-keys.php', 'ai_settings', ['security-keys']],
             ['migrations', 'الترحيلات', 'Migrations', 'db', 'admin/migrations.php', 'site_settings', ['migrations']],
             ['ui-diagnose', 'فحص التحديث', 'Update Check', 'tool', 'admin/ui-diagnose.php', 'site_settings', ['ui-diagnose']],
