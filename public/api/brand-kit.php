@@ -455,6 +455,7 @@ function bkapi_read_source(int $uid, array $bp, string $url, ?array $file): arra
     if (!isset($types[$ext])) api_fail('النوع ده مش مدعوم — ارفع PDF أو Word أو TXT أو صورة', 'invalid', 422);
     $__mb = setting_int('limit_source_mb', 20, 1, 50);
     if (($file['error'] ?? 1) !== UPLOAD_ERR_OK || (int) $file['size'] > $__mb * 1024 * 1024) api_fail('فشل الرفع أو الملف أكبر من ' . $__mb . ' ميجا', 'invalid', 422);
+    if (!upload_doc_type_ok((string) $file['tmp_name'], $ext)) api_fail('محتوى الملف مش ' . strtoupper($ext) . ' فعلًا — ارفع الملف الأصلي', 'invalid', 422);
     $__max = setting_int('limit_sources_max', 15, 1, 100);
     if ((int) (db_one('SELECT COUNT(*) n FROM brand_sources WHERE brand_profile_id = ?', [$bp['id']])['n'] ?? 0) >= $__max) api_fail('عندك ' . $__max . ' مصدر — امسح مصدر قديم الأول', 'limit', 422);
     $dir = UPLOADS_PATH . '/sources';

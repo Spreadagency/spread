@@ -9,9 +9,9 @@ if ($token) {
     $reset = db_one(
         'SELECT pr.*, u.email FROM password_resets pr
          JOIN users u ON u.id = pr.user_id
-         WHERE pr.token = ? AND pr.used_at IS NULL AND pr.expires_at > NOW()
+         WHERE (pr.token = ? OR (pr.token = ? AND pr.created_at < ?)) AND pr.used_at IS NULL AND pr.expires_at > NOW()
          LIMIT 1',
-        [$token]
+        [reset_token_hash($token), $token, reset_hash_since()]   // المرحلة 6: البصمة · والتوكنز النص القديمة (اللي قبل التحويل) لحد ما تنتهي
     );
 }
 
@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'UPDATE users SET password = ? WHERE id = ?',
             [password_hash($password, PASSWORD_BCRYPT), $reset['user_id']]
         );
-        db_run('UPDATE password_resets SET used_at = NOW() WHERE id = ?', [$reset['id']]);
+        // كل روابط الاسترجاع المفتوحة للحساب ده بتتقفل (مش اللي اتستخدم بس)
+        db_run('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$reset['user_id']]);
         // ⑥-أ: تاريخ آخر تغيير + خروج كل الأجهزة (لو الحساب اتسرق، الجلسات القديمة تقفل)
         try {
             db_run('UPDATE users SET password_changed_at = NOW() WHERE id = ?', [$reset['user_id']]);

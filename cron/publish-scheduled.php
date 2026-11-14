@@ -21,7 +21,12 @@ if (php_sapi_name() === 'cli') {
         if (strpos($arg, 'cron_secret=') === 0) $provided = substr($arg, 12);
     }
 } else {
-    $provided = $_GET['cron_secret'] ?? '';
+    // المرحلة 6: الأفضل الـ header (X-Cron-Secret) — السر في اللينك بيتسجل في سجلات السيرفر. اللينك القديم لسه شغال عشان الكرون الحالي مايقفش
+    $provided = (string) ($_SERVER['HTTP_X_CRON_SECRET'] ?? '');
+    if ($provided === '' && isset($_GET['cron_secret'])) {
+        $provided = (string) $_GET['cron_secret'];
+        $__cronViaQuery = true;
+    }
 }
 $secret = get_setting('cron_secret', '');
 if (!$secret || !hash_equals($secret, $provided)) {
@@ -40,7 +45,7 @@ if (!$lockFile || !flock($lockFile, LOCK_EX | LOCK_NB)) {
 }
 
 // 8: آخر تشغيل (بيظهر في «صحة النظام» في لوحة التشغيل)
-try { set_setting('cron_publish_last_run', date('Y-m-d H:i:s')); } catch (\Throwable $e) {}
+try { set_setting('cron_publish_last_run', date('Y-m-d H:i:s')); set_setting('cron_publish_via_query', !empty($__cronViaQuery) ? '1' : '0'); } catch (\Throwable $e) { error_log('[cron] last_run: ' . $e->getMessage()); }
 
 // ─── ⑥-أ: حسابات طلبت الحذف وعدّت مهلة الـ 14 يوم ← مسح نهائي (مرة كل ساعة بالكتير) ───
 try {

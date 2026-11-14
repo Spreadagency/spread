@@ -17,13 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (!rate_limit_ok('login', client_ip(), 6, 600)) {
-        $errors[] = 'محاولات كتير. استنى 10 دقايق وجرب تاني.';
+    if (!rate_limit_ok('login', client_ip(), 6, 600) || !rate_limit_ok('login_acct', login_acct_key($email), LOGIN_ACCT_MAX, LOGIN_ACCT_WINDOW)) {
+        $errors[] = 'محاولات كتير. استنى 15 دقيقة وجرب تاني.';
         $result = ['ok' => false, 'error' => null, 'blocked' => true];
     } else {
         $result = authenticate_user($email, $password);
         if (!$result['ok']) {
             rate_limit_hit('login', client_ip());
+            rate_limit_hit('login_acct', login_acct_key($email));   // المرحلة 6: حد لكل حساب كمان
         }
     }
     if ($result['ok']) {

@@ -56,6 +56,30 @@ function upload_image(array $file, string $subfolder = 'brand-images'): array
 /**
  * Delete uploaded file
  */
+/**
+ * المستند فعلًا من النوع اللي امتداده بيقول عليه؟ (finfo — مش الامتداد بس) · المرحلة 6
+ * لو finfo مش متاح على السيرفر بنكمّل زي الأول (الامتداد بس).
+ */
+function upload_doc_type_ok(string $tmpPath, string $ext): bool
+{
+    if (!function_exists('finfo_open') || !is_file($tmpPath)) return true;
+    $fi = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = (string) finfo_file($fi, $tmpPath);
+    finfo_close($fi);
+    $ok = [
+        'pdf' => ['application/pdf', 'application/x-pdf'],
+        'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream'],
+        'doc' => ['application/msword', 'application/vnd.ms-office', 'application/octet-stream', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        'txt' => ['text/plain', 'text/csv', 'text/markdown', 'application/csv', 'inode/x-empty'],
+    ];
+    if (!isset($ok[$ext]) || !in_array($mime, $ok[$ext], true)) return false;
+    // DOCX = ZIP لازم يبدأ بـ PK · TXT مافيهوش علامات HTML/سكربت في أوله
+    $head = (string) @file_get_contents($tmpPath, false, null, 0, 512);
+    if ($ext === 'docx' && strncmp($head, "PK\x03\x04", 4) !== 0) return false;
+    if ($ext === 'txt' && preg_match('/<\s*(script|html|svg|iframe|\?php)/i', $head)) return false;
+    return true;
+}
+
 function delete_upload(string $relativePath): bool
 {
     if (empty($relativePath)) return false;

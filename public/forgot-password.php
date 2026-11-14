@@ -22,9 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = db_one('SELECT * FROM users WHERE email = ? LIMIT 1', [$email]);
         if ($user) {
             $token = random_token(64);
+            reset_hash_since();   // أول توكن متخزن كبصمة بيثبّت تاريخ التحويل
             db_run(
                 'INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
-                [$user['id'], $token, date('Y-m-d H:i:s', time() + RESET_TOKEN_TTL)]
+                [$user['id'], reset_token_hash($token), date('Y-m-d H:i:s', time() + RESET_TOKEN_TTL)]
             );
             send_reset_email($user['name'], $email, $token);
         }

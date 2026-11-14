@@ -127,16 +127,18 @@ body.ui-v2 .nx a.nx-tab.on, body.ui-v2 .nx a.nx-btn.primary { color: #fff; }
 (function () {
   var A = window.nxApi, page = 1;
   var list = document.getElementById('nx-list'), pager = document.getElementById('nx-pager');
+  // لينكات http/https بس (مفيش javascript: ولا data:) — المرحلة 6
+  function safeUrl(u) { u = String(u || ''); return /^https?:\/\//i.test(u) || /^\/(?!\/)/.test(u) ? u : ''; }
   function render(d) {
     document.getElementById('nx-unread').textContent = d.unread ? '(' + d.unread + ' جديدة)' : '';
     if (!d.items.length) { list.innerHTML = '<div class="nx-empty">مفيش رسايل لسه 📭</div>'; pager.innerHTML = ''; return; }
     list.innerHTML = d.items.map(function (m) {
       var acts = '';
       if (m.internal) acts += '<a class="nx-btn" href="' + A.esc(m.open) + '">افتح</a>';
-      if (m.link) acts += '<a class="nx-btn primary" href="' + A.esc(m.link) + '" target="_blank" rel="noopener">افتح الرابط ↗</a>';
+      if (safeUrl(m.link)) acts += '<a class="nx-btn primary" href="' + A.esc(safeUrl(m.link)) + '" target="_blank" rel="noopener">افتح الرابط ↗</a>';
       var media = '';
-      if (m.media && m.media_type === 'image') media = '<img class="nx-media" src="' + A.esc(m.media) + '" alt="" loading="lazy">';
-      else if (m.media) media = '<div class="nx-actions"><a class="nx-btn" href="' + A.esc(m.media) + '" target="_blank" rel="noopener">📎 المرفق</a></div>';
+      if (safeUrl(m.media) && m.media_type === 'image') media = '<img class="nx-media" src="' + A.esc(safeUrl(m.media)) + '" alt="" loading="lazy">';
+      else if (safeUrl(m.media)) media = '<div class="nx-actions"><a class="nx-btn" href="' + A.esc(safeUrl(m.media)) + '" target="_blank" rel="noopener">📎 المرفق</a></div>';
       return '<article class="nx-item' + (m.read ? '' : ' unread') + '" data-id="' + m.id + '" tabindex="0">' +
         '<div class="nx-item-top"><b>' + A.esc(m.title) + (m.admin ? '<span class="nx-tag">من فريق Spread</span>' : '') + '</b>' +
         '<span class="nx-meta" title="' + A.esc(m.at) + '">' + A.esc(m.ago) + '</span></div>' +

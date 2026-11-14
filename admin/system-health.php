@@ -29,6 +29,7 @@ include __DIR__ . '/../templates/admin-header.php';
             <a class="btn" href="<?= url('admin/ui-diagnose.php') ?>">فحص التحديث ←</a>
         </div>
 
+        <?php foreach ($h['warnings'] ?? [] as $w): ?><div class="alert warning"><?= e($w) ?></div><?php endforeach; ?>
         <section class="card">
             <div class="a2-h"><h3>الكرون (آخر تشغيل)</h3></div>
             <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>المهمة</th><th>الملف</th><th>آخر تشغيل</th><th>الحالة</th></tr></thead><tbody>

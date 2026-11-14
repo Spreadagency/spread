@@ -73,8 +73,8 @@ function msg_inbound_receive(string $phone, string $text, string $providerId = '
         if ($cnt > 0) { $result = 'وافق على ' . $cnt . ' منشور'; $handled = true; }
         else { $action = 'none'; $result = 'كتب «موافق» ومفيش منشورات مستنية'; }
     } elseif ($action === 'stop') {
-        db_run('UPDATE users SET whatsapp_opt_in = 0 WHERE id = ?', [$uid]);
-        $result = 'وقّف رسائل الواتساب';
+        msg_marketing_stop($uid);
+        $result = 'وقّف الرسائل التسويقية على الواتساب (رسائل الحساب المهمة مستمرة)';
         $handled = true;
     }
     try {
@@ -86,6 +86,23 @@ function msg_inbound_receive(string $phone, string $text, string $providerId = '
         throw $e;
     }
     return ['ok' => true, 'id' => $id, 'user_id' => $uid, 'action' => $action];
+}
+
+/**
+ * «إيقاف» (المرحلة 6): بيوقف الرسائل التسويقية بس على الواتساب —
+ *   كل حدث مش مهم (is_critical = 0) ← واتساب مقفول في تفضيلاته (جوه المنصة زي ما هو)
+ *   + علامة __marketing ← البث الجماعي مايوصلوش على الواتساب
+ * رسائل الحساب المهمة (كود التحقق · طلب الموافقة · فشل النشر …) ورسائل مسؤول الحساب المباشرة بتفضل توصل.
+ * العميل يرجّعها من «الإشعارات» (تشغيل الواتساب بيشيل العلامة).
+ */
+function msg_marketing_stop(int $uid): void
+{
+    $keys = array_column(db_all('SELECT event_key FROM message_templates WHERE is_critical = 0'), 'event_key');
+    $keys[] = WA_MARKETING_KEY;
+    foreach ($keys as $k) {
+        db_run('INSERT INTO user_notification_prefs (user_id, event_key, whatsapp, inapp) VALUES (?, ?, 0, 1)
+                ON DUPLICATE KEY UPDATE whatsapp = 0', [$uid, (string) $k]);
+    }
 }
 
 /** محادثة عميل: الطالع (messages) + الوارد (message_inbound) مرتبين بالوقت — الأحدث في الآخر */

@@ -132,5 +132,9 @@ function admin_system_health(): array
         if (!function_exists('migrations_status')) require_once __DIR__ . '/migrations.php';
         foreach (migrations_status() as $m) if (in_array($m['state'], ['pending', 'incomplete'], true)) $pending[] = $m['file'];
     } catch (\Throwable $e) {}
-    return ['crons' => $crons, 'queues' => $queues, 'migrations' => $pending];
+    $warn = [];
+    if (get_setting('cron_publish_via_query', '0') === '1') {
+        $warn[] = 'كرون النشر بيتنادى بالسر في اللينك (?cron_secret=…) — اللينك ده بيتسجل في سجلات السيرفر. الأفضل تشغّله من cPanel كأمر: php ' . dirname(__DIR__) . '/cron/publish-scheduled.php cron_secret=السر';
+    }
+    return ['crons' => $crons, 'queues' => $queues, 'migrations' => $pending, 'warnings' => $warn];
 }

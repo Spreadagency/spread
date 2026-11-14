@@ -13,12 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (!rate_limit_ok('admin_login', client_ip(), 5, 900)) {
+    if (!rate_limit_ok('admin_login', client_ip(), 5, 900) || !rate_limit_ok('admin_login_acct', login_acct_key($email), LOGIN_ACCT_MAX, LOGIN_ACCT_WINDOW)) {
         $result = ['ok' => false, 'error' => 'محاولات كتير. استنى 15 دقيقة وجرب تاني.'];
     } else {
         $result = authenticate_admin($email, $password);
         if (!$result['ok']) {
             rate_limit_hit('admin_login', client_ip());
+            rate_limit_hit('admin_login_acct', login_acct_key($email));   // المرحلة 6: حد لكل حساب كمان
         }
     }
     if ($result['ok']) {

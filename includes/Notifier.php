@@ -367,6 +367,19 @@ function wa_reachable_sql(): string
     return "u.whatsapp_opt_in = 1 AND ($verified OR CHAR_LENGTH(COALESCE(u.phone, '')) >= 10 OR CHAR_LENGTH(COALESCE(u.whatsapp_phone, '')) >= 10)";
 }
 
+/** علامة «إيقاف» للرسائل التسويقية (المرحلة 6) — البث الجماعي مايوصلش على الواتساب */
+const WA_MARKETING_KEY = '__marketing';
+
+function wa_marketing_off(int $uid): bool
+{
+    try {
+        $p = db_one('SELECT whatsapp FROM user_notification_prefs WHERE user_id = ? AND event_key = ?', [$uid, WA_MARKETING_KEY]);
+        return $p && (int) $p['whatsapp'] === 0;
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
 /** تفضيلات العميل للحدث (الافتراضي: الاتنين مفعّلين) */
 function wa_prefs(int $uid, string $eventKey): array
 {
@@ -742,6 +755,7 @@ final class Notifier
                     $notifId = wa_inapp_insert((int) $u['id'], 'admin_broadcast', $title, $body, '', 'brand', false);
                 }
                 [$waStatus, $waErr, $phone] = self::adminWaState($u, (string) $b['channel']);
+                if ($waStatus === 'pending' && wa_marketing_off((int) $u['id'])) [$waStatus, $waErr, $phone] = ['skipped', 'marketing_off', null];   // «إيقاف» (المرحلة 6)
                 db_insert('INSERT INTO messages (user_id, type, broadcast_id, admin_id, notif_id, title, body, media_url, media_type, link, channel,
                                                  wa_phone, wa_status, wa_error, scheduled_at)
                            VALUES (?, "broadcast", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',

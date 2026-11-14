@@ -152,15 +152,26 @@ http('POST', "$base/admin/workspace.php", ['csrf' => csrf_of($h), 'id' => $uid, 
 $rp = db_one('SELECT body FROM messages WHERE user_id = ? AND event_key = "monthly_report"', [$uid]);
 t('«ابعت التقرير للعميل»', $rp && str_contains($rp['body'], date('Y-m')), json_encode($rp));
 
-/* ─── 6) «إيقاف» ─── */
+/* ─── 6) «إيقاف» (المرحلة 6: التسويقي بس) ─── */
 echo "إيقاف\n";
 [$c, $b] = $in(['phone' => $phone, 'text' => 'إيقاف']);
-t('«إيقاف» ← رسائل الواتساب بتقف', (json_decode($b, true)['action'] ?? '') === 'stop' && (int) db_one('SELECT whatsapp_opt_in o FROM users WHERE id = ?', [$uid])['o'] === 0);
+t('«إيقاف» ← اتنفّذ ورقم الواتساب لسه شغال للحاجات المهمة', (json_decode($b, true)['action'] ?? '') === 'stop' && (int) db_one('SELECT whatsapp_opt_in o FROM users WHERE id = ?', [$uid])['o'] === 1);
+db_run('DELETE FROM messages WHERE user_id = ? AND event_key IN ("approval_request", "monthly_report")', [$uid]);
 $c5 = $mk('draft');
-db_run('DELETE FROM messages WHERE user_id = ? AND event_key = "approval_request"', [$uid]);
 ma_send_for_approval($uid, [$c5], $superId);
 $am2 = db_one('SELECT wa_status, wa_error FROM messages WHERE user_id = ? AND event_key = "approval_request" ORDER BY id DESC LIMIT 1', [$uid]);
-t('وبعدها الرسالة جوه المنصة بس', $am2 && $am2['wa_status'] === 'skipped' && $am2['wa_error'] === 'opted_out', json_encode($am2));
+t('طلب الموافقة (مهم) لسه بيوصل واتساب', $am2 && $am2['wa_status'] === 'pending', json_encode($am2));
+Notifier::notify($uid, 'monthly_report', ['month' => date('Y-m'), 'made' => 1, 'published' => 0], ['url' => 'dashboard.php']);
+$mr = db_one('SELECT wa_status, channel FROM messages WHERE user_id = ? AND event_key = "monthly_report" ORDER BY id DESC LIMIT 1', [$uid]);
+t('التقرير الشهري (مش مهم) ← جوه المنصة بس', $mr && $mr['channel'] === 'inapp' && $mr['wa_status'] === 'none', json_encode($mr));
+$bid = Notifier::broadcast(['title' => "بث MS1 $tag", 'body' => 'عرض', 'channel' => 'both', 'audience' => ['type' => 'user', 'user_id' => $uid]], $superId);
+$bm = db_one('SELECT wa_status, wa_error FROM messages WHERE user_id = ? AND broadcast_id = ?', [$uid, $bid]);
+t('البث الجماعي ← مايوصلش واتساب', $bm && $bm['wa_status'] === 'skipped' && $bm['wa_error'] === 'marketing_off', json_encode($bm));
+db_run('DELETE FROM user_notification_prefs WHERE user_id = ? AND event_key = ?', [$uid, WA_MARKETING_KEY]);
+$bid2 = Notifier::broadcast(['title' => "بث MS1 تاني $tag", 'body' => 'عرض', 'channel' => 'both', 'audience' => ['type' => 'user', 'user_id' => $uid]], $superId);
+t('ولما العميل يشغّل الواتساب تاني البث بيرجع', (db_one('SELECT wa_status FROM messages WHERE user_id = ? AND broadcast_id = ?', [$uid, $bid2])['wa_status'] ?? '') === 'pending');
+db_run('DELETE FROM message_broadcasts WHERE id IN (?, ?)', [$bid, $bid2]);
+db_run('DELETE FROM user_notification_prefs WHERE user_id = ?', [$uid]);
 
 /* ─── تنضيف ─── */
 foreach (['message_inbound' => 'user_id = ?', 'messages' => 'user_id = ?', 'user_notifications' => 'user_id = ?', 'contents' => 'user_id = ?', 'managed_notes' => 'user_id = ?', 'managed_accounts' => 'user_id = ?', 'brand_profiles' => 'user_id = ?'] as $tb => $w) {

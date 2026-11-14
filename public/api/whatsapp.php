@@ -88,6 +88,8 @@ switch ($action) {
 
     case 'opt_in':
         db_run('UPDATE users SET whatsapp_opt_in = ? WHERE id = ?', [api_param('on') ? 1 : 0, $uid]);
+        // تشغيل الواتساب من جديد بيشيل علامة «إيقاف» التسويقية (المرحلة 6)
+        if (api_param('on')) db_run('DELETE FROM user_notification_prefs WHERE user_id = ? AND event_key = ?', [$uid, WA_MARKETING_KEY]);
         api_ok(wa_home($uid));
 
     case 'prefs':

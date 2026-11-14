@@ -415,7 +415,7 @@ function billing_approve(int $id, int $adminId, string $note = ''): array
             return ['ok' => false, 'error' => $ar['error'] ?? 'تعذّر تطبيق الإضافة'];
         }
         billing_event($id, 'system', null, 'credits_added', null, null, $r['plan_name']);
-        if ((float) $r['final_amount'] > 0) { try { db_run('UPDATE users SET has_purchased = 1 WHERE id = ?', [$uid]); } catch (\Throwable $e) {} }
+        if ((float) $r['final_amount'] > 0) { try { db_run('UPDATE users SET has_purchased = 1 WHERE id = ?', [$uid]); } catch (\Throwable $e) { error_log('[billing:418] ' . $e->getMessage()); } }
         notify_user($uid, 'payment_approved', 'اتضافت «' . $r['plan_name'] . '» ✓', 'اتأكدنا من الدفع والإضافة شغالة مع باقتك.', 'credits.php', 'ok');
         if (function_exists('admin_log')) admin_log('payment_approve', 'payment_request', $id, json_encode(['user' => $uid, 'addon' => (int) $r['addon_id'], 'egp' => (float) $r['final_amount']], JSON_UNESCAPED_UNICODE));
         return ['ok' => true, 'plan_id' => null];
@@ -451,9 +451,9 @@ function billing_approve(int $id, int $adminId, string $note = ''): array
 
     // أول شراء: علامة has_purchased + مكافأة المُحيل (لو العرض بتاعه «عند أول اشتراك مدفوع»)
     if ((float) $r['final_amount'] > 0 && function_exists('referral_on_first_payment')) {
-        try { referral_on_first_payment($uid); } catch (\Throwable $e) {}
+        try { referral_on_first_payment($uid); } catch (\Throwable $e) { error_log('[billing:454] ' . $e->getMessage()); }
     } else {
-        try { db_run('UPDATE users SET has_purchased = 1 WHERE id = ?', [$uid]); } catch (\Throwable $e) {}
+        try { db_run('UPDATE users SET has_purchased = 1 WHERE id = ?', [$uid]); } catch (\Throwable $e) { error_log('[billing:456] ' . $e->getMessage()); }
     }
     promo_record_usage($r);
 

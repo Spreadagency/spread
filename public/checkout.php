@@ -199,7 +199,11 @@ async function coApply() {
     const q = r.quote;
     CO.code = q.code; CO.final = q.final;
     msg.className = 'bl-promo-msg ok';
-    msg.innerHTML = '✓ تم تطبيق الكود <b dir="ltr">' + q.code + '</b> — ' + q.label;
+    // نص بس (من غير innerHTML) — الكود والعنوان جايين من بيانات العروض (المرحلة 6)
+    msg.textContent = '✓ تم تطبيق الكود ';
+    const cb = document.createElement('b'); cb.dir = 'ltr'; cb.textContent = String(q.code || '');
+    msg.appendChild(cb);
+    msg.appendChild(document.createTextNode(' — ' + String(q.label || '')));
     document.getElementById('s-disc-row').hidden = !(q.discount > 0);
     document.getElementById('s-disc').textContent = '−' + fmt(q.discount);
     document.getElementById('s-final').textContent = fmt(q.final);

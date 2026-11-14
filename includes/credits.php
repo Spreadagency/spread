@@ -371,7 +371,7 @@ function credits_add(int $userId, int $amount, string $notes = '', ?int $created
                 $alloc = [[$lid, $amount, $unit, $source, $est]];
                 // كريدت إضافة (باقة مساعدة): صالح addon_days يوم استخدام
                 if (!empty($meta['addon_days'])) {
-                    try { db_run('UPDATE credit_lots SET addon_until = DATE_ADD(NOW(), INTERVAL ? DAY) WHERE id = ?', [max(1, (int) $meta['addon_days']), $lid]); } catch (\Throwable $e) {}
+                    try { db_run('UPDATE credit_lots SET addon_until = DATE_ADD(NOW(), INTERVAL ? DAY) WHERE id = ?', [max(1, (int) $meta['addon_days']), $lid]); } catch (\Throwable $e) { error_log('[credits:374] ' . $e->getMessage()); }
                 }
             }
         }
@@ -402,7 +402,7 @@ function credits_add(int $userId, int $amount, string $notes = '', ?int $created
                         );
                         if ($lots) {
                             // كريدت الإضافات: أيامه بتتمد بمدة الوقفة
-                            try { db_run('UPDATE credit_lots SET addon_until = DATE_ADD(addon_until, INTERVAL ? SECOND) WHERE user_id = ? AND frozen > 0 AND addon_until IS NOT NULL', [max(0, time() - (int) strtotime($w['expired_at'])), $userId]); } catch (\Throwable $e) {}
+                            try { db_run('UPDATE credit_lots SET addon_until = DATE_ADD(addon_until, INTERVAL ? SECOND) WHERE user_id = ? AND frozen > 0 AND addon_until IS NOT NULL', [max(0, time() - (int) strtotime($w['expired_at'])), $userId]); } catch (\Throwable $e) { error_log('[credits:405] ' . $e->getMessage()); }
                             db_run('UPDATE credit_lots SET remaining = remaining + frozen, frozen = 0 WHERE user_id = ? AND frozen > 0', [$userId]);
                         }
                         credits_tx_insert([
@@ -449,16 +449,18 @@ function credits_consume(int $userId, int $amount, string $notes = '', ?string $
     credits_check_expiry($userId);
     // الحد الأسبوعي للباقة (الباقات الطويلة) — الرسالة بتطلع من credits_short_msg
     $GLOBALS['credits_block_msg'] = null;
-    if (function_exists('pkg_weekly_block') && ($blk = pkg_weekly_block($userId, $amount))) {
-        $GLOBALS['credits_block_msg'] = $blk;
-        return false;
-    }
     $began = false;
     try {
         $began = credits_tx_begin();
         $row = db_one('SELECT balance FROM credit_wallets WHERE user_id = ? FOR UPDATE', [$userId]);
         $balance = $row ? (int) $row['balance'] : 0;
         if ($balance < $amount) {
+            if ($began) db()->rollBack();
+            return false;
+        }
+        // الحد الأسبوعي بيتحسب جوه القفل (المرحلة 6): طلبين في نفس اللحظة مايعدّوش الحد مع بعض
+        if (function_exists('pkg_weekly_block') && ($blk = pkg_weekly_block($userId, $amount))) {
+            $GLOBALS['credits_block_msg'] = $blk;
             if ($began) db()->rollBack();
             return false;
         }

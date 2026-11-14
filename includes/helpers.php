@@ -124,6 +124,27 @@ function random_token(int $length = 64): string
     return bin2hex(random_bytes($length / 2));
 }
 
+/** توكن استرجاع الباسورد في القاعدة = بصمته (sha256) مش التوكن نفسه — تسريب القاعدة مايدّيش حد دخول (المرحلة 6) */
+function reset_token_hash(string $token): string
+{
+    return hash('sha256', 'pr|' . $token);
+}
+
+/**
+ * من إمتى التوكنز بقت بتتخزن كبصمة — التوكنز النص بتتقبل بس لو اتعملت قبلها (لحد ما تنتهي)،
+ * عشان البصمة نفسها (لو القاعدة اتسربت) ماتشتغلش كتوكن.
+ */
+function reset_hash_since(): string
+{
+    if (!function_exists('get_setting')) require_once __DIR__ . '/credits.php';   // get_setting / set_setting
+    $v = (string) get_setting('reset_hash_since', '');
+    if ($v === '') {
+        $v = date('Y-m-d H:i:s');
+        set_setting('reset_hash_since', $v);
+    }
+    return $v;
+}
+
 /**
  * Format date in Arabic
  */

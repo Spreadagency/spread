@@ -39,12 +39,13 @@ switch ($action) {
         if (!valid_email($email) || $password === '') {
             api_fail('اكتب الإيميل وكلمة المرور', 'validation', 422);
         }
-        if (!rate_limit_ok('login', client_ip(), 6, 600)) {
-            api_fail('محاولات كتير. استنى 10 دقايق وجرب تاني.', 'rate_limit', 429);
+        if (!rate_limit_ok('login', client_ip(), 6, 600) || !rate_limit_ok('login_acct', login_acct_key($email), LOGIN_ACCT_MAX, LOGIN_ACCT_WINDOW)) {
+            api_fail('محاولات كتير. استنى 15 دقيقة وجرب تاني.', 'rate_limit', 429);
         }
         $r = authenticate_user($email, $password);
         if (!$r['ok']) {
             rate_limit_hit('login', client_ip());
+            rate_limit_hit('login_acct', login_acct_key($email));
             api_fail((string) $r['error'], !empty($r['use_google']) ? 'use_google' : 'invalid_credentials', 401);
         }
         $user = $r['user'];
@@ -159,8 +160,9 @@ switch ($action) {
         $user = db_one('SELECT * FROM users WHERE email = ? LIMIT 1', [$email]);
         if ($user) {
             $token = random_token(64);
+            reset_hash_since();   // أول توكن متخزن كبصمة بيثبّت تاريخ التحويل
             db_run('INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
-                [$user['id'], $token, date('Y-m-d H:i:s', time() + RESET_TOKEN_TTL)]);
+                [$user['id'], reset_token_hash($token), date('Y-m-d H:i:s', time() + RESET_TOKEN_TTL)]);
             send_reset_email((string) $user['name'], $email, $token);
         }
         // نفس الرسالة دايمًا (مانكشفش الإيميلات المسجلة)
