@@ -86,7 +86,7 @@ function ce_plan_ctx(int $uid, array $c): array
     $start = $c['start_date'] ?? null;
     return [
         'uid' => $uid, 'campaign_id' => (int) $c['id'], 'brief' => $b, 'dna' => $dna, 'goal' => (string) ($b['goal'] ?? 'other'),
-        'skill' => ce_skill_for_campaign($c, $dna),
+        'skill' => (function () use ($c, $dna, $uid) { require_once __DIR__ . '/skill-system.php'; return skill_with_client_layer(ce_skill_for_campaign($c, $dna), (int) $uid); })(),   // + ملاحظات العميل للحساب المُدار
         'n' => $n, 'formats' => $formats, 'days' => max(1, (int) ($b['days'] ?? 30)),
         'start' => $start ?: date('Y-m-d', strtotime('+1 day')),
         'services' => $services, 'personas' => $personas, 'mix' => ce_funnel_mix((string) ($b['goal'] ?? 'other')),

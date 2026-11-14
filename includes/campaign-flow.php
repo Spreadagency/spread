@@ -112,10 +112,11 @@ function campaign_skill(array $brand, array $c = []): ?array
 {
     if (!function_exists('ce_skill_block')) require_once __DIR__ . '/ce-skills.php';
     if (get_setting('campaign_skills_enabled', '1') !== '1' || !ce_skills_ready()) return null;
-    if (array_key_exists('skill_version_id', $c) && $c['skill_version_id'] !== null) {
-        return (int) $c['skill_version_id'] > 0 ? ce_skill_version_load((int) $c['skill_version_id']) : null;
-    }
     $uid = (int) ($brand['user_id'] ?? ($c['user_id'] ?? 0));
+    if (array_key_exists('skill_version_id', $c) && $c['skill_version_id'] !== null) {
+        require_once __DIR__ . '/skill-system.php';
+        return (int) $c['skill_version_id'] > 0 ? skill_with_client_layer(ce_skill_version_load((int) $c['skill_version_id']), $uid) : null;
+    }
     $dna = [];
     if ($uid > 0) {
         try {
@@ -126,7 +127,8 @@ function campaign_skill(array $brand, array $c = []): ?array
     if (trim((string) ($dna['brand']['sector'] ?? '')) === '') $dna['brand']['sector'] = (string) ($brand['industry'] ?? '');
     $sk = ce_skill_for_dna($dna);
     if (!empty($c['id']) && array_key_exists('skill_version_id', $c)) ce_skill_bind_campaign((int) $c['id'], $sk, 'campaigns');
-    return $sk;
+    require_once __DIR__ . '/skill-system.php';
+    return skill_with_client_layer($sk, $uid);   // + ملاحظات العميل للحساب المُدار (بعد الربط بالنسخة)
 }
 
 /* ═══ ترتيب الكاش (خطة الحملات §7 — «المرحلة 6») ═══

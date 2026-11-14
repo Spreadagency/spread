@@ -11,6 +11,8 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/managed-accounts.php';
 require_once __DIR__ . '/../includes/content-formats.php';
 require_once __DIR__ . '/../includes/messaging.php';
+require_once __DIR__ . '/../includes/post-skills.php';
+require_once __DIR__ . '/../includes/skill-system.php';
 require_once __DIR__ . '/../includes/rate-limit.php';
 
 require_admin();
@@ -109,6 +111,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($sent) admin_log('managed_report_send', 'user', $id, $st['ym']);
         flash_set($sent ? 'success' : 'warning', $sent ? 'التقرير اتبعت للعميل ✓' : 'التقرير ماتبعتش (اتبعت من أقل من نص ساعة، أو القالب مقفول)');
         redirect($back('report') . '&m=' . $st['ym']);
+    }
+    if ($action === 'skill_notes') {
+        skill_client_notes_set($id, (string) ($_POST['notes'] ?? ''), (int) $me['id']);
+        admin_log('managed_skill_notes', 'user', $id);
+        flash_set('success', 'ملاحظات الكتابة اتحفظت ✓ — هتدخل في المنشورات الجاية للعميل ده');
+        redirect($back('brand'));
     }
     if ($action === 'task_done') {
         db_run('UPDATE managed_notes SET done_at = IF(done_at IS NULL, NOW(), NULL) WHERE id = ? AND user_id = ? AND kind = "task"', [(int) ($_POST['note_id'] ?? 0), $id]);
@@ -238,6 +246,16 @@ include __DIR__ . '/../templates/admin-header.php';
             <?php endforeach; ?>
             <?php if (!$bp): ?><div class="empty">العميل لسه ماعملش هوية.</div><?php endif; ?>
         </div>
+        <?php $__sk = $bp ? post_skill($bp) : null; ?>
+        <form method="POST" class="card" style="padding:16px;margin-top:14px" id="skill-notes">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="skill_notes">
+            <div class="card-head"><h3>ملاحظات الكتابة للعميل ده</h3>
+                <span class="chip"><?= $__sk ? 'Skill القطاع: ' . e($__sk['name']) : 'من غير Skill قطاع' ?></span></div>
+            <p class="text-mute" style="font-size:12.5px">طبقة صغيرة فوق Skill القطاع: حاجات تخص العميل ده بس (كلمة بيحبها · خدمة مايتكلمش عنها · طريقة ندا الجمهور). بتدخل في المنشور السريع والاستوديو والحملات.</p>
+            <textarea name="notes" class="textarea" rows="4" maxlength="<?= SKILL_CLIENT_NOTES_MAX ?>" placeholder="مثلًا: دايمًا اذكر إن الكشف الأول مجاني · ماتستخدمش كلمة «رخيص»"><?= e(skill_client_notes($id)) ?></textarea>
+            <div class="a2-row" style="gap:8px;margin-top:8px"><button class="btn" type="submit">حفظ</button><span class="text-mute" style="font-size:12px">أقصى <?= SKILL_CLIENT_NOTES_MAX ?> حرف · سيبها فاضية عشان تتشال</span></div>
+        </form>
 
 <?php elseif ($tab === 'messages'):
     $conv = msg_conversation($id, 80);
@@ -282,7 +300,7 @@ include __DIR__ . '/../templates/admin-header.php';
         <script>(function(){var c=document.getElementById('ma-conv');if(c)c.scrollTop=c.scrollHeight;})();</script>
 
 <?php elseif ($tab === 'notes'):
-    $notes = db_all('SELECT n.*, a.name admin_name FROM managed_notes n LEFT JOIN admin_users a ON a.id = n.admin_id WHERE n.user_id = ? ORDER BY (n.kind = "task" AND n.done_at IS NULL) DESC, n.id DESC LIMIT 100', [$id]); ?>
+    $notes = db_all('SELECT n.*, a.name admin_name FROM managed_notes n LEFT JOIN admin_users a ON a.id = n.admin_id WHERE n.user_id = ? AND n.kind <> "skill" ORDER BY (n.kind = "task" AND n.done_at IS NULL) DESC, n.id DESC LIMIT 100', [$id]); ?>
         <form method="POST" class="card" style="padding:14px;margin-bottom:14px">
             <?= csrf_field() ?>
             <input type="hidden" name="id" value="<?= $id ?>"><input type="hidden" name="action" value="note_add">

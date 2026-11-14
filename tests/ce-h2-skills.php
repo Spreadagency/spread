@@ -14,6 +14,13 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 require_once __DIR__ . '/../includes/config.php';
 if (!APP_DEBUG) exit("APP_DEBUG مقفول — الاختبارات دي للتطوير المحلي بس\n");
 require_once __DIR__ . '/../includes/functions.php';
+// الاختبار ده بيرفع Skills صغيرة (قسم أو اتنين) — شرط الأقسام الأساسية (المرحلة 4) بيتقفل هنا وبيرجع في الآخر · متغطي في tests/sk1-skill-system.php
+$__skReq = db_one('SELECT setting_value v FROM settings WHERE setting_key = "skill_require_sections"')['v'] ?? null;
+set_setting('skill_require_sections', '0');
+register_shutdown_function(function () use ($__skReq) {
+    db_run('DELETE FROM settings WHERE setting_key = "skill_require_sections"');
+    if ($__skReq !== null) set_setting('skill_require_sections', $__skReq);
+});
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/ce-lab.php';
 require_once __DIR__ . '/../includes/ce-campaign.php';
@@ -85,7 +92,7 @@ t('ملف مفيهوش ولا قسم معروف ← مرفوض', (bool) ce_skill
 t('ملف أكبر من الحد ← مرفوض', (bool) ce_skill_parse(str_repeat('ا', CE_SKILL_MAX_BYTES))['errors']);
 t('الأمثلة اللي مع المنصة: 5 تخصصات + «تسويق عام» كلها بتتقري من غير أخطاء', count(ce_skill_samples()) === 6 && !array_filter(ce_skill_samples(), fn($s) => $s['key'] === ''));
 $tplP = ce_skill_parse(ce_skill_template());
-t('القالب فيه كل الأقسام ومن غير أخطاء', !$tplP['errors'] && count(array_diff(array_keys(CE_SKILL_SECTIONS), array_keys($tplP['sections']), ['extra'])) === 0, json_encode(array_keys($tplP['sections'])));
+t('القالب فيه كل الأقسام ومن غير أخطاء', !$tplP['errors'] && count(array_diff(array_keys(CE_SKILL_SECTIONS), array_keys($tplP['sections']), ['extra', 'client'])) === 0, json_encode(array_keys($tplP['sections'])));
 
 /* ─── 2) الحفظ والنسخ ─── */
 echo "الحفظ والنسخ\n";

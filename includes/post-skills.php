@@ -33,7 +33,8 @@ function post_skill(array $brand): ?array
         } catch (\Throwable $e) { $dna = []; }
     }
     if (trim((string) ($dna['brand']['sector'] ?? '')) === '') $dna['brand']['sector'] = (string) ($brand['industry'] ?? '');
-    return $memo[$key] = ce_skill_for_dna($dna);
+    require_once __DIR__ . '/skill-system.php';
+    return $memo[$key] = skill_with_client_layer(ce_skill_for_dna($dna), $uid);   // + ملاحظات العميل للحساب المُدار
 }
 
 /** بلوك الـ Skill في أول البرومبت (فاضي لو مفيش) */

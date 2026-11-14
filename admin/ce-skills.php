@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/admin-ui.php';
 require_once __DIR__ . '/../includes/ce-lab.php';
+require_once __DIR__ . '/../includes/skill-system.php';   // نظام التشغيل (المرحلة 4): التغطية · اقتراح الشهر
 
 require_admin();
 require_admin_can('ai_settings');
@@ -79,6 +80,13 @@ if ($ready && $_SERVER['REQUEST_METHOD'] === 'POST') {
         flash_set('success', $vid === 0 ? 'الـ Skill وقفت — البراندات دي بترجع للبرومبت العام' : 'النسخة بقت شغالة ✓');
         $back($sidP, $vid ? '&v=' . $vid : '');
     }
+    if ($act === 'suggest_draft' && $sidP) {
+        $r = skill_suggestion_draft($sidP, $aid);
+        if (!$r['ok']) { flash_set('warning', $r['error']); $back($sidP); }
+        admin_log('ce_skill_suggest', 'ce_skill', $sidP, 'v' . $r['version']);
+        flash_set('success', 'اتعملت مسودة v' . $r['version'] . ' من أداء الشهر ✓ — راجعها وشغّل اختبار الرجوع قبل التفعيل.');
+        $back($sidP, '&v=' . $r['id']);
+    }
     if (in_array($act, ['case_toggle', 'case_delete'], true) && $sidP) {
         $cid = (int) ($_POST['case_id'] ?? 0);
         if ($act === 'case_delete') db_run('DELETE FROM ce_golden_cases WHERE id = ? AND skill_id = ?', [$cid, $sidP]);
@@ -113,6 +121,11 @@ $runChip = ['passed' => 'chip-mint', 'warn' => 'chip-amber', 'failed' => 'chip-c
                              (SELECT COUNT(*) FROM ce_golden_cases g WHERE g.skill_id = s.id AND g.is_active = 1) n_cases
                       FROM ce_skills s ORDER BY s.name');
     $samples = array_filter(ce_skill_samples(), fn($x) => $x['key'] !== '' && !in_array($x['key'], array_column($skills, 'skey'), true));
+    $cov = skill_coverage();
+    $lastRuns = [];
+    foreach (db_all('SELECT skill_id, status, created_at FROM ce_regression_runs WHERE kind = "skill" ORDER BY id DESC LIMIT 300') as $__r) {
+        if (!isset($lastRuns[(int) $__r['skill_id']])) $lastRuns[(int) $__r['skill_id']] = $__r;
+    }
 ?>
         <div class="ce-fgrid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
             <section class="card">
@@ -130,7 +143,7 @@ $runChip = ['passed' => 'chip-mint', 'warn' => 'chip-amber', 'failed' => 'chip-c
             <section class="card">
                 <div class="a2-h"><h3>الأقسام اللي بنقراها</h3></div>
                 <ul class="ce-skill-map">
-                    <?php foreach (CE_SKILL_SECTIONS as $k => [$label, $aliases]): if ($k === 'extra') continue;
+                    <?php foreach (CE_SKILL_SECTIONS as $k => [$label, $aliases]): if ($k === 'extra' || $k === 'client') continue;
                         $st = array_keys(array_filter(CE_SKILL_STAGE_MAP, fn($l) => in_array($k, $l, true))); ?>
                         <li><b>## <?= e($aliases[0]) ?></b> <small class="a2-muted">← <?= e(implode(' · ', array_map(fn($s) => CE_PROMPT_STAGES[$s], $st))) ?><?= in_array($k, CE_SKILL_LIST_SECTIONS, true) ? ' · بنود (- …)' : '' ?></small></li>
                     <?php endforeach; ?>
@@ -145,19 +158,33 @@ $runChip = ['passed' => 'chip-mint', 'warn' => 'chip-amber', 'failed' => 'chip-c
 
         <section class="card">
             <div class="a2-h"><h3>الـ Skills</h3></div>
-            <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>التخصص</th><th>المفتاح</th><th>كلمات التعرّف</th><th>الشغالة</th><th>النسخ</th><th>الحالات</th><th></th></tr></thead><tbody>
+            <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>التخصص</th><th>المفتاح</th><th>كلمات التعرّف</th><th>الشغالة</th><th>براندات</th><th>آخر اختبار</th><th>النسخ</th><th>الحالات</th><th></th></tr></thead><tbody>
             <?php foreach ($skills as $s): ?>
                 <tr><td><b><?= e($s['name']) ?></b><?= (int) $s['is_enabled'] ? '' : ' <span class="chip chip-line">موقوفة</span>' ?></td>
                     <td dir="ltr"><code><?= e($s['skey']) ?></code></td>
                     <td class="a2-muted"><?= e(mb_strimwidth((string) $s['match_words'], 0, 70, '…')) ?></td>
                     <td><?= $s['active_v'] ? '<span class="chip chip-mint">v' . (int) $s['active_v'] . '</span>' : '<span class="chip chip-amber">مفيش</span>' ?></td>
+                    <td class="num"><?= $s['active_v'] && (int) $s['is_enabled'] ? (int) ($cov['by_skill'][$s['skey']] ?? 0) : '—' ?></td>
+                    <td><?php $__lr = $lastRuns[(int) $s['id']] ?? null; echo $__lr ? '<span class="chip ' . ($runChip[$__lr['status']] ?? '') . '">' . e($runLabel[$__lr['status']] ?? $__lr['status']) . '</span> <small class="a2-muted">' . e(substr((string) $__lr['created_at'], 0, 10)) . '</small>' : '<span class="a2-muted">—</span>'; ?></td>
                     <td class="num"><?= (int) $s['n_vers'] ?></td><td class="num"><?= (int) $s['n_cases'] ?></td>
                     <td><a class="btn sm ghost" href="<?= e(url('admin/ce-skills.php?id=' . (int) $s['id'])) ?>">افتح</a></td></tr>
             <?php endforeach; ?>
-            <?php if (!$skills): ?><tr><td colspan="7" class="a2-muted">مفيش Skills لسه — ارفع ملف أو استورد الأمثلة.</td></tr><?php endif; ?>
+            <?php if (!$skills): ?><tr><td colspan="9" class="a2-muted">مفيش Skills لسه — ارفع ملف أو استورد الأمثلة.</td></tr><?php endif; ?>
+            </tbody></table></div>
+        </section>
+
+        <section class="card" id="skill-gaps">
+            <div class="a2-h"><h3>قطاعات من غير Skill متخصصة</h3><span class="a2-grow"></span><span class="a2-muted"><?= count($cov['gaps']) ?> مجال · من <?= (int) $cov['total'] ?> براند ليه مجال</span></div>
+            <p class="a2-muted">البراندات دي بتشتغل على «<?= isset(ce_skill_active_list()[CE_SKILL_GENERAL]) ? 'تسويق عام' : 'البرومبت العام' ?>». لو المجال قريب من Skill موجودة ضيف كلمته في «كلمات التعرّف» بتاعتها، أو ارفع Skill جديدة للأكتر براندات.</p>
+            <div class="a2-tw"><table class="a2-tbl"><thead><tr><th>المجال (زي ما العميل كتبه)</th><th>براندات</th></tr></thead><tbody>
+            <?php foreach ($cov['gaps'] as $g): ?>
+                <tr><td><?= e($g['industry']) ?></td><td class="num"><?= (int) $g['brands'] ?></td></tr>
+            <?php endforeach; ?>
+            <?php if (!$cov['gaps']): ?><tr><td colspan="2" class="a2-muted">كل المجالات المسجّلة ليها Skill ✓</td></tr><?php endif; ?>
             </tbody></table></div>
         </section>
 <?php else: /* ═══════════ Skill واحدة ═══════════ */
+    $sug = skill_month_suggestion(['skey' => $skill['skey']]);
     $versions = db_all('SELECT v.*, a.name author FROM ce_skill_versions v LEFT JOIN admin_users a ON a.id = v.created_by WHERE v.skill_id = ? ORDER BY v.version DESC', [$sid]);
     $cur = null;
     foreach ($versions as $v) if ((int) $v['id'] === (int) ($_GET['v'] ?? 0)) $cur = $v;
@@ -185,6 +212,29 @@ $runChip = ['passed' => 'chip-mint', 'warn' => 'chip-amber', 'failed' => 'chip-c
             <div class="ce-f"><span>حالات الاختبار</span><b><?= count(array_filter($cases, fn($c) => (int) $c['is_active'])) ?></b></div>
             <div class="ce-f"><span>النسخ</span><b><?= count($versions) ?></b></div>
         </div>
+
+        <section class="card" id="skill-suggest">
+            <div class="a2-h"><h3>اقتراح الشهر من الأداء</h3><span class="a2-grow"></span><span class="a2-muted">آخر 30 يوم · <?= (int) $sug['posts'] ?> منشور متقاس للقطاع ده</span></div>
+            <?php if (!$sug['top']): ?>
+                <p class="a2-muted">بيانات الأداء قليلة (محتاجين 6 منشورات متقاسة على الأقل للقطاع) — مفيش اقتراح دلوقتي.</p>
+            <?php else: ?>
+                <div class="ce-fgrid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+                    <?php foreach (['top' => 'الأعلى تفاعلًا', 'low' => 'الأقل تفاعلًا'] as $__k => $__l): ?>
+                    <div><b><?= $__l ?></b>
+                        <?php foreach ($sug[$__k] as $__p): ?>
+                            <div style="border:1px solid var(--line, #eee);border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px">
+                                <span class="chip <?= $__k === 'top' ? 'chip-mint' : 'chip-amber' ?>">تفاعل <?= e((string) $__p['rate']) ?>%</span>
+                                <div style="white-space:pre-wrap;margin-top:6px"><?= e(mb_substr($__p['text'], 0, 220)) ?>…</div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <form method="post" style="margin-top:12px"><?= csrf_field() ?><input type="hidden" name="act" value="suggest_draft"><input type="hidden" name="skill_id" value="<?= $sid ?>">
+                    <button class="btn">اعمل مسودة نسخة بالأمثلة دي</button>
+                    <span class="a2-muted">مسودة بس — مابتتفعّلش غير بعد اختبار رجوع ناجح.</span></form>
+            <?php endif; ?>
+        </section>
 
         <div class="ce-fgrid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
             <section class="card">

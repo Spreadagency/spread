@@ -28,6 +28,8 @@ const CE_SKILL_SECTIONS = [
     'visual_avoid' => ['ممنوع في الصورة', ['ممنوع في الصورة', 'ممنوع في الصور', 'ممنوع في التصميم', 'visual avoid', 'visual_avoid']],
     'brief_questions' => ['أسئلة البريف', ['أسئلة البريف', 'أسئلة الحملة', 'أسئلة', 'brief questions', 'brief_questions']],
     'extra' => ['أقسام تانية', []],
+    // طبقة الحساب المُدار (includes/skill-system.php) — مابتتقراش من الملف، بتتحط وقت التشغيل بعد أقسام القطاع
+    'client' => ['ملاحظات خاصة بالعميل ده (ليها الأولوية على أمثلة القطاع)', []],
 ];
 
 /** كل مرحلة بتاخد أقسام إيه (عشان التوكنز ماتزيدش) */
@@ -36,22 +38,22 @@ const CE_SKILL_STAGE_MAP = [
     'ce_matrix' => ['angles', 'rules'],
     'ce_plan_critic' => ['angles', 'rules'],
     'ce_final_qa' => ['rules'],
-    'ce_ideation' => ['knowledge', 'hooks', 'rules', 'extra'],
+    'ce_ideation' => ['knowledge', 'hooks', 'rules', 'extra', 'client'],
     'ce_selection' => ['hooks', 'rules'],
-    'ce_writer' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra'],
+    'ce_writer' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra', 'client'],
     'ce_critic' => ['rules', 'forbidden', 'critic'],
     'ce_design_prompt' => ['visual', 'visual_avoid'],
     'ce_vision_qa' => ['visual_avoid'],
     // الحملات القديمة (خطة الحملات §7) — نفس أقسام مراحل المحرك المقابلة، فاختبار الرجوع على المحرك بيغطي نفس المحتوى
-    'campaign_ideas' => ['knowledge', 'hooks', 'rules', 'extra'],
-    'campaign_content' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra'],
+    'campaign_ideas' => ['knowledge', 'hooks', 'rules', 'extra', 'client'],
+    'campaign_content' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra', 'client'],
     'campaign_eval' => ['rules', 'forbidden', 'critic'],
     'design_base' => ['visual', 'visual_avoid'],
     // ترتيب الكاش (خطة الحملات §7): الـ Skill كاملة (نص) مرة واحدة في أول كل خطوات الحملة — بنفس الحروف
-    'campaign_all' => ['knowledge', 'rules', 'forbidden', 'angles', 'hooks', 'examples', 'critic', 'extra'],
+    'campaign_all' => ['knowledge', 'rules', 'forbidden', 'angles', 'hooks', 'examples', 'critic', 'extra', 'client'],
     // المنشور السريع والاستوديو (includes/post-skills.php) — نفس أقسام الكتابة والأفكار في المحرك
-    'quick_post' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra'],
-    'studio_ideas' => ['knowledge', 'hooks', 'rules', 'extra'],
+    'quick_post' => ['knowledge', 'rules', 'forbidden', 'hooks', 'examples', 'extra', 'client'],
+    'studio_ideas' => ['knowledge', 'hooks', 'rules', 'extra', 'client'],
 ];
 
 /** الـ Skill العامة: بتشتغل لما مفيش تخصص (ومش بتتعرف بكلمات) */
@@ -186,6 +188,11 @@ function ce_skill_save_md(string $md, ?int $skillId, string $notes, string $sour
     if (!ce_skills_ready()) return ['ok' => false, 'error' => 'شغّل ترحيل 2026_ce_skills الأول'];
     $p = ce_skill_parse($md);
     if ($p['errors']) return ['ok' => false, 'error' => implode(' · ', $p['errors']), 'warnings' => $p['warnings']];
+    // نظام الـ Skills (المرحلة 4): الأقسام الأساسية الـ 6 لازم تبقى مليانة
+    require_once __DIR__ . '/skill-system.php';
+    if (skill_require_on() && ($__miss = skill_missing_sections($p['sections']))) {
+        return ['ok' => false, 'code' => 'sections', 'error' => 'أقسام أساسية ناقصة: ' . implode(' · ', $__miss), 'warnings' => $p['warnings'], 'skill_id' => $skillId];
+    }
     $meta = $p['meta'];
     $skill = $skillId ? db_one('SELECT * FROM ce_skills WHERE id = ?', [$skillId]) : null;
     if ($skillId && !$skill) return ['ok' => false, 'error' => 'الـ Skill مش موجودة'];
