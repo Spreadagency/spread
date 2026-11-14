@@ -441,3 +441,126 @@
   paint();
   api({ action: 'resume' }).then(function (d) { if (d && d.ok && d.state && !D.token) applyState(d.state, false); });
 })();
+
+/* ═══ الهيرو «ابدأ حملتك»: لينك ← اللي Spread AI اكتشفه ← سجّل وكمّل (المعلومات بتتحفظ في الهوية بعد التسجيل) ═══ */
+(function () {
+  'use strict';
+  var hero = document.getElementById('s-hero');
+  var form = document.getElementById('hx-form');
+  if (!hero || !form) return;
+  var CFG = window.SPREAD_HOME || {};
+  var $ = function (id) { return document.getElementById(id); };
+  var url = $('hx-url'), go = $('hx-go'), msgEl = $('hx-msg'), bubble = $('hx-bubble');
+  var manual = $('hx-manual'), biz = $('hx-biz'), ind = $('hx-ind'), found = $('hx-found');
+  var reg = hero.getAttribute('data-reg') || CFG.reg || '', login = hero.getAttribute('data-login') || CFG.login || '';
+  var on = hero.getAttribute('data-on') === '1' && !!CFG.trialApi;
+  var busy = false;
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
+  function b64(str) { return btoa(String.fromCharCode.apply(null, new TextEncoder().encode(str))).replace(/\+/g, '-').replace(/\//g, '_'); }
+  function withTrial(base, token) {
+    if (!base || !token) return base;
+    return base + (base.indexOf('?') > -1 ? '&' : '?') + 'trial=' + encodeURIComponent(token);
+  }
+  function bot(name) {
+    Array.prototype.forEach.call(document.querySelectorAll('#h-bot img'), function (img) { img.classList.toggle('on', img.getAttribute('data-b') === name); });
+  }
+  function say(t) { if (bubble) { bubble.textContent = t; bubble.style.animation = 'none'; void bubble.offsetWidth; bubble.style.animation = ''; } }
+  function msg(t, signup) {
+    msgEl.hidden = !t;
+    msgEl.innerHTML = t ? esc(t) + (signup && reg ? ' <a href="' + esc(reg) + '">اعمل حساب مجاني ←</a>' : '') : '';
+  }
+  function setBusy(b) {
+    busy = b;
+    hero.classList.toggle('busy', b);
+    go.disabled = b;
+    go.querySelector('span').textContent = b ? 'Spread AI بيقرا صفحتك…' : 'ابدأ حملتك الآن';
+  }
+  function api(fields) {
+    var fd = new FormData(), names = [];
+    Object.keys(fields).forEach(function (k) {
+      var v = fields[k] == null ? '' : String(fields[k]);
+      if (k !== 'action' && v !== '' && /[^\x00-\x7F]/.test(v)) { try { fd.append(k, b64(v)); names.push(k); return; } catch (e) {} }
+      fd.append(k, v);
+    });
+    if (names.length) fd.append('_b64', names.join(','));
+    return fetch(CFG.trialApi, { method: 'POST', body: fd, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .catch(function () { return { ok: false, error: 'مشكلة في الاتصال — جرّب تاني' }; });
+  }
+
+  // «جرّب بـ»: بيحط بداية اللينك في المربع
+  Array.prototype.forEach.call(form.querySelectorAll('[data-ex]'), function (b) {
+    b.addEventListener('click', function () { url.value = b.getAttribute('data-ex'); url.focus(); url.setSelectionRange(url.value.length, url.value.length); });
+  });
+  url.addEventListener('input', function () { url.parentNode.classList.remove('bad'); msg(''); });
+
+  function showFound(state) {
+    var p = state.profile || {}, token = state.token || '';
+    $('hx-name').textContent = p.business_name || 'نشاطك';
+    $('hx-indus').textContent = p.industry || '';
+    var av = $('hx-av');
+    av.textContent = (p.business_name || 'S').charAt(0);
+    av.style.backgroundImage = /^https:\/\//i.test(p.image || '') ? 'url("' + String(p.image).replace(/["\\()]/g, '') + '")' : '';
+    if (av.style.backgroundImage) av.textContent = '';
+    var rows = [];
+    if (p.description) rows.push(['عن النشاط', esc(p.description)]);
+    var svc = String(p.services || '').split(/\n|،|,/).map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 6);
+    if (svc.length) rows.push(['الخدمات', '<span class="hx-chips">' + svc.map(function (x) { return '<i>' + esc(x) + '</i>'; }).join('') + '</span>']);
+    if (p.audience) rows.push(['الجمهور', esc(p.audience)]);
+    if (p.phones) rows.push(['التواصل', '<bdi dir="ltr">' + esc(p.phones) + '</bdi>']);
+    if (/^https?:\/\//i.test(p.source_url || '')) rows.push(['المصدر', esc((p.source_label ? p.source_label + ' · ' : '') + p.source_url.replace(/^https?:\/\/(www\.)?/i, ''))]);
+    if (!rows.length) rows.push(['ملاحظة', 'هنكمّل باقي التفاصيل معاك في خطوتين جوه المنصة.']);
+    var ul = $('hx-facts');
+    ul.innerHTML = rows.map(function (r) { return '<li><b>' + r[0] + '</b><span>' + r[1] + '</span></li>'; }).join('');
+    // بيظهروا واحدة ورا التانية — كأن Spread AI بيكتب اللي اكتشفه
+    Array.prototype.forEach.call(ul.children, function (li, i) { setTimeout(function () { li.classList.add('in'); }, 160 + i * 260); });
+    $('hx-reg').href = withTrial(reg, token);
+    $('hx-login').href = withTrial(login, token);
+    form.hidden = true;
+    found.hidden = false;
+    bot('sit');
+    say('لقيت حاجات حلوة عن نشاطك 👇');
+    var h = $('hx-name'); h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true });
+    // الموبايل: الكارت تحت الروبوت ← نزّل عليه
+    var card = $('hx-card'), r = card.getBoundingClientRect();
+    if (r.top < 70 || r.top > window.innerHeight * 0.55) window.scrollTo({ top: window.scrollY + r.top - 90, behavior: 'smooth' });
+  }
+
+  form.addEventListener('submit', function (e) {
+    var v = (url.value || '').trim();
+    var isManual = !manual.hidden;
+    if (!on) return;              // التجربة مقفولة ← الفورم بيروح لصفحة التسجيل زي ما هو
+    e.preventDefault();
+    if (busy) return;
+    if (/^https?:\/\/(www\.)?((facebook|instagram)\.com\/?)?$/i.test(v)) v = '';
+    if (isManual && !(biz.value || '').trim()) { biz.classList.add('bad'); biz.focus(); return; }
+    if (!isManual && !v) { url.parentNode.classList.add('bad'); msg('حط لينك صفحتك أو موقعك الأول'); url.focus(); return; }
+    msg('');
+    var f = { action: 'analyze', url: v };
+    if (isManual) { f.business_name = (biz.value || '').trim(); f.industry = (ind.value || '').trim(); }
+    setBusy(true); bot('think'); say('بقرا صفحتك… لحظة 🔍');
+    api(f).then(function (d) {
+      setBusy(false);
+      if (d && d.ok && d.state) { showFound(d.state); return; }
+      bot('wave');
+      if (d && d.code === 'unreadable') {
+        manual.hidden = false;
+        $('hx-manual-note').textContent = d.error || 'معرفناش نقرا الصفحة — اكتب اسم نشاطك ومجاله وهنكمّل.';
+        if (d.guess && !biz.value) biz.value = d.guess;
+        say('اكتبلي اسم نشاطك 👇');
+        biz.focus();
+        return;
+      }
+      say('ابعتلي اللينك 👇');
+      msg((d && d.error) || 'حصلت مشكلة — جرّب تاني', d && d.signup);
+    });
+  });
+
+  $('hx-again').addEventListener('click', function () {
+    found.hidden = true; form.hidden = false; manual.hidden = true;
+    url.value = ''; biz.value = ''; ind.value = '';
+    bot('wave'); say('ابعتلي اللينك 👇');
+    url.focus();
+  });
+})();
