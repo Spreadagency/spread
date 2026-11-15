@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $__trialContent = trial_claim((int) $user['id']);
             redirect($__trialContent ? 'content-view.php?id=' . $__trialContent : (onb_done((int) $user['id']) ? 'dashboard.php' : 'start.php'));
         } elseif (!$user['email_verified_at']) {
-            $errors[] = 'الحساب لسه مش مفعل. تشيك على بريدك، أو اطلب رابط تفعيل جديد من هنا: ' . url('resend-verification.php');
+            $errors[] = __('الحساب لسه مش مفعل. تشيك على بريدك، أو اطلب رابط تفعيل جديد من هنا: {url}', ['url' => url('resend-verification.php')]);
         } elseif (($user['approval_status'] ?? 'approved') === 'pending') {
             $errors[] = 'حسابك تحت المراجعة — الإدارة هتوافق عليه قريبًا وهيوصلك إيميل تأكيد.';
         } elseif (($user['approval_status'] ?? 'approved') === 'rejected') {
@@ -66,26 +66,28 @@ if (function_exists('ui_v2_enabled') && ui_v2_enabled()) {
     include __DIR__ . '/../templates/v2/auth.php';
     exit;
 }
+$i18n_ready = true;   // الترجمة: الصفحة دي مترجمة بالكامل
 include __DIR__ . '/../templates/header.php';
 ?>
 
 <div class="auth-wrap">
     <div class="auth-card">
+        <?php if (i18n_enabled()): ?><div style="display:flex;justify-content:flex-end;margin-bottom:-6px"><?= i18n_switcher(url('lang.php')) ?></div><?php endif; ?>
         <div class="brand">
             <?= function_exists('site_logo_html') ? site_logo_html() : '<div class="brand-mark">S</div>' ?>
             <div>
                 <div class="brand-name"><?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></div>
-                <div class="brand-sub"><?= e(function_exists('site_tagline') ? site_tagline() : APP_TAGLINE) ?></div>
+                <div class="brand-sub"><?= e(__(function_exists('site_tagline') ? site_tagline() : APP_TAGLINE)) ?></div>
             </div>
         </div>
 
-        <h2>أهلًا بعودتك 👋</h2>
-        <p class="sub">سجّل دخولك علشان تكمل الإبداع</p>
+        <h2><?= e(__('أهلًا بعودتك 👋')) ?></h2>
+        <p class="sub"><?= e(__('سجّل دخولك علشان تكمل الإبداع')) ?></p>
 
         <?= render_flash() ?>
 
         <?php foreach ($errors as $err): ?>
-            <div class="alert danger"><?= e($err) ?></div>
+            <div class="alert danger"><?= e(__($err)) ?></div>
         <?php endforeach; ?>
 
         <?php $googleIntent = 'login'; include __DIR__ . '/../templates/google-button.php'; ?>
@@ -93,33 +95,33 @@ include __DIR__ . '/../templates/header.php';
             <?= csrf_field() ?>
 
             <div class="field">
-                <label>البريد الإلكتروني</label>
+                <label><?= e(__('البريد الإلكتروني')) ?></label>
                 <input type="email" name="email" class="input" required
                        value="<?= e($email) ?>" placeholder="you@example.com">
             </div>
 
             <div class="field">
-                <label>كلمة المرور</label>
+                <label><?= e(__('كلمة المرور')) ?></label>
                 <input type="password" name="password" class="input" required
                        placeholder="••••••••">
                 <div class="field-help" style="text-align:end;">
-                    <a href="<?= url('forgot-password.php') ?>">نسيت كلمة المرور؟</a>
+                    <a href="<?= url('forgot-password.php') ?>"><?= e(__('نسيت كلمة المرور؟')) ?></a>
                 </div>
                 <div class="field" style="margin-top:-6px">
                     <label style="display:flex;gap:8px;align-items:center;font-weight:400;cursor:pointer">
-                        <input type="checkbox" name="remember" value="1" <?= remember_default() ? 'checked' : '' ?> style="width:auto"> افتكرني على الجهاز ده
+                        <input type="checkbox" name="remember" value="1" <?= remember_default() ? 'checked' : '' ?> style="width:auto"> <?= e(__('افتكرني على الجهاز ده')) ?>
                     </label>
                 </div>
             </div>
 
             <button type="submit" class="btn full lg">
-                تسجيل الدخول →
+                <?= e(__('تسجيل الدخول →')) ?>
             </button>
         </form>
 
-        <div class="auth-divider">جديد على المنصة؟</div>
+        <div class="auth-divider"><?= e(__('جديد على المنصة؟')) ?></div>
 
-        <a href="<?= url('register.php') ?>" class="btn ghost full">إنشاء حساب جديد</a>
+        <a href="<?= url('register.php') ?>" class="btn ghost full"><?= e(__('إنشاء حساب جديد')) ?></a>
     </div>
 </div>
 

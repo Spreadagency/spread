@@ -449,6 +449,7 @@
   var form = document.getElementById('hx-form');
   if (!hero || !form) return;
   var CFG = window.SPREAD_HOME || {};
+  var T = window.__t || function (s) { return s; };   // الترجمة: النص بلغة الزائر (القاموس جوه الصفحة)
   var $ = function (id) { return document.getElementById(id); };
   var url = $('hx-url'), go = $('hx-go'), msgEl = $('hx-msg'), bubble = $('hx-bubble');
   var manual = $('hx-manual'), biz = $('hx-biz'), ind = $('hx-ind'), found = $('hx-found');
@@ -468,13 +469,13 @@
   function say(t) { if (bubble) { bubble.textContent = t; bubble.style.animation = 'none'; void bubble.offsetWidth; bubble.style.animation = ''; } }
   function msg(t, signup) {
     msgEl.hidden = !t;
-    msgEl.innerHTML = t ? esc(t) + (signup && reg ? ' <a href="' + esc(reg) + '">اعمل حساب مجاني ←</a>' : '') : '';
+    msgEl.innerHTML = t ? esc(t) + (signup && reg ? ' <a href="' + esc(reg) + '">' + esc(T('اعمل حساب مجاني ←')) + '</a>' : '') : '';
   }
   function setBusy(b) {
     busy = b;
     hero.classList.toggle('busy', b);
     go.disabled = b;
-    go.querySelector('span').textContent = b ? 'Spread AI بيقرا صفحتك…' : 'ابدأ حملتك الآن';
+    go.querySelector('span').textContent = b ? T('Spread AI بيقرا صفحتك…') : T('ابدأ حملتك الآن');
   }
   function api(fields) {
     var fd = new FormData(), names = [];
@@ -486,7 +487,7 @@
     if (names.length) fd.append('_b64', names.join(','));
     return fetch(CFG.trialApi, { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
-      .catch(function () { return { ok: false, error: 'مشكلة في الاتصال — جرّب تاني' }; });
+      .catch(function () { return { ok: false, error: T('مشكلة في الاتصال — جرّب تاني') }; });
   }
 
   // «جرّب بـ»: بيحط بداية اللينك في المربع
@@ -497,20 +498,20 @@
 
   function showFound(state) {
     var p = state.profile || {}, token = state.token || '';
-    $('hx-name').textContent = p.business_name || 'نشاطك';
+    $('hx-name').textContent = p.business_name || T('نشاطك');
     $('hx-indus').textContent = p.industry || '';
     var av = $('hx-av');
     av.textContent = (p.business_name || 'S').charAt(0);
     av.style.backgroundImage = /^https:\/\//i.test(p.image || '') ? 'url("' + String(p.image).replace(/["\\()]/g, '') + '")' : '';
     if (av.style.backgroundImage) av.textContent = '';
     var rows = [];
-    if (p.description) rows.push(['عن النشاط', esc(p.description)]);
+    if (p.description) rows.push([T('عن النشاط'), esc(p.description)]);
     var svc = String(p.services || '').split(/\n|،|,/).map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 6);
-    if (svc.length) rows.push(['الخدمات', '<span class="hx-chips">' + svc.map(function (x) { return '<i>' + esc(x) + '</i>'; }).join('') + '</span>']);
-    if (p.audience) rows.push(['الجمهور', esc(p.audience)]);
-    if (p.phones) rows.push(['التواصل', '<bdi dir="ltr">' + esc(p.phones) + '</bdi>']);
-    if (/^https?:\/\//i.test(p.source_url || '')) rows.push(['المصدر', esc((p.source_label ? p.source_label + ' · ' : '') + p.source_url.replace(/^https?:\/\/(www\.)?/i, ''))]);
-    if (!rows.length) rows.push(['ملاحظة', 'هنكمّل باقي التفاصيل معاك في خطوتين جوه المنصة.']);
+    if (svc.length) rows.push([T('الخدمات'), '<span class="hx-chips">' + svc.map(function (x) { return '<i>' + esc(x) + '</i>'; }).join('') + '</span>']);
+    if (p.audience) rows.push([T('الجمهور'), esc(p.audience)]);
+    if (p.phones) rows.push([T('التواصل'), '<bdi dir="ltr">' + esc(p.phones) + '</bdi>']);
+    if (/^https?:\/\//i.test(p.source_url || '')) rows.push([T('المصدر'), esc((p.source_label ? p.source_label + ' · ' : '') + p.source_url.replace(/^https?:\/\/(www\.)?/i, ''))]);
+    if (!rows.length) rows.push([T('ملاحظة'), T('هنكمّل باقي التفاصيل معاك في خطوتين جوه المنصة.')]);
     var ul = $('hx-facts');
     ul.innerHTML = rows.map(function (r) { return '<li><b>' + r[0] + '</b><span>' + r[1] + '</span></li>'; }).join('');
     // بيظهروا واحدة ورا التانية — كأن Spread AI بيكتب اللي اكتشفه
@@ -520,7 +521,7 @@
     form.hidden = true;
     found.hidden = false;
     bot('sit');
-    say('لقيت حاجات حلوة عن نشاطك 👇');
+    say(T('لقيت حاجات حلوة عن نشاطك 👇'));
     var h = $('hx-name'); h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true });
     // الموبايل: الكارت تحت الروبوت ← نزّل عليه
     var card = $('hx-card'), r = card.getBoundingClientRect();
@@ -535,32 +536,32 @@
     if (busy) return;
     if (/^https?:\/\/(www\.)?((facebook|instagram)\.com\/?)?$/i.test(v)) v = '';
     if (isManual && !(biz.value || '').trim()) { biz.classList.add('bad'); biz.focus(); return; }
-    if (!isManual && !v) { url.parentNode.classList.add('bad'); msg('حط لينك صفحتك أو موقعك الأول'); url.focus(); return; }
+    if (!isManual && !v) { url.parentNode.classList.add('bad'); msg(T('حط لينك صفحتك أو موقعك الأول')); url.focus(); return; }
     msg('');
     var f = { action: 'analyze', url: v };
     if (isManual) { f.business_name = (biz.value || '').trim(); f.industry = (ind.value || '').trim(); }
-    setBusy(true); bot('think'); say('بقرا صفحتك… لحظة 🔍');
+    setBusy(true); bot('think'); say(T('بقرا صفحتك… لحظة 🔍'));
     api(f).then(function (d) {
       setBusy(false);
       if (d && d.ok && d.state) { showFound(d.state); return; }
       bot('wave');
       if (d && d.code === 'unreadable') {
         manual.hidden = false;
-        $('hx-manual-note').textContent = d.error || 'معرفناش نقرا الصفحة — اكتب اسم نشاطك ومجاله وهنكمّل.';
+        $('hx-manual-note').textContent = d.error || T('معرفناش نقرا الصفحة — اكتب اسم نشاطك ومجاله وهنكمّل.');
         if (d.guess && !biz.value) biz.value = d.guess;
-        say('اكتبلي اسم نشاطك 👇');
+        say(T('اكتبلي اسم نشاطك 👇'));
         biz.focus();
         return;
       }
-      say('ابعتلي اللينك 👇');
-      msg((d && d.error) || 'حصلت مشكلة — جرّب تاني', d && d.signup);
+      say(T('ابعتلي اللينك 👇'));
+      msg((d && d.error) || T('حصلت مشكلة — جرّب تاني'), d && d.signup);
     });
   });
 
   $('hx-again').addEventListener('click', function () {
     found.hidden = true; form.hidden = false; manual.hidden = true;
     url.value = ''; biz.value = ''; ind.value = '';
-    bot('wave'); say('ابعتلي اللينك 👇');
+    bot('wave'); say(T('ابعتلي اللينك 👇'));
     url.focus();
   });
 })();

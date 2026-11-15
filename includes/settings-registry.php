@@ -26,6 +26,7 @@ function settings_registry(): array
                 ['title' => 'المنصة', 'fields' => [
                     ['key' => 'site_name', 'label' => 'اسم المنصة', 'type' => 'text', 'default' => $appName, 'len' => 100, 'required' => true],
                     ['key' => 'site_tagline', 'label' => 'السطر التعريفي', 'type' => 'text', 'default' => '', 'len' => 150, 'help' => 'بيظهر تحت الاسم في صفحات الدخول والتسجيل'],
+                    ['key' => 'i18n_enabled', 'label' => 'زرار اللغة «ع | EN» في صفحات الدخول والتسجيل والمنصة', 'type' => 'bool', 'default' => '0', 'help' => 'الصفحات اللي اتترجمت بس بتتعرض بالإنجليزي — الباقي بيفضل عربي لحد ما دفعته تتترجم · زرار الموقع نفسه من «SEO» في إعدادات الموقع · محتوى البوستات بالإنجليزي من «English» في لغة الكتابة (من غير الإعداد ده)'],
                     ['key' => 'max_brand_images', 'label' => 'أقصى عدد لصور الهوية', 'type' => 'number', 'default' => defined('MAX_BRAND_IMAGES') ? (string) MAX_BRAND_IMAGES : '10', 'min' => 1, 'max' => 50],
                 ]],
                 ['title' => 'العملاء الجدد', 'fields' => [

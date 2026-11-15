@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/i18n.php';   // الترجمة: __() · لغة الواجهة
 
 /**
  * Escape HTML output
@@ -60,7 +61,7 @@ function render_flash(): string
 {
     $out = '';
     foreach (flash_get() as $f) {
-        $out .= '<div class="alert ' . e($f['type']) . '">' . e($f['message']) . '</div>';
+        $out .= '<div class="alert ' . e($f['type']) . '">' . e(__((string) $f['message'])) . '</div>';   // الترجمة: الرسالة كلها لو ليها ترجمة
     }
     return $out;
 }

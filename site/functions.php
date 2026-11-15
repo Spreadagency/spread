@@ -1,6 +1,15 @@
 <?php
 /** دوال الموقع المشتركة */
 require_once __DIR__ . '/db.php';
+require_once dirname(__DIR__) . '/includes/i18n.php';   // الترجمة: __() · لغة الزائر (نفس كوكي المنصة)
+
+/** لينك تغيير اللغة على الموقع ← lang.php بتاع المنصة (جنب login.php) — بيرجّع لنفس الصفحة */
+function s_lang_switcher(): string
+{
+    if (!i18n_enabled()) return '';
+    $ep = preg_replace('#/login\.php$#', '/lang.php', PLATFORM_LOGIN);
+    return i18n_switcher($ep, 'lang-sw h-lang');
+}
 
 // محمية ضد التعارض مع دالة المنصة لو الملفين اتحمّلوا مع بعض
 if (!function_exists('e')) {

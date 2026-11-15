@@ -17,8 +17,8 @@ if ($cmd === 'verify' && $u) {
     exit;
 }
 if ($cmd === 'check') {
-    $b = $u ? db_one('SELECT business_name, industry FROM brand_profiles WHERE user_id = ?', [$u['id']]) : null;
-    echo json_encode(['user' => (bool) $u, 'business_name' => $b['business_name'] ?? null, 'industry' => $b['industry'] ?? null,
+    $b = $u ? db_one('SELECT business_name, industry, dialect FROM brand_profiles WHERE user_id = ?', [$u['id']]) : null;
+    echo json_encode(['user' => (bool) $u, 'business_name' => $b['business_name'] ?? null, 'industry' => $b['industry'] ?? null, 'dialect' => $b['dialect'] ?? null,
         'claimed' => $u ? (bool) db_one('SELECT id FROM trial_sessions WHERE claimed_user_id = ?', [$u['id']]) : false], JSON_UNESCAPED_UNICODE);
 } elseif ($cmd === 'clean' && $u) {
     db_run('DELETE FROM trial_sessions WHERE claimed_user_id = ?', [$u['id']]);

@@ -27,6 +27,7 @@ if ($origin !== '' && parse_url($origin, PHP_URL_HOST) !== parse_url(APP_URL, PH
 
 function trial_out(array $d): void
 {
+    if (isset($d['error']) && is_string($d['error'])) $d['error'] = __($d['error']);   // الترجمة: رسالة الخطأ بلغة الزائر
     echo json_encode($d, JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -104,9 +105,9 @@ if ($action === 'analyze') {
     db_insert(
         'INSERT INTO trial_sessions (token, business_name, industry, audience, services, tone, dialect, goal, ip,
                                      source_url, source_type, profile_json, source_text, stage, ua_hash, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, "egyptian", "", ?, ?, ?, ?, ?, "profile", ?, NOW())',
+         VALUES (?, ?, ?, ?, ?, ?, ?, "", ?, ?, ?, ?, ?, "profile", ?, NOW())',
         [$token, mb_substr($pr['business_name'], 0, 200), mb_substr($pr['industry'], 0, 150), mb_substr($pr['audience'], 0, 300),
-         mb_substr($pr['services'], 0, 1000), mb_substr($pr['tone'] ?: 'ودّي', 0, 80), $ip,
+         mb_substr($pr['services'], 0, 1000), mb_substr($pr['tone'] ?: 'ودّي', 0, 80), i18n_is_en() ? 'english' : 'egyptian', $ip,
          $res['url'] !== '' ? mb_substr($res['url'], 0, 500) : null, $res['type'] ?: null, $json, $res['text'] !== '' ? $res['text'] : null, trial_ua_hash()]
     );
     trial_set_cookie($token);
@@ -150,7 +151,7 @@ if ($action === 'ideas') {
         'audience'      => $in('audience', 300) ?: (string) ($sess['audience'] ?? ''),
         'services'      => $in('services', 1000) ?: (string) ($sess['services'] ?? ''),
         'tone'          => $in('tone', 80) ?: (string) ($sess['tone'] ?? '') ?: 'ودّي',
-        'dialect'       => in_array($_POST['dialect'] ?? '', ['egyptian', 'msa'], true) ? $_POST['dialect'] : ((string) ($sess['dialect'] ?? '') ?: 'egyptian'),
+        'dialect'       => in_array($_POST['dialect'] ?? '', ['egyptian', 'msa', 'english'], true) ? $_POST['dialect'] : ((string) ($sess['dialect'] ?? '') ?: 'egyptian'),
         'goal'          => $in('goal', 150) ?: (string) ($sess['goal'] ?? ''),
     ];
     $desc = $sess ? (string) (json_decode((string) ($sess['profile_json'] ?? ''), true)['description'] ?? '') : '';
@@ -160,7 +161,7 @@ if ($action === 'ideas') {
     if ($biz['industry'] === '') $biz['industry'] = 'نشاط تجاري';
 
     $count = max(3, min(6, (int) get_setting('trial_ideas_count', 4)));
-    $dialectLabel = $biz['dialect'] === 'egyptian' ? 'العامية المصرية' : 'العربية الفصحى المبسّطة';
+    $dialectLabel = $biz['dialect'] === 'english' ? 'English — اكتب الناتج كله بالإنجليزي' : ($biz['dialect'] === 'egyptian' ? 'العامية المصرية' : 'العربية الفصحى المبسّطة');
 
     $prompt = "أنت استراتيجي محتوى سوشيال ميديا محترف.\n"
         . "اقترح {$count} أفكار منشورات متنوعة ومحددة للبيزنس ده:\n\n"
@@ -245,7 +246,7 @@ if ($action === 'post') {
         trial_out(['ok' => false, 'error' => 'الفكرة غير موجودة']);
     }
 
-    $dialectLabel = $t['dialect'] === 'egyptian' ? 'العامية المصرية' : 'العربية الفصحى المبسّطة';
+    $dialectLabel = $t['dialect'] === 'english' ? 'English — اكتب الناتج كله بالإنجليزي' : ($t['dialect'] === 'egyptian' ? 'العامية المصرية' : 'العربية الفصحى المبسّطة');
     $prompt = "أنت كاتب محتوى تسويقي محترف. اكتب منشور سوشيال ميديا كامل وجاهز للنشر.\n\n"
         . "البيزنس: {$t['business_name']} — {$t['industry']}\n"
         . ($t['audience'] ? "الجمهور: {$t['audience']}\n" : '')

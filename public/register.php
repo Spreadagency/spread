@@ -91,24 +91,26 @@ if (function_exists('ui_v2_enabled') && ui_v2_enabled()) {
     include __DIR__ . '/../templates/v2/auth.php';
     exit;
 }
+$i18n_ready = true;   // الترجمة: الصفحة دي مترجمة بالكامل
 include __DIR__ . '/../templates/header.php';
 ?>
 
 <div class="auth-wrap">
     <div class="auth-card">
+        <?php if (i18n_enabled()): ?><div style="display:flex;justify-content:flex-end;margin-bottom:-6px"><?= i18n_switcher(url('lang.php')) ?></div><?php endif; ?>
         <div class="brand">
             <?= function_exists('site_logo_html') ? site_logo_html() : '<div class="brand-mark">S</div>' ?>
             <div>
                 <div class="brand-name"><?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></div>
-                <div class="brand-sub"><?= e(function_exists('site_tagline') ? site_tagline() : APP_TAGLINE) ?></div>
+                <div class="brand-sub"><?= e(__(function_exists('site_tagline') ? site_tagline() : APP_TAGLINE)) ?></div>
             </div>
         </div>
 
-        <h2>إنشاء حساب جديد ✨</h2>
-        <p class="sub">ابدأ تنشئ محتوى احترافي بالذكاء الاصطناعي خلال دقايق</p>
+        <h2><?= e(__('إنشاء حساب جديد ✨')) ?></h2>
+        <p class="sub"><?= e(__('ابدأ تنشئ محتوى احترافي بالذكاء الاصطناعي خلال دقايق')) ?></p>
 
         <?php foreach ($errors as $err): ?>
-            <div class="alert danger"><?= e($err) ?></div>
+            <div class="alert danger"><?= e(__($err)) ?></div>
         <?php endforeach; ?>
 
         <?php $googleIntent = 'register'; include __DIR__ . '/../templates/google-button.php'; ?>
@@ -116,57 +118,57 @@ include __DIR__ . '/../templates/header.php';
             <?= csrf_field() ?>
 
             <div class="field">
-                <label>الاسم الكامل <span class="req">*</span></label>
+                <label><?= e(__('الاسم الكامل')) ?> <span class="req">*</span></label>
                 <input type="text" name="name" class="input" required minlength="2"
-                       value="<?= e($old['name']) ?>" placeholder="مثال: مصطفى أحمد">
+                       value="<?= e($old['name']) ?>" placeholder="<?= e(__('مثال: مصطفى أحمد')) ?>">
             </div>
 
             <div class="field">
-                <label>البريد الإلكتروني <span class="req">*</span></label>
+                <label><?= e(__('البريد الإلكتروني')) ?> <span class="req">*</span></label>
                 <input type="email" name="email" class="input" required
                        value="<?= e($old['email']) ?>" placeholder="you@example.com">
             </div>
 
             <div class="field">
-                <label>رقم الموبايل <span class="req">*</span></label>
+                <label><?= e(__('رقم الموبايل')) ?> <span class="req">*</span></label>
                 <input type="tel" name="phone" class="input" dir="ltr" required pattern="[0-9+]{8,20}"
                        value="<?= e($old['phone'] ?? '') ?>" placeholder="01xxxxxxxxx">
             </div>
 
             <div class="field">
-                        <label>كود دعوة أو خصم <span class="text-mute" style="font-size:12px">(اختياري)</span></label>
+                        <label><?= e(__('كود دعوة أو خصم')) ?> <span class="text-mute" style="font-size:12px"><?= e(__('(اختياري)')) ?></span></label>
                         <input type="text" name="ref_code" class="input" dir="ltr" data-no-encode="1"
                                value="<?= e(referral_active_code()) ?>" placeholder="SPREAD123"
                                style="text-transform:uppercase">
                         <?php if (referral_active_code() !== ''): ?>
-                            <div class="field-help" style="color:var(--success)">✓ كود الدعوة اتسجل — هتاخد رصيد هدية بعد التفعيل</div>
+                            <div class="field-help" style="color:var(--success)"><?= e(__('✓ كود الدعوة اتسجل — هتاخد رصيد هدية بعد التفعيل')) ?></div>
                         <?php endif; ?>
                     </div>
 
                     <div class="field">
-                <label>كلمة المرور <span class="req">*</span></label>
+                <label><?= e(__('كلمة المرور')) ?> <span class="req">*</span></label>
                 <input type="password" name="password" class="input" required minlength="8"
-                       placeholder="6 حروف على الأقل">
-                <div class="field-help">على الأقل 6 حروف. خلّيها قوية شوية 💪</div>
+                       placeholder="<?= e(__('6 حروف على الأقل')) ?>">
+                <div class="field-help"><?= e(__('على الأقل 6 حروف. خلّيها قوية شوية 💪')) ?></div>
             </div>
 
             <div class="field">
-                <label>تأكيد كلمة المرور <span class="req">*</span></label>
+                <label><?= e(__('تأكيد كلمة المرور')) ?> <span class="req">*</span></label>
                 <input type="password" name="password_confirm" class="input" required minlength="8"
-                       placeholder="أعد كلمة المرور">
+                       placeholder="<?= e(__('أعد كلمة المرور')) ?>">
             </div>
 
             <button type="submit" class="btn full lg">
-                ✨ إنشاء حسابي
+                <?= e(__('✨ إنشاء حسابي')) ?>
             </button>
         </form>
 
-        <div class="auth-divider">عندك حساب بالفعل؟</div>
+        <div class="auth-divider"><?= e(__('عندك حساب بالفعل؟')) ?></div>
 
-        <a href="<?= url('login.php') ?>" class="btn ghost full">تسجيل الدخول</a>
+        <a href="<?= url('login.php') ?>" class="btn ghost full"><?= e(__('تسجيل الدخول')) ?></a>
 
         <div class="footer-row">
-            بإنشاء حساب، أنت توافق على شروط الاستخدام وسياسة الخصوصية
+            <?= e(__('بإنشاء حساب، أنت توافق على شروط الاستخدام وسياسة الخصوصية')) ?>
         </div>
     </div>
 </div>

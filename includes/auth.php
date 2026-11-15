@@ -139,6 +139,28 @@ function login_user(int $userId, ?bool $remember = null): void
     $remember = $remember ?? (isset($_SESSION['remember_me']) ? (bool) $_SESSION['remember_me'] : remember_default());
     unset($_SESSION['remember_me']);
     if ($remember) remember_issue($userId);
+    i18n_user_sync($userId);
+}
+
+/**
+ * لغة الواجهة بعد الدخول (الترجمة · المرحلة 2): اختيار الحساب بيمشي معاه على أي جهاز،
+ * ولو الحساب لسه مااختارش ← اللغة اللي العميل كان فاتح بيها قبل الدخول بتتحفظ له.
+ */
+function i18n_user_sync(int $userId): void
+{
+    try {
+        $row = db_one('SELECT locale FROM users WHERE id = ?', [$userId]);
+    } catch (\Throwable $e) {
+        return;   // ترحيل 2026_i18n.sql لسه ماتشغّلش ← الكوكي بس
+    }
+    $saved = (string) ($row['locale'] ?? '');
+    $cookie = (string) ($_COOKIE[I18N_COOKIE] ?? '');
+    if (i18n_valid($saved)) {
+        i18n_remember($saved);
+        i18n_set($saved);
+    } elseif (i18n_valid($cookie) && $cookie !== I18N_DEFAULT) {
+        db_run('UPDATE users SET locale = ? WHERE id = ?', [$cookie, $userId]);
+    }
 }
 
 /**

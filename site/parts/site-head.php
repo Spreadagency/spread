@@ -8,7 +8,7 @@ $__noindex = !empty($meta['noindex']) || s_setting('seo_noindex_site', '0') === 
 $__og = (string) ($meta['og_image'] ?? '') ?: (s_setting('seo_og_image') ?: s_url('site-assets/img/bot-wave.webp'));
 if ($__og !== '' && $__og[0] === '/') $__og = rtrim(SITE_URL, '/') . $__og;
 ?><!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html <?= i18n_html_attrs() ?>>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -32,6 +32,7 @@ if ($__og !== '' && $__og[0] === '/') $__og = rtrim(SITE_URL, '/') . $__og;
 <?= $preload ?? '' ?>
 <link rel="stylesheet" href="<?= e(s_url('site-assets/css/home-v2.css')) ?>?v=<?= $__v('css/home-v2.css') ?>">
 <link rel="stylesheet" href="<?= e(s_url('site-assets/css/pages.css')) ?>?v=<?= $__v('css/pages.css') ?>">
+<?php if (i18n_dir() === 'ltr'): ?><link rel="stylesheet" href="<?= e(s_url('site-assets/css/ltr.css')) ?>?v=<?= $__v('css/ltr.css') ?>"><?php endif; ?>
 <?= s_design_css() ?>
 <?php if (($ga = s_setting('seo_ga_id')) && preg_match('/^G-[A-Z0-9]{4,16}$/i', $ga) && !$__noindex): ?>
 <script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($ga) ?>"></script>

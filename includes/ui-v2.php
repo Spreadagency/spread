@@ -66,7 +66,7 @@ function ui_icons(): array
 function ui_icon(string $name, int $size = 20, string $class = ''): string
 {
     $p = ui_icons()[$name] ?? ui_icons()['star'];
-    return '<svg class="ui-ic ' . htmlspecialchars($class, ENT_QUOTES) . '" width="' . $size . '" height="' . $size
+    return '<svg class="ui-ic ui-ic-' . $name . ' ' . htmlspecialchars($class, ENT_QUOTES) . '" width="' . $size . '" height="' . $size
         . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
         . ' stroke-linejoin="round" aria-hidden="true">' . $p . '</svg>';
 }

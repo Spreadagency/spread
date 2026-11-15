@@ -23,6 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($v !== s_setting($k)) $changed[] = $l;
         s_set($k, mb_substr($v, 0, 500));
     }
+    $lg = !empty($_POST['i18n_enabled']) ? '1' : '0';   // الترجمة: زرار «ع | EN» في هيدر الموقع
+    if ($lg !== s_setting('i18n_enabled', '0')) $changed[] = 'زرار اللغة';
+    s_set('i18n_enabled', $lg);
     $ni = !empty($_POST['seo_noindex_site']) ? '1' : '0';
     if ($ni !== s_setting('seo_noindex_site', '0')) $changed[] = 'منع الفهرسة';
     s_set('seo_noindex_site', $ni);
@@ -64,6 +67,8 @@ echo sa_page_head('search', 'SEO', 'SEO Manager', 'إزاي الموقع بيظ�
       </div>
       <div class="ad-swrow"><span><span class="ad-label">منع فهرسة الموقع كله (noindex)</span><span class="ad-hint" style="display:block">للتجربة بس — خليه مقفول على الموقع الحقيقي.</span></span>
         <?= sa_switch('seo_noindex_site', s_setting('seo_noindex_site', '0') === '1', 'مفعّل') ?></div>
+      <div class="ad-swrow"><span><span class="ad-label">زرار اللغة «ع | EN» في هيدر الموقع</span><span class="ad-hint" style="display:block">الزائر يقدر يفتح الموقع بالإنجليزي. نص الهيرو بالإنجليزي من نفس المفاتيح + _en (مثلًا hero_link_sub_en) — وإلا الترجمة الجاهزة.</span></span>
+        <?= sa_switch('i18n_enabled', s_setting('i18n_enabled', '0') === '1', 'ظاهر') ?></div>
     </div>
     <div style="margin-top:18px"><?= sa_btn('حفظ', 'pri lg', null, 'check', ['type' => 'submit']) ?></div>
   </form>

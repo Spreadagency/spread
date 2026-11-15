@@ -265,7 +265,7 @@ body.ui-v2 .bar .bar-fill { display: block; height: 100%; }
 body.v2-auth-page { min-height: 100vh; overflow-x: clip; }
 body.v2-auth-page .deco-blobs, body.v2-auth-page .gsep { display: none !important; }
 .au { max-width: 1400px; margin: 0 auto; padding: 22px 40px 40px; min-height: 100vh; display: flex; flex-direction: column; }
-.au-top { display: flex; align-items: center; padding: 4px 0 20px; }
+.au-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 20px; }
 .au-grid { flex: 1; display: grid; grid-template-columns: minmax(380px, 520px) 1fr; gap: 48px; align-items: center; }
 
 /* ── الكارت ── */

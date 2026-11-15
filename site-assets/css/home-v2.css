@@ -663,3 +663,7 @@ body.hv2{margin:0;background:var(--bg);font-family:"IBM Plex Sans Arabic",system
   .hx-ticks{gap:12px;font-size:12.5px}
 }
 @media (prefers-reduced-motion:reduce){.hx-facts li{transition:none}.hx-bubble,.hx-found{animation:none}}
+
+/* زرار اللغة «ع | EN» (الترجمة) */
+.lang-sw{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:34px;padding:0 10px;border-radius:999px;border:1px solid rgba(12,135,239,.25);background:rgba(255,255,255,.7);color:#0B1526;font:600 13px/1 inherit;text-decoration:none}
+.lang-sw:hover{border-color:#0C87EF;color:#0C87EF}
