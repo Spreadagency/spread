@@ -54,7 +54,7 @@
       lengths: { short: 'قصير', medium: 'متوسط', long: 'طويل' },
       goals: { bookings: 'حجوزات', sales: 'مبيعات', reach: 'انتشار', trust: 'ثقة', engagement: 'تفاعل' },
       platforms: { facebook: 'فيسبوك', instagram: 'انستجرام', tiktok: 'تيك توك', linkedin: 'لينكدإن' },
-      dialects: { egyptian: 'مصري', msa: 'فصحى بسيطة', gulf: 'خليجي', levantine: 'شامي', mixed: 'مصري + فصحى' },
+      dialects: { egyptian: 'مصري', msa: 'فصحى بسيطة', gulf: 'خليجي', levantine: 'شامي', mixed: 'مصري + فصحى', english: 'English' },
       personalityWords: ['موثوق', 'قريب من الناس', 'خبير', 'شبابي', 'فخم', 'عملي', 'مرح', 'هادي', 'جريء', 'إنساني'],
       logoPos: { 'top-right': 'فوق يمين', 'top-left': 'فوق شمال', 'bottom-right': 'تحت يمين', 'bottom-left': 'تحت شمال', center: 'في النص' },
       colorKeys: { primary: 'الأساسي', secondary: 'الثانوي', accent: 'لون الإبراز', neutral: 'المحايد' },

@@ -213,6 +213,7 @@ function campaign_dialect(array $brand): string
         'gulf', 'khaleeji' => 'اللهجة الخليجية البيضاء',
         'msa' => 'العربية الفصحى المبسطة',
         'levantine' => 'اللهجة الشامية',
+        'english', 'en' => 'اللغة الإنجليزية (English) — الناتج كله بالإنجليزي الطبيعي، حتى لو التعليمات عربي',
         default => 'اللهجة المصرية الخفيفة',
     };
 }
@@ -248,11 +249,13 @@ function campaign_ideas_prompt_base(array $brand, array $c, int $n, array $avoid
         }
         return $__filled
             . prompt_format_head() . "مطلوب {$n} أفكار بالظبط. formats من القايمة دي بس: " . implode('، ', CAMP_FORMATS) . ".\n" . $fmt
-            . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}';
+            . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}'
+            . bk_lang_tail($brand['dialect'] ?? '');
     }
     return prompt_fill('campaign_ideas', ['n' => $n, 'dialect' => campaign_dialect($brand), 'formats' => implode('، ', CAMP_FORMATS), 'data' => $data])
         . "\n\nأعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:\n"
-        . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}';
+        . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}'
+        . bk_lang_tail($brand['dialect'] ?? '');
 }
 
 /** العميل المثالي والشخصيات والـ CTA اللي الفكرة مربوطة بيهم (من إعداد الحملة) — سطور للبرومبت */
@@ -408,12 +411,13 @@ function campaign_content_prompt_base(array $brand, array $c, array $idea, strin
         return prompt_fill($type, $vars, ['uid' => $uid, 'brand' => $brand, 'agent' => 'copy', 'dna' => true])
             . ($format !== 'video' ? campaign_design_rules($fmtLabel, $uid) : '')
             . prompt_format_head() . "المطلوب محتوى للفكرة دي بس بشكل «{$fmtLabel}». أعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n"
-            . campaign_content_format($format, $slides, $duration) . "\n" . prompt_learnings_ask();
+            . campaign_content_format($format, $slides, $duration) . "\n" . prompt_learnings_ask()
+            . bk_lang_tail($brand['dialect'] ?? '');
     }
     $head = prompt_fill('campaign_content', ['campaign' => (string) ($c['title'] ?? ''), 'basis' => $basis, 'format' => $fmtLabel, 'dialect' => campaign_dialect($brand), 'data' => $data])
         . ($format !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
         . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n";
-    return $head . campaign_content_format($format, $slides, $duration);
+    return $head . campaign_content_format($format, $slides, $duration) . bk_lang_tail($brand['dialect'] ?? '');
 }
 
 /** الطول المناسب لكل شكل (متغير {length} في البرومبت الكامل) */

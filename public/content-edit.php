@@ -87,7 +87,7 @@ include __DIR__ . '/../templates/header.php';
             <div class="card">
                 <div class="field">
                     <label>نص المنشور</label>
-                    <textarea name="generated_text" class="textarea auto" rows="10" required><?= e($content['generated_text']) ?></textarea>
+                    <textarea name="generated_text" class="textarea auto bidi-auto" rows="10" required><?= e($content['generated_text']) ?></textarea>
                 </div>
 
                 <div class="field">

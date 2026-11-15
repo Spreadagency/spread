@@ -38,7 +38,7 @@ $options = [
     'platform'     => $_POST['platform'] ?? 'both',
     'length'       => $_POST['length'] ?? 'medium',
     'tone'         => (string) ($_POST['tone'] ?? 'simple'),
-    'dialect'      => in_array($_POST['dialect'] ?? '', ['egyptian', 'gulf', 'khaleeji', 'levantine', 'msa', 'mixed'], true) ? $_POST['dialect'] : 'egyptian',
+    'dialect'      => in_array($_POST['dialect'] ?? '', ['egyptian', 'gulf', 'khaleeji', 'levantine', 'msa', 'mixed', 'english'], true) ? $_POST['dialect'] : 'egyptian',
     'template_id'  => (int) ($_POST['template_id'] ?? 0),
     // Max 500 chars: limits prompt-injection surface and API cost abuse
     'extra_notes'  => mb_substr(trim($_POST['extra_notes'] ?? ''), 0, 500),

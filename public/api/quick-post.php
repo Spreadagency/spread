@@ -81,11 +81,11 @@ switch ($action) {
                 'extra_notes' => ($persona ? "اكتب للعميل المثالي ده بالذات:\n" . bk_persona_text($persona, $uid) : '') . ($note !== '' ? "\n" . $note : '')];
             $prompt = prompt_fill('quick_post', $qv, ['uid' => $uid, 'brand' => $brand, 'dna' => true])
                 . ($fmt !== 'video' ? campaign_design_rules($fmtLabel, $uid) : '')
-                . prompt_format_head() . "أعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides) . "\n" . prompt_learnings_ask();
+                . prompt_format_head() . "أعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides) . "\n" . prompt_learnings_ask() . bk_lang_tail($brand['dialect'] ?? '');
         } else {
             $prompt = prompt_fill('quick_post', $qv + ['data' => $data])
                 . ($fmt !== 'video' ? "\n\n" . prompt_fill('design_idea', ['format' => $fmtLabel]) : '')
-                . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides);
+                . "\n\nأعد الناتج بالتنسيق ده بالظبط بدون أي تعليق:\n\n" . campaign_content_format($fmt, $slides) . bk_lang_tail($brand['dialect'] ?? '');
         }
         $ai = campaign_ai($prompt, $fmt === 'carousel' ? 2600 : 1800, 'campaign_content', ['user_id' => $uid, 'reference_type' => 'quick_post']);
         $p = $ai['ok'] ? campaign_parse_content(BrandContext::stripWhy((string) $ai['response'])) : null;

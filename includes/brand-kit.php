@@ -419,8 +419,26 @@ function bk_dialect_key(string $d): string
         'msa' => 'msa',
         'levantine' => 'levantine',
         'mixed' => 'mixed',
+        'english', 'en' => 'english',
         default => 'egyptian',
     };
+}
+
+/** المحتوى المطلوب بالإنجليزي؟ (اختيار «English» في لغة الكتابة) */
+function bk_is_english(?string $d): bool
+{
+    return bk_dialect_key((string) $d) === 'english';
+}
+
+/**
+ * سطر أخير في برومبت الكتابة لو المحتوى إنجليزي — التعليمات والبيانات بتفضل عربي، والناتج كله إنجليزي.
+ * فاضي للعربي (البرومبت زي ما هو بالحرف).
+ */
+function bk_lang_tail(?string $d): string
+{
+    if (!bk_is_english($d)) return '';
+    return "\n\nOUTPUT LANGUAGE: ENGLISH. اكتب الناتج كله بالإنجليزي الطبيعي لجمهور البراند: الـ Hook والنص والـ CTA والهاشتاجات والعنوان والنص اللي على التصميم — حتى لو التعليمات والبيانات فوق بالعربي. "
+        . "ماتكتبش ولا كلمة عربي في الناتج (أسماء البراند زي ما هي). التاجات وشكل الرد زي ما هم بالظبط.";
 }
 
 /** اللهجة زي ما بتتخزن في brand_profiles (Brand Brain بيستخدم khaleeji) */
@@ -437,6 +455,7 @@ function bk_dialect_label(string $d): string
         'msa' => 'العربية الفصحى المبسطة',
         'levantine' => 'اللهجة الشامية',
         'mixed' => 'مصري خفيف مع كلمات فصحى بسيطة',
+        'english' => 'اللغة الإنجليزية (English) — الناتج كله بالإنجليزي الطبيعي، حتى لو التعليمات عربي',
         default => 'اللهجة المصرية الخفيفة',
     };
 }

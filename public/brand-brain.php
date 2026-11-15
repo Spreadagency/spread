@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var init = <?= json_encode($initial, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   var base = document.querySelector('meta[name="app-base"]').content;
   var TONES = { simple: 'بسيط', formal: 'رسمي', fun: 'مرح', professional: 'احترافي' };
-  var DIALECTS = { egyptian: 'مصري', khaleeji: 'خليجي', levantine: 'شامي', msa: 'فصحى' };
+  var DIALECTS = { egyptian: 'مصري', khaleeji: 'خليجي', levantine: 'شامي', msa: 'فصحى', english: 'English' };
 
   // ويدجت السايدبار بيترسم مع الصفحة — نحدّثه لحظيًا مع أي تغيير في الهوية
   function syncSidebar(h) {

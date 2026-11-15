@@ -441,15 +441,19 @@ function ce_overlay_render(array $o): array
     }
     $y = $y1 + $pad + max(0, ($boxH - $total) / 2);
     $right = $x2 - $pad;
+    $left = $x1 + $pad;
     $cx = ($x1 + $x2) / 2;
-    $place = function (string $vis, string $font, float $size) use ($st, $right, $cx) {
+    // نص إنجليزي (مافيهوش عربي): المحاذاة «يمين» بتبقى شمال — بداية السطر في الاتجاهين
+    $ltr = !preg_match('/\p{Arabic}/u', $head . $sub) && preg_match('/[A-Za-z]/', $head . $sub);
+    $place = function (string $vis, string $font, float $size) use ($st, $right, $left, $cx, $ltr) {
         $w = ce_text_width($vis, $font, $size);
-        return $st['align'] === 'right' ? $right - $w : (int) round($cx - $w / 2);
+        if ($st['align'] === 'right') return $ltr ? (int) $left : $right - $w;
+        return (int) round($cx - $w / 2);
     };
     if ($accentH) {
         $aw = (int) round($W * 0.09);
         $ah = (int) round($W * 0.012);
-        $ax = $st['align'] === 'right' ? $right - $aw : (int) round($cx - $aw / 2);
+        $ax = $st['align'] === 'right' ? ($ltr ? (int) $left : $right - $aw) : (int) round($cx - $aw / 2);
         ce_gd_rounded($im, $ax, (int) $y, $ax + $aw, (int) $y + $ah, (int) ($ah / 2), imagecolorallocate($im, $accentRgb[0], $accentRgb[1], $accentRgb[2]));
         $y += $accentH;
     }

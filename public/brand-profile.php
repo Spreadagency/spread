@@ -161,6 +161,7 @@ include __DIR__ . '/../templates/header.php';
                                 <option value="egyptian" <?= ($brand['dialect'] ?? '') === 'egyptian' ? 'selected' : '' ?>>مصرية</option>
                                 <option value="khaleeji" <?= ($brand['dialect'] ?? '') === 'khaleeji' ? 'selected' : '' ?>>خليجية</option>
                                 <option value="levantine" <?= ($brand['dialect'] ?? '') === 'levantine' ? 'selected' : '' ?>>شامية</option>
+                                <option value="english" <?= ($brand['dialect'] ?? '') === 'english' ? 'selected' : '' ?>>English (المحتوى بالإنجليزي)</option>
                             </select>
                         </div>
                         <div class="field">

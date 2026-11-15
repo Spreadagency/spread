@@ -479,7 +479,7 @@ switch ($action) {
 
         $brand = db_one('SELECT * FROM brand_profiles WHERE user_id = ? ORDER BY id LIMIT 1', [$uid]) ?: [];
         $tones = ['simple' => 'بسيطة', 'formal' => 'رسمية', 'fun' => 'مرحة', 'professional' => 'احترافية'];
-        $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
+        $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى', 'english' => 'الإنجليزية (English) — الناتج كله بالإنجليزي'];
         $ctx = [];
         if (!empty($brand['business_name'])) $ctx[] = 'البراند: ' . $brand['business_name'] . (!empty($brand['industry']) ? ' (' . $brand['industry'] . ')' : '');
         if (!empty($brand['audience']))      $ctx[] = 'الجمهور: ' . mb_substr($brand['audience'], 0, 300);

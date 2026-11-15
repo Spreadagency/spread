@@ -1594,3 +1594,6 @@ button[aria-busy="true"] { opacity: .75; cursor: wait; }
 .rf-opt { display: inline-flex; align-items: center; gap: 6px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--line, #E5E9F0); cursor: pointer; font-weight: 600; }
 .rf-opt.on, .rf-opt:has(input:checked) { border-color: var(--primary, #0C87EF); background: var(--primary-soft, #EAF4FF); }
 .rf-coupons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+
+/* نص المحتوى (الترجمة · المرحلة 1): كل فقرة بتاخد اتجاهها من نصها — العربي يمين والإنجليزي شمال جوه نفس الصفحة */
+.content-text, .bidi-auto { unicode-bidi: plaintext; text-align: start; }

@@ -102,7 +102,7 @@ include __DIR__ . '/../templates/header.php';
                     <?php if (!empty($designs[$cid])): ?>
                         <img src="<?= e(upload_url($designs[$cid])) ?>" alt="تصميم المنشور" loading="lazy" style="max-width:100%;border-radius:12px;margin-bottom:10px">
                     <?php endif; ?>
-                    <div style="white-space:pre-wrap;line-height:1.9;font-size:14.5px"><?= e(trim((string) $p['generated_text'])) ?></div>
+                    <div class="bidi-auto" style="white-space:pre-wrap;line-height:1.9;font-size:14.5px"><?= e(trim((string) $p['generated_text'])) ?></div>
                     <?php if (trim((string) $p['cta']) !== ''): ?><div style="margin-top:8px;font-weight:600"><?= e($p['cta']) ?></div><?php endif; ?>
                     <?php if (trim((string) $p['hashtags']) !== ''): ?><div class="text-mute" style="margin-top:6px;font-size:13px"><?= e($p['hashtags']) ?></div><?php endif; ?>
                     <form method="POST" style="margin-top:14px">

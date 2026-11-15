@@ -22,6 +22,27 @@ require_once __DIR__ . '/plan-functions.php';
 require_once __DIR__ . '/studio-config.php';
 require_once __DIR__ . '/brand-kit.php';
 
+/**
+ * لغة النص اللي على التصميم ← وصفها للموديل. بتتحدد من النص نفسه (حروف إنجليزي ومافيش عربي = إنجليزي)،
+ * أو من اختيار «English» في لغة الكتابة. العربي زي ما كان بالحرف.
+ */
+function design_text_is_en(string $text, bool $en = false): bool
+{
+    $t = trim($text);
+    if (preg_match('/\p{Arabic}/u', $t)) return false;
+    return preg_match('/[A-Za-z]/', $t) ? true : $en;      // أرقام/إيموجي بس ← حسب اختيار اللغة
+}
+
+function design_text_note(string $text, bool $en = false, string $what = 'text'): string
+{
+    if (design_text_is_en($text, $en)) {
+        return ['headline' => 'English — render exactly, correct English spelling, left-to-right, bold clean Latin font',
+                'sub' => 'English, smaller', 'text' => 'English — render exactly, correct spelling, left-to-right', 'cta' => 'English'][$what] ?? 'English';
+    }
+    return ['headline' => 'Arabic — render exactly, correct Arabic letters, right-to-left', 'sub' => 'Arabic, smaller',
+            'text' => 'render exactly, correct Arabic letters, right-to-left', 'cta' => 'Arabic'][$what] ?? 'Arabic';
+}
+
 /** design_brief (حقول CE_BRIEF_FIELDS) ← سطور إنجليزي للموديل */
 function design_brief_text(array $b): string
 {
@@ -33,8 +54,8 @@ function design_brief_text(array $b): string
     }
     $h = trim((string) ($b['headline'] ?? ''));
     $s = trim((string) ($b['subline'] ?? ''));
-    if ($h !== '') $out[] = 'Headline on the design (Arabic — render exactly, correct Arabic letters, right-to-left): ' . mb_substr($h, 0, 120);
-    if ($s !== '') $out[] = 'Supporting line (Arabic, smaller): ' . mb_substr($s, 0, 160);
+    if ($h !== '') $out[] = 'Headline on the design (' . design_text_note($h, false, 'headline') . '): ' . mb_substr($h, 0, 120);
+    if ($s !== '') $out[] = 'Supporting line (' . design_text_note($s, design_text_is_en($h), 'sub') . '): ' . mb_substr($s, 0, 160);
     $cols = array_values(array_filter((array) ($b['colors_hex'] ?? []), fn($c) => is_string($c) && preg_match('/^#[0-9a-f]{6}$/i', $c)));
     if ($cols) $out[] = 'Brand colors to use: ' . implode(' ', array_slice($cols, 0, 4));
     return $out ? "Design brief:\n- " . implode("\n- ", $out) : '';
@@ -73,6 +94,10 @@ function design_build(array $o): array
     $carouselRatio = $o['carousel_ratio'];
     $edit = (bool) $o['edit'];
     $hasChars = array_key_exists('character_ids', $o) && $o['character_ids'] !== null;
+    // المحتوى بالإنجليزي (اختيار المنشور، وإلا الهوية) ← النص على التصميم بالإنجليزي
+    if (!function_exists('bk_is_english')) require_once __DIR__ . '/brand-kit.php';
+    $__en = bk_is_english((string) ($content['dialect'] ?? '')) || bk_is_english((string) ($brand['dialect'] ?? ''));
+    if (trim((string) ($content['generated_text'] ?? '')) !== '') $__en = design_text_is_en((string) $content['generated_text'], $__en);   // نص البوست نفسه هو الحَكَم
     $refLog = [];
 
     // ═══ تجميع مدخلات الموديل: كل صورة بدورها ═══
@@ -186,8 +211,8 @@ function design_build(array $o): array
     if ($format === 'carousel' && $slide) {
         $pos = $slideNo === 1 ? 'the COVER slide (strong hook, invites swiping)' : ($slideNo === $slidesTotal ? 'the LAST slide (clear call-to-action)' : 'a middle slide');
         $concept = "This is slide {$slideNo} of {$slidesTotal} of ONE Instagram/Facebook carousel — {$pos}.\n"
-            . ($slide['title'] !== '' ? "Slide headline (Arabic — show it as the main text): " . $slide['title'] . "\n" : '')
-            . ($slide['text'] !== '' ? "Slide supporting text (Arabic, short): " . $slide['text'] . "\n" : '')
+            . ($slide['title'] !== '' ? "Slide headline (" . (design_text_is_en($slide['title'], $__en) ? 'English' : 'Arabic') . " — show it as the main text): " . $slide['title'] . "\n" : '')
+            . ($slide['text'] !== '' ? "Slide supporting text (" . (design_text_is_en($slide['text'], $__en) ? 'English' : 'Arabic') . ", short): " . $slide['text'] . "\n" : '')
             . ($slide['design'] !== '' ? "Slide design idea: " . $slide['design'] . "\n" : '')
             . ($customPrompt !== '' ? "Extra instructions: " . $customPrompt . "\n" : '')
             . "All slides share the same size, palette and layout system; add a small page indicator ({$slideNo}/{$slidesTotal}).";
@@ -196,7 +221,7 @@ function design_build(array $o): array
     } elseif (!empty($content['image_prompt'])) {
         $concept = "Design concept: " . $content['image_prompt'];
     } else {
-        $concept = "The post text (Arabic): " . mb_substr($content['generated_text'], 0, 400)
+        $concept = "The post text (" . (design_text_is_en((string) $content['generated_text'], $__en) ? 'English — any text on the design must be in English' : 'Arabic') . "): " . mb_substr($content['generated_text'], 0, 400)
             . "\nCreate a design that visually represents this post.";
     }
 
@@ -270,7 +295,8 @@ function design_build(array $o): array
             'size' => studio_ratio_hint($ratioRes), 'studio_template' => $__typeP,
             'has_logo_or_product' => $__roles ? "أيوه — الصور المرفقة بالترتيب:\n- " . implode("\n- ", $__roles) : 'لأ',
             'brand_identity' => trim($identityBlock), 'content_type' => ['post' => 'بوست', 'story' => 'ستوري 9:16', 'carousel' => 'شريحة كاروسيل'][$format],
-        ] + prompt_brand_vars($uid, $brand, 'design', ['identity' => false]), []);
+        ] + prompt_brand_vars($uid, $brand, 'design', ['identity' => false]), [])
+            . ($__en ? "\n\nمهم: المحتوى ده بالإنجليزي — النص اللي على التصميم (ARABIC_TEXT) والـ CTA يتكتبوا بالإنجليزي مش بالعربي، بخط لاتيني واضح من الشمال لليمين." : '');
         $__w = ai_generate($__writer);
         $__out = !empty($__w['ok']) ? (string) $__w['response'] : '';
         if (preg_match('/PROMPT\s*:\s*(.+?)(?=\n\s*(ARABIC_TEXT|PROMPT_B|\[\/CONTENT\]|NEGATIVE)|$)/su', $__out, $__pm) && mb_strlen(trim($__pm[1])) > 40) {
@@ -278,8 +304,8 @@ function design_build(array $o): array
             $__neg = preg_match('/NEGATIVE\s*:\s*(.+)/u', $__out, $__nm) ? trim($__nm[1]) : '';
             $__cta = preg_match('/\[CTA\](.*?)\[\/CTA\]/su', $__out, $__cm) ? trim($__cm[1]) : '';
             $designPrompt = studio_ratio_hint($ratioRes) . "\n" . trim($__pm[1]) . "\n"
-                . ($__ar !== '' && !preg_match('/^(بدون|none|no)$/iu', $__ar) ? 'Arabic text on the design (render exactly, correct Arabic letters, right-to-left): ' . $__ar . "\n" : '')
-                . ($__cta !== '' && !preg_match('/^(بدون|none|no)$/iu', $__cta) ? 'CTA button text (Arabic): ' . $__cta . "\n" : '')
+                . ($__ar !== '' && !preg_match('/^(بدون|none|no)$/iu', $__ar) ? (design_text_is_en($__ar, $__en) ? 'English' : 'Arabic') . ' text on the design (' . design_text_note($__ar, $__en) . '): ' . $__ar . "\n" : '')
+                . ($__cta !== '' && !preg_match('/^(بدون|none|no)$/iu', $__cta) ? 'CTA button text (' . design_text_note($__cta, $__en, 'cta') . '): ' . $__cta . "\n" : '')
                 . ($__neg !== '' ? 'Avoid: ' . $__neg . "\n" : '');
             if ($inputImages) {
                 $designPrompt .= "\nATTACHED IMAGES (in order):\n";

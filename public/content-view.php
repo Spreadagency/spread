@@ -79,7 +79,7 @@ include __DIR__ . '/../templates/header.php';
                         <h3>النص النهائي</h3>
                         <button class="btn ghost sm" onclick="copyToClipboard(document.getElementById('main-text').textContent, this)">📋 نسخ</button>
                     </div>
-                    <div id="main-text" style="background:var(--surface-2);border-radius:14px;padding:18px;font-size:14px;line-height:1.9;white-space:pre-wrap;border:1px solid var(--line)"><?= e($content['generated_text']) ?></div>
+                    <div id="main-text" class="bidi-auto" style="background:var(--surface-2);border-radius:14px;padding:18px;font-size:14px;line-height:1.9;white-space:pre-wrap;border:1px solid var(--line)"><?= e($content['generated_text']) ?></div>
 
                     <?php if (!empty($content['hashtags'])): ?>
                         <h3 style="font-size:14px;margin-top:18px;margin-bottom:8px">الهاشتاجات</h3>

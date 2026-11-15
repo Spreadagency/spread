@@ -136,8 +136,8 @@ include __DIR__ . '/../templates/header.php';
                             <label>لهجة الكتابة</label>
                             <div class="seg">
                                 <?php $__dl = function_exists('bk_dialect_key') ? bk_dialect_key((string) ($brand['dialect'] ?? 'egyptian')) : 'egyptian';
-                                $__dl = in_array($__dl, ['egyptian', 'gulf', 'levantine', 'msa'], true) ? $__dl : 'egyptian';
-                                foreach (['egyptian' => 'مصري', 'gulf' => 'خليجي', 'levantine' => 'شامي', 'msa' => 'فصحى'] as $k => $v): ?>
+                                $__dl = in_array($__dl, ['egyptian', 'gulf', 'levantine', 'msa', 'english'], true) ? $__dl : 'egyptian';
+                                foreach (['egyptian' => 'مصري', 'gulf' => 'خليجي', 'levantine' => 'شامي', 'msa' => 'فصحى', 'english' => 'English'] as $k => $v): ?>
                                 <button type="button" data-val="<?= $k ?>" class="<?= $k === $__dl ? 'on' : '' ?>" onclick="setSeg(this, 'dialect')"><?= $v ?></button>
                                 <?php endforeach; ?>
                             </div>

@@ -144,9 +144,16 @@ function ce_slot_text(array $slot, array $ctx): string
     ], JSON_UNESCAPED_UNICODE);
 }
 
-function ce_ideation_system(): string
+function ce_ideation_system(array $ctx = []): string
 {
-    return ce_prompt_sys('ce_ideation');
+    return ce_prompt_sys('ce_ideation') . ce_lang_tail($ctx);
+}
+
+/** المحتوى بالإنجليزي (لغة الكتابة في الـ DNA = english) ← سطر أخير بيثبّت لغة الناتج · فاضي للعربي */
+function ce_lang_tail(array $ctx): string
+{
+    if (!function_exists('bk_lang_tail')) require_once __DIR__ . '/brand-kit.php';
+    return bk_lang_tail((string) ($ctx['dna']['tone']['dialect'] ?? ''));
 }
 
 function ce_selection_system(): string
@@ -156,12 +163,13 @@ function ce_selection_system(): string
 
 function ce_writer_system(array $ctx): string
 {
-    return ce_prompt_sys('ce_writer', ce_prompt_vars('ce_writer', $ctx));
+    return ce_prompt_sys('ce_writer', ce_prompt_vars('ce_writer', $ctx)) . ce_lang_tail($ctx);
 }
 
-function ce_critic_system(): string
+function ce_critic_system(array $ctx = []): string
 {
-    return ce_prompt_sys('ce_critic');
+    return ce_prompt_sys('ce_critic') . (ce_lang_tail($ctx) !== ''
+        ? "\n\nملحوظة: المحتوى ده مطلوب بالإنجليزي — قيّم صحة الإنجليزي وطبيعيته مكان «اللهجة»، وماتنقصش الدرجة عشان النص مش عربي." : '');
 }
 
 /* ═══════════════════ رسائل المستخدم (نفسها في المحرك والـ Playground) ═══════════════════ */
@@ -418,7 +426,7 @@ function ce_write_job(array $job, array &$state): array
     if ($state['phase'] === 'ideate') {
         $used = ce_used_hooks($uid, (int) $c['id'], $slotId);
         $user = ce_ideation_user($ctx, $slot, $used, (string) ($state['idea_note'] ?? ''));
-        $r = ce_ai_json('ce_ideation', ce_ideation_system(), $user, $aiCtx, 1800, 0.9);
+        $r = ce_ai_json('ce_ideation', ce_ideation_system($ctx), $user, $aiCtx, 1800, 0.9);
         $state['cost_usd'] += $r['cost_usd'];
         $ideas = $r['ok'] ? (array) ($r['data']['ideas'] ?? (array_is_list($r['data']) ? $r['data'] : [])) : [];
         if (!$ideas) {
@@ -527,11 +535,11 @@ function ce_write_job(array $job, array &$state): array
     $codeFlags = ce_content_flags($body, $ctx, $brief);
     $target = ce_critic_target($state['writer_provider'] ?? null);
     $critUser = ce_critic_user($ctx, $slot, $body, $codeFlags);
-    $r = ce_ai_json('ce_critic', ce_critic_system(), $critUser, $aiCtx + ($target ? ['only' => $target] : []), 2200, 0.1);
+    $r = ce_ai_json('ce_critic', ce_critic_system($ctx), $critUser, $aiCtx + ($target ? ['only' => $target] : []), 2200, 0.1);
     $state['cost_usd'] += $r['cost_usd'];
     if (!$r['ok'] && $target && $r['error'] !== 'gateway_off') {
         // المزود التاني مش متاح دلوقتي ← السلسلة العادية للناقد
-        $r = ce_ai_json('ce_critic', ce_critic_system(), $critUser, $aiCtx, 2200, 0.1);
+        $r = ce_ai_json('ce_critic', ce_critic_system($ctx), $critUser, $aiCtx, 2200, 0.1);
         $state['cost_usd'] += $r['cost_usd'];
     }
     if (!$r['ok']) {

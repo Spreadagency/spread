@@ -237,7 +237,7 @@ switch ($action) {
         foreach (['business_name' => 'البراند', 'industry' => 'المجال', 'audience' => 'الجمهور', 'services' => 'الخدمات'] as $k => $l) {
             if (!empty($brand[$k])) $ctx[] = $l . ': ' . mb_substr((string) $brand[$k], 0, 300);
         }
-        $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
+        $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى', 'english' => 'الإنجليزية (English) — الناتج كله بالإنجليزي'];
         $dialect = $dialects[$brand['dialect'] ?? ''] ?? 'العامية المصرية';
         require_once __DIR__ . '/../../includes/brand-kit.php';
         $__u = $brand ? bk_brand_block($brand, 'ideas') : null;
@@ -319,7 +319,7 @@ switch ($action) {
                   'colors' => 'الألوان', 'design_rules' => 'قواعد التصميم'] as $k => $l) {
             if (!empty($brand[$k])) $ctx[] = $l . ': ' . mb_substr((string) $brand[$k], 0, 300);
         }
-        $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى'];
+        $dialects = ['egyptian' => 'العامية المصرية', 'khaleeji' => 'الخليجية', 'levantine' => 'الشامية', 'msa' => 'الفصحى', 'english' => 'الإنجليزية (English) — الناتج كله بالإنجليزي'];
         $dialect = $dialects[$brand['dialect'] ?? ''] ?? 'العامية المصرية';
         require_once __DIR__ . '/../../includes/brand-kit.php';
         $__u = $brand ? bk_brand_block($brand, 'copy') : null;

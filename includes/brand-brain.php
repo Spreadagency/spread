@@ -631,7 +631,7 @@ function brand_field_options(): array
 {
     return [
         'tone'    => ['simple' => 'بسيط', 'formal' => 'رسمي', 'fun' => 'مرح', 'professional' => 'احترافي'],
-        'dialect' => ['egyptian' => 'مصري', 'khaleeji' => 'خليجي', 'levantine' => 'شامي', 'msa' => 'فصحى'],
+        'dialect' => ['egyptian' => 'مصري', 'khaleeji' => 'خليجي', 'levantine' => 'شامي', 'msa' => 'فصحى', 'english' => 'English'],
     ];
 }
 

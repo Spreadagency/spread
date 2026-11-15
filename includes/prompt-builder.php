@@ -159,6 +159,9 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
     $dialect = function_exists('bk_dialect_label') ? bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')))
         : match ($options['dialect'] ?? 'egyptian') { 'gulf', 'khaleeji' => 'اللهجة الخليجية البيضاء', 'msa' => 'العربية الفصحى المبسطة', default => 'اللهجة المصرية الخفيفة' };
 
+    // المحتوى بالإنجليزي (الترجمة · المرحلة 1): سطر أخير بيثبّت لغة الناتج — فاضي للعربي
+    $__langTail = function_exists('bk_lang_tail') ? bk_lang_tail((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian'))) : '';
+
     // Template snippet (feature 27)
     $templateSection = '';
     if (!empty($options['template_id'])) {
@@ -187,7 +190,7 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         ];
         $base_vars = $uid > 0 ? prompt_brand_vars($uid, $brand, 'copy', ['identity' => false]) : [];
         if (!function_exists('post_skill_prefix')) require_once __DIR__ . '/post-skills.php';
-        return post_skill_prefix('quick_post', $brand) . prompt_apply($base, $vars + $base_vars, ['dna' => true]);   // الـ Skill حسب المجال في الأول
+        return post_skill_prefix('quick_post', $brand) . prompt_apply($base, $vars + $base_vars, ['dna' => true]) . $__langTail;   // الـ Skill حسب المجال في الأول
     }
 
     $notesSection = $extraNotes
@@ -205,6 +208,7 @@ function build_final_prompt(array $brand, array $options, string $extraNotes = '
         . $typeSection
         . $templateSection
         . $notesSection
+        . $__langTail
         . "\n\nالآن أنشئ المنشور:";
 }
 

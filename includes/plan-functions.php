@@ -167,6 +167,7 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
     };
 
     $dialect = bk_dialect_label((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')));
+    $__langTail = bk_lang_tail((string) ($options['dialect'] ?? ($brand['dialect'] ?? 'egyptian')));
 
     $fmt = "[CONTENT]\nنص المنشور كامل (100-200 كلمة، Hook قوي في البداية، إيموجي معتدل)\n[/CONTENT]\n\n"
         . "[HASHTAGS]\n#هاشتاج1 #هاشتاج2 (5-8 هاشتاجات مناسبة)\n[/HASHTAGS]\n\n"
@@ -184,7 +185,7 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
             : prompt_fill('design_idea', ['format' => 'منشور']);
         return prompt_apply(get_active_prompt('plan_produce'), $vars + ($uid ? prompt_brand_vars($uid, $brand, 'copy', ['identity' => false]) : []), ['strip_output' => true, 'dna' => true])
             . ($designRules !== '' ? "\n\n" . $designRules : '')
-            . prompt_format_head() . "أعد الناتج بالتنسيق التالي بالظبط بدون أي تعليق إضافي:\n\n" . $fmt;
+            . prompt_format_head() . "أعد الناتج بالتنسيق التالي بالظبط بدون أي تعليق إضافي:\n\n" . $fmt . $__langTail;
     }
 
     return prompt_or_default('plan_produce', "أنت كاتب محتوى تسويقي محترف. اكتب منشور سوشيال ميديا كامل بناءً على الفكرة التالية.") . "\n\n"
@@ -201,7 +202,8 @@ function build_produce_prompt(array $brand, array $idea, array $options = []): s
         . "[HASHTAGS]\n#هاشتاج1 #هاشتاج2 (5-8 هاشتاجات مناسبة)\n[/HASHTAGS]\n\n"
         . "[CTA]\nجملة الـ Call-to-Action\n[/CTA]\n\n"
         . "[DESIGN_IDEA]\nوصف فكرة التصميم بالعربي في 2-3 جمل: التكوين، العناصر، الألوان، والنص الظاهر على التصميم (لو فيه)\n[/DESIGN_IDEA]\n\n"
-        . "[IMAGE_PROMPT]\nEnglish image generation prompt: detailed scene, composition, colors matching brand, modern social media design, square 1:1. No text overlay instructions unless essential.\n[/IMAGE_PROMPT]";
+        . "[IMAGE_PROMPT]\nEnglish image generation prompt: detailed scene, composition, colors matching brand, modern social media design, square 1:1. No text overlay instructions unless essential.\n[/IMAGE_PROMPT]"
+        . $__langTail;
 }
 
 /**

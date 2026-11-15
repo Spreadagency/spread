@@ -39,11 +39,11 @@ $__qpVer = fn(string $f) => url($f) . '?v=' . (@filemtime(__DIR__ . '/../../' . 
 
             <section class="qp-card qp-out" id="qp-out" hidden>
                 <div class="qp-out-head"><b id="qp-out-title">المنشور جاهز ✓</b><span class="qp-mute" id="qp-out-fmt"></span></div>
-                <div class="qp-field"><span>الـ Hook</span><p id="qp-hook"></p></div>
-                <div class="qp-field"><span>المنشور</span><p id="qp-body"></p></div>
-                <div class="qp-field" id="qp-slides-w" hidden><span>الشرائح</span><ol id="qp-slides"></ol></div>
-                <div class="qp-field" id="qp-script-w" hidden><span>سكريبت الفيديو</span><p id="qp-script"></p></div>
-                <div class="qp-field cta"><span>الـ CTA</span><p id="qp-cta"></p></div>
+                <div class="qp-field"><span>الـ Hook</span><p id="qp-hook" class="bidi-auto"></p></div>
+                <div class="qp-field"><span>المنشور</span><p id="qp-body" class="bidi-auto"></p></div>
+                <div class="qp-field" id="qp-slides-w" hidden><span>الشرائح</span><ol id="qp-slides" class="bidi-auto"></ol></div>
+                <div class="qp-field" id="qp-script-w" hidden><span>سكريبت الفيديو</span><p id="qp-script" class="bidi-auto"></p></div>
+                <div class="qp-field cta"><span>الـ CTA</span><p id="qp-cta" class="bidi-auto"></p></div>
                 <div class="qp-field"><span>الهاشتاجات</span><p id="qp-tags" dir="auto"></p></div>
                 <div class="qp-field design" id="qp-design-w"><span>🎨 فكرة التصميم</span><p id="qp-design"></p></div>
                 <div class="qp-acts">

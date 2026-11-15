@@ -22,7 +22,7 @@ const CE_DNA_PRIORITIES = ['high' => 'أولوية عالية', 'medium' => 'م�
 const CE_DNA_FORMALITY = ['formal' => 'رسمي', 'balanced' => 'متوازن', 'friendly' => 'ودود وقريب'];
 const CE_DNA_PLATFORMS = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام', 'tiktok' => 'تيك توك', 'whatsapp' => 'واتساب', 'linkedin' => 'لينكدإن'];
 const CE_DNA_SEASONS = ['طول السنة', 'الصيف', 'الشتا', 'الربيع', 'الخريف', 'الدراسة', 'الإجازة', 'رمضان', 'العيد', 'الجمعة البيضا'];
-const CE_DNA_DIALECTS = ['egyptian', 'gulf', 'levantine', 'msa', 'mixed'];
+const CE_DNA_DIALECTS = ['egyptian', 'gulf', 'levantine', 'msa', 'mixed', 'english'];
 
 /* ═══════════════════ القراءة والحفظ ═══════════════════ */
 
