@@ -63,6 +63,15 @@ return [
     'تصميم 1:1' => '1:1 design',
     'بألوان هويتك' => 'In your brand colors',
 
+    // الشريط المتحرك (الإفتراضي)
+    'محتوى بصوت براندك' => 'Content in your brand voice',
+    'تصميمات جاهزة للنشر' => 'Ready-to-post designs',
+    'هوية ثابتة' => 'A consistent identity',
+    'أفكار ما بتخلصش' => 'Endless ideas',
+    'جدولة ونشر' => 'Scheduling & publishing',
+    'بحث عميق' => 'Deep research',
+    'حملات كاملة' => 'Full campaigns',
+
     // الهيرو (JavaScript)
     'اعمل حساب مجاني ←' => 'Create a free account →',
     'Spread AI بيقرا صفحتك…' => 'Spread AI is reading your page…',

@@ -5,3 +5,6 @@
 html[dir="ltr"] body { direction: ltr; }
 html[dir="ltr"] .h-foot .col a[dir="ltr"] { text-align: left !important; }
 html[dir="ltr"] .hx-url input { text-align: left; }
+html[dir="ltr"] .hx-card { text-align: left; }
+/* أيقونات الاتجاه (السهم) بتتعكس */
+html[dir="ltr"] .svg-i-arrow, html[dir="ltr"] .svg-i-chevron { transform: scaleX(-1); }

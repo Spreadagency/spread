@@ -51,7 +51,8 @@ function s_icon(?string $key, int $size = 24, float $stroke = 1.8, string $fallb
         return '<span class="h-emo" aria-hidden="true">' . e($key) . '</span>';
     }
     $p = $paths[$key !== '' ? $key : $fallback] ?? $paths['sparkle'];
-    return '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'
+    $k = $key !== '' && isset($paths[$key]) ? $key : $fallback;
+    return '<svg class="svg-i svg-i-' . e($k) . '" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'
         . $stroke . '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $p . '</svg>';
 }
 
@@ -354,7 +355,7 @@ function s_home_ctx(?array $need = null): array
         $c['slides'] = $slides;
     }
     $loaders = [
-        'marquee'   => ['ribbon',   fn() => array_values(array_filter(array_map('trim', preg_split('/[\r\n•]+/u', s_setting('ribbon_text'))))) ?: $D['marquee']],
+        'marquee'   => ['ribbon',   fn() => array_map(fn($x) => __((string) $x), array_values(array_filter(array_map('trim', preg_split('/[\r\n•]+/u', s_setting('ribbon_text'))))) ?: $D['marquee'])],   // الترجمة: كل جملة لوحدها
         'brands'    => ['brands',   fn() => s_all('SELECT * FROM site_brands WHERE is_active = 1 ORDER BY sort_order, id')],
         'promos'    => ['promos',   fn() => s_all('SELECT * FROM site_promos WHERE is_active = 1 AND (starts_at IS NULL OR starts_at <= CURDATE())
                                                    AND (ends_at IS NULL OR ends_at >= CURDATE()) ORDER BY sort_order, id LIMIT 4')],
