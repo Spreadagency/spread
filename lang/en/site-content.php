@@ -229,4 +229,13 @@ return [
     'خدمات {name}' => '{name} services',
     'فيديو' => 'Video',
     '{n} خطوات وخلاص' => 'Just {n} steps',
+    // آراء العملاء (والحالة الفاضية اللي بيشوفها الأدمن)
+    'تجارب حقيقية من أصحاب مشاريع بيعملوا محتواهم معانا.' => 'Real experiences from business owners who make their content with us.',
+    'آراء العملاء' => 'Testimonials',
+    'عملاء بيتكلموا عن Spread AI' => 'Customers talk about Spread AI',
+    'إضافة رأي عميل' => 'Add a testimonial',
+    'إدارة الآراء' => 'Manage testimonials',
+    'الزرار ده ظاهر ليك انت بس كأدمن' => 'Only you see this button, as an admin',
+    'لسه مفيش آراء منشورة' => 'No published testimonials yet',
+    'أضف أول رأي حقيقي من عميل — القسم ده مخفي عن الزوار لحد ما يبقى فيه آراء.' => 'Add your first real customer testimonial — this section stays hidden from visitors until it has some.',
 ];
