@@ -94,9 +94,9 @@ if (s_setting('hero_style', 'link') !== 'slides'):
             <div class="h-slide<?= $i === 0 ? ' on' : '' ?>" data-bot="<?= e($sl['bot']) ?>" aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>"
                  data-c1="<?= e(($sl['cta_text'] ?? '') ?: 'اصنع منشورك الآن') ?>" data-c1u="<?= e(($sl['cta_url'] ?? '') ?: ($trialOn ? '#s-create' : $regUrl)) ?>"
                  data-c2="<?= e(($sl['cta2_text'] ?? '') ?: 'اكتشف المنصة') ?>">
-              <span class="ws-chip ws-glass h-tag"><i class="sa-pulse"></i><?= e($sl['tag']) ?></span>
-              <<?= $i === 0 ? 'h1' : 'h2' ?>><?= e($sl['title']) ?></<?= $i === 0 ? 'h1' : 'h2' ?>>
-              <?php if (!empty($sl['subtitle'])): ?><p><?= e($sl['subtitle']) ?></p><?php endif; ?>
+              <span class="ws-chip ws-glass h-tag"><i class="sa-pulse"></i><?= e(__((string) ($sl['tag']))) ?></span>
+              <<?= $i === 0 ? 'h1' : 'h2' ?>><?= e(__((string) ($sl['title']))) ?></<?= $i === 0 ? 'h1' : 'h2' ?>>
+              <?php if (!empty($sl['subtitle'])): ?><p><?= e(__((string) ($sl['subtitle']))) ?></p><?php endif; ?>
             </div>
           <?php endforeach; ?>
         </div>

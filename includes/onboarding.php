@@ -9,6 +9,8 @@
  */
 
 /** الصفحات اللي الحساب غير المؤكد يقدر يفتحها (تجربة بس — مفيش نشر ولا دفع ولا ربط صفحات) */
+require_once __DIR__ . '/onb-questions.php';   // أسئلة الهوية (الأدمن بيزوّدها ويشيلها)
+
 const ONB_UNVERIFIED_PAGES = [
     'start.php', 'dashboard.php', 'create-content.php', 'content-view.php', 'brand-kit.php',
     'generate-content.php', 'generate-stream.php', 'save-content.php', 'regenerate-content.php',

@@ -411,13 +411,13 @@ function s_render_section(string $key, array $ctx, ?array $ovr = null): string
     if (!is_file($file)) return '';
     $D = $ctx['D'];
     $sec = function (string $k, int $i) use ($D, $key, $ovr): string {
-        if ($ovr !== null && $k === $key && trim((string) ($ovr[$i] ?? '')) !== '') return (string) $ovr[$i];
+        if ($ovr !== null && $k === $key && trim((string) ($ovr[$i] ?? '')) !== '') return __((string) $ovr[$i]);
         $s = s_section($k);
-        return [(string) ($s['title'] ?: ($D['sections'][$k][0] ?? '')), (string) ($s['subtitle'] ?? ($D['sections'][$k][1] ?? ''))][$i];
+        return __([(string) ($s['title'] ?: ($D['sections'][$k][0] ?? '')), (string) ($s['subtitle'] ?? ($D['sections'][$k][1] ?? ''))][$i]);   // الترجمة
     };
     $secHead = function (string $k, string $chip, string $icon = 'sparkle') use ($sec): string {
         $sub = $sec($k, 1);
-        return '<div class="h-sh rv"><span class="ws-chip">' . s_icon($icon, 15) . e($chip) . '</span><h2 class="ws-h2">' . e($sec($k, 0)) . '</h2>'
+        return '<div class="h-sh rv"><span class="ws-chip">' . s_icon($icon, 15) . e(__($chip)) . '</span><h2 class="ws-h2">' . e($sec($k, 0)) . '</h2>'
             . ($sub !== '' ? '<p>' . e($sub) . '</p>' : '') . '</div>';
     };
     extract($ctx, EXTR_SKIP);

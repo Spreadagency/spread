@@ -84,7 +84,7 @@ $groups = nav_groups($h);
 t('القايمة 5 أقسام + «اليوم» واللوحة فوق (بدل 10)', $groups === ['العملاء', 'المحتوى', 'الرسائل', 'الفلوس', 'الإعدادات'], json_encode($groups, JSON_UNESCAPED_UNICODE));
 $all = [];
 foreach (admin_nav() as $items) foreach ($items as $it) $all[$it[4]] = 1;
-t('كل الصفحات القديمة لسه في القايمة (' . count($all) . ' صفحة)', count($all) === 54);
+t('كل الصفحات القديمة لسه في القايمة (' . count($all) . ' صفحة)', count($all) === 55);   // + «أسئلة الهوية» (الترجمة · الدفعة 2)
 $bad = [];
 foreach (array_keys($all) as $u) { [$c] = http('GET', "$base/$u", [], $jar); if ($c !== 200) $bad[] = "$u=$c"; }
 t('وكل لينك فيها بيفتح للأدمن الكامل', !$bad, implode(' ', $bad));

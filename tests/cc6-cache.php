@@ -106,7 +106,7 @@ $jar = tempnam(sys_get_temp_dir(), 'cc6');
 [, $html] = http('GET', "$base/public/login.php", [], $jar);
 preg_match('/name="csrf" value="([^"]+)"/', $html, $m);
 http('POST', "$base/public/login.php", ['csrf' => $m[1] ?? '', 'email' => "cc6-$tag@test.local", 'password' => 'Test12345!'], $jar);
-[, $dash] = http('GET', "$base/public/dashboard.php", [], $jar);
+[, $dash] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jar);
 preg_match('/<meta name="csrf-token" content="([^"]+)"/', $dash, $cm);
 $api = fn(array $d) => http('POST', "$base/public/api/campaign-flow.php", json_encode($d, JSON_UNESCAPED_UNICODE), $jar, ['Content-Type: application/json', 'X-CSRF-Token: ' . ($cm[1] ?? '')]);
 $ids = [];

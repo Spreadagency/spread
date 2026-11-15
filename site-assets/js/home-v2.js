@@ -5,6 +5,7 @@
    ═══════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
+  var T = function (x) { return (window.__t || String)(x); };   // الترجمة: النص بلغة الزائر
   var CFG = window.SPREAD_HOME || {};
   var REDUCE = false;
   try { REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
@@ -199,7 +200,7 @@
     if (names.length) fd.append('_b64', names.join(','));
     return fetch(CFG.trialApi, { method: 'POST', body: fd, credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
-      .catch(function () { return { ok: false, error: 'مشكلة في الاتصال — جرّب تاني' }; });
+      .catch(function () { return { ok: false, error: T('مشكلة في الاتصال — جرّب تاني') }; });
   }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]; }); }
 
@@ -207,7 +208,7 @@
     var di = STEPS.indexOf(D.step);
     $$('.d-steps [data-s]', demo).forEach(function (el, i) { el.classList.toggle('done', i < di); el.classList.toggle('cur', i === di); });
     $$('.d-pane', demo).forEach(function (p) { p.classList.toggle('on', p.getAttribute('data-p') === D.step); });
-    var name = biz() || 'مشروعك';
+    var name = biz() || T('مشروعك');
     $$('[data-biz]', demo).forEach(function (s) { s.textContent = name; });
     $('#d-av', demo).textContent = (biz() || 'S').charAt(0);
     var idea = D.ideas[D.pick] || null;
@@ -236,13 +237,13 @@
     var el = $('.d-pane[data-p="' + pane + '"] [data-msg]', demo);
     if (!el) return;
     el.hidden = !text;
-    el.innerHTML = text ? esc(text) + (signup ? ' <a href="' + esc(CFG.reg) + '">إنشاء حساب مجاني ←</a>' : '') : '';
+    el.innerHTML = text ? esc(text) + (signup ? ' <a href="' + esc(CFG.reg) + '">' + esc(T('إنشاء حساب مجاني ←')) + '</a>' : '') : '';
   }
   function busy(btn, on, label) {
     D.busy = on;
     if (btn) {
       btn.disabled = on;
-      if (on) { btn.dataset.html = btn.innerHTML; btn.innerHTML = '<svg class="sa-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,.95)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="14 8"></circle></svg>' + esc(label || 'Spread AI بيفكر...'); }
+      if (on) { btn.dataset.html = btn.innerHTML; btn.innerHTML = '<svg class="sa-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,.95)" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="14 8"></circle></svg>' + esc(label || T('Spread AI بيفكر...')); }
       else if (btn.dataset.html) btn.innerHTML = btn.dataset.html;
     }
     paint();
@@ -293,12 +294,12 @@
     msg('form', '');
     var f = { action: 'analyze', url: url };
     if (isManual) { f.business_name = (bizIn.value || '').trim(); f.industry = (indIn.value || '').trim(); }
-    busy(btn, true, isManual ? 'لحظة...' : 'بنقرا صفحتك...');
+    busy(btn, true, isManual ? T('لحظة...') : T('بنقرا صفحتك...'));
     api(f).then(function (d) {
       busy(btn, false);
       if (!d.ok) {
         if (d.code === 'unreadable') { if (d.guess && !bizIn.value) bizIn.value = d.guess; manual(true, d.error); return; }
-        msg('form', d.error || 'حصل خطأ — جرّب تاني', !!d.signup);
+        msg('form', d.error || T('حصل خطأ — جرّب تاني'), !!d.signup);
         return;
       }
       applyState(d.state, true);
@@ -313,7 +314,7 @@
     busy(btn, true);
     api({ action: 'ideas', token: D.token, business_name: biz(), industry: D.field }).then(function (d) {
       busy(btn, false);
-      if (!d.ok) { msg(pane, d.error || 'حصل خطأ — جرّب تاني', !!d.signup); return; }
+      if (!d.ok) { msg(pane, d.error || T('حصل خطأ — جرّب تاني'), !!d.signup); return; }
       D.token = d.token || D.token; D.ideas = d.ideas || []; D.pick = -1; D.post = null;
       renderIdeas();
       go('ideas');
@@ -325,8 +326,8 @@
     D.ideas.forEach(function (it, i) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'ws-idea'; b.setAttribute('aria-pressed', 'false');
-      b.innerHTML = '<span class="top"><span class="sa-chip">' + esc(it.angle || 'فكرة') + '</span><span class="num">0' + (i + 1) + '</span></span>'
-        + '<span class="tt">' + esc(it.title || ('فكرة ' + (i + 1))) + '</span>' + (it.desc ? '<span class="hk">' + esc(it.desc) + '</span>' : '');
+      b.innerHTML = '<span class="top"><span class="sa-chip">' + esc(it.angle || T('فكرة')) + '</span><span class="num">0' + (i + 1) + '</span></span>'
+        + '<span class="tt">' + esc(it.title || (T('فكرة') + ' ' + (i + 1))) + '</span>' + (it.desc ? '<span class="hk">' + esc(it.desc) + '</span>' : '');
       b.addEventListener('click', function () {
         D.pick = i; D.post = null;
         $$('.ws-idea', box).forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
@@ -346,10 +347,10 @@
     var btn = this;
     if (D.busy || D.pick < 0) return;
     msg('ideas', '');
-    busy(btn, true, 'بنكتب منشورك...');
+    busy(btn, true, T('بنكتب منشورك...'));
     api({ action: 'post', token: D.token, idea_index: D.pick }).then(function (d) {
       busy(btn, false);
-      if (!d.ok) { msg('ideas', d.error || 'حصل خطأ — جرّب تاني', !!d.signup); return; }
+      if (!d.ok) { msg('ideas', d.error || T('حصل خطأ — جرّب تاني'), !!d.signup); return; }
       setPost(d);
       go('post');
     });
@@ -357,13 +358,13 @@
   function setPost(d) {
     var idea = D.ideas[D.pick] || {};
     D.post = { content: (d.content || '') + (d.cta ? '\n\n' + d.cta : ''), tags: d.hashtags || ((CFG.tags || {})[D.field] || '') };
-    $('#d-post-chip', demo).textContent = (idea.angle || 'بوست') + ' · ' + (idea.title || '');
+    $('#d-post-chip', demo).textContent = (idea.angle || T('بوست')) + ' · ' + (idea.title || '');
     $('#d-post-text', demo).textContent = D.post.content;
     $('#d-post-tags', demo).textContent = D.post.tags;
   }
   $('[data-act="copy"]', demo).addEventListener('click', function () {
     var b = this, txt = (D.post ? D.post.content + '\n\n' + D.post.tags : '');
-    var done = function () { var o = b.textContent; b.textContent = '✓ اتنسخ'; setTimeout(function () { b.textContent = o; }, 1600); };
+    var done = function () { var o = b.textContent; b.textContent = T('✓ اتنسخ'); setTimeout(function () { b.textContent = o; }, 1600); };
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(done, function () {});
     else { var ta = document.createElement('textarea'); ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} document.body.removeChild(ta); }
   });

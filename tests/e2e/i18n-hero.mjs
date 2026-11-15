@@ -25,7 +25,7 @@ try {
   p.on('pageerror', (e) => errors.push(String(e)));
   // الزائر بيدوس «EN» من الموقع العربي
   await p.goto(base + '/?lang=ar', { waitUntil: 'networkidle' });
-  await Promise.all([p.waitForNavigation(), p.click('.h-lang')]);
+  await Promise.all([p.waitForNavigation(), p.click('.h-lang a[hreflang="en"]')]);
   t('زرار EN ← نفس الصفحة بالإنجليزي', (await p.getAttribute('html', 'dir')) === 'ltr' && (await p.textContent('#hx-go')).includes('Start your campaign now'), p.url());
   t('من غير سكرول أفقي', !(await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)));
   await p.click('#hx-go');

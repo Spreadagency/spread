@@ -13,7 +13,7 @@ try {
     $__activeCampaigns = (int) (db_one('SELECT COUNT(*) n FROM campaigns WHERE user_id = ? AND status = "active"', [(int) $user['id']])['n'] ?? 0);
 } catch (\Throwable $e) {}
 ?>
-<aside class="v2-side" aria-label="القائمة الرئيسية">
+<aside class="v2-side" aria-label="<?= e(__('القائمة الرئيسية')) ?>">
     <a href="<?= url('dashboard.php') ?>" class="v2-logo">
         <img src="<?= url('assets/img/spread-mark-128.png') ?>" alt="" width="40" height="33">
         <span>
@@ -25,12 +25,12 @@ try {
     <?php if (ui_campaigns_on()): ?>
     <a href="<?= url('campaign-new.php') ?>" class="v2-cta">
         <?= ui_icon('plus', 20) ?>
-        <span>حملة جديدة بالذكاء الاصطناعي</span>
+        <span><?= e(__('حملة جديدة بالذكاء الاصطناعي')) ?></span>
     </a>
     <?php else: ?>
     <a href="<?= url('create-content.php') ?>" class="v2-cta">
         <?= ui_icon('plus', 20) ?>
-        <span>منشور جديد بالذكاء الاصطناعي</span>
+        <span><?= e(__('منشور جديد بالذكاء الاصطناعي')) ?></span>
     </a>
     <?php endif; ?>
 
@@ -54,7 +54,7 @@ try {
         ?>
             <a href="<?= url($first) ?>" class="<?= $__section === $key ? 'on' : '' ?>" <?= $__section === $key ? 'aria-current="page"' : '' ?>>
                 <?= ui_icon($icon, 20) ?>
-                <span><?= e($label) ?></span>
+                <span><?= e(__($label)) ?></span>
                 <?php if ($key === 'campaigns' && $__activeCampaigns > 0): ?>
                     <em class="v2-badge"><?= $__activeCampaigns ?></em>
                 <?php endif; ?>
@@ -73,10 +73,10 @@ try {
             <span class="v2-brand-txt">
                 <span class="sb-brand-top"><b>Brand Brain</b><b><?= (int) $__bh['pct'] ?>%</b></span>
                 <span class="bar"><span class="bar-fill" style="width:<?= (int) $__bh['pct'] ?>%"></span></span>
-                <span class="sb-brand-msg"><?= $__bh['unlocked'] ? 'الهوية جاهزة ✓' : 'كمّل هويتك ←' ?></span>
+                <span class="sb-brand-msg"><?= e(__($__bh['unlocked'] ? 'الهوية جاهزة ✓' : 'كمّل هويتك ←')) ?></span>
             </span>
         </a>
         <?php endif; ?>
-        <a href="<?= url('logout.php') ?>" class="v2-logout"><?= ui_icon('logout', 18) ?> تسجيل الخروج</a>
+        <a href="<?= url('logout.php') ?>" class="v2-logout"><?= ui_icon('logout', 18) ?> <?= e(__('تسجيل الخروج')) ?></a>
     </div>
 </aside>

@@ -18,23 +18,23 @@ try { $__unread = (int) (db_one('SELECT COUNT(*) n FROM user_notifications WHERE
     font-size: 11px; font-weight: 700; color: #fff; background: #E0526A; display: grid; place-items: center; border: 2px solid #fff; }
 </style>
 <div class="topbar">
-    <button class="icon-btn menu-toggle" onclick="toggleSidebar()" aria-label="القائمة">☰</button>
+    <button class="icon-btn menu-toggle" onclick="toggleSidebar()" aria-label="<?= e(__('القائمة')) ?>">☰</button>
 
     <div class="search">
         <span style="color:var(--mute)">⌕</span>
-        <input placeholder="ابحث في محتواك..." onkeydown="if(event.key==='Enter') location.href='<?= url('content-history.php') ?>?q='+encodeURIComponent(this.value)">
+        <input placeholder="<?= e(__('ابحث في محتواك...')) ?>" onkeydown="if(event.key==='Enter') location.href='<?= url('content-history.php') ?>?q='+encodeURIComponent(this.value)">
     </div>
 
     <div class="topbar-right">
         <a href="<?= url(get_setting('plan_page_unified', '1') === '1' ? 'my-plan.php?tab=balance' : 'credits.php') ?>" class="chip chip-primary" style="padding:8px 14px">
-            <span class="cr">◇ <?= $balance ?> كريدت</span><span class="cr-alt">◔ استخدمت <?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
+            <span class="cr">◇ <?= $balance ?> <?= e(__('كريدت')) ?></span><span class="cr-alt"><?= e(__('◔ استخدمت')) ?> <?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
         </a>
         <span data-inbox data-dot="v1-dot" data-badge="<?= $__unread ?>" data-unread="<?= $__unread ?>">
-            <?php if (!function_exists('get_setting') || get_setting('issues_enabled', '1') === '1'): ?><button type="button" class="icon-btn" data-report title="بلّغ عن مشكلة" aria-label="بلّغ عن مشكلة">⚑</button><?php endif; ?>
-            <a href="<?= url('notifications.php') ?>" class="icon-btn v1-bell" data-inbox-btn aria-label="الرسايل والإشعارات">🔔<?php if ($__unread > 0): ?><em class="v1-dot"><?= $__unread ?></em><?php endif; ?></a>
+            <?php if (!function_exists('get_setting') || get_setting('issues_enabled', '1') === '1'): ?><button type="button" class="icon-btn" data-report title="<?= e(__('بلّغ عن مشكلة')) ?>" aria-label="<?= e(__('بلّغ عن مشكلة')) ?>">⚑</button><?php endif; ?>
+            <a href="<?= url('notifications.php') ?>" class="icon-btn v1-bell" data-inbox-btn aria-label="<?= e(__('الرسايل والإشعارات')) ?>">🔔<?php if ($__unread > 0): ?><em class="v1-dot"><?= $__unread ?></em><?php endif; ?></a>
         </span>
         <a href="<?= url('create-content.php') ?>" class="btn">
-            ＋ منشور جديد
+            <?= e(__('＋ منشور جديد')) ?>
         </a>
         <a href="<?= url('profile.php') ?>" class="profile">
             <div class="avi" style="background: <?= e(color_from_string($user['email'])) ?>">
@@ -42,7 +42,7 @@ try { $__unread = (int) (db_one('SELECT COUNT(*) n FROM user_notifications WHERE
             </div>
             <div class="meta">
                 <b><?= e(str_limit($user['name'] ?? 'مستخدم', 15)) ?></b>
-                <span>عميل</span>
+                <span><?= e(__('عميل')) ?></span>
             </div>
         </a>
     </div>

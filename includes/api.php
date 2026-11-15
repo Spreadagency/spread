@@ -31,6 +31,8 @@ function api_send(array $payload, int $code = 200): void
     if (function_exists('mobile_on_response')) {
         mobile_on_response($payload, $code);
     }
+    // الترجمة: رسالة الخطأ بلغة العميل لو ليها ترجمة (العربي زي ما هو)
+    if (isset($payload['error']) && is_string($payload['error']) && function_exists('i18n_is_en') && i18n_is_en()) $payload['error'] = __($payload['error']);
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');

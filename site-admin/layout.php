@@ -23,6 +23,7 @@ function sa_nav(): array
             ['settings.php', 'compass', 'القوائم والهيدر', 'Navigation', 'navigation'],
             ['design-system.php', 'palette', 'الهوية البصرية', 'Design System', 'design'],
             ['seo.php', 'search', 'SEO', 'SEO Manager', 'seo'],
+            ['translations.php', 'globe', 'الترجمة الإنجليزي', 'English', 'homepage'],
         ],
         'Content' => [
             ['solutions.php', 'star', 'المميزات والحلول', 'Features', 'content'],

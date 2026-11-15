@@ -249,8 +249,8 @@ function s_html_frame(string $html, int $height = 480): string
 function s_block_btns(array $d, string $k1 = 'btn', string $k2 = 'btn2', bool $dark = false): string
 {
     $h = '';
-    if (($d[$k1 . '_text'] ?? '') !== '') $h .= '<a class="ws-btn ws-pri" href="' . e(s_link((string) ($d[$k1 . '_url'] ?? '')) ?: '#') . '">' . e($d[$k1 . '_text']) . s_icon('arrow', 18, 2.2) . '</a>';
-    if (($d[$k2 . '_text'] ?? '') !== '') $h .= '<a class="ws-btn ' . ($dark ? 'ws-ghost-d' : 'ws-ghost') . '" href="' . e(s_link((string) ($d[$k2 . '_url'] ?? '')) ?: '#') . '">' . e($d[$k2 . '_text']) . '</a>';
+    if (($d[$k1 . '_text'] ?? '') !== '') $h .= '<a class="ws-btn ws-pri" href="' . e(s_link((string) ($d[$k1 . '_url'] ?? '')) ?: '#') . '">' . e(__((string) $d[$k1 . '_text'])) . s_icon('arrow', 18, 2.2) . '</a>';
+    if (($d[$k2 . '_text'] ?? '') !== '') $h .= '<a class="ws-btn ' . ($dark ? 'ws-ghost-d' : 'ws-ghost') . '" href="' . e(s_link((string) ($d[$k2 . '_url'] ?? '')) ?: '#') . '">' . e(__((string) $d[$k2 . '_text'])) . '</a>';
     return $h !== '' ? '<div class="pg-acts">' . $h . '</div>' : '';
 }
 
@@ -259,7 +259,7 @@ function s_block_head(array $d, bool $center = true): string
     $t = trim((string) ($d['title'] ?? ''));
     $s = trim((string) ($d['subtitle'] ?? ''));
     if ($t === '' && $s === '') return '';
-    return '<div class="' . ($center ? 'pg-headc ' : '') . 'rv">' . ($t !== '' ? '<h2 class="pg-title">' . e($t) . '</h2>' : '') . ($s !== '' ? '<p class="pg-sub">' . nl2br(e($s)) . '</p>' : '') . '</div>';
+    return '<div class="' . ($center ? 'pg-headc ' : '') . 'rv">' . ($t !== '' ? '<h2 class="pg-title">' . e(__($t)) . '</h2>' : '') . ($s !== '' ? '<p class="pg-sub">' . nl2br(e(__($s))) . '</p>' : '') . '</div>';
 }
 
 /** فيديو → embed */
@@ -272,9 +272,9 @@ function s_video_html(string $url, string $title = ''): string
     }
     $emb = s_video_embed($url);
     if (!preg_match('~^https://(www\.youtube\.com/embed/|player\.vimeo\.com/video/)~', $emb)) {
-        return '<p><a class="ws-btn ws-ghost" href="' . e(s_link($url)) . '" target="_blank" rel="noopener">شاهد الفيديو</a></p>';
+        return '<p><a class="ws-btn ws-ghost" href="' . e(s_link($url)) . '" target="_blank" rel="noopener">' . e(__('شاهد الفيديو')) . '</a></p>';
     }
-    return '<div class="pg-video"><iframe src="' . e($emb) . '" title="' . e($title ?: 'فيديو') . '" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>';
+    return '<div class="pg-video"><iframe src="' . e($emb) . '" title="' . e(__($title ?: 'فيديو')) . '" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>';
 }
 
 /** رسم البلوكات — الأقسام اللي محتاجة بيانات الرئيسية بتتحمّل مرة واحدة */
@@ -305,30 +305,30 @@ function s_render_block(array $b, ?array $ctx): string
             $img = s_link((string) ($d['image'] ?? ''));
             $dark = ($d['style'] ?? '') === 'dark';
             return $wrap('<div class="pg-hero rv rv-s' . ($dark ? ' dark' : '') . ($img === '' ? ' noimg' : '') . '"><div class="t">'
-                . (($d['badge'] ?? '') !== '' ? '<span class="ws-chip">' . s_icon('sparkle', 15) . e($d['badge']) . '</span>' : '')
-                . '<h2>' . e($d['title'] ?? '') . '</h2>' . (($d['subtitle'] ?? '') !== '' ? '<p>' . nl2br(e($d['subtitle'])) . '</p>' : '')
+                . (($d['badge'] ?? '') !== '' ? '<span class="ws-chip">' . s_icon('sparkle', 15) . e(__((string) ($d['badge']))) . '</span>' : '')
+                . '<h2>' . e(__((string) ($d['title'] ?? ''))) . '</h2>' . (($d['subtitle'] ?? '') !== '' ? '<p>' . nl2br(e(__((string) ($d['subtitle'])))) . '</p>' : '')
                 . s_block_btns($d, 'btn', 'btn2', $dark) . '</div>'
                 . ($img !== '' ? '<div class="im"><img src="' . e($img) . '" alt="" loading="lazy"></div>' : '') . '</div>');
         case 'text':
             $w = ($d['width'] ?? 'narrow') === 'wide' ? '' : ' narrow';
-            return '<section class="pg-sec" id="' . $id . '"><div class="pg-w' . $w . '">' . (($d['title'] ?? '') !== '' ? '<h2 class="pg-title rv' . (($d['align'] ?? '') === 'center' ? '" style="text-align:center' : '') . '">' . e($d['title']) . '</h2>' : '')
-                . '<div class="prose rv' . (($d['align'] ?? '') === 'center' ? ' center' : '') . '">' . s_sanitize_html((string) ($d['body'] ?? '')) . '</div></div></section>';
+            return '<section class="pg-sec" id="' . $id . '"><div class="pg-w' . $w . '">' . (($d['title'] ?? '') !== '' ? '<h2 class="pg-title rv' . (($d['align'] ?? '') === 'center' ? '" style="text-align:center' : '') . '">' . e(__((string) ($d['title']))) . '</h2>' : '')
+                . '<div class="prose rv' . (($d['align'] ?? '') === 'center' ? ' center' : '') . '">' . s_sanitize_html(__((string) ($d['body'] ?? ''))) . '</div></div></section>';
         case 'image':
             $img = s_link((string) ($d['image'] ?? ''));
             if ($img === '') return '';
-            $im = '<img src="' . e($img) . '" alt="' . e($d['alt'] ?? '') . '" loading="lazy">';
+            $im = '<img src="' . e($img) . '" alt="' . e(__((string) ($d['alt'] ?? ''))) . '" loading="lazy">';
             if (($l = s_link((string) ($d['link'] ?? ''))) !== '') $im = '<a href="' . e($l) . '">' . $im . '</a>';
-            return $wrap('<figure class="pg-img rv' . (($d['width'] ?? '') === 'narrow' ? ' narrow' : '') . '">' . $im . (($d['caption'] ?? '') !== '' ? '<figcaption>' . e($d['caption']) . '</figcaption>' : '') . '</figure>');
+            return $wrap('<figure class="pg-img rv' . (($d['width'] ?? '') === 'narrow' ? ' narrow' : '') . '">' . $im . (($d['caption'] ?? '') !== '' ? '<figcaption>' . e(__((string) ($d['caption']))) . '</figcaption>' : '') . '</figure>');
         case 'image_text':
             $img = s_link((string) ($d['image'] ?? ''));
             return $wrap('<div class="pg-it' . (($d['side'] ?? 'end') === 'start' ? ' rev' : '') . '"><div class="pg-it-t rv rv-r">'
-                . (($d['title'] ?? '') !== '' ? '<h2>' . e($d['title']) . '</h2>' : '') . '<div class="prose">' . s_sanitize_html((string) ($d['body'] ?? '')) . '</div>' . s_block_btns($d)
-                . '</div><div class="pg-it-m rv rv-l">' . ($img !== '' ? '<img src="' . e($img) . '" alt="' . e($d['alt'] ?? '') . '" loading="lazy">' : '') . '</div></div>');
+                . (($d['title'] ?? '') !== '' ? '<h2>' . e(__((string) ($d['title']))) . '</h2>' : '') . '<div class="prose">' . s_sanitize_html(__((string) ($d['body'] ?? ''))) . '</div>' . s_block_btns($d)
+                . '</div><div class="pg-it-m rv rv-l">' . ($img !== '' ? '<img src="' . e($img) . '" alt="' . e(__((string) ($d['alt'] ?? ''))) . '" loading="lazy">' : '') . '</div></div>');
         case 'features':
             $items = '';
             foreach (($d['items'] ?? []) as $i => $it) {
-                $items .= '<div class="pg-card ws-lift rv" style="transition-delay:' . (($i % 4) * .08) . 's"><span class="ic">' . s_icon($it['icon'] ?? '', 24) . '</span><b>' . e($it['title'] ?? '') . '</b>'
-                    . (($it['body'] ?? '') !== '' ? '<p>' . nl2br(e($it['body'])) . '</p>' : '') . '</div>';
+                $items .= '<div class="pg-card ws-lift rv" style="transition-delay:' . (($i % 4) * .08) . 's"><span class="ic">' . s_icon($it['icon'] ?? '', 24) . '</span><b>' . e(__((string) ($it['title'] ?? ''))) . '</b>'
+                    . (($it['body'] ?? '') !== '' ? '<p>' . nl2br(e(__((string) ($it['body'])))) . '</p>' : '') . '</div>';
             }
             return $wrap(s_block_head($d) . '<div class="pg-feat" style="--c:' . (int) ($d['columns'] ?? 3) . '">' . $items . '</div>');
         case 'cards':
@@ -336,9 +336,9 @@ function s_render_block(array $b, ?array $ctx): string
             foreach (($d['items'] ?? []) as $i => $it) {
                 $im = s_link((string) ($it['image'] ?? ''));
                 $lk = s_link((string) ($it['link_url'] ?? ''));
-                $items .= '<div class="pg-card ws-lift rv" style="transition-delay:' . (($i % 4) * .08) . 's">' . ($im !== '' ? '<span class="cim" style="background-image:url(\'' . e($im) . '\')" role="img" aria-label="' . e($it['title'] ?? '') . '"></span>' : '')
-                    . '<b>' . e($it['title'] ?? '') . '</b>' . (($it['body'] ?? '') !== '' ? '<p>' . nl2br(e($it['body'])) . '</p>' : '')
-                    . ($lk !== '' ? '<a class="lk" href="' . e($lk) . '">' . e(($it['link_text'] ?? '') ?: 'اعرف أكتر') . s_icon('arrow', 15, 2) . '</a>' : '') . '</div>';
+                $items .= '<div class="pg-card ws-lift rv" style="transition-delay:' . (($i % 4) * .08) . 's">' . ($im !== '' ? '<span class="cim" style="background-image:url(\'' . e($im) . '\')" role="img" aria-label="' . e(__((string) ($it['title'] ?? ''))) . '"></span>' : '')
+                    . '<b>' . e(__((string) ($it['title'] ?? ''))) . '</b>' . (($it['body'] ?? '') !== '' ? '<p>' . nl2br(e(__((string) ($it['body'])))) . '</p>' : '')
+                    . ($lk !== '' ? '<a class="lk" href="' . e($lk) . '">' . e(__(($it['link_text'] ?? '') ?: 'اعرف أكتر')) . s_icon('arrow', 15, 2) . '</a>' : '') . '</div>';
             }
             return $wrap(s_block_head($d) . '<div class="pg-feat" style="--c:' . (int) ($d['columns'] ?? 3) . '">' . $items . '</div>');
         case 'pricing':
@@ -358,18 +358,18 @@ function s_render_block(array $b, ?array $ctx): string
         case 'cta':
             $reg = s_setting('platform_register_url', PLATFORM_REGISTER);
             if (($d['btn_text'] ?? '') !== '' && ($d['btn_url'] ?? '') === '') $d['btn_url'] = $reg;
-            return $wrap('<div class="pg-cta rv rv-s"><h2>' . e($d['title'] ?? '') . '</h2>' . (($d['body'] ?? '') !== '' ? '<p>' . nl2br(e($d['body'])) . '</p>' : '')
+            return $wrap('<div class="pg-cta rv rv-s"><h2>' . e(__((string) ($d['title'] ?? ''))) . '</h2>' . (($d['body'] ?? '') !== '' ? '<p>' . nl2br(e(__((string) ($d['body'])))) . '</p>' : '')
                 . s_block_btns($d, 'btn', 'btn2', true) . '</div>');
         case 'video':
-            return $wrap((($d['title'] ?? '') !== '' ? '<h2 class="pg-title rv" style="text-align:center">' . e($d['title']) . '</h2>' : '') . '<div class="rv">' . s_video_html((string) ($d['url'] ?? ''), (string) ($d['title'] ?? '')) . '</div>'
-                . (($d['caption'] ?? '') !== '' ? '<p class="pg-sub" style="text-align:center;margin:16px auto 0">' . nl2br(e($d['caption'])) . '</p>' : ''));
+            return $wrap((($d['title'] ?? '') !== '' ? '<h2 class="pg-title rv" style="text-align:center">' . e(__((string) ($d['title']))) . '</h2>' : '') . '<div class="rv">' . s_video_html((string) ($d['url'] ?? ''), (string) ($d['title'] ?? '')) . '</div>'
+                . (($d['caption'] ?? '') !== '' ? '<p class="pg-sub" style="text-align:center;margin:16px auto 0">' . nl2br(e(__((string) ($d['caption'])))) . '</p>' : ''));
         case 'gallery':
             $figs = '';
             if (($d['source'] ?? 'site') === 'custom') {
                 foreach (($d['items'] ?? []) as $it) {
                     $im = s_link((string) ($it['image'] ?? ''));
                     if ($im === '') continue;
-                    $figs .= '<figure class="rv"><img src="' . e($im) . '" alt="' . e($it['caption'] ?? '') . '" loading="lazy">' . (($it['caption'] ?? '') !== '' ? '<figcaption>' . e($it['caption']) . '</figcaption>' : '') . '</figure>';
+                    $figs .= '<figure class="rv"><img src="' . e($im) . '" alt="' . e(__((string) ($it['caption'] ?? ''))) . '" loading="lazy">' . (($it['caption'] ?? '') !== '' ? '<figcaption>' . e(__((string) ($it['caption']))) . '</figcaption>' : '') . '</figure>';
                 }
             } else {
                 $cat = trim((string) ($d['category'] ?? ''));
@@ -379,7 +379,7 @@ function s_render_block(array $b, ?array $ctx): string
                 foreach ($rows as $g) {
                     $im = s_img($g);
                     if ($im === '') continue;
-                    $figs .= '<figure class="rv"><img src="' . e($im) . '" alt="' . e($g['title'] ?: 'تصميم من Spread AI') . '" loading="lazy">' . ($g['title'] ? '<figcaption>' . e($g['title']) . '</figcaption>' : '') . '</figure>';
+                    $figs .= '<figure class="rv"><img src="' . e($im) . '" alt="' . e(__($g['title'] ?: 'تصميم من Spread AI')) . '" loading="lazy">' . ($g['title'] ? '<figcaption>' . e(__((string) ($g['title']))) . '</figcaption>' : '') . '</figure>';
                 }
             }
             return $figs !== '' ? $wrap(s_block_head($d) . '<div class="pg-gal">' . $figs . '</div>') : '';
@@ -388,12 +388,12 @@ function s_render_block(array $b, ?array $ctx): string
             $lim = max(1, min(48, (int) ($d['limit'] ?? 24)));
             $rows = $cat !== '' ? s_all("SELECT * FROM site_videos WHERE is_active = 1 AND category = ? ORDER BY sort_order, id LIMIT {$lim}", [$cat])
                                 : s_all("SELECT * FROM site_videos WHERE is_active = 1 ORDER BY sort_order, id LIMIT {$lim}");
-            if (!$rows) return $wrap(s_block_head($d) . '<p class="pg-sub" style="text-align:center;margin:0 auto">فيديوهات الشرح هتتضاف قريبًا.</p>');
+            if (!$rows) return $wrap(s_block_head($d) . '<p class="pg-sub" style="text-align:center;margin:0 auto">' . e(__('فيديوهات الشرح هتتضاف قريبًا.')) . '</p>');
             $v = '';
             foreach ($rows as $i => $r) {
                 $v .= '<article class="pg-vid rv" style="transition-delay:' . (($i % 2) * .1) . 's">' . s_video_html((string) $r['video_url'], (string) $r['title'])
-                    . '<div class="tx">' . ($r['category'] ? '<span class="ws-chip">' . e($r['category']) . '</span>' : '') . '<b>' . e($r['title']) . '</b>'
-                    . ($r['description'] ? '<p>' . nl2br(e($r['description'])) . '</p>' : '') . '</div></article>';
+                    . '<div class="tx">' . ($r['category'] ? '<span class="ws-chip">' . e(__((string) ($r['category']))) . '</span>' : '') . '<b>' . e(__((string) ($r['title']))) . '</b>'
+                    . ($r['description'] ? '<p>' . nl2br(e(__((string) ($r['description'])))) . '</p>' : '') . '</div></article>';
             }
             return $wrap(s_block_head($d) . '<div class="pg-vids">' . $v . '</div>');
         case 'section':
@@ -403,7 +403,7 @@ function s_render_block(array $b, ?array $ctx): string
             $html = (string) ($d['html'] ?? '');
             if (trim($html) === '') return '';
             if (($d['mode'] ?? 'safe') === 'frame') return $wrap(s_html_frame($html, (int) ($d['height'] ?? 480)));
-            return $wrap('<div class="prose pg-custom">' . s_sanitize_html($html) . '</div>');
+            return $wrap('<div class="prose pg-custom">' . s_sanitize_html(__($html)) . '</div>');
     }
     return '';
 }

@@ -10,3 +10,7 @@ html[dir="ltr"] .assistant-fab, html[dir="ltr"] .sq-sheet { direction: ltr; text
 html[dir="ltr"] .ui-ic-chevron { transform: scaleX(-1); }
 /* خانات الإيميل والباسورد: الـ placeholder من الشمال زي الكلام */
 html[dir="ltr"] .au-input input[dir="ltr"] { text-align: left; }
+/* أسهم «روح» في كروت الرئيسية */
+html[dir="ltr"] .dh-q-go { display: inline-block; transform: scaleX(-1); }
+/* شريط الموبايل: الكلام الإنجليزي أطول — سطر واحد بخط أصغر */
+html[dir="ltr"] .v2-dock a span { white-space: nowrap; font-size: 11px; letter-spacing: -.2px; }

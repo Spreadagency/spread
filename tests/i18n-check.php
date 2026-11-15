@@ -15,6 +15,9 @@ require_once __DIR__ . '/../includes/i18n.php';
 const I18N_DONE = [
     'templates/v2/auth.php', 'public/login.php', 'public/register.php', 'public/forgot-password.php', 'public/reset-password.php', 'public/resend-verification.php',
     'site/parts/site-header.php', 'site/parts/site-footer.php', 'site/sections/hero.php',
+    // الدفعة 2: إطار المنصة · الرئيسية · «ابدأ» · إنشاء المحتوى
+    'templates/v2/sidebar.php', 'templates/v2/topbar.php', 'templates/v2/tabbar.php', 'templates/v2/dashboard.php', 'templates/v2/quick-post.php',
+    'templates/sidebar.php', 'templates/topbar.php', 'public/dashboard.php', 'public/start.php', 'public/create-content.php',
 ];
 
 function i18n_keys_in(string $src): array

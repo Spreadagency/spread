@@ -74,7 +74,7 @@ $jar = tempnam(sys_get_temp_dir(), 'cc5');
 [, $html] = http('GET', "$base/public/login.php", [], $jar);
 preg_match('/name="csrf" value="([^"]+)"/', $html, $m);
 http('POST', "$base/public/login.php", ['csrf' => $m[1] ?? '', 'email' => "cc5-$tag@test.local", 'password' => 'Test12345!'], $jar);
-[, $dash] = http('GET', "$base/public/dashboard.php", [], $jar);
+[, $dash] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jar);
 preg_match('/<meta name="csrf-token" content="([^"]+)"/', $dash, $cm);
 $csrf = $cm[1] ?? '';
 $api = function (string $ep, array $d) use ($base, $jar, $csrf): array {
@@ -172,7 +172,7 @@ t('لينك الحملة للعميل = صفحة «حملاتي»', str_contains
 /* ─── 4) المحرك: برّه القايمة · مفيش حملات جديدة · القفل بعد 60 يوم ─── */
 echo "معالج المحرك\n";
 db_run('INSERT IGNORE INTO user_feature_access (user_id, feature_key, is_enabled) VALUES (?, "content_engine", 1)', [$uid]);
-[$c, $h] = http('GET', "$base/public/dashboard.php", [], $jar);
+[$c, $h] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jar);
 t('معالج المحرك مش في قايمة العميل (من غير حملات محرك قديمة)', $c === 200 && !str_contains($h, 'href="' . url('engine.php') . '"') && !str_contains($h, "engine.php'"), (string) $c);
 [$c] = http('GET', "$base/public/engine.php", [], $jar);
 t('صفحة المحرك ← «حملاتي»', $c === 302);

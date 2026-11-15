@@ -94,12 +94,12 @@ t('لغة مش معروفة ← مفيش كوكي', $c === 302 && !str_contains(
 echo "صفحة الدخول\n";
 foreach (['v2' => '&ui=v2', 'v1' => '&ui=v1'] as $ui => $q) {
     [$c, $b] = http('GET', "$base/public/login.php?lang=en$q", [], cookie_jar());
-    t("[$ui] بالإنجليزي: ltr + ملف الاتجاه + زرار «ع»", $c === 200 && str_contains($b, '<html lang="en" dir="ltr">') && str_contains($b, 'ltr.css') && preg_match('/class="lang-sw[^"]*"[^>]*>ع</u', $b) === 1);
+    t("[$ui] بالإنجليزي: ltr + ملف الاتجاه + زرار الأعلام (علم مصر لينك للعربي)", $c === 200 && str_contains($b, '<html lang="en" dir="ltr">') && str_contains($b, 'ltr.css') && str_contains($b, 'class="lang-opt on" lang="en"') && str_contains($b, 'hreflang="ar"'));
     $ar = arabic_words(visible($b));
     t("[$ui] مفيش نص عربي ظاهر", !$ar, implode(' | ', array_slice($ar, 0, 6)));
     t("[$ui] الكلام إنجليزي", str_contains($b, 'Log in') && str_contains($b, 'Password'));
     [$c, $b] = http('GET', "$base/public/login.php?lang=ar$q", [], cookie_jar());
-    t("[$ui] بالعربي زي ما كان: rtl ومن غير ملف الاتجاه", str_contains($b, '<html lang="ar" dir="rtl">') && !str_contains($b, 'ltr.css') && str_contains($b, 'كلمة المرور') && str_contains($b, '>EN<'));
+    t("[$ui] بالعربي زي ما كان: rtl ومن غير ملف الاتجاه", str_contains($b, '<html lang="ar" dir="rtl">') && !str_contains($b, 'ltr.css') && str_contains($b, 'كلمة المرور') && str_contains($b, 'hreflang="en"'));
 }
 [$c, $b] = http('GET', "$base/public/register.php?lang=en&ui=v2", [], cookie_jar());
 $ar = arabic_words(visible($b));
@@ -134,8 +134,8 @@ try {
     $j2 = cookie_jar();
     [, , $h] = $login($j2);
     t('جهاز جديد: الدخول بيرجّع لغة الحساب', (bool) preg_match('/Set-Cookie:\s*spread_lang=en/i', $h));
-    [$c, $b] = http('GET', "$base/public/dashboard.php", [], $j2);
-    t('صفحة لسه مااتترجمتش (الرئيسية جوه) بتفضل عربي ومن اليمين للشمال', $c === 200 && str_contains($b, '<html lang="ar" dir="rtl">') && !str_contains($b, 'assets/css/ltr.css'));
+    [$c, $b] = http('GET', "$base/public/content-history.php", [], $j2);
+    t('صفحة لسه مااتترجمتش (المحتويات) بتفضل عربي ومن اليمين للشمال', $c === 200 && str_contains($b, '<html lang="ar" dir="rtl">') && !str_contains($b, 'assets/css/ltr.css'));
     // من جوه: الرجوع للعربي بيتحفظ في الحساب (العربي = NULL زي الأول)
     http('GET', "$base/public/lang.php?l=ar&back=/", [], $j2);
     t('الرجوع للعربي من جوه الحساب', db_one('SELECT locale FROM users WHERE id = ?', [$uid])['locale'] === null);

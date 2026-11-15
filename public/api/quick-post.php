@@ -36,7 +36,7 @@ switch ($action) {
         api_ok([
             'services' => $kitOn ? array_map(fn($s) => ['id' => (int) $s['id'], 'name' => $s['name']], bk_services($uid, true)) : [],
             'personas' => $kitOn ? array_map(fn($p) => ['id' => (int) $p['id'], 'name' => $p['name'], 'emoji' => $p['emoji'] ?: '🙂', 'service_ids' => $p['service_ids']], bk_personas($uid)) : [],
-            'formats' => qp_formats(),
+            'formats' => array_map(fn($f) => [$f[0], __($f[1])], qp_formats()),   // الترجمة: اسم الشكل بلغة العميل
             'slides' => carousel_limits()[2],
             'cta' => $kitOn ? (string) (bk_get($uid)['data']['cta']['text'] ?? '') : '',
             'cost' => cost_for('content_generation_cost'),

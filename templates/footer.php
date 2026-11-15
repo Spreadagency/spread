@@ -20,6 +20,7 @@ if (!empty($_SESSION['user_id']) && !isset($__no_assistant) && empty($_SESSION['
     } catch (\Throwable $e) { $__saOn = false; }
     if ($__saOn): ?>
     <link rel="stylesheet" href="<?= url('assets/css/assistant.css') ?>?v=<?= @filemtime(__DIR__ . '/../assets/css/assistant.css') ?: time() ?>">
+    <?= i18n_js(['مساعدك', '🛟 الدعم', '🤖 الوكيل', 'محادثة جديدة', 'قفل', 'اكتب رسالتك…', 'رسالتك', 'ابعت']) ?>
     <script src="<?= url('assets/js/assistant.js') ?>?v=<?= @filemtime(__DIR__ . '/../assets/js/assistant.js') ?: time() ?>" defer></script>
 <?php endif;
 } ?>

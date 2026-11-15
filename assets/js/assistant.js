@@ -7,6 +7,7 @@
 (function () {
   'use strict';
   var BASE = (document.querySelector('meta[name="app-base"]') || {}).content || '';
+  var T = function (x) { return (window.__t || String)(x); };   // الترجمة: إطار المساعد (المحادثة نفسها في دفعة بعدين)
   var API = BASE + '/api/assistant.php';
   var FMT = { post: 'بوست', carousel: 'كاروسيل', reel: 'ريلز' };
   var st = { open: false, kind: 'support', data: {}, busy: false, poll: null };
@@ -31,14 +32,14 @@
   var root = document.createElement('div');
   root.className = 'sa-root';
   root.innerHTML =
-    '<button type="button" class="sa-fab" aria-haspopup="dialog" aria-expanded="false" aria-label="مساعدك"><span aria-hidden="true">🤖</span><b>مساعدك</b></button>' +
-    '<section class="sa-panel" role="dialog" aria-label="مساعدك" hidden>' +
+    '<button type="button" class="sa-fab" aria-haspopup="dialog" aria-expanded="false" aria-label="' + T('مساعدك') + '"><span aria-hidden="true">🤖</span><b>' + T('مساعدك') + '</b></button>' +
+    '<section class="sa-panel" role="dialog" aria-label="' + T('مساعدك') + '" hidden>' +
       '<header class="sa-head"><div class="sa-tabs" role="tablist">' +
-        '<button type="button" role="tab" data-k="support">🛟 الدعم</button><button type="button" role="tab" data-k="agent">🤖 الوكيل</button></div>' +
-        '<button type="button" class="sa-ic sa-new" title="محادثة جديدة" aria-label="محادثة جديدة">↻</button>' +
-        '<button type="button" class="sa-ic sa-x" aria-label="قفل">✕</button></header>' +
+        '<button type="button" role="tab" data-k="support">' + T('🛟 الدعم') + '</button><button type="button" role="tab" data-k="agent">' + T('🤖 الوكيل') + '</button></div>' +
+        '<button type="button" class="sa-ic sa-new" title="' + T('محادثة جديدة') + '" aria-label="' + T('محادثة جديدة') + '">↻</button>' +
+        '<button type="button" class="sa-ic sa-x" aria-label="' + T('قفل') + '">✕</button></header>' +
       '<div class="sa-body" aria-live="polite"></div>' +
-      '<form class="sa-form" data-no-busy="1" novalidate><textarea rows="1" placeholder="اكتب رسالتك…" aria-label="رسالتك"></textarea><button type="submit" class="sa-send" aria-label="ابعت">➤</button></form>' +
+      '<form class="sa-form" data-no-busy="1" novalidate><textarea rows="1" placeholder="' + T('اكتب رسالتك…') + '" aria-label="' + T('رسالتك') + '"></textarea><button type="submit" class="sa-send" aria-label="' + T('ابعت') + '">➤</button></form>' +
     '</section>';
   document.body.appendChild(root);
   var fab = root.querySelector('.sa-fab'), panel = root.querySelector('.sa-panel'), body = root.querySelector('.sa-body');

@@ -122,7 +122,7 @@ $jar = tempnam(sys_get_temp_dir(), 'cc3');
 [, $html] = http('GET', "$base/public/login.php", [], $jar);
 preg_match('/name="csrf" value="([^"]+)"/', $html, $m);
 http('POST', "$base/public/login.php", ['csrf' => $m[1] ?? '', 'email' => $email, 'password' => 'Test12345!'], $jar);
-[, $dash] = http('GET', "$base/public/dashboard.php", [], $jar);
+[, $dash] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jar);
 preg_match('/<meta name="csrf-token" content="([^"]+)"/', $dash, $cm);
 $csrf = $cm[1] ?? '';
 t('دخول العميل المؤقت', $csrf !== '', 'مفيش csrf');

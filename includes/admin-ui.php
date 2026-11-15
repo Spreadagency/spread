@@ -78,6 +78,7 @@ function admin_nav(): array
             ['my-accounts', 'حساباتي', 'My accounts', 'users', 'admin/my-accounts.php', 'view_users', ['my-accounts']],
             ['approvals', 'الموافقات', 'Approvals', 'check', 'admin/approvals.php', 'approve_users', ['approvals'], 'approvals'],
             ['brand-kits', 'هويات العملاء (Brand Kit)', 'Brand Kits', 'palette', 'admin/brand-kits.php', 'view_users', ['brand-kits']],
+            ['onboarding-questions', 'أسئلة الهوية (أول دخول)', 'Onboarding Questions', 'list', 'admin/onboarding-questions.php', 'site_settings', ['onboarding-questions']],
             ['social-connections', 'حسابات السوشيال', 'Social Accounts', 'link', 'admin/social-connections.php', 'view_users', ['social-connections']],
         ],
         'المحتوى' => [

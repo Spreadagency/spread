@@ -6,6 +6,13 @@ require_login();
 
 $user = current_user();
 
+// أسئلة الهوية: الحساب اللي لسه ماعملش أول بوست بيروح لـ «ابدأ» مرة في الجلسة (فيها «تخطّي»)
+if (isset($_GET['onb'])) {
+    $_SESSION['onb_offered'] = 1;   // «تخطّي» من صفحة «ابدأ»
+} elseif (onb_should_offer((int) $user['id'])) {
+    redirect('start.php');
+}
+
 // الشكل الجديد: الرئيسية من التصميم — بتتفرّع قبل استعلامات الرئيسية القديمة عشان مايتعملوش على الفاضي
 if (function_exists('ui_v2_enabled') && ui_v2_enabled()) {
     require_once __DIR__ . '/../includes/dashboard-v2.php';
@@ -13,6 +20,7 @@ if (function_exists('ui_v2_enabled') && ui_v2_enabled()) {
     $d = dashboard_v2_data($user);
     $active = 'dashboard';
     $page_title = 'الرئيسية';
+    $i18n_ready = true;   // الترجمة: الرئيسية مترجمة (الدفعة 2)
     include __DIR__ . '/../templates/header.php';
     echo '<div class="app">';
     include __DIR__ . '/../templates/sidebar.php';
@@ -78,6 +86,7 @@ try {
 
 $active = 'dashboard';
 $page_title = 'الرئيسية';
+$i18n_ready = true;   // الترجمة: الرئيسية مترجمة (الدفعة 2)
 include __DIR__ . '/../templates/header.php';
 ?>
 
@@ -94,24 +103,24 @@ include __DIR__ . '/../templates/header.php';
         }
         if ($__maPending > 0): ?>
             <a class="alert success" href="<?= url('approvals.php') ?>" style="display:block;text-decoration:none">
-                ✅ فريق Spread جهّزلك <b><?= $__maPending ?></b> منشور — راجعهم ووافق بضغطة ←
+                <?= e(__('✅ فريق Spread جهّزلك')) ?> <b><?= $__maPending ?></b> <?= e(__('منشور — راجعهم ووافق بضغطة ←')) ?>
             </a>
         <?php endif; ?>
 
         <!-- Greeting Hero -->
         <div class="greet-card">
-            <span class="chip chip-mint">◐ جلسة العمل نشطة</span>
-            <h1><?= e($greeting) ?>، <?= e(explode(' ', $user['name'])[0] ?? $user['name']) ?> 👋</h1>
+            <span class="chip chip-mint"><?= e(__('◐ جلسة العمل نشطة')) ?></span>
+            <h1><?= e(__($greeting)) ?><?= e(__('،')) ?> <?= e(explode(' ', $user['name'])[0] ?? $user['name']) ?> 👋</h1>
             <div class="sub">
                 <?php if ($stats['this_week'] > 0): ?>
-                    أنشأت <b><?= $stats['this_week'] ?></b> منشور هذا الأسبوع<span class="cr"> · رصيدك <b><?= $stats['balance'] ?></b> كريدت</span>
+                    <?= e(__('أنشأت')) ?> <b><?= $stats['this_week'] ?></b> <?= e(__('منشور هذا الأسبوع')) ?><span class="cr"> <?= e(__('· رصيدك')) ?> <b><?= $stats['balance'] ?></b> <?= e(__('كريدت')) ?></span>
                 <?php else: ?>
-                    جاهز نبدأ نصنع محتوى مميز اليوم؟ ✨
+                    <?= e(__('جاهز نبدأ نصنع محتوى مميز اليوم؟ ✨')) ?>
                 <?php endif; ?>
             </div>
             <div class="quick-actions">
-                <a href="<?= url('create-content.php') ?>" class="btn">＋ إنشاء منشور جديد</a>
-                <a href="<?= url('brand-profile.php') ?>" class="btn ghost">◈ تحديث الهوية</a>
+                <a href="<?= url('create-content.php') ?>" class="btn"><?= e(__('＋ إنشاء منشور جديد')) ?></a>
+                <a href="<?= url('brand-profile.php') ?>" class="btn ghost"><?= e(__('◈ تحديث الهوية')) ?></a>
             </div>
 
             <div class="deco-blobs" aria-hidden="true">
@@ -157,8 +166,8 @@ include __DIR__ . '/../templates/header.php';
         <!-- رحلة البداية -->
         <div class="card" style="margin-bottom:20px;border:2px solid var(--primary-soft)">
             <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
-                <h3>🚀 رحلتك مع المنصة — <?= $doneCount ?>/4</h3>
-                <a href="<?= url('help.php') ?>" class="btn ghost sm">❓ الدليل الكامل</a>
+                <h3><?= e(__('🚀 رحلتك مع المنصة —')) ?> <?= $doneCount ?>/4</h3>
+                <a href="<?= url('help.php') ?>" class="btn ghost sm"><?= e(__('❓ الدليل الكامل')) ?></a>
             </div>
             <div style="background:var(--surface-2);border-radius:99px;height:8px;margin-bottom:16px;overflow:hidden">
                 <div style="width:<?= $doneCount * 25 ?>%;height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-2));transition:width .4s"></div>
@@ -170,18 +179,18 @@ include __DIR__ . '/../templates/header.php';
                             <span style="width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;<?= $st['done'] ? 'background:#2a7d5f;color:#fff' : 'background:var(--primary-soft);color:var(--primary-ink)' ?>">
                                 <?= $st['done'] ? '✓' : $i + 1 ?>
                             </span>
-                            <b style="font-size:14px"><?= e($st['title']) ?></b>
+                            <b style="font-size:14px"><?= e(__($st['title'])) ?></b>
                         </div>
-                        <p class="sub" style="font-size:12px;min-height:48px"><?= e($st['desc']) ?></p>
+                        <p class="sub" style="font-size:12px;min-height:48px"><?= e(__($st['desc'])) ?></p>
                         <?php if (!$st['done']): ?>
                             <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                <a href="<?= url($st['url']) ?>" class="btn sm"><?= e($st['btn']) ?></a>
+                                <a href="<?= url($st['url']) ?>" class="btn sm"><?= e(__($st['btn'])) ?></a>
                                 <?php if (!empty($st['alt_url'])): ?>
-                                    <a href="<?= url($st['alt_url']) ?>" class="btn ghost sm"><?= e($st['alt_btn']) ?></a>
+                                    <a href="<?= url($st['alt_url']) ?>" class="btn ghost sm"><?= e(__($st['alt_btn'])) ?></a>
                                 <?php endif; ?>
                             </div>
                         <?php else: ?>
-                            <span class="chip chip-mint">تمام ✓</span>
+                            <span class="chip chip-mint"><?= e(__('تمام ✓')) ?></span>
                         <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
@@ -196,10 +205,10 @@ include __DIR__ . '/../templates/header.php';
                 <div class="ico" style="background:var(--primary-soft);color:var(--primary-ink)">◇</div>
                 <div>
                     <b class="cr"><?= $stats['balance'] ?></b><b class="cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) ($user['id'] ?? 0))['pct'] : 0 ?>%</b>
-                    <small><span class="cr">رصيد الكريدت</span><span class="cr-alt">استهلاك الباقة</span></small>
+                    <small><span class="cr"><?= e(__('رصيد الكريدت')) ?></span><span class="cr-alt"><?= e(__('استهلاك الباقة')) ?></span></small>
                 </div>
                 <span class="trend <?= $stats['balance'] < 5 ? 'down' : 'up' ?>">
-                    <?= $stats['balance'] < 5 ? 'منخفض!' : 'متاح' ?>
+                    <?= e(__($stats['balance'] < 5 ? 'منخفض!' : 'متاح')) ?>
                 </span>
             </div>
 
@@ -207,7 +216,7 @@ include __DIR__ . '/../templates/header.php';
                 <div class="ico" style="background:var(--mint-soft);color:#2a7d5f">▤</div>
                 <div>
                     <b><?= $stats['total_content'] ?></b>
-                    <small>إجمالي المنشورات</small>
+                    <small><?= e(__('إجمالي المنشورات')) ?></small>
                 </div>
             </div>
 
@@ -215,7 +224,7 @@ include __DIR__ . '/../templates/header.php';
                 <div class="ico" style="background:var(--sky-soft);color:#2f6bb0">⟲</div>
                 <div>
                     <b><?= $stats['regen_count'] ?></b>
-                    <small>إعادة توليد</small>
+                    <small><?= e(__('إعادة توليد')) ?></small>
                 </div>
             </div>
 
@@ -223,7 +232,7 @@ include __DIR__ . '/../templates/header.php';
                 <div class="ico" style="background:var(--amber-soft);color:#a06c1e">●</div>
                 <div>
                     <b class="cr"><?= $stats['total_spent'] ?></b><b class="cr-alt"><?= (int) ($stats['total_content'] ?? 0) ?></b>
-                    <small class="cr">كريدت مستهلك</small><small class="cr-alt">محتوى اتعمل</small>
+                    <small class="cr"><?= e(__('كريدت مستهلك')) ?></small><small class="cr-alt"><?= e(__('محتوى اتعمل')) ?></small>
                 </div>
             </div>
         </div>
@@ -234,16 +243,16 @@ include __DIR__ . '/../templates/header.php';
             <!-- Recent content -->
             <div class="card">
                 <div class="card-head">
-                    <h3>آخر منشوراتك <span class="count">• <?= count($recent) ?> منشور<?= count($recent) === 1 ? '' : 'ات' ?></span></h3>
-                    <a href="<?= url('content-history.php') ?>" class="text-mute" style="font-size:12px">عرض الكل ←</a>
+                    <h3><?= e(__('آخر منشوراتك')) ?> <span class="count">• <?= count($recent) ?> <?= e(__('منشور')) ?><?= count($recent) === 1 ? '' : 'ات' ?></span></h3>
+                    <a href="<?= url('content-history.php') ?>" class="text-mute" style="font-size:12px"><?= e(__('عرض الكل ←')) ?></a>
                 </div>
 
                 <?php if (empty($recent)): ?>
                     <div class="empty">
                         <div class="ico">✎</div>
-                        <h3>لسه ما أنشأتش محتوى</h3>
-                        <p>ابدأ أول منشور لك واتفرج على إنتاجية الذكاء الاصطناعي</p>
-                        <a href="<?= url('create-content.php') ?>" class="btn">＋ إنشاء أول منشور</a>
+                        <h3><?= e(__('لسه ما أنشأتش محتوى')) ?></h3>
+                        <p><?= e(__('ابدأ أول منشور لك واتفرج على إنتاجية الذكاء الاصطناعي')) ?></p>
+                        <a href="<?= url('create-content.php') ?>" class="btn"><?= e(__('＋ إنشاء أول منشور')) ?></a>
                     </div>
                 <?php else: ?>
                     <div style="display:grid;gap:10px">
@@ -281,7 +290,7 @@ include __DIR__ . '/../templates/header.php';
                 <!-- Credit ring -->
                 <div class="credit-widget">
                     <?php $__crShow = !function_exists('credits_show_numbers') || credits_show_numbers(); ?>
-                    <span class="label"><?= $__crShow ? 'الرصيد المتبقي' : 'المتبقي من باقة الشهر' ?></span>
+                    <span class="label"><?= e(__($__crShow ? 'الرصيد المتبقي' : 'المتبقي من باقة الشهر')) ?></span>
                     <div class="ring">
                         <?php
                         $maxCredit = max($stats['balance'] + $stats['total_spent'], 20);
@@ -296,22 +305,22 @@ include __DIR__ . '/../templates/header.php';
                         <div class="mid">
                             <div>
                                 <b><?= $__crShow ? $stats['balance'] : (int) round($percent) . '%' ?></b>
-                                <span><?= $__crShow ? 'كريدت متاح' : 'متبقي' ?></span>
+                                <span><?= e(__($__crShow ? 'كريدت متاح' : 'متبقي')) ?></span>
                             </div>
                         </div>
                     </div>
                     <div class="footnote cr">
-                        كل توليد يكلف <b><?= cost_for('content_generation_cost') ?> كريدت</b>
+                        <?= e(__('كل توليد يكلف')) ?> <b><?= cost_for('content_generation_cost') ?> <?= e(__('كريدت')) ?></b>
                     </div>
                     <div style="margin-top:12px">
-                        <a href="<?= url('credits.php') ?>" class="btn soft full sm">عرض السجل</a>
+                        <a href="<?= url('credits.php') ?>" class="btn soft full sm"><?= e(__('عرض السجل')) ?></a>
                     </div>
                 </div>
 
                 <!-- Brand setup card -->
                 <div class="card compact">
                     <div class="card-head">
-                        <h3 style="font-size:14px">حالة الهوية</h3>
+                        <h3 style="font-size:14px"><?= e(__('حالة الهوية')) ?></h3>
                         <span class="count"><?= $brandSetup ?>%</span>
                     </div>
 
@@ -321,17 +330,17 @@ include __DIR__ . '/../templates/header.php';
 
                     <?php if ($brandSetup < 100): ?>
                         <div class="alert warning" style="font-size:12px;margin-bottom:10px">
-                            ⚠ كمّل بيانات هويتك علشان جودة المحتوى تكون أعلى
+                            <?= e(__('⚠ كمّل بيانات هويتك علشان جودة المحتوى تكون أعلى')) ?>
                         </div>
                     <?php endif; ?>
 
                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:8px">
-                        <span class="text-mute">صور البراند</span>
+                        <span class="text-mute"><?= e(__('صور البراند')) ?></span>
                         <span><b><?= $brandImageCount ?></b> / <?= MAX_BRAND_IMAGES ?></span>
                     </div>
 
                     <a href="<?= url('brand-profile.php') ?>" class="btn ghost full sm">
-                        تحديث الهوية ←
+                        <?= e(__('تحديث الهوية ←')) ?>
                     </a>
                 </div>
 

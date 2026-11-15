@@ -16,7 +16,7 @@ require_login();
 $user = current_user();
 $uid = (int) $user['id'];
 
-if (!onb_enabled()) {
+if (!onb_start_enabled()) {
     redirect('brand-kit.php');
 }
 
@@ -49,8 +49,13 @@ $brand = user_brand();
 $bizName = trim((string) ($brand['business_name'] ?? ''));
 if ($bizName === trim((string) $user['name'])) $bizName = '';   // القيمة التلقائية من التسجيل
 $sectors = array_map(fn($s) => ['id' => (int) $s['id'], 'name' => (string) $s['name']], bk_sectors());
+// أسئلة الهوية من الأدمن (admin/onboarding-questions.php) بلغة العميل
+$questions = array_map(fn($q) => onb_q_for_client($q, i18n_is_en()), onb_q_active());
+// لغة أول بوست: لغة الهوية لو اتحددت، وإلا لغة الواجهة
+$postDialect = bk_is_english((string) ($brand['dialect'] ?? '')) || (empty($brand['dialect']) && i18n_is_en()) ? 'english' : 'egyptian';
 
 $page_title = 'ابدأ';
+$i18n_ready = true;   // الترجمة: الصفحة دي مترجمة بالكامل (الدفعة 2)
 $__no_tabbar = true;
 $__no_assistant = true;   // الصفحة خطوة واحدة في كل مرة — من غير زرار المساعد العائم
 include __DIR__ . '/../templates/header.php';
@@ -91,7 +96,9 @@ include __DIR__ . '/../templates/header.php';
      data-api="<?= e(url('api/brand-kit.php')) ?>"
      data-gen="<?= e(url('ajax/generate-content.php')) ?>"
      data-view="<?= e(url('content-view.php')) ?>"
-     data-sectors="<?= e(json_encode($sectors, JSON_UNESCAPED_UNICODE)) ?>">
+     data-sectors="<?= e(json_encode($sectors, JSON_UNESCAPED_UNICODE)) ?>"
+     data-questions="<?= e(json_encode($questions, JSON_UNESCAPED_UNICODE)) ?>"
+     data-dialect="<?= e($postDialect) ?>">
     <div class="onb-top">
         <?= function_exists('site_logo_html') ? site_logo_html() : '<b>' . e(APP_NAME) . '</b>' ?>
         <?php if (!$verifyOnly): ?><div class="onb-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div><?php endif; ?>
@@ -99,15 +106,15 @@ include __DIR__ . '/../templates/header.php';
 
 <?php if ($verifyOnly): ?>
     <div class="onb-card" id="verify-card">
-        <h2>فعّل إيميلك عشان تكمّل</h2>
+        <h2><?= e(__('فعّل إيميلك عشان تكمّل')) ?></h2>
         <?php if ($verified): ?>
-            <p class="sub">إيميلك متفعّل ✓</p>
-            <a class="btn full lg" href="<?= url('dashboard.php') ?>">روح للوحة التحكم ←</a>
+            <p class="sub"><?= e(__('إيميلك متفعّل ✓')) ?></p>
+            <a class="btn full lg" href="<?= url('dashboard.php') ?>"><?= e(__('روح للوحة التحكم ←')) ?></a>
         <?php else: ?>
-            <p class="sub">الخطوة دي (النشر · الشراء · ربط الصفحات) محتاجة إيميل مؤكد. بعتنالك رابط التفعيل على <b dir="ltr"><?= e($user['email']) ?></b> — فتّش في الإسبام كمان.</p>
-            <a class="btn full lg" href="<?= url('resend-verification.php') ?>">ابعتلي رابط التفعيل تاني</a>
+            <p class="sub"><?= e(__('الخطوة دي (النشر · الشراء · ربط الصفحات) محتاجة إيميل مؤكد. بعتنالك رابط التفعيل على')) ?> <b dir="ltr"><?= e($user['email']) ?></b> <?= e(__('— فتّش في الإسبام كمان.')) ?></p>
+            <a class="btn full lg" href="<?= url('resend-verification.php') ?>"><?= e(__('ابعتلي رابط التفعيل تاني')) ?></a>
             <div class="onb-row">
-                <a class="btn ghost" href="<?= url(onb_done($uid) ? 'dashboard.php' : 'start.php') ?>">رجوع</a>
+                <a class="btn ghost" href="<?= url(onb_done($uid) ? 'dashboard.php' : 'start.php') ?>"><?= e(__('رجوع')) ?></a>
             </div>
         <?php endif; ?>
     </div>
@@ -116,23 +123,24 @@ include __DIR__ . '/../templates/header.php';
 
     <!-- 1) لينكاتك -->
     <div class="onb-card" id="s1">
-        <h2>أهلًا <?= e(explode(' ', trim((string) $user['name']))[0]) ?> 👋</h2>
-        <p class="sub">3 خطوات صغيرة ونكتبلك أول بوست باسم نشاطك<?= $gift > 0 ? ' — <b>هدية مننا، من غير ما تصرف من رصيدك</b>' : '' ?>.</p>
+        <h2><?= e(__('أهلًا')) ?> <?= e(explode(' ', trim((string) $user['name']))[0]) ?> 👋</h2>
+        <p class="sub"><?= e(__('3 خطوات صغيرة ونكتبلك أول بوست باسم نشاطك')) ?><?= $gift > 0 ? ' — <b>' . e(__('هدية مننا، من غير ما تصرف من رصيدك')) . '</b>' : '' ?>.</p>
         <div class="field">
-            <label for="f-name">اسم نشاطك <span class="req">*</span></label>
-            <input id="f-name" class="input" maxlength="150" value="<?= e($bizName) ?>" placeholder="مثلًا: عيادة د. أحمد للأسنان" autocomplete="organization">
+            <label for="f-name"><?= e(__('اسم نشاطك')) ?> <span class="req">*</span></label>
+            <input id="f-name" class="input" maxlength="150" value="<?= e($bizName) ?>" placeholder="<?= e(__('مثلًا: عيادة د. أحمد للأسنان')) ?>" autocomplete="organization">
         </div>
         <div class="field">
-            <label for="f-url">لينك صفحتك أو موقعك <span class="text-mute">(اختياري)</span></label>
+            <label for="f-url"><?= e(__('لينك صفحتك أو موقعك')) ?> <span class="text-mute"><?= e(__('(اختياري)')) ?></span></label>
             <input id="f-url" class="input" dir="ltr" inputmode="url" maxlength="1000" placeholder="facebook.com/yourpage">
-            <div class="field-help">فيسبوك · إنستجرام · موقع — بنقرا منه ونملا البيانات بدالك.</div>
+            <div class="field-help"><?= e(__('فيسبوك · إنستجرام · موقع — بنقرا منه ونملا البيانات بدالك.')) ?></div>
         </div>
-        <div class="onb-or">أو</div>
+        <div class="onb-or"><?= e(__('أو')) ?></div>
         <div class="field">
-            <label for="f-file">ارفع منيو أو بروشور أو صورة <span class="text-mute">(اختياري)</span></label>
+            <label for="f-file"><?= e(__('ارفع منيو أو بروشور أو صورة')) ?> <span class="text-mute"><?= e(__('(اختياري)')) ?></span></label>
             <input id="f-file" type="file" class="input" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp">
         </div>
-        <button type="button" class="btn full lg" id="b1">كمّل ←</button>
+        <button type="button" class="btn full lg" id="b1"><?= e(__('كمّل ←')) ?></button>
+        <div style="text-align:center;margin-top:12px"><a class="text-mute" style="font-size:13px" href="<?= url('dashboard.php?onb=skip') ?>"><?= e(__('تخطّي دلوقتي — روح للوحة التحكم')) ?></a></div>
     </div>
 
     <!-- 2) 5 أسئلة -->
@@ -143,40 +151,40 @@ include __DIR__ . '/../templates/header.php';
         <div class="onb-opts" id="q-opts"></div>
         <input id="q-text" class="input" maxlength="300" hidden>
         <div class="onb-row">
-            <button type="button" class="btn ghost" id="q-skip">تخطّي</button>
-            <button type="button" class="btn" id="q-next">التالي ←</button>
+            <button type="button" class="btn ghost" id="q-skip"><?= e(__('تخطّي')) ?></button>
+            <button type="button" class="btn" id="q-next"><?= e(__('التالي ←')) ?></button>
         </div>
     </div>
 
     <!-- تحميل -->
     <div class="onb-card" id="load" hidden>
-        <div class="onb-load"><div class="onb-spin"></div><b id="load-t">لحظة…</b><p class="sub" style="margin-top:8px">بياخد أقل من دقيقة — ماتقفلش الصفحة.</p></div>
+        <div class="onb-load"><div class="onb-spin"></div><b id="load-t"><?= e(__('لحظة…')) ?></b><p class="sub" style="margin-top:8px"><?= e(__('بياخد أقل من دقيقة — ماتقفلش الصفحة.')) ?></p></div>
     </div>
 
     <!-- 3) الهوية + أول بوست -->
     <div id="s3" hidden>
         <div class="onb-card">
-            <h2>هويتك جاهزة ✓</h2>
-            <p class="sub">ده اللي فهمناه عن نشاطك — تقدر تعدّل أي حاجة بعدين.</p>
+            <h2><?= e(__('هويتك جاهزة ✓')) ?></h2>
+            <p class="sub"><?= e(__('ده اللي فهمناه عن نشاطك — تقدر تعدّل أي حاجة بعدين.')) ?></p>
             <dl class="onb-id" id="id-card"></dl>
-            <div class="onb-row"><a class="btn ghost" href="<?= url('brand-kit.php') ?>">عدّل الهوية</a></div>
+            <div class="onb-row"><a class="btn ghost" href="<?= url('brand-kit.php') ?>"><?= e(__('عدّل الهوية')) ?></a></div>
         </div>
         <div class="onb-card" style="margin-top:14px" id="post-card" hidden>
-            <h2>أول بوست ليك 🎉</h2>
+            <h2><?= e(__('أول بوست ليك 🎉')) ?></h2>
             <div class="onb-post" id="post-text"></div>
             <?php if (!$verified): ?>
-                <div class="onb-msg info" style="margin-top:12px">عشان تنشر أو تجدول البوست: فعّل إيميلك من الرابط اللي بعتناه على <b dir="ltr"><?= e($user['email']) ?></b>.</div>
+                <div class="onb-msg info" style="margin-top:12px"><?= e(__('عشان تنشر أو تجدول البوست: فعّل إيميلك من الرابط اللي بعتناه على')) ?> <b dir="ltr"><?= e($user['email']) ?></b>.</div>
             <?php endif; ?>
             <div class="onb-row">
-                <a class="btn ghost" id="post-open" href="#">افتح البوست</a>
-                <a class="btn" href="<?= url('dashboard.php') ?>">لوحة التحكم ←</a>
+                <a class="btn ghost" id="post-open" href="#"><?= e(__('افتح البوست')) ?></a>
+                <a class="btn" href="<?= url('dashboard.php') ?>"><?= e(__('لوحة التحكم ←')) ?></a>
             </div>
         </div>
         <div class="onb-card" style="margin-top:14px" id="post-fail" hidden>
             <div class="onb-msg err" id="post-fail-t"></div>
             <div class="onb-row">
-                <button type="button" class="btn ghost" id="post-retry">جرّب تاني</button>
-                <a class="btn" href="<?= url('dashboard.php') ?>">لوحة التحكم ←</a>
+                <button type="button" class="btn ghost" id="post-retry"><?= e(__('جرّب تاني')) ?></button>
+                <a class="btn" href="<?= url('dashboard.php') ?>"><?= e(__('لوحة التحكم ←')) ?></a>
             </div>
         </div>
     </div>
@@ -184,8 +192,10 @@ include __DIR__ . '/../templates/header.php';
 </div>
 </div>
 <?php if (!$verifyOnly): ?>
+<?= i18n_js(['حصلت مشكلة مؤقتة — جرّب تاني', 'النت فصل — اتأكد من الاتصال وجرّب تاني', 'بنقرا صفحتك وبياناتك…', 'لحظة…', 'ابنِ هويتي ←', 'التالي ←', 'مش لاقي مجالك؟ اكتبه هنا', 'معرفناش نبني الهوية — جرّب تاني', 'النشاط', 'اللي بيميّزك', 'جمهورك', 'شخصية البراند', 'مثال على أسلوبك', 'خدماتك', 'الألوان', 'معرفناش نكتب البوست دلوقتي', 'بنكتب أول بوست ليك…', 'سؤال {n} من {total}']) ?>
 <script>
 (function () {
+    var T = window.__t || function (s) { return s; };
     var root = document.getElementById('onb');
     var API = root.dataset.api, SELF = root.dataset.self, GEN = root.dataset.gen;
     var SECTORS = JSON.parse(root.dataset.sectors || '[]');
@@ -207,10 +217,10 @@ include __DIR__ . '/../templates/header.php';
         if (isForm) { opt.body = body; } else { opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body || {}); }
         return fetch(url, opt).then(function (r) {
             return r.text().then(function (t) {
-                var j; try { j = JSON.parse(t); } catch (e) { j = { ok: false, error: 'حصلت مشكلة مؤقتة — جرّب تاني' }; }
+                var j; try { j = JSON.parse(t); } catch (e) { j = { ok: false, error: T('حصلت مشكلة مؤقتة — جرّب تاني') }; }
                 return j;
             });
-        }).catch(function () { return { ok: false, error: 'النت فصل — اتأكد من الاتصال وجرّب تاني' }; });
+        }).catch(function () { return { ok: false, error: T('النت فصل — اتأكد من الاتصال وجرّب تاني') }; });
     }
     function api(action, body, isForm) { return call(API + '?action=' + action, body, isForm); }
 
@@ -220,7 +230,7 @@ include __DIR__ . '/../templates/header.php';
         var name = $('f-name').value.trim(), url = $('f-url').value.trim(), file = $('f-file').files[0];
         if (name.length < 2) { msg('اكتب اسم نشاطك الأول'); $('f-name').focus(); return; }
         var fd = new FormData(); fd.append('name', name); fd.append('csrf', csrf);
-        loading(url || file ? 'بنقرا صفحتك وبياناتك…' : 'لحظة…');
+        loading(url || file ? T('بنقرا صفحتك وبياناتك…') : T('لحظة…'));
         call(SELF, fd, true).then(function (r) {
             if (!r.ok) { show('s1'); msg(r.error); return null; }
             var f2 = new FormData(); f2.append('build', '0');
@@ -235,22 +245,14 @@ include __DIR__ . '/../templates/header.php';
     });
 
     /* ───── 2) الأسئلة ───── */
-    var Q = [
-        { key: 'نشاطك إيه', title: 'نشاطك إيه؟', sub: 'بنختار طريقة الكتابة المناسبة لمجالك.', kind: 'sector' },
-        { key: 'بتبيع لمين', title: 'بتبيع لمين؟', sub: 'اختار واحد أو أكتر.', multi: true,
-          opts: ['سيدات', 'رجال', 'شباب', 'أسر وأطفال', 'شركات وأصحاب أعمال', 'كبار السن'] },
-        { key: 'أهم خدمة أو منتج عايز تبيعه دلوقتي', title: 'أهم خدمة أو منتج عايز تبيعه دلوقتي؟', sub: 'اكتبه في كلمتين — أول بوست هيبقى عنه.', kind: 'text', ph: 'مثلًا: تبييض الأسنان' },
-        { key: 'أسلوب الكلام مع العملاء', title: 'بتكلم عملاءك بأنهي أسلوب؟', sub: 'اختار الجملة الأقرب ليك.', block: true,
-          opts: ['«نسعد بخدمتكم ونلتزم بأعلى معايير الجودة.» — رسمي ومحترم',
-                 '«تعالى نساعدك تختار الأنسب ليك، من غير تعقيد.» — ودود وبسيط',
-                 '«جاهز تغيّر الروتين؟ يلا بينا! 😄» — مرح وخفيف'] },
-        { key: 'العميل بيتواصل إزاي', title: 'العميل يتواصل معاك إزاي؟', sub: 'اختار واحد أو أكتر.', multi: true,
-          opts: ['واتساب', 'اتصال تليفون', 'رسايل الصفحة', 'زيارة المكان', 'الموقع الإلكتروني'] }
-    ];
+    // الأسئلة من الأدمن (أسئلة الهوية) — بلغة العميل
+    var Q = JSON.parse(root.dataset.questions || '[]');
     var sectorId = 0;
 
     function startQuestions(warn) {
-        qi = 0; show('s2'); msg(warn || ''); renderQ();
+        qi = 0;
+        if (!Q.length) { build(); return; }   // الأدمن شال كل الأسئلة ← على الهوية على طول
+        show('s2'); msg(warn || ''); renderQ();
     }
     function optBtn(label, value, block) {
         var b = document.createElement('button');
@@ -259,10 +261,10 @@ include __DIR__ . '/../templates/header.php';
     }
     function renderQ() {
         var q = Q[qi], box = $('q-opts'), txt = $('q-text');
-        $('q-count').textContent = 'سؤال ' + (qi + 1) + ' من ' + Q.length;
+        $('q-count').textContent = T('سؤال {n} من {total}', { n: qi + 1, total: Q.length });
         $('q-title').textContent = q.title; $('q-sub').textContent = q.sub;
         box.textContent = ''; picked = []; txt.hidden = true; txt.value = '';
-        $('q-next').textContent = qi === Q.length - 1 ? 'ابنِ هويتي ←' : 'التالي ←';
+        $('q-next').textContent = qi === Q.length - 1 ? T('ابنِ هويتي ←') : T('التالي ←');
         if (q.kind === 'text') {
             txt.hidden = false; txt.placeholder = q.ph || '';
             var s0 = state && state.services && state.services[0] ? state.services[0].name : '';
@@ -273,7 +275,7 @@ include __DIR__ . '/../templates/header.php';
                                        : q.opts.map(function (o) { return { l: o, v: o }; });
         opts.forEach(function (o) { box.appendChild(optBtn(o.l, o.v, q.block)); });
         if (q.kind === 'sector') {
-            txt.hidden = false; txt.placeholder = 'مش لاقي مجالك؟ اكتبه هنا';
+            txt.hidden = false; txt.placeholder = T('مش لاقي مجالك؟ اكتبه هنا');
             var pre = state && state.sector ? String(state.sector.id) : '';
             if (pre) { var el = box.querySelector('[data-v="' + pre + '"]'); if (el) { el.classList.add('on'); picked = [pre]; } }
         }
@@ -315,7 +317,7 @@ include __DIR__ . '/../templates/header.php';
         msg(''); loading('بنبني هوية نشاطك…');
         var p = sectorId ? api('sector_set', { sector_id: sectorId }) : Promise.resolve({ ok: true });
         p.then(function () { return api('draft', { answers: answers }); }).then(function (r) {
-            if (!r.ok) { qi = Q.length - 1; show('s2'); renderQ(); msg(r.error || 'معرفناش نبني الهوية — جرّب تاني'); return null; }
+            if (!r.ok) { qi = Q.length - 1; show('s2'); renderQ(); msg(r.error || T('معرفناش نبني الهوية — جرّب تاني')); return null; }
             var conf = r.confidence || {}, unsure = Object.keys(conf).filter(function (k) { return conf[k] < 0.7; });
             return api('apply_draft', { draft: r.draft, sections: Object.keys(r.draft), unsure: unsure });
         }).then(function (r) {
@@ -334,31 +336,31 @@ include __DIR__ . '/../templates/header.php';
     function renderIdentity() {
         var dl = $('id-card'); dl.textContent = '';
         var k = (state && state.kit) || {}, b = k.business || {}, a = k.audience || {}, v = k.voice || {}, c = k.colors || {};
-        row(dl, 'النشاط', [b.name, b.sector].filter(Boolean).join(' — '));
-        row(dl, 'اللي بيميّزك', b.usp);
-        row(dl, 'جمهورك', a.description);
-        row(dl, 'شخصية البراند', (k.personality || []).filter(Boolean).join(' · '));
-        row(dl, 'مثال على أسلوبك', (v.sample_lines || []).filter(Boolean)[0]);
-        row(dl, 'خدماتك', ((state && state.services) || []).slice(0, 5).map(function (s) { return s.name; }).join(' · '));
+        row(dl, T('النشاط'), [b.name, b.sector].filter(Boolean).join(' — '));
+        row(dl, T('اللي بيميّزك'), b.usp);
+        row(dl, T('جمهورك'), a.description);
+        row(dl, T('شخصية البراند'), (k.personality || []).filter(Boolean).join(' · '));
+        row(dl, T('مثال على أسلوبك'), (v.sample_lines || []).filter(Boolean)[0]);
+        row(dl, T('خدماتك'), ((state && state.services) || []).slice(0, 5).map(function (s) { return s.name; }).join(' · '));
         var cols = [c.primary, c.secondary, c.accent].filter(function (x) { return /^#[0-9a-fA-F]{3,8}$/.test(x || ''); });
         if (cols.length) {
             var span = document.createElement('span');
             cols.forEach(function (x) { var i = document.createElement('i'); i.className = 'onb-sw'; i.style.background = x; span.appendChild(i); });
-            row(dl, 'الألوان', span);
+            row(dl, T('الألوان'), span);
         }
-        if (!dl.children.length) row(dl, 'النشاط', $('f-name').value.trim());
+        if (!dl.children.length) row(dl, T('النشاط'), $('f-name').value.trim());
     }
     function firstPost() {
         $('post-card').hidden = true; $('post-fail').hidden = true;
         loadingInline(true);
         var fd = new FormData();
         fd.append('csrf', csrf); fd.append('content_type', 'introductory'); fd.append('platform', 'both');
-        fd.append('length', 'medium'); fd.append('dialect', 'egyptian'); fd.append('onboarding', '1');
-        var svc = answers['أهم خدمة أو منتج عايز تبيعه دلوقتي'];
+        fd.append('length', 'medium'); fd.append('dialect', root.dataset.dialect || 'egyptian'); fd.append('onboarding', '1');
+        var tq = Q.filter(function (q) { return q.topic; })[0], svc = tq ? answers[tq.key] : '';
         if (svc) fd.append('extra_notes', 'البوست عن: ' + svc);
         call(GEN, fd, true).then(function (r) {
             loadingInline(false);
-            if (!r.ok) { $('post-fail-t').textContent = r.error || 'معرفناش نكتب البوست دلوقتي'; $('post-fail').hidden = false; return; }
+            if (!r.ok) { $('post-fail-t').textContent = r.error || T('معرفناش نكتب البوست دلوقتي'); $('post-fail').hidden = false; return; }
             var t = [r.content, r.cta, r.hashtags].filter(Boolean).join('\n\n');
             $('post-text').textContent = t;
             $('post-open').href = root.dataset.view + '?id=' + encodeURIComponent(r.content_id);
@@ -369,7 +371,7 @@ include __DIR__ . '/../templates/header.php';
     function loadingInline(on) {
         if (on && !inline) {
             inline = document.createElement('div'); inline.className = 'onb-card'; inline.style.marginTop = '14px';
-            inline.innerHTML = '<div class="onb-load"><div class="onb-spin"></div><b>بنكتب أول بوست ليك…</b></div>';
+            inline.innerHTML = '<div class="onb-load"><div class="onb-spin"></div><b>' + T('بنكتب أول بوست ليك…') + '</b></div>';
             $('s3').appendChild(inline);
         } else if (!on && inline) { inline.remove(); inline = null; }
     }

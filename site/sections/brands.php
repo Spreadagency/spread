@@ -2,7 +2,7 @@
 /** قسم «brands» — نفس قسم الرئيسية (بيتعرض في الرئيسية والصفحات الداخلية وبلوكات الـ Page Builder) */
 if (!$brands) return;
 ?>
-  <section class="h-brands" id="s-brands" data-say="براندات بتثق فينا" data-look="-1">
+  <section class="h-brands" id="s-brands" data-say="<?= e(__('براندات بتثق فينا')) ?>" data-look="-1">
     <div class="h-wrap">
       <?= $secHead('brands', 'بيثقوا فينا') ?>
       <div class="h-logos rv">

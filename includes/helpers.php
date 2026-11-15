@@ -221,6 +221,8 @@ function json_response(array $data, int $status = 200): void
     if (function_exists('mobile_on_response')) {
         mobile_on_response($data, $status);
     }
+    // الترجمة: رسالة الخطأ بلغة العميل لو ليها ترجمة (العربي زي ما هو)
+    if (isset($data['error']) && is_string($data['error']) && function_exists('i18n_is_en') && i18n_is_en()) $data['error'] = __($data['error']);
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);

@@ -45,7 +45,7 @@ function login(string $base, string $email): array
     [, $html] = http('GET', "$base/public/login.php", [], $jar);
     preg_match('/name="csrf" value="([^"]+)"/', $html, $m);
     http('POST', "$base/public/login.php", ['csrf' => $m[1] ?? '', 'email' => $email, 'password' => 'Test12345!'], $jar);
-    [, $page] = http('GET', "$base/public/dashboard.php", [], $jar);
+    [, $page] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jar);
     preg_match('/name="csrf-token" content="([^"]+)"/', $page, $c);
     return [$jar, $c[1] ?? '', $page];
 }

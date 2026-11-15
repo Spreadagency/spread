@@ -25,8 +25,9 @@ function i18n_enabled(): bool
     static $on = null;
     if ($on !== null) return $on;
     try {
-        if (function_exists('get_setting')) return $on = get_setting('i18n_enabled', '0') === '1';
+        // الموقع الأول (صفحاته أحيانًا بتحمّل دوال المنصة كمان) — إعداد الموقع هو اللي بيتحكم في زرار الموقع
         if (function_exists('s_setting')) return $on = s_setting('i18n_enabled', '0') === '1';
+        if (function_exists('get_setting')) return $on = get_setting('i18n_enabled', '0') === '1';
         if (function_exists('db_one')) return $on = (string) (db_one('SELECT setting_value FROM settings WHERE setting_key = "i18n_enabled" ORDER BY id DESC LIMIT 1')['setting_value'] ?? '0') === '1';
     } catch (\Throwable $e) {
     }
@@ -85,9 +86,10 @@ function i18n_html_attrs(): string
 }
 
 /** القاموس الإنجليزي: lang/en.php + كل ملفات lang/en/*.php (كل دفعة ترجمة في ملف) */
-function i18n_dict(string $l = 'en'): array
+function i18n_dict(string $l = 'en', bool $fresh = false): array
 {
     static $cache = [];
+    if ($fresh) unset($cache[$l]);
     if (isset($cache[$l])) return $cache[$l];
     $d = [];
     $root = dirname(__DIR__) . '/lang';
@@ -96,6 +98,10 @@ function i18n_dict(string $l = 'en'): array
         $part = include $f;
         if (is_array($part)) $d = $part + $d;
     }
+    // ترجمات مكتوبة من لوحة الإدارة (محتوى الموقع — site_translations) — بتكسب على الملفات
+    if (function_exists('i18n_db_dict')) {
+        try { $d = i18n_db_dict($l) + $d; } catch (\Throwable $e) {}
+    }
     return $cache[$l] = $d;
 }
 
@@ -103,6 +109,8 @@ function i18n_dict(string $l = 'en'): array
 function __(string $ar, array $vars = [], ?string $l = null): string
 {
     $l ??= i18n_locale();
+    // وضع الجمع (صفحة الترجمة في الإدارة): كل نص عربي بيعدّي من هنا بيتسجل
+    if (isset($GLOBALS['__i18n_seen']) && $ar !== '' && preg_match('/\p{Arabic}/u', $ar)) $GLOBALS['__i18n_seen'][$ar] = true;
     $s = $l === 'ar' ? $ar : (i18n_dict($l)[$ar] ?? $ar);
     if ($vars) {
         $rep = [];
@@ -164,12 +172,57 @@ function i18n_safe_back(string $back): string
     return $path . ($q ? '?' . http_build_query($q) : '') . (isset($p['fragment']) ? '#' . rawurlencode(rawurldecode($p['fragment'])) : '');
 }
 
-/** زرار ع | EN (HTML) — $endpoint زي i18n_switch_url */
+/** علم اللغة (SVG جوه الصفحة — بيظهر على كل الأجهزة، مش زي إيموجي الأعلام اللي ويندوز مابيعرضهاش) */
+function i18n_flag(string $l): string
+{
+    static $n = 0;
+    $n++;
+    if ($l === 'en') {
+        // علم المملكة المتحدة (الإنجليزي)
+        $s = 'uk' . $n;
+        return '<svg class="lang-flag" viewBox="0 0 60 30" width="26" height="13" aria-hidden="true">'
+            . '<clipPath id="' . $s . 'a"><path d="M0,0v30h60V0z"/></clipPath><clipPath id="' . $s . 'b"><path d="M30,15h30v15zv15H0zH0V0zV0h30z"/></clipPath>'
+            . '<g clip-path="url(#' . $s . 'a)"><path d="M0,0v30h60V0z" fill="#012169"/><path d="M0,0L60,30M60,0L0,30" stroke="#fff" stroke-width="6"/>'
+            . '<path d="M0,0L60,30M60,0L0,30" clip-path="url(#' . $s . 'b)" stroke="#C8102E" stroke-width="4"/>'
+            . '<path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></g></svg>';
+    }
+    // علم مصر: أحمر · أبيض (النسر الذهبي) · أسود
+    return '<svg class="lang-flag" viewBox="0 0 30 20" width="26" height="17" aria-hidden="true">'
+        . '<path fill="#CE1126" d="M0 0h30v6.67H0z"/><path fill="#fff" d="M0 6.67h30v6.66H0z"/><path fill="#000" d="M0 13.33h30V20H0z"/>'
+        . '<path fill="#C09300" d="M15 7.4c-.9 0-1.5.6-1.5 1.3v.6l-2.3-.8.4 1.6 1.9.9-.5 1.6h4l-.5-1.6 1.9-.9.4-1.6-2.3.8v-.6c0-.7-.6-1.3-1.5-1.3z"/></svg>';
+}
+
+/**
+ * زرار اللغة: علم مصر (العربي) · علم المملكة المتحدة (الإنجليزي) — اللغة الحالية منوّرة والتانية لينك
+ * $endpoint زي i18n_switch_url
+ */
 function i18n_switcher(string $endpoint, string $class = 'lang-sw'): string
 {
     $cur = i18n_locale();
-    $to = $cur === 'en' ? 'ar' : 'en';
-    $label = I18N_LOCALES[$to]['short'];
-    return '<a class="' . htmlspecialchars($class, ENT_QUOTES) . '" href="' . htmlspecialchars(i18n_switch_url($endpoint, $to), ENT_QUOTES) . '" hreflang="' . $to . '" lang="' . $to . '"'
-        . ' title="' . htmlspecialchars(I18N_LOCALES[$to]['label'], ENT_QUOTES) . '" data-lang="' . $to . '">' . $label . '</a>';
+    $out = '<span class="' . htmlspecialchars($class, ENT_QUOTES) . '" role="group" aria-label="Language / اللغة">';
+    foreach (['ar', 'en'] as $l) {
+        $lab = htmlspecialchars(I18N_LOCALES[$l]['label'], ENT_QUOTES);
+        $out .= $l === $cur
+            ? '<span class="lang-opt on" lang="' . $l . '" title="' . $lab . '" aria-current="true">' . i18n_flag($l) . '</span>'
+            : '<a class="lang-opt" href="' . htmlspecialchars(i18n_switch_url($endpoint, $l), ENT_QUOTES) . '" hreflang="' . $l . '" lang="' . $l . '"'
+              . ' title="' . $lab . '" aria-label="' . $lab . '" data-lang="' . $l . '">' . i18n_flag($l) . '</a>';
+    }
+    return $out . '</span>';
+}
+
+/** «منذ …» بلغة الواجهة — العربي بنفس دالة المنصة (ui_time_ago) زي ما كان */
+function i18n_time_ago(?string $dt): string
+{
+    if (!i18n_is_en()) return function_exists('ui_time_ago') ? ui_time_ago($dt) : (string) $dt;
+    if (!$dt) return '';
+    $s = max(0, time() - (strtotime($dt) ?: time()));
+    if ($s < 60) return 'just now';
+    $m = intdiv($s, 60);
+    if ($m < 60) return $m === 1 ? '1 minute ago' : "$m minutes ago";
+    $h = intdiv($m, 60);
+    if ($h < 24) return $h === 1 ? '1 hour ago' : "$h hours ago";
+    $d = intdiv($h, 24);
+    if ($d === 1) return 'yesterday';
+    if ($d < 30) return "$d days ago";
+    return date('M j, Y', strtotime($dt));
 }

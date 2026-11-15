@@ -1,4 +1,5 @@
 /* Spread AI — المنشور السريع: خدمة ← شكل ← عميل مثالي ← بوست + CTA + فكرة التصميم */
+var qpT = window.__t || function (s, v) { s = String(s); if (v) for (var k in v) s = s.split('{' + k + '}').join(v[k]); return s; };   // الترجمة
 (function () {
   'use strict';
 
@@ -33,14 +34,14 @@
 
     async function load() {
       var r = await SpreadAPI.get('quick-post', { action: 'options' });
-      if (!r.ok) { $('qp-err').textContent = r.error || 'تعذّر التحميل'; $('qp-err').hidden = false; return; }
+      if (!r.ok) { $('qp-err').textContent = r.error || qpT('تعذّر التحميل'); $('qp-err').hidden = false; return; }
       st.opts = r;
       r.services.forEach(function (s) { chip($('qp-services'), s.id, s.name); });
       $('qp-no-svc').hidden = r.services.length > 0;
-      Object.keys(r.formats).forEach(function (k) { chip($('qp-formats'), k, r.formats[k][0] + ' ' + r.formats[k][1] + (k === 'carousel' ? ' (' + r.slides + ' صور)' : ''), k === 'post'); });
+      Object.keys(r.formats).forEach(function (k) { chip($('qp-formats'), k, r.formats[k][0] + ' ' + r.formats[k][1] + (k === 'carousel' ? ' (' + qpT('{n} صور', { n: r.slides }) + ')' : ''), k === 'post'); });
       r.personas.forEach(function (p) { chip($('qp-personas'), p.id, p.emoji + ' ' + p.name); });
       $('qp-no-per').hidden = r.personas.length > 0;
-      if (window.SPREAD_CR !== false && r.cost) $('qp-cost').textContent = '· ' + r.cost + ' كريدت';
+      if (window.SPREAD_CR !== false && r.cost) $('qp-cost').textContent = '· ' + qpT('{n} كريدت', { n: r.cost });
       single($('qp-services'), 'service', markPersonas);
       single($('qp-formats'), 'format');
       single($('qp-personas'), 'persona');
@@ -49,11 +50,11 @@
     async function create() {
       if (st.busy) return;
       st.busy = true; $('qp-err').hidden = true;
-      var go = $('qp-go'), t = go.innerHTML; go.disabled = true; go.textContent = 'بيكتب… ثواني';
+      var go = $('qp-go'), t = go.innerHTML; go.disabled = true; go.textContent = qpT('بيكتب… ثواني');
       $('qp-again').disabled = true;
       var r = await SpreadAPI.post('quick-post', 'create', { service_id: st.service, format: st.format, persona_id: st.persona, note: $('qp-note').value.trim() });
       st.busy = false; go.disabled = false; go.innerHTML = t; $('qp-again').disabled = false;
-      if (!r.ok) { $('qp-err').textContent = r.error || 'تعذّر الكتابة'; $('qp-err').hidden = false; return; }
+      if (!r.ok) { $('qp-err').textContent = r.error || qpT('تعذّر الكتابة'); $('qp-err').hidden = false; return; }
       st.last = r;
       $('qp-out-fmt').textContent = (st.opts.formats[r.format] || ['', ''])[1];
       $('qp-hook').textContent = r.hook || '—';
@@ -84,8 +85,8 @@
       var r = st.last; if (!r) return;
       var txt = [r.hook, r.body, r.cta, r.tags].filter(Boolean).join('\n\n');
       (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
-        function () { $('qp-copy').textContent = 'اتنسخ ✓'; setTimeout(function () { $('qp-copy').textContent = 'نسخ'; }, 1500); },
-        function () { alert('انسخ يدويًا'); });
+        function () { $('qp-copy').textContent = qpT('اتنسخ ✓'); setTimeout(function () { $('qp-copy').textContent = qpT('نسخ'); }, 1500); },
+        function () { alert(qpT('انسخ يدويًا')); });
     });
     load();
   }

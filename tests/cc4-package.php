@@ -96,7 +96,7 @@ $login = function (int $u) use ($base): array {
     [, $html] = http('GET', "$base/public/login.php", [], $jar);
     preg_match('/name="csrf" value="([^"]+)"/', $html, $m);
     http('POST', "$base/public/login.php", ['csrf' => $m[1] ?? '', 'email' => $email, 'password' => 'Test12345!'], $jar);
-    [, $dash] = http('GET', "$base/public/dashboard.php", [], $jar);
+    [, $dash] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jar);
     preg_match('/<meta name="csrf-token" content="([^"]+)"/', $dash, $cm);
     return [$jar, $cm[1] ?? ''];
 };

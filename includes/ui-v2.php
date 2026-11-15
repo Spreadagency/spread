@@ -255,7 +255,7 @@ function ui_notifications(int $userId): array
         if ($vr) {
             $n = count($vr);
             $items[] = ['type' => 'action', 'icon' => 'camera', 'tone' => 'ok', 'url' => 'content-history.php?open=' . (int) $vr[0]['id'],
-                        'title' => $n === 1 ? 'الفيديو بتاعك جاهز 🎬' : $n . ' فيديوهات جاهزة 🎬', 'sub' => 'افتحه وأكّد الاستلام'];
+                        'title' => $n === 1 ? 'الفيديو بتاعك جاهز 🎬' : __('{n} فيديوهات جاهزة 🎬', ['n' => $n]), 'sub' => 'افتحه وأكّد الاستلام'];
         }
     } catch (\Throwable $e) { /* قبل ترحيل ⑦-ج */ }
 
@@ -265,8 +265,9 @@ function ui_notifications(int $userId): array
     $low = ($show ? $u['balance'] <= 3 : $u['pct'] >= 85) || ($u['days_left'] !== null && $u['days_left'] <= 7);
     $items[] = [
         'type' => 'credits', 'icon' => 'coin', 'tone' => $low ? 'warn' : 'ok', 'url' => 'credits.php',
-        'title' => $show ? ('باقي لك ' . $u['balance'] . ' كريدت') : ('استخدمت ' . $u['pct'] . '% من باقة الشهر'),
-        'sub' => $u['days_left'] !== null ? (($show ? 'بتنتهي' : 'بتتجدد') . ' بعد ' . $u['days_left'] . ' يوم') : ('استخدمت ' . $u['pct'] . '%'),
+        // الترجمة: نفس الجمل العربي بالحرف — بمتغيرات علشان تتترجم
+        'title' => $show ? __('باقي لك {n} كريدت', ['n' => $u['balance']]) : __('استخدمت {pct}% من باقة الشهر', ['pct' => $u['pct']]),
+        'sub' => $u['days_left'] !== null ? __($show ? 'بتنتهي بعد {d} يوم' : 'بتتجدد بعد {d} يوم', ['d' => $u['days_left']]) : __('استخدمت {pct}%', ['pct' => $u['pct']]),
     ];
 
     // ③ إعلان سريع (آخر إعلان شغال للعميل — بيحترم «لكل العملاء / لباقة معيّنة»)
