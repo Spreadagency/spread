@@ -49,6 +49,24 @@ function campaign_flow_bases(): array
  * نداء AI بحد tokens مخصوص (ai_generate ثابت على 1000 — مش كفاية لمنشور + سكريبت)
  * نفس المسارات: الـ Router لو مفعّل ← المفتاح + الموديل الاحتياطي ← التجريبي لو مسموح
  */
+/**
+ * حملة فاضية (اتفتحت من «حملة جديدة» ولسه مااتلمستش: من غير أساس ولا أفكار) — SQL شرط
+ * بتتخبّى من «حملاتي» والرئيسية، و«حملة جديدة» بتكمّل عليها بدل ما تعمل واحدة تانية (مفيش مسح بيانات).
+ */
+function campaign_blank_sql(string $t = 'campaigns'): string
+{
+    return "({$t}.basis IS NULL AND NOT EXISTS (SELECT 1 FROM campaign_ideas bi WHERE bi.campaign_id = {$t}.id))";
+}
+
+/** اسم حملة جديدة من غير تكرار: «حملة نوفمبر» ← «حملة نوفمبر 2» … */
+function campaign_unique_title(int $uid, string $base, int $exceptId = 0): string
+{
+    $have = array_column(db_all('SELECT title FROM campaigns WHERE user_id = ? AND id <> ? AND (title = ? OR title LIKE ?)', [$uid, $exceptId, $base, $base . ' %']), 'title');
+    if (!in_array($base, $have, true)) return $base;
+    for ($n = 2; $n < 100; $n++) if (!in_array($base . ' ' . $n, $have, true)) return $base . ' ' . $n;
+    return $base . ' ' . date('d/m');
+}
+
 function campaign_ai(string $prompt, int $maxTokens, string $task, array $ctx = []): array
 {
     $r = campaign_ai_call($prompt, $maxTokens, $task, $ctx);
@@ -966,7 +984,9 @@ function campaign_board_payload(array $c, int $uid): array
         'counts'   => campaign_flow_counts((int) $c['id']),
         'bases'    => campaign_flow_bases(),
         'stages'   => campaign_stages(),
-        'health'   => ['pct' => $h['pct'], 'gate' => $h['gate'], 'unlocked' => $h['unlocked']],
+        // fix: كمّل/اعتمد الهوية ← رحلة «ابدأ» (لو شغالة) — الاعتماد منها بيفتح الحملة على طول
+        'health'   => ['pct' => $h['pct'], 'gate' => $h['gate'], 'unlocked' => $h['unlocked'],
+                       'url' => function_exists('onb_start_enabled') && onb_start_enabled() ? 'start.php?again=1' : 'brand-kit.php'],
         'costs'    => [
             'balance' => credits_balance($uid),
             'content' => cost_for('content_generation_cost'),

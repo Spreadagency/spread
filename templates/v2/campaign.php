@@ -25,8 +25,8 @@
         </div>
         <ol class="cf-steps">
             <li v-for="n in stepList()" :key="n" :class="stepCls(n)">
-                <button type="button" @click.stop="go(n)" :disabled="!canGo(n)" :aria-current="c.stage === n ? 'step' : null">
-                    <span class="cf-step-ic" v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span>
+                <button type="button" @click.stop="go(n)" :aria-disabled="!canGo(n) ? 'true' : null" :title="!canGo(n) ? lockReason(n) : null" :aria-current="c.stage === n ? 'step' : null">
+                    <span class="cf-step-ic" v-html="stepDoneN(n) && n !== c.stage ? icons.check : icons[stageKeys[n]]"></span>
                     <span class="cf-step-txt"><b>{{ stepList().indexOf(n) + 1 }}. {{ stages[n].name }}</b><small>{{ stages[n].desc }}</small></span>
                 </button>
             </li>
@@ -63,8 +63,8 @@
         <!-- موبايل: المراحل أفقي -->
         <ol class="cf-hsteps" aria-label="مراحل الحملة">
             <li v-for="n in stepList()" :key="n" :class="stepCls(n)">
-                <button type="button" @click.stop="go(n)" :disabled="!canGo(n)">
-                    <span class="cf-step-ic"><em>{{ stepList().indexOf(n) + 1 }}</em><span v-html="n < c.stage || (n <= c.max_stage && n !== c.stage) ? icons.check : icons[stageKeys[n]]"></span></span>
+                <button type="button" @click.stop="go(n)" :aria-disabled="!canGo(n) ? 'true' : null" :title="!canGo(n) ? lockReason(n) : null">
+                    <span class="cf-step-ic"><em>{{ stepList().indexOf(n) + 1 }}</em><span v-html="stepDoneN(n) && n !== c.stage ? icons.check : icons[stageKeys[n]]"></span></span>
                     <small>{{ stages[n].name }}</small>
                 </button>
             </li>
@@ -72,11 +72,18 @@
 
         <div class="cf-body">
         <!-- قفل الهوية -->
-        <div class="cf-card cf-gate" v-if="c.stage > 1 && !health.unlocked">
-            <b>🔒 لازم هوية البراند تعدّي {{ health.gate }}%</b>
-            <p class="sub">هويتك دلوقتي {{ health.pct }}%. المحتوى والتصميم بيتبنوا على Brand Brain علشان الـ AI يكتب ويصمم بأسلوبك.</p>
+        <div class="cf-card cf-gate" v-if="!health.unlocked">
+            <b>🔒 كمّل هوية براندك علشان تكمّل الحملة</b>
+            <p class="sub">هويتك دلوقتي {{ health.pct }}% — المحتوى والتصميم محتاجين {{ health.gate }}% أو إنك تعتمد هويتك من «ابدأ» (دقيقتين)، علشان الـ AI يكتب ويصمم بأسلوبك.</p>
             <div class="cf-bar"><span :style="{ width: health.pct + '%' }"></span></div>
-            <a :href="base + '/brand-brain.php'" class="cf-btn primary sm">🧬 كمّل هوية البراند</a>
+            <a :href="base + '/' + (health.url || 'brand-kit.php')" class="cf-btn primary sm">🧬 كمّل واعتمد هويتك</a>
+        </div>
+
+        <!-- التصميم محتاج اشتراك (بدل ما يقف من غير ما يقول ليه) -->
+        <div class="cf-card cf-gate" v-if="paywall">
+            <b>🎨 {{ paywall.title || 'التصميم متاح للمشتركين' }}</b>
+            <p class="sub" v-if="paywall.body">{{ paywall.body }}</p>
+            <a :href="paywall.url || (base + '/packages.php')" class="cf-btn primary sm">{{ paywall.cta || 'شوف الباقات' }}</a>
         </div>
 
         <!-- خطة الحملات: الحملة في الباقة (المسودة ← «اعتمد الخطة» ← حدود الحملة) -->
@@ -160,7 +167,8 @@
                             <em v-if="p.fit">مناسب للخدمة</em>
                         </button>
                     </div>
-                    <p class="cf-muted sm" v-else>مفيش عملاء مثاليين لسه — <a :href="base + '/brand-kit.php#bk-personas'">الـ AI يعملهم في ثانية</a>.</p>
+                    <p class="cf-muted sm" v-else>مفيش عملاء مثاليين لسه —
+                        <button type="button" class="cf-btn sm" @click="genPersonas()" :disabled="personasBusy">{{ personasBusy ? 'بنجهّزهم…' : '✨ اعملهم دلوقتي' }}</button></p>
 
                     <!-- صورة الدكتور / الشخصية -->
                     <label class="cf-lbl">🧑‍⚕️ صورة الدكتور / الشخصية <small>(هتظهر في التصميمات)</small></label>
@@ -762,7 +770,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var app = SpreadApp.reactive({
     base: base, c: init.campaign, ideas: init.ideas, brief: init.brief || null, briefOpen: false, counts: init.counts, bases: init.bases, stages: init.stages,
-    health: init.health, costs: init.costs, pub: init.publish, brand: init.brand,
+    health: init.health, costs: init.costs, pub: init.publish, brand: init.brand, paywall: null, personasBusy: false,
     stageKeys: { 1: 'bulb', 2: 'doc', 3: 'star', 4: 'image', 5: 'calendar', 6: 'send' },
     icons: {
       check: svg('<path d="M20 6L9 17l-5-5"/>'),
@@ -951,7 +959,11 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ── الشغل في الخلفية (طابور الشغل) ── */
     async bgStart(action, extra, label) {
       var r = await SpreadAPI.post('campaign-flow', action, Object.assign({ id: this.c.id }, extra || {}));
-      if (!r.ok) return this.notify(r.error, 'danger');
+      if (!r.ok) {
+        if (r.code === 'subscription') this.paywall = r.paywall || { title: r.error, url: this.base + '/packages.php', cta: 'شوف الباقات' };
+        if (r.health) this.health = r.health;
+        return this.notify(r.error || 'مقدرناش نبدأ — جرّب تاني', 'danger');
+      }
       await this.bgFollow(r.job, label, r.count);
     },
     async bgFollow(job, label, count) {
@@ -961,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function () {
       while (job && job.active) {
         if (this.bulk.stop) { await SpreadAPI.post('campaign-flow', 'job_cancel', { id: this.c.id, job_id: job.id }); this.notify('وقفنا — اللي خلص اتحفظ', 'info'); break; }
         var s = await SpreadAPI.post('campaign-flow', 'job_step', { id: this.c.id, job_id: job.id });
-        if (!s.ok) break;
+        if (!s.ok) { this.notify(s.error || 'الشغل وقف — جرّب تاني', 'danger'); break; }
         job = s.job;
         this.bulk.done = Math.round((job.progress || 0) * this.bulk.total / 100);
         if (s.balance !== undefined) this.costs.balance = s.balance;
@@ -971,7 +983,8 @@ document.addEventListener('DOMContentLoaded', function () {
       this.bulk.on = false; this.ai.on = false;
       if (job && !job.active && job.result) {
         var rr = job.result;
-        this.notify(rr.stopped ? 'وقفنا: ' + rr.stopped : 'خلص ✓ ' + rr.ok + ' من ' + rr.total + (rr.failed ? ' · ' + rr.failed + ' ماخلصش' : ''), rr.stopped || rr.failed ? 'warning' : 'success');
+        var why = rr.failed && rr.errors ? Object.keys(rr.errors).map(function (k) { return rr.errors[k]; })[0] : '';
+        this.notify(rr.stopped ? 'وقفنا: ' + rr.stopped : 'خلص ✓ ' + rr.ok + ' من ' + rr.total + (rr.failed ? ' · ' + rr.failed + ' ماخلصش' + (why ? ' — ' + why : '') : ''), rr.stopped || rr.failed ? 'warning' : 'success');
       } else if (job && job.status === 'failed') this.notify(job.error || 'الشغل وقف', 'danger');
       await this.reload();
     },
@@ -982,7 +995,25 @@ document.addEventListener('DOMContentLoaded', function () {
     stepList: function () { return this.writeMode === 'single' && this.c.stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; },
     nextStep: function (s, d) { var l = this.stepList(), k = l.indexOf(s); if (k < 0) return s + d; return l[Math.max(0, Math.min(l.length - 1, k + d))]; },
     canGo: function (n) { return n <= this.c.max_stage + 1 && n >= 1 && !(n > 1 && !this.health.unlocked && n !== this.c.stage); },
-    stepCls: function (n) { return { on: this.c.stage === n, done: n <= this.c.max_stage && n !== this.c.stage, locked: !this.canGo(n) }; },
+    // ليه المرحلة مقفولة؟ (بدل زرار مقفول من غير كلام)
+    lockReason: function (n) {
+      if (n > 1 && !this.health.unlocked) return 'كمّل هوية براندك الأول — هويتك ' + this.health.pct + '% ومحتاجة ' + this.health.gate + '% (أو اعتمدها من «ابدأ»)';
+      if (n > this.c.max_stage + 1) { var l = this.stepList(), k = l.indexOf(this.c.max_stage + 1); return 'خلّص مرحلة «' + ((this.stages[l[k] || this.c.max_stage + 1] || {}).name || '') + '» الأول'; }
+      return '';
+    },
+    stepCls: function (n) { return { on: this.c.stage === n, done: this.stepDoneN(n) && n !== this.c.stage, locked: !this.canGo(n) }; },
+    // ✓ = المرحلة خلصت فعلًا (مش «عدّينا عليها»): كل المختار اتكتب · اتصمم (كل شرايح الكاروسيل) · اتجدول · اتنشر
+    stepDoneN: function (n) {
+      var q = this.counts || {}, self = this, sel = q.selected || 0;
+      if (this.c.status === 'completed') return true;
+      if (n === 1) return sel > 0;
+      if (n === 2) return sel > 0 && q.posts >= sel;
+      if (n === 3) return !!this.c.eval_skipped || (q.posts > 0 && q.evaluated >= q.posts);
+      if (n === 4) { var d = this.designable(); return sel > 0 && (d.length ? d.every(function (i) { return self.designDone(i); }) : q.designed >= sel - (q.scripts || 0)); }
+      if (n === 5) { var p = this.plannable(); return p.length > 0 && p.every(function (i) { return !!i.plan; }); }
+      if (n === 6) return sel > 0 && q.published >= sel;
+      return false;
+    },
     stageDone: function (k) {
       var q = this.counts;
       return [0, q.selected > 0, q.posts > 0 && q.posts >= q.selected, q.evaluated > 0 || this.c.eval_skipped, q.designed > 0, q.planned > 0][k];
@@ -1009,7 +1040,13 @@ document.addEventListener('DOMContentLoaded', function () {
       return { title: 'كل المراحل محفوظة', sub: 'آخر مرحلة', cta: '' };
     },
     async go(n) {
-      if (n < 1 || n > 6 || n === this.c.stage || this.bulk.on || !this.canGo(n)) return;
+      if (n < 1 || n > 6 || n === this.c.stage) return;
+      if (this.bulk.on) return this.notify('استنى لحد ما الشغل اللي شغال يخلص', 'warning');
+      if (!this.canGo(n)) {
+        this.notify(this.lockReason(n) || 'المرحلة دي لسه مقفولة', 'warning');
+        if (!this.health.unlocked) { var g = document.querySelector('.cf-gate'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        return;
+      }
       await saver.flush();
       var r = await SpreadAPI.post('campaigns', 'stage', { id: this.c.id, stage: n });
       if (!r.ok) { if (r.health) this.health = r.health; return this.notify(r.error, 'danger'); }
@@ -1059,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', function () {
       for (var k = 0; k < list.length; k++) {
         if (b.stop) break;
         var r = await fn(list[k], k);
-        if (r && r.ok) ok++; else { fail++; lastErr = (r && r.error) || lastErr; if (r && (r.code === 'credits' || r.code === 'quota' || r.code === 'subscription' || r.code === 'rate_limit' || r.code === 'brand_gate' || r.code === 'state')) break; }
+        if (r && r.ok) ok++; else { fail++; lastErr = (r && r.error) || lastErr; if (r && r.code === 'subscription') this.paywall = r.paywall || { title: r.error, url: this.base + '/packages.php', cta: 'شوف الباقات' }; if (r && (r.code === 'credits' || r.code === 'quota' || r.code === 'subscription' || r.code === 'rate_limit' || r.code === 'brand_gate' || r.code === 'state')) break; }
         b.done = k + 1;
       }
       clearInterval(t);
@@ -1087,6 +1124,20 @@ document.addEventListener('DOMContentLoaded', function () {
         var self = this;
         this.opts.personas.forEach(function (p) { if ((p.services || []).indexOf(id) > -1 && self.setup.personas.length < 6) self.setup.personas.push(p.id); });
       }
+    },
+    // العملاء المثاليين من جوه الحملة (بدل ما نوديه صفحة تانية) — نفس توليد الهوية
+    async genPersonas() {
+      this.personasBusy = true;
+      var r = await SpreadAPI.post('brand-kit', 'personas_generate', {});
+      this.personasBusy = false;
+      if (!r.ok) return this.notify(r.error || 'معرفناش نجهّزهم — جرّب تاني', 'danger');
+      var self = this;
+      this.opts.personas = ((r.state && r.state.personas) || []).filter(function (p) { return p.is_active === undefined || +p.is_active === 1; }).map(function (p) {
+        var pains = Array.isArray(p.pains) ? p.pains : [];
+        return { id: +p.id, name: p.name, emoji: p.emoji || '🙂', hint: [[p.age, p.job].filter(Boolean).join('، '), pains[0] || ''].filter(Boolean).join(' · ').slice(0, 90), services: (p.service_ids || []).map(Number) };
+      });
+      if (r.balance !== undefined) this.costs.balance = r.balance;
+      this.notify('جهّزنا ' + this.opts.personas.length + ' عملاء مثاليين ✓');
     },
     personaList: function () {
       var sv = this.setup.services;

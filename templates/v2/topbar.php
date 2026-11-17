@@ -80,7 +80,7 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
             if ($__av !== '' && !preg_match('#^https?://#i', $__av)) { require_once __DIR__ . '/../../includes/uploader.php'; $__av = (string) upload_url($__av); }
             ?>
             <span class="v2-avatar"><?php if ($__av !== ''): ?><img src="<?= e($__av) ?>" alt="" referrerpolicy="no-referrer"><?php else: ?><?= e(function_exists('initials') ? initials($__name) : mb_substr($__name, 0, 1)) ?><?php endif; ?></span>
-            <span class="v2-me-txt"><b><?= e(mb_substr($__first, 0, 14)) ?></b><small><?= e(($__notif['usage']['show'] ?? true) ? __('{n} كريدت', ['n' => (int) $__notif['usage']['balance']]) : __('استخدمت {pct}%', ['pct' => (int) $__notif['usage']['pct']])) ?></small></span>
+            <span class="v2-me-txt"><b><?= e(mb_substr($__first, 0, 14)) ?></b><small><?= e($__notif['usage']['headline']['short'] ?? (($__notif['usage']['show'] ?? true) ? __('{n} كريدت', ['n' => (int) $__notif['usage']['balance']]) : __('استخدمت {pct}%', ['pct' => (int) $__notif['usage']['pct']]))) ?></small></span>
         </button>
         <?php
         // 10: الإعدادات خرجت من الشريط السفلي ← قائمة الحساب

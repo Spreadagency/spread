@@ -189,7 +189,7 @@ function api_boot(bool $requireAuth = true, bool $keepSession = false): array
 function api_get_allowed(string $endpoint, string $action): bool
 {
     static $read = [
-        'brand-kit'     => ['get', 'versions'],
+        'brand-kit'     => ['get', 'versions', 'post_chips'],   // post_chips: اقتراحات الملاحظات في صفحة المنشور (قراءة بس)
         'brand'         => ['get', 'overview', 'insp_list'],
         'campaign-flow' => ['board'],
         'campaigns'     => ['list', 'get'],

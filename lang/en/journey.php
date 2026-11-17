@@ -108,4 +108,16 @@ return [
     'اشترك وشيل العلامة المائية ←' => 'Subscribe and remove the watermark →',
     'التجربة المجانية خلصت — محتواك محفوظ وتقدر تشوفه. اشترك علشان تكمّل إنتاج محتوى وتصميمات.' => 'Your free trial has ended — your content is saved and you can view it. Subscribe to keep creating content and designs.',
     'شوف الباقات ←' => 'See plans →',
+    // المرحلة 0: مراحل الحملة الموحّدة
+    '{n} من {t}' => '{n} of {t}',
+    'الأفكار' => 'Ideas',
+    'المحتوى' => 'Content',
+    'التقييم' => 'Review',
+    'الجدولة' => 'Scheduling',
+    // الرقم الواحد للاستهلاك (usage_headline)
+    'فاضلك {n} تصميم لحد {d}' => '{n} designs left until {d}',
+    'فاضل {n} تصميم' => '{n} designs left',
+    'باقي لك {n} كريدت لحد {d}' => '{n} credits left until {d}',
+    'استخدمت {pct}% من باقتك — لحد {d}' => 'You used {pct}% of your plan — until {d}',
+    'تصميمات الباقة' => 'Plan designs',
 ];

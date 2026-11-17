@@ -30,7 +30,7 @@ html:has(body.cf-page) { background: #F1F6FB; }
 .cf-steps li.locked::after { background: var(--line); opacity: 1; }
 .cf-steps button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 10px; border: 0; background: transparent; border-radius: 18px;
                    cursor: pointer; text-align: right; font-family: inherit; color: inherit; transition: background var(--t-fast), box-shadow var(--t-fast); }
-.cf-steps button:disabled { cursor: not-allowed; opacity: .55; }
+.cf-steps button:disabled, .cf-steps button[aria-disabled="true"] { cursor: not-allowed; opacity: .55; }
 .cf-steps li.on button { background: #fff; box-shadow: 0 8px 22px rgba(12, 70, 130, .08); }
 .cf-step-ic { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 1.5px solid #CFE6F5; color: var(--primary-deep); }
 .cf-steps li.done .cf-step-ic { background: #E6F8F4; border-color: #B7EBDF; color: #0A8F7A; }
@@ -352,7 +352,7 @@ body.ui-v2 a.cf-pill { color: #27324A; }
     .cf-hsteps li { flex: 1; min-width: 46px; position: relative; }
     .cf-hsteps li:not(:last-child)::after { content: ""; position: absolute; top: 18px; left: -6px; width: 10px; height: 2px; background: #13B5C1; opacity: .5; }
     .cf-hsteps button { width: 100%; border: 0; background: none; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; font: inherit; cursor: pointer; color: inherit; }
-    .cf-hsteps button:disabled { opacity: .5; }
+    .cf-hsteps button:disabled, .cf-hsteps button[aria-disabled="true"] { opacity: .5; }
     .cf-hsteps .cf-step-ic { width: 36px; height: 36px; position: relative; }
     .cf-hsteps .cf-step-ic em { position: absolute; top: -6px; right: -4px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.12);
                                 font-style: normal; font-size: 9.5px; font-weight: 800; display: grid; place-items: center; color: var(--ink); }

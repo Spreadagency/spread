@@ -270,6 +270,32 @@ function plan_gate(int $uid, string $unit, int $n = 1): ?string
     return 'خلّصت «' . $lbl . '» في باقة الشهر — رقّي باقتك أو كلمنا واتساب، والباقة بتتجدد يوم ' . plan_usage($uid)['ends_label'] . '.';
 }
 
+/**
+ * الرقم الواحد اللي العميل بيشوفه في كل مكان (الهيدر · الجرس · التحليلات · باقتي · الرئيسية · الاستوديو)
+ * من plan_usage بس — نفس الدورة ونفس التاريخ:
+ *   فيه حصة تصميمات ← «فاضلك 9 تصميمات لحد 1 ديسمبر» · غير كده ← الكريدت (رقم أو نسبة حسب الإعداد)
+ * @return array{text:string, short:string, pct:int, ends:string, days_left:int, designs:?array}
+ */
+function usage_headline(int $uid): array
+{
+    $u = plan_usage($uid);
+    $des = null;
+    foreach ($u['units'] as $x) if ($x['key'] === 'designs') $des = $x;
+    // التاريخ بلغة الواجهة (ends_label بالعربي دايمًا)
+    $ends = function_exists('i18n_is_en') && i18n_is_en() ? date('j M Y', strtotime((string) $u['plan']['ends'])) : (string) $u['ends_label'];
+    $tr = fn($s, $v = []) => function_exists('__') ? __($s, $v) : strtr($s, array_combine(array_map(fn($k) => '{' . $k . '}', array_keys($v)), array_values($v)) ?: []);
+    if ($des && !$des['open'] && $des['limit'] > 0) {
+        $left = (int) $des['left'];
+        return ['text' => $tr('فاضلك {n} تصميم لحد {d}', ['n' => $left, 'd' => $ends]), 'short' => $tr('فاضل {n} تصميم', ['n' => $left]),
+                'pct' => (int) $des['pct'], 'ends' => $ends, 'days_left' => (int) $u['days_left'], 'designs' => ['used' => (int) $des['used'], 'limit' => (int) $des['limit'], 'left' => $left]];
+    }
+    $show = credits_show_numbers();
+    $c = $u['credits'];
+    return ['text' => $show ? $tr('باقي لك {n} كريدت لحد {d}', ['n' => (int) $c['balance'], 'd' => $ends]) : $tr('استخدمت {pct}% من باقتك — لحد {d}', ['pct' => (int) $c['pct'], 'd' => $ends]),
+            'short' => $show ? $tr('{n} كريدت', ['n' => (int) $c['balance']]) : $tr('استخدمت {pct}%', ['pct' => (int) $c['pct']]),
+            'pct' => (int) $c['pct'], 'ends' => $ends, 'days_left' => (int) $u['days_left'], 'designs' => $des ? ['used' => (int) $des['used'], 'limit' => 0, 'left' => null] : null];
+}
+
 /** رسالة «مش كفاية» حسب طريقة العرض */
 function credits_short_msg(int $need = 0, string $what = ''): string
 {

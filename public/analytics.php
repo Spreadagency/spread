@@ -68,12 +68,13 @@ include __DIR__ . '/../templates/header.php';
                     <svg viewBox="0 0 120 120" aria-hidden="true">
                         <circle cx="60" cy="60" r="52" class="an-ring-bg"/>
                         <circle cx="60" cy="60" r="52" class="an-ring-fg" stroke-dasharray="326.7"
-                                stroke-dashoffset="<?= round(326.7 - 326.7 * $usage['pct'] / 100, 1) ?>"/>
+                                stroke-dashoffset="<?= round(326.7 - 326.7 * (int) ($usage['headline']['pct'] ?? $usage['pct']) / 100, 1) ?>"/>
                     </svg>
-                    <div class="an-ring-mid"><b><?= $usage['pct'] ?>%</b><span>Usage</span></div>
+                    <div class="an-ring-mid"><b><?= (int) ($usage['headline']['pct'] ?? $usage['pct']) ?>%</b><span>استخدمت</span></div>
                 </div>
                 <div class="an-usage-txt">
-                    <h2>استخدام الكريدت</h2>
+                    <h2>استخدام الباقة</h2>
+                    <?php if (!empty($usage['headline'])): ?><p><b><?= e($usage['headline']['text']) ?></b></p><?php endif; ?>
                     <p>استخدمت <b><?= $usage['used'] ?></b> من <b><?= $usage['total'] ?></b> كريدت من آخر شحن</p>
                     <p class="sub">
                         باقي <b><?= $usage['balance'] ?></b> كريدت

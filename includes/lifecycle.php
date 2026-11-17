@@ -170,6 +170,45 @@ function campaign_progress(array $c, ?array $summary = null): int
     return (int) round($stagePct * .5 + $summary['pct'] * .5);
 }
 
+/**
+ * مراحل الحملة الحقيقية (مصدر واحد للرئيسية و«حملاتي» وصفحة الحملة):
+ *  - الخطوات: من غير «التقييم» لما الكتابة والتقييم في طلب واحد (إلا لو الحملة واقفة عليها)
+ *  - done = المرحلة خلصت فعلًا من الأرقام (مش «العميل عدّى عليها»)
+ *  - progress = نسبة المراحل اللي خلصت
+ */
+function campaign_steps(array $c, ?array $f = null): array
+{
+    $stages = campaign_stages();
+    $stage = max(1, min(6, (int) ($c['stage'] ?? 1)));
+    if (!function_exists('campaign_write_mode') && is_file(__DIR__ . '/campaign-quality.php')) require_once __DIR__ . '/campaign-quality.php';
+    $single = function_exists('campaign_write_mode') ? campaign_write_mode() === 'single' : true;
+    $list = $single && $stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
+    $f = $f ?? (function_exists('campaign_flow_counts') ? campaign_flow_counts((int) $c['id']) : []);
+    $sel = (int) ($f['selected'] ?? 0);
+    $needDesign = max(0, $sel - (int) ($f['scripts'] ?? 0));   // الفيديو سكريبت مش تصميم
+    $all = ($c['status'] ?? '') === 'completed';
+    $done = [
+        1 => $sel > 0,
+        2 => $sel > 0 && (int) ($f['posts'] ?? 0) >= $sel,
+        3 => !empty($c['eval_skipped']) || ((int) ($f['posts'] ?? 0) > 0 && (int) ($f['evaluated'] ?? 0) >= (int) ($f['posts'] ?? 0)),
+        4 => $sel > 0 && ($needDesign === 0 || (int) ($f['designed'] ?? 0) >= $needDesign),
+        5 => $sel > 0 && (int) ($f['planned'] ?? 0) >= $sel,
+        6 => $sel > 0 && (int) ($f['published'] ?? 0) >= $sel,
+    ];
+    $steps = [];
+    $n = 0;
+    foreach ($list as $k) {
+        $d = $all || $done[$k];
+        if ($d) $n++;
+        $steps[] = ['n' => $k, 'name' => $stages[$k]['name'], 'done' => $d];
+    }
+    $next = null;
+    foreach ($steps as $st) if (!$st['done']) { $next = $st; break; }
+    $pos = array_search($stage, $list, true);
+    return ['steps' => $steps, 'total' => count($list), 'pos' => $pos === false ? 1 : $pos + 1, 'done' => $n,
+            'next' => $next ? $next['name'] : null, 'progress' => $all ? 100 : (int) round($n / max(1, count($list)) * 100)];
+}
+
 /** تحويل صف حملة لشكل الـ API */
 function campaign_to_api(array $c, bool $withSummary = true): array
 {
@@ -189,7 +228,8 @@ function campaign_to_api(array $c, bool $withSummary = true): array
         'stage_name'  => $stages[$stage]['name'],
         'status'      => $c['status'],
         'revision'    => (int) $c['revision'],
-        'progress'    => campaign_progress($c, $sum),
+        'progress'    => ($__st = function_exists('campaign_flow_counts') ? campaign_steps($c) : null) ? $__st['progress'] : campaign_progress($c, $sum),
+        'steps'       => $__st,   // المراحل الحقيقية (✓ = خلصت فعلًا) — نفس الرقم في كل الصفحات
         'contents'    => $sum,
         // ⑥-ب: أرقام الأفكار ← المحتوى ← التصميم ← النشر (للقايمة)
         'flow'        => function_exists('campaign_flow_counts') ? campaign_flow_counts((int) $c['id']) : null,

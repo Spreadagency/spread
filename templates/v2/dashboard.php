@@ -32,10 +32,10 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
 
     <!-- ═══ Brand Brain (موبايل بس — الديسكتوب في السايدبار) · بيختفي لما الهوية توصل 90% (متاحة من «الهوية») ═══ -->
     <?php if (!empty($d['showBrand'])): ?>
-    <a href="<?= url('brand-brain.php') ?>" class="card dh-brand" style="grid-area:brand">
+    <a href="<?= url($d['brandUrl'] ?? 'brand-kit.php') ?>" class="card dh-brand" style="grid-area:brand">
         <span class="dh-brand-ic"><?= ui_icon('brain', 20) ?></span>
         <span class="dh-brand-txt">
-            <span class="dh-brand-top"><b>Brand Brain</b><b><?= (int) $h['pct'] ?>%</b></span>
+            <span class="dh-brand-top"><b><?= e(__('هوية البراند')) ?></b><b><?= (int) $h['pct'] ?>%</b></span>
             <span class="bar"><span class="bar-fill" style="width:<?= (int) $h['pct'] ?>%"></span></span>
             <small><?= e(__(!empty($h['unlocked']) ? 'هويتك جاهزة — المحتوى بيطلع بأسلوبك' : 'كمّل هويتك علشان المحتوى يطلع بأسلوبك')) ?></small>
         </span>
@@ -84,7 +84,7 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
                 <span class="dh-camp-thumb"><?= ui_icon('calendar', 22) ?></span>
                 <div>
                     <b class="dh-camp-title"><?= e($c['title']) ?></b>
-                    <small><?= e(__('وصلت لمرحلة')) ?> <?= e($c['stage_name']) ?> · <?= (int) $c['stage'] ?> <?= e(__('من 6')) ?></small>
+                    <small><?= e(__('وصلت لمرحلة')) ?> <?= e(__($c['stage_name'])) ?> · <?= e(__('{n} من {t}', ['n' => (int) ($c['steps']['pos'] ?? $c['stage']), 't' => (int) ($c['steps']['total'] ?? 6)])) ?></small>
                 </div>
             </div>
             <div class="dh-j-row"><span class="sub"><?= e(__('التقدم')) ?></span><b><?= (int) $c['progress'] ?><?= e(__('% مكتملة')) ?></b></div>
@@ -170,7 +170,7 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         <div class="dh-stats">
             <a href="<?= url('analytics.php') ?>"><span class="dh-st-ic s1"><?= ui_icon('send', 18) ?></span><b><?= $d['month']['posts'] ?></b><small><?= e(__('منشور هذا الشهر')) ?></small></a>
             <a href="<?= url('analytics.php') ?>"><span class="dh-st-ic s2"><?= ui_icon('chart', 18) ?></span><b><?= (int) $d['month']['usage']['pct'] ?>%</b><small>Usage</small></a>
-            <a href="<?= url('analytics.php') ?>"><span class="dh-st-ic s3"><?= ui_icon('image', 18) ?></span><b><?= $d['month']['designs'] ?></b><small><?= e(__('تصميمات الشهر')) ?></small></a>
+            <a href="<?= url('analytics.php') ?>"><span class="dh-st-ic s3"><?= ui_icon('image', 18) ?></span><b><?= $d['month']['designs'] ?></b><small><?= e(__('تصميمات الباقة')) ?></small></a>
             <a href="<?= url('campaigns.php') ?>"><span class="dh-st-ic s4"><?= ui_icon('megaphone', 18) ?></span><b><?= $d['month']['active'] ?></b><small><?= e(__('حملات نشطة')) ?></small></a>
         </div>
     </section>

@@ -85,7 +85,7 @@ function dashboard_v2_data(array $user): array
     $campaign = null;
     if ($campOn && function_exists('campaign_to_api')) {
         $campaign = dash_safe(function () use ($uid) {
-            foreach (db_all('SELECT * FROM campaigns WHERE user_id = ? AND status = "active" ORDER BY updated_at DESC LIMIT 5', [$uid]) as $c) {
+            foreach (db_all('SELECT * FROM campaigns WHERE user_id = ? AND status = "active"' . (function_exists('campaign_blank_sql') ? ' AND NOT ' . campaign_blank_sql() : '') . ' ORDER BY updated_at DESC LIMIT 5', [$uid]) as $c) {
                 $a = campaign_to_api($c);
                 if ($a['progress'] < 100) return $a;
             }
@@ -101,6 +101,8 @@ function dashboard_v2_data(array $user): array
             (SELECT COUNT(*) FROM campaigns WHERE user_id = ? AND status = "active") active',
         [$uid, $monthStart, $uid, $monthStart, $uid]) ?: [], []);
     $usage = ui_credits_usage($uid);
+    // التصميمات = نفس رقم «باقتي» (دورة الباقة · كل أماكن التصميم) بدل الشهر من جدول واحد
+    foreach (($usage['units'] ?? []) as $__un) if ($__un['key'] === 'designs') $month['designs'] = (int) $__un['used'];
 
     // ─── أحدث المحتويات ───
     $recent = dash_safe(fn() => db_all(
@@ -117,7 +119,9 @@ function dashboard_v2_data(array $user): array
         'first'    => $first,
         'business' => (string) ($brand['business_name'] ?? ''),
         'health'   => $health,
-        'showBrand' => (int) ($health['pct'] ?? 0) < $bHide,
+        // كارت الهوية (موبايل): بس لما الهوية محتاجة تكمل — نفس قاعدة السايدبار (من غير «جاهزة ✓» جنب «كمّل هويتك»)
+        'showBrand' => empty($health['unlocked']) && (int) ($health['pct'] ?? 0) < $bHide,
+        'brandUrl' => function_exists('onb_start_enabled') && onb_start_enabled() && function_exists('ij_done') && !ij_done($uid) ? 'start.php' : 'brand-kit.php',
         'actions'  => $actions,
         'actionsTotal' => array_sum(array_column($actions, 'n')),
         'journey'  => ['steps' => $journey, 'done' => $jDone, 'total' => count($journey),

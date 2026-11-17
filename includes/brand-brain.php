@@ -87,7 +87,8 @@ function brand_health(?array $brand): array
     if (!empty($brand['user_id']) && brand_kit_on()) {
         $c = bk_completeness((int) $brand['user_id']);
         $gate = brand_gate_pct();
-        return ['pct' => $c['pct'], 'missing' => $c['missing'], 'filled' => $c['filled'], 'gate' => $gate, 'unlocked' => $gate === 0 || $c['pct'] >= $gate];
+        return ['pct' => $c['pct'], 'missing' => $c['missing'], 'filled' => $c['filled'], 'gate' => $gate, 'approved' => !empty($brand['brand_approved_at']),
+                'unlocked' => $gate === 0 || $c['pct'] >= $gate || !empty($brand['brand_approved_at'])];
     }
     $pct = 0;
     $missing = [];
@@ -116,7 +117,9 @@ function brand_health(?array $brand): array
     usort($missing, fn($a, $b) => $b['weight'] <=> $a['weight']);
     $gate = brand_gate_pct();
     $pct = min(100, $pct);
-    return ['pct' => $pct, 'missing' => $missing, 'filled' => $filled, 'gate' => $gate, 'unlocked' => $gate === 0 || $pct >= $gate];
+    // الهوية اتعتمدت (من رحلة «ابدأ» أو زرار «اعتمد») ← الحملات والمحتوى مفتوحين حتى لو النسبة أقل من الحد
+    return ['pct' => $pct, 'missing' => $missing, 'filled' => $filled, 'gate' => $gate, 'approved' => !empty($brand['brand_approved_at']),
+            'unlocked' => $gate === 0 || $pct >= $gate || !empty($brand['brand_approved_at'])];
 }
 
 /** مركز الهوية مفعّل؟ (بيحمّل brand-kit.php لو موجود) */

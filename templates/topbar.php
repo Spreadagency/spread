@@ -27,7 +27,7 @@ try { $__unread = (int) (db_one('SELECT COUNT(*) n FROM user_notifications WHERE
 
     <div class="topbar-right">
         <a href="<?= url(get_setting('plan_page_unified', '1') === '1' ? 'my-plan.php?tab=balance' : 'credits.php') ?>" class="chip chip-primary" style="padding:8px 14px">
-            <span class="cr">◇ <?= $balance ?> <?= e(__('كريدت')) ?></span><span class="cr-alt"><?= e(__('◔ استخدمت')) ?> <?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
+            <span class="cr">◇ <?= $balance ?> <?= e(__('كريدت')) ?></span><span class="cr-alt">◔ <?= e(function_exists('usage_headline') ? usage_headline((int) (current_user()['id'] ?? 0))['short'] : '') ?></span>
         </a>
         <span data-inbox data-dot="v1-dot" data-badge="<?= $__unread ?>" data-unread="<?= $__unread ?>">
             <?php if (!function_exists('get_setting') || get_setting('issues_enabled', '1') === '1'): ?><button type="button" class="icon-btn" data-report title="<?= e(__('بلّغ عن مشكلة')) ?>" aria-label="<?= e(__('بلّغ عن مشكلة')) ?>">⚑</button><?php endif; ?>

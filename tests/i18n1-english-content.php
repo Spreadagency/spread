@@ -127,7 +127,7 @@ try {
     [, $h] = http('GET', "$base/public/login.php", [], $jar);
     http('POST', "$base/public/login.php", ['csrf' => csrf_of($h), 'email' => "i18n1-$tag@test.local", 'password' => 'Test12345!'], $jar);
     [$c, $page] = http('GET', "$base/public/create-content.php", [], $jar);
-    t('صفحة إنشاء المحتوى فيها English ومختار تلقائي من الهوية', $c === 200 && str_contains($page, 'data-val="english" class="on"') && str_contains($page, 'name="dialect" value="english"'));
+    t('صفحة إنشاء المحتوى فيها English ومختار تلقائي من الهوية', $c === 200 && str_contains($page, 'data-val="english" class="on"') && str_contains($page, 'name="dialect" value="english"'), $c . ' ' . (preg_match('/data-val="english"[^>]*>/', $page, $mm) ? $mm[0] : 'no-english-chip'));
     $log = __DIR__ . '/../storage/logs/mock-ai.jsonl';
     $before = is_file($log) ? filesize($log) : 0;
     [$c, $b] = http('POST', "$base/public/ajax/generate-content.php", ['csrf' => csrf_of($page), 'content_type' => 'introductory', 'platform' => 'both',

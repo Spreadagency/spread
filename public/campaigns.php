@@ -25,9 +25,10 @@ if (!ui_v2_enabled()) {
 }
 
 // البيانات الأولية بتترسم مع الصفحة → بتظهر فورًا من غير انتظار أول طلب
-$rows = db_all('SELECT * FROM campaigns WHERE user_id = ? AND status = "active" ORDER BY updated_at DESC LIMIT 100', [$user['id']]);
+// الحملات الفاضية (اتفتحت ولسه مااتلمستش) مابتظهرش — «حملة جديدة» بتكمّل عليها
+$rows = db_all('SELECT * FROM campaigns WHERE user_id = ? AND status = "active" AND NOT ' . campaign_blank_sql() . ' ORDER BY updated_at DESC LIMIT 100', [$user['id']]);
 $counts = ['active' => 0, 'completed' => 0, 'archived' => 0];
-foreach (db_all('SELECT status, COUNT(*) n FROM campaigns WHERE user_id = ? GROUP BY status', [$user['id']]) as $r) {
+foreach (db_all('SELECT status, COUNT(*) n FROM campaigns WHERE user_id = ? AND NOT ' . campaign_blank_sql() . ' GROUP BY status', [$user['id']]) as $r) {
     $counts[$r['status']] = (int) $r['n'];
 }
 $initial = [
@@ -124,7 +125,7 @@ include __DIR__ . '/../templates/header.php';
                         <b>{{ c.progress }}% مكتملة</b>
                     </div>
                     <div class="cp-steps">
-                        <span v-for="n in [1,2,3,4,5,6]" :key="n" :class="stepOf(c, n)">
+                        <span v-for="n in stepNums(c)" :key="n" :class="stepOf(c, n)">
                             <i>{{ stepOf(c, n) === 'done' ? '✓' : (stepOf(c, n) === 'now' ? '◐' : '○') }}</i>{{ stages[n].name }}</span>
                     </div>
 
@@ -136,7 +137,7 @@ include __DIR__ . '/../templates/header.php';
                     </div>
 
                     <div class="cp-foot">
-                        <b class="cp-next">{{ c.status === 'completed' ? 'الحملة خلصت 🎉' : 'المرحلة الجاية: ' + (stages[Math.min(6, c.max_stage + (c.max_stage < 6 ? 1 : 0))] || {}).name }}</b>
+                        <b class="cp-next">{{ c.status === 'completed' || (c.steps && !c.steps.next) ? 'الحملة خلصت 🎉' : 'المرحلة الجاية: ' + (c.steps ? c.steps.next : (stages[Math.min(6, c.max_stage + (c.max_stage < 6 ? 1 : 0))] || {}).name) }}</b>
                         <a :href="base + '/campaign.php?id=' + c.id" class="btn soft sm">
                             {{ c.status === 'active' ? 'متابعة ←' : 'فتح ←' }}
                         </a>
@@ -176,7 +177,14 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!c.flow || (!c.flow.ideas && !c.contents.total)) return { label: 'مسودة', cls: 'grey' };
       return { label: 'قيد التنفيذ', cls: 'blue' };
     },
+    // المراحل من السيرفر (campaign_steps): ✓ = خلصت فعلًا — مش «عدّى عليها»
+    stepNums: function (c) { return c.steps ? c.steps.steps.map(function (s) { return s.n; }) : [1, 2, 3, 4, 5, 6]; },
     stepOf: function (c, n) {
+      if (c.steps) {
+        var st = c.steps.steps.find(function (s) { return s.n === n; });
+        if (st && st.done) return 'done';
+        return n === c.stage ? 'now' : 'todo';
+      }
       if (c.status === 'completed' || n < c.max_stage || (n === c.max_stage && n !== c.stage)) return 'done';
       return n === c.stage ? 'now' : 'todo';
     },

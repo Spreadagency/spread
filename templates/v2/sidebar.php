@@ -38,9 +38,11 @@ try {
         <?php foreach (ui_sections() as $key => [$label, $icon, $href, $keys, $subs]):
             // القسم بيختفي لو الأدمن مخبّي كل صفحاته
             if ($subs && !ui_subtabs($key)) continue;
-            // رحلة الهوية: بتظهر بس لحد ما العميل يعتمد هويته منها
+            // رحلة الهوية: بتظهر بس لحد ما العميل يعتمد هويته منها — ولو الهوية جاهزة أصلًا مابتظهرش («جاهزة ✓» و«كمّل هويتك» مع بعض = تناقض)
             if ($key === 'journey') {
                 if (!function_exists('onb_start_enabled') || !onb_start_enabled() || ij_done((int) $user['id'])) continue;
+                require_once __DIR__ . '/../../includes/brand-brain.php';
+                if (!empty(brand_health(brand_for_user((int) $user['id']))['unlocked'])) continue;
             }
             if ($key === 'research' && !ui_research_on()) continue;
             // الحملات مقفولة من الأدمن: القسم يفضل بـ«خطة المحتوى» القديمة بس
@@ -65,16 +67,19 @@ try {
         if (!empty($user['id']) && is_file(__DIR__ . '/../../includes/brand-brain.php')):
             require_once __DIR__ . '/../../includes/brand-brain.php';
             $__bh = brand_health(brand_for_user((int) $user['id']));
+            // كارت الهوية بيظهر بس لما الهوية محتاجة تكمل (لما تكون جاهزة كان لينك مكرر لـ «هوية البراند» اللي في القايمة)
+            $__bhUrl = function_exists('onb_start_enabled') && onb_start_enabled() && function_exists('ij_done') && !ij_done((int) $user['id']) ? 'start.php' : 'brand-kit.php';
+            if (empty($__bh['unlocked'])):
         ?>
-        <a href="<?= url('brand-brain.php') ?>" class="sb-brand v2-brand">
+        <a href="<?= url($__bhUrl) ?>" class="sb-brand v2-brand">
             <span class="v2-brand-ic"><?= ui_icon('brain', 18) ?></span>
             <span class="v2-brand-txt">
-                <span class="sb-brand-top"><b>Brand Brain</b><b><?= (int) $__bh['pct'] ?>%</b></span>
+                <span class="sb-brand-top"><b><?= e(__('هوية البراند')) ?></b><b><?= (int) $__bh['pct'] ?>%</b></span>
                 <span class="bar"><span class="bar-fill" style="width:<?= (int) $__bh['pct'] ?>%"></span></span>
-                <span class="sb-brand-msg"><?= e(__($__bh['unlocked'] ? 'الهوية جاهزة ✓' : 'كمّل هويتك ←')) ?></span>
+                <span class="sb-brand-msg"><?= e(__('كمّل هويتك ←')) ?></span>
             </span>
         </a>
-        <?php endif; ?>
+        <?php endif; endif; ?>
         <a href="<?= url('logout.php') ?>" class="v2-logout"><?= ui_icon('logout', 18) ?> <?= e(__('تسجيل الخروج')) ?></a>
     </div>
 </aside>

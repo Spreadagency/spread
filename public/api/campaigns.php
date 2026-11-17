@@ -25,7 +25,7 @@ switch ($action) {
     case 'list':
         $status = in_array($_GET['status'] ?? '', ['active', 'completed', 'archived'], true) ? $_GET['status'] : 'active';
         $q = api_str('q', 100);
-        $w = ['user_id = ?', 'status = ?'];
+        $w = ['user_id = ?', 'status = ?', 'NOT ' . campaign_blank_sql()];   // الحملات الفاضية مابتظهرش
         $p = [$uid, $status];
         if ($q !== '') {
             $w[] = '(title LIKE ? OR topic LIKE ?)';
@@ -35,7 +35,7 @@ switch ($action) {
         $rows = db_all('SELECT * FROM campaigns WHERE ' . implode(' AND ', $w) . ' ORDER BY updated_at DESC LIMIT 100', $p);
 
         $counts = ['active' => 0, 'completed' => 0, 'archived' => 0];
-        foreach (db_all('SELECT status, COUNT(*) n FROM campaigns WHERE user_id = ? GROUP BY status', [$uid]) as $r) {
+        foreach (db_all('SELECT status, COUNT(*) n FROM campaigns WHERE user_id = ? AND NOT ' . campaign_blank_sql() . ' GROUP BY status', [$uid]) as $r) {
             $counts[$r['status']] = (int) $r['n'];
         }
         api_ok([

@@ -513,13 +513,28 @@ function bkapi_personas_generate(int $uid, int $n, bool $soft = false): array
         ? prompt_fill('agent_personas', ['n' => $n, 'count' => $n, 'brand_identity' => $data], ['uid' => $uid, 'agent' => 'brand'])
           . prompt_format_head() . "مطلوب {$n} أشخاص مختلفين فعلًا. services = أسماء خدمات من القايمة فوق بالظبط."
         : prompt_fill('agent_personas', ['n' => $n, 'data' => $data]);
-    $j = bkapi_ai($uid, $pHead
-        . "\n\nرجّع JSON بس بالشكل ده (بالظبط {$n} أشخاص):\n"
-        . '{"personas":[{"name":"اسم وصفي قصير مثلا «أم مشغولة»","emoji":"👩","age":"30-40","gender":"","job":"","location":"","pains":["",""],"desires":["",""],"objections":["",""],"triggers":["",""],"channels":["facebook","instagram"],"services":["اسم الخدمة"],"voice":"إزاي نكلمه"}]}', 2200);
-    $list = array_slice(array_filter((array) ($j['personas'] ?? []), 'is_array'), 0, $n);
+    $shape = '{"personas":[{"name":"اسم وصفي قصير مثلا «أم مشغولة»","emoji":"👩","age":"30-40","gender":"","job":"","location":"","pains":["",""],"desires":["",""],"objections":["",""],"triggers":["",""],"channels":["facebook","instagram"],"services":["اسم الخدمة"],"voice":"إزاي نكلمه"}]}';
+    require_once __DIR__ . '/../../includes/campaign-flow.php';
+    $ask = function (int $k, string $extra = '') use ($uid, $pHead, $shape) {
+        // fix: 3 أشخاص بالعربي كانوا بيعدّوا حد الرد (2200) ← الرد يتقطع والكل يضيع. الحد دلوقتي على قد العدد
+        $r = campaign_ai($pHead . $extra . "\n\nرجّع JSON بس بالشكل ده (بالظبط {$k} " . ($k === 1 ? 'شخص' : 'أشخاص') . "، وكل قايمة 2–3 عناصر قصيرة):\n" . $shape,
+            min(6000, 900 + 1100 * $k), 'brand', ['user_id' => $uid, 'reference_type' => 'brand_kits', 'temperature' => 0.7]);
+        return $r['ok'] ? ['list' => bk_personas_parse((string) $r['response'])] : ['list' => [], 'error' => $r['error'] ?? 'تعذّر التوليد'];
+    };
+    $res = $ask($n);
+    $list = array_slice($res['list'], 0, $n);
+    // اللي ناقص يتطلب واحد واحد (رد أقصر = مايتقطعش) — من غير خصم تاني
+    for ($try = 0; count($list) < $n && $try < $n + 1; $try++) {
+        $have = implode('، ', array_map(fn($p) => (string) ($p['name'] ?? ''), $list));
+        $one = $ask(1, $have !== '' ? "\nعندنا فعلًا: {$have} — هات شخص مختلف عنهم." : '');
+        if ($one['list']) $list[] = $one['list'][0];
+        elseif (!$list) { $res = $one; break; }
+    }
     if (!$list) {
         bkapi_refund($uid, $cost, 'العملاء المثاليين');
-        $err = $j['__error'] ?? 'الرد مكانش مظبوط — الكريدت رجعلك، جرّب تاني';
+        error_log('[personas] u' . $uid . ' failed: ' . ($res['error'] ?? 'unparsable'));
+        $err = !empty($res['error']) ? 'معرفناش نجهّز العملاء دلوقتي (' . mb_substr((string) $res['error'], 0, 120) . ') — الكريدت رجعلك، جرّب تاني'
+                                     : 'الرد مكانش مظبوط — الكريدت رجعلك، جرّب تاني';
         if ($soft) return ['__error' => $err];
         api_fail($err, 'ai_failed', 502);
     }

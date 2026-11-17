@@ -191,7 +191,8 @@ include __DIR__ . '/../templates/header.php';
             جدّد اشتراكك قبل <b><?= e(date('Y-m-d', strtotime(($wallet['expired_at'] ?? 'now') . ' +3 days'))) ?></b> وهيرجعلك بالكامل مع الشحنة الجديدة.
         </div>
         <?php elseif (!empty($wallet['expires_at'])): ?>
-        <div class="field-help cr" style="margin-bottom:20px">صلاحية رصيدك الحالي حتى: <b><?= e(date('Y-m-d', strtotime($wallet['expires_at']))) ?></b> — التجديد خلال 3 أيام من الانتهاء بيرجّع أي رصيد متبقي.</div>
+        <?php /* تاريخ واحد في كل الصفحات: نهاية دورة الباقة (plan_usage) — مش تاريخ المحفظة */ ?>
+        <div class="field-help cr" style="margin-bottom:20px">صلاحية رصيدك الحالي حتى: <b><?= e($pu ? $pu['ends_label'] : date('Y-m-d', strtotime($wallet['expires_at']))) ?></b> — التجديد خلال 3 أيام من الانتهاء بيرجّع أي رصيد متبقي.</div>
         <?php endif; ?>
 
         <?php if ($crShow): ?>

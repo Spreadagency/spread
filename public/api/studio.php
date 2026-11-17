@@ -87,6 +87,12 @@ switch ($action) {
         $month = (int) (db_one('SELECT (SELECT COUNT(*) FROM studio_designs WHERE user_id = ? AND created_at >= ?)
                                     + (SELECT COUNT(*) FROM content_designs WHERE user_id = ? AND created_at >= ?) n',
             [$uid, $monthStart, $uid, $monthStart])['n'] ?? 0);
+        // نفس رقم «باقتي» والرئيسية: تصميمات دورة الباقة من كل أماكن التصميم (plan_used)
+        $headline = null;
+        if (function_exists('plan_usage')) {
+            foreach (plan_usage($uid)['units'] as $__un) if ($__un['key'] === 'designs') $month = (int) $__un['used'];
+            if (function_exists('usage_headline')) $headline = usage_headline($uid)['text'];
+        }
         $tones = ['simple' => 'بسيطة', 'formal' => 'رسمية', 'fun' => 'مرحة', 'professional' => 'احترافية'];
         $adds = [];
         if (!empty($brand['colors']))    $adds[] = ['k' => 'الألوان', 'v' => $brand['colors']];
@@ -127,6 +133,7 @@ switch ($action) {
             'brand'   => ['name' => (string) ($brand['business_name'] ?? ''), 'logo' => !empty($brand['logo_path']) ? upload_url($brand['logo_path']) : null,
                           'health' => $health, 'adds' => $adds],
             'month'   => $month,
+            'headline' => $headline,
             'costs'   => ['design' => design_credit_cost(), 'brief' => max(0, (int) get_setting('studio_idea_cost', 1)),
                           'balance' => credits_balance($uid)],
             'ratios'  => array_map(fn($k, $m) => ['key' => $k, 'label' => $m['label'], 'hint' => $m['hint']],

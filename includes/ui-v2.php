@@ -178,6 +178,7 @@ function ui_credits_usage(int $userId): array
             'used' => $p['credits']['used'], 'total' => $p['credits']['total'], 'balance' => $p['credits']['balance'],
             'pct' => $p['pct'], 'expires_at' => $p['plan']['ends'], 'days_left' => $p['days_left'],
             'show' => credits_show_numbers(), 'plan' => $p['plan']['name'], 'units' => $p['units'], 'ends_label' => $p['ends_label'],
+            'headline' => function_exists('usage_headline') ? usage_headline($userId) : null,   // الرقم الواحد في كل الصفحات
         ];
     }
     $balance = function_exists('credits_balance') ? credits_balance($userId) : 0;
@@ -266,7 +267,7 @@ function ui_notifications(int $userId): array
     $items[] = [
         'type' => 'credits', 'icon' => 'coin', 'tone' => $low ? 'warn' : 'ok', 'url' => 'credits.php',
         // الترجمة: نفس الجمل العربي بالحرف — بمتغيرات علشان تتترجم
-        'title' => $show ? __('باقي لك {n} كريدت', ['n' => $u['balance']]) : __('استخدمت {pct}% من باقة الشهر', ['pct' => $u['pct']]),
+        'title' => !empty($u['headline']) ? $u['headline']['text'] : ($show ? __('باقي لك {n} كريدت', ['n' => $u['balance']]) : __('استخدمت {pct}% من باقة الشهر', ['pct' => $u['pct']])),
         'sub' => $u['days_left'] !== null ? __($show ? 'بتنتهي بعد {d} يوم' : 'بتتجدد بعد {d} يوم', ['d' => $u['days_left']]) : __('استخدمت {pct}%', ['pct' => $u['pct']]),
     ];
 

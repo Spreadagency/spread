@@ -1034,6 +1034,41 @@ function bk_json_from_ai(string $raw): array
     return is_array($j) ? $j : [];
 }
 
+/**
+ * العملاء المثاليين من رد الـ AI — بيستحمل الأشكال المختلفة:
+ * {"personas":[…]} · {"buyer_personas"|"customers"|"items":[…]} · [ … ] من غير مفتاح · شخص واحد {…}
+ * · رد مقطوع في النص (بياخد كل شخص كامل لحد ما الرد اتقطع).
+ */
+function bk_personas_parse(string $raw): array
+{
+    $raw = trim(preg_replace('/^```(?:json)?|```$/m', '', $raw));
+    $pick = function ($j) {
+        if (!is_array($j)) return [];
+        foreach (['personas', 'buyer_personas', 'customers', 'items', 'data'] as $k) if (isset($j[$k]) && is_array($j[$k])) return $j[$k];
+        if (isset($j['name'])) return [$j];
+        return array_is_list($j) ? $j : [];
+    };
+    $ok = fn(array $l) => array_values(array_filter($l, fn($p) => is_array($p) && trim((string) ($p['name'] ?? '')) !== ''));
+    $j = json_decode($raw, true);
+    if (($l = $ok($pick($j)))) return $l;
+    if (($l = $ok($pick(bk_json_from_ai($raw))))) return $l;
+    $a = strpos($raw, '['); $b = strrpos($raw, ']');
+    if ($a !== false && $b > $a && ($l = $ok($pick(json_decode(substr($raw, $a, $b - $a + 1), true))))) return $l;
+    // رد مقطوع: كل object كامل جوه القايمة لوحده (عدّ الأقواس مع تجاهل اللي جوه النصوص)
+    $start = strpos($raw, '[');
+    if ($start === false) return [];
+    $out = []; $depth = 0; $inStr = false; $esc = false; $from = -1;
+    for ($i = $start + 1, $n = strlen($raw); $i < $n; $i++) {
+        $ch = $raw[$i];
+        if ($inStr) { if ($esc) $esc = false; elseif ($ch === '\\') $esc = true; elseif ($ch === '"') $inStr = false; continue; }
+        if ($ch === '"') { $inStr = true; continue; }
+        if ($ch === '{') { if ($depth === 0) $from = $i; $depth++; }
+        elseif ($ch === '}') { $depth--; if ($depth === 0 && $from >= 0) { $o = json_decode(substr($raw, $from, $i - $from + 1), true); if (is_array($o)) $out[] = $o; $from = -1; } }
+        elseif ($ch === ']' && $depth === 0) break;
+    }
+    return $ok($out);
+}
+
 /* ═══════════════ المواسم ═══════════════ */
 
 /** المواسم الحالية: الصيف/الشتا/… + رمضان والعيد (بالتقويم الهجري لو متاح) */
