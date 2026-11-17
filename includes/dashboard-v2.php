@@ -59,7 +59,8 @@ function dashboard_v2_data(array $user): array
         [$uid, $uid, $uid, $uid, $uid]) ?: [], []);
     $campOn = ui_campaigns_on();
     $journey = [
-        ['done' => !empty($health['unlocked']), 'label' => 'كمّل هوية براندك', 'url' => 'brand-brain.php'],
+        ['done' => !empty($health['unlocked']) || (function_exists('ij_done') && ij_done($uid)), 'label' => 'كمّل هوية براندك',
+         'url' => function_exists('onb_start_enabled') && onb_start_enabled() && !ij_done($uid) ? 'start.php' : 'brand-brain.php'],
         ['done' => ($counts['camps'] ?? 0) > 0 || !$campOn, 'label' => 'ابدأ أول حملة', 'url' => $campOn ? 'campaign-new.php' : 'content-plan.php'],
         ['done' => ($counts['posts'] ?? 0) > 0, 'label' => 'اعمل أول منشور', 'url' => 'create-content.php'],
         ['done' => ($counts['designs'] ?? 0) > 0, 'label' => 'صمّم أول تصميم', 'url' => 'design-studio.php'],
@@ -70,13 +71,7 @@ function dashboard_v2_data(array $user): array
     if (function_exists('feature_allows') && !dash_safe(fn() => feature_allows($uid, 'social_publishing'), true)) {
         $journey = array_values(array_filter($journey, fn($j) => !in_array($j['url'], ['social-accounts.php'], true)));
     }
-    // ⑦ رحلتك الأولى (8 خطوات حقيقية) — لو الحملات شغالة؛ وإلا الرحلة القديمة فوق
-    if ($campOn && is_file(__DIR__ . '/journey.php')) {
-        $js = dash_safe(function () use ($uid) { require_once __DIR__ . '/journey.php'; return journey_state($uid); }, null);
-        if ($js) {
-            $journey = array_map(fn($st) => ['done' => $st['done'], 'label' => $st['t'], 'url' => 'journey.php'], $js['steps']);
-        }
-    }
+    // «رحلتك الأولى» القديمة (journey.php) اتلغت — رحلة الهوية الجديدة في start.php
     $jDone = count(array_filter($journey, fn($j) => $j['done']));
     $jNext = null;
     foreach ($journey as $j) { if (!$j['done']) { $jNext = $j; break; } }
@@ -129,6 +124,8 @@ function dashboard_v2_data(array $user): array
                        'pct' => $jPct, 'next' => $jNext, 'show' => $jNext !== null && $jPct < $jHide],
         'campaign' => $campaign,
         'campOn'   => $campOn,
+        // عرض البداية (التجربة): شغال · خلص من غير اشتراك
+        'trial'    => dash_safe(function () use ($uid) { require_once __DIR__ . '/trial.php'; return trial_status($uid); }, ['state' => 'none']),
         'month'    => ['posts' => (int) ($month['posts'] ?? 0), 'designs' => (int) ($month['designs'] ?? 0),
                        'active' => (int) ($month['active'] ?? 0), 'usage' => $usage],
         'recent'   => $recent,

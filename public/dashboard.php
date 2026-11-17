@@ -6,7 +6,7 @@ require_login();
 
 $user = current_user();
 
-// أسئلة الهوية: الحساب اللي لسه ماعملش أول بوست بيروح لـ «ابدأ» مرة في الجلسة (فيها «تخطّي»)
+// رحلة الهوية: أي حساب لسه ما اعتمدش هويته منها بيروح لـ «ابدأ» مرة في الجلسة (فيها «تخطّي»)
 if (isset($_GET['onb'])) {
     $_SESSION['onb_offered'] = 1;   // «تخطّي» من صفحة «ابدأ»
 } elseif (onb_should_offer((int) $user['id'])) {
@@ -118,6 +118,8 @@ include __DIR__ . '/../templates/header.php';
                     <?= e(__('جاهز نبدأ نصنع محتوى مميز اليوم؟ ✨')) ?>
                 <?php endif; ?>
             </div>
+            <?php require_once __DIR__ . '/../includes/plans.php'; require_once __DIR__ . '/../includes/trial.php';
+                  $__tr = trial_status((int) $user['id']); include __DIR__ . '/../templates/trial-banner.php'; ?>
             <div class="quick-actions">
                 <a href="<?= url('create-content.php') ?>" class="btn"><?= e(__('＋ إنشاء منشور جديد')) ?></a>
                 <a href="<?= url('brand-profile.php') ?>" class="btn ghost"><?= e(__('◈ تحديث الهوية')) ?></a>

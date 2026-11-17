@@ -8,6 +8,8 @@
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/onboarding.php';
+require_once __DIR__ . '/../includes/plans.php';
+require_once __DIR__ . '/../includes/trial.php';
 
 require_admin();
 require_admin_can('site_settings');
@@ -15,6 +17,16 @@ require_admin_can('site_settings');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
     $act = (string) ($_POST['act'] ?? 'save');
+    if ($act === 'trial') {
+        // عرض البداية: تشغيل · المدة · عدد المحتوى · عدد التصميمات (بيتطبق على العروض الجديدة بس)
+        set_setting('trial_on', !empty($_POST['trial_on']) ? '1' : '0');
+        set_setting('trial_days', (string) max(1, min(90, (int) ($_POST['trial_days'] ?? 14))));
+        set_setting('trial_contents', (string) max(0, min(100, (int) ($_POST['trial_contents'] ?? 10))));
+        set_setting('trial_designs', (string) max(0, min(50, (int) ($_POST['trial_designs'] ?? 4))));
+        admin_log('trial_settings', null, null, trial_cfg() + ['on' => !empty($_POST['trial_on'])]);
+        flash_set('success', 'اتحفظت إعدادات عرض البداية — بتتطبق على العملاء الجداد من دلوقتي');
+        redirect('admin/onboarding-questions.php#trial');
+    }
     if ($act === 'defaults') {
         set_setting('onb_questions', json_encode(onb_q_defaults(), JSON_UNESCAPED_UNICODE));
         admin_log('onb_questions_defaults');
@@ -45,6 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $questions = onb_q_all();
 $on = onb_questions_on();
+$tcfg = trial_cfg();
+$tStats = ['active' => 0, 'all' => 0, 'subscribed' => 0];
+try {
+    $tStats['all'] = (int) (db_one('SELECT COUNT(DISTINCT user_id) n FROM user_plans WHERE source = "trial"')['n'] ?? 0);
+    $tStats['active'] = (int) (db_one('SELECT COUNT(*) n FROM user_plans WHERE source = "trial" AND status = "active" AND ends_at > NOW()')['n'] ?? 0);
+    $tStats['subscribed'] = (int) (db_one('SELECT COUNT(DISTINCT t.user_id) n FROM user_plans t JOIN user_plans p ON p.user_id = t.user_id AND p.id > t.id AND p.source = "paid" WHERE t.source = "trial"')['n'] ?? 0);
+} catch (\Throwable $e) {}
 $active = 'onboarding-questions';
 $page_title = 'أسئلة الهوية';
 include __DIR__ . '/../templates/admin-header.php';
@@ -99,8 +118,8 @@ function oq_card(array $q, string $tok): string
             <div class="card" style="padding:16px;margin-bottom:14px">
                 <label style="display:flex;gap:8px;align-items:flex-start;cursor:pointer">
                     <input type="checkbox" name="on" value="1" <?= $on ? 'checked' : '' ?> style="margin-top:4px">
-                    <span><b>اعرض صفحة الأسئلة لأي حساب جديد بعد أول دخول</b>
-                    <span class="text-mute" style="display:block;font-size:13px">الحساب اللي لسه ماعملش أول بوست بيتنقل لصفحة «ابدأ» مرة في كل دخول — وفيها «تخطّي». الحسابات اللي عندها بوستات مابتتأثرش.</span></span>
+                    <span><b>شغّل رحلة الهوية («ابدأ») بعد الدخول</b>
+                    <span class="text-mute" style="display:block;font-size:13px">أي حساب (جديد أو حالي) لسه ما اعتمدش هويته من الرحلة بيتنقل لصفحة «ابدأ» مرة في كل دخول — وفيها «تخطّي». الأسئلة دي بتظهر جوه الرحلة بعد «ده اللي لقيناه» (سؤال المجال والأسلوب ليهم شاشات خاصة في الرحلة).</span></span>
                 </label>
             </div>
 
@@ -114,6 +133,22 @@ function oq_card(array $q, string $tok): string
                 <span style="flex:1"></span>
                 <button type="submit" class="btn">حفظ</button>
             </div>
+        </form>
+        <form method="POST" class="card" id="trial" style="padding:16px;margin-top:22px">
+            <?= csrf_field() ?><input type="hidden" name="act" value="trial">
+            <h3 style="margin:0 0 4px">🎁 عرض البداية (التجربة المجانية)</h3>
+            <div class="text-mute" style="font-size:13px;margin-bottom:12px">بيتفعّل للعميل الجديد مرة واحدة (لكل حساب ولكل رقم موبايل) بعد ما يعتمد هويته في رحلة «ابدأ».
+                تصميمات التجربة عليها علامة مائية (حتى لو العلامة مقفولة للمنصة) وبتتشال تلقائي لما يشترك في باقة من غير علامة مائية.
+                لما التجربة تخلص من غير اشتراك يقدر يدخل ويشوف محتواه بس.</div>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" name="trial_on" value="1" <?= trial_enabled() ? 'checked' : '' ?>> <b>العرض شغال للعملاء الجداد</b></label>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+                <div class="field"><label>المدة (يوم)</label><input class="input" type="number" name="trial_days" min="1" max="90" value="<?= (int) $tcfg['days'] ?>"></div>
+                <div class="field"><label>عدد المحتوى</label><input class="input" type="number" name="trial_contents" min="0" max="100" value="<?= (int) $tcfg['contents'] ?>"></div>
+                <div class="field"><label>عدد التصميمات</label><input class="input" type="number" name="trial_designs" min="0" max="50" value="<?= (int) $tcfg['designs'] ?>"></div>
+            </div>
+            <div class="text-mute" style="font-size:12.5px;margin:4px 0 12px">الرصيد اللي بياخده = <?= (int) trial_credits() ?> كريدت (المحتوى × تكلفة الكتابة + التصميمات × تكلفة التصميم من إعدادات التكلفة) · حصة التصميمات = <?= (int) $tcfg['designs'] ?>.
+                · خدوا العرض: <b><?= $tStats['all'] ?></b> · شغال دلوقتي: <b><?= $tStats['active'] ?></b> · اشتركوا بعده: <b><?= $tStats['subscribed'] ?></b></div>
+            <button type="submit" class="btn">حفظ العرض</button>
         </form>
         <form method="POST" style="margin-top:18px" onsubmit="return confirm('ترجّع الأسئلة الأصلية الخمسة؟ أي تعديل هيتمسح.')">
             <?= csrf_field() ?><input type="hidden" name="act" value="defaults">

@@ -143,8 +143,10 @@ try {
     [$c, , $h] = http('GET', $base . '/public/' . basename(parse_url($dest ?: 'dashboard.php', PHP_URL_PATH) ?: 'dashboard.php'), [], $j);
     t('أول دخول (من غير بوستات) ← صفحة «ابدأ» بأسئلة الهوية', $c === 302 && str_contains(loc($h), 'start.php'), "$dest → " . loc($h));
     [$c, $sp] = http('GET', "$base/public/start.php", [], $j);
-    $qs = preg_match('/data-questions="([^"]*)"/', $sp, $m) ? json_decode(html_entity_decode($m[1], ENT_QUOTES), true) : [];
-    t('«ابدأ» بالإنجليزي والأسئلة بالإنجليزي', $c === 200 && str_contains($sp, '<html lang="en" dir="ltr">') && ($qs[1]['title'] ?? '') === 'Who do you sell to?', json_encode($qs[1] ?? null));
+    // رحلة الهوية: الأسئلة جوه data-boot — والمجال ليه شاشة خاصة («ده اللي لقيناه») فأول سؤال بقى «بتبيع لمين»
+    $boot = preg_match('/data-boot="([^"]*)"/', $sp, $m) ? json_decode(html_entity_decode($m[1], ENT_QUOTES), true) : [];
+    $qs = $boot['questions'] ?? [];
+    t('«ابدأ» بالإنجليزي والأسئلة بالإنجليزي', $c === 200 && str_contains($sp, '<html lang="en" dir="ltr">') && ($qs[0]['title'] ?? '') === 'Who do you sell to?', json_encode($qs[0] ?? null));
     $ar = arabic_words(visible($sp));
     t('«ابدأ»: مفيش نص عربي ظاهر (غير بيانات العميل)', !$ar, implode(' | ', array_slice($ar, 0, 6)));
     t('فيها «تخطّي» للوحة التحكم', str_contains($sp, 'Skip for now — go to dashboard'));

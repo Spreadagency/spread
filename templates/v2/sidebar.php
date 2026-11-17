@@ -38,11 +38,9 @@ try {
         <?php foreach (ui_sections() as $key => [$label, $icon, $href, $keys, $subs]):
             // القسم بيختفي لو الأدمن مخبّي كل صفحاته
             if ($subs && !ui_subtabs($key)) continue;
-            // رحلتك الأولى: محتاجة الحملات، وبتختفي لما تخلص (إلا وانت جواها)
+            // رحلة الهوية: بتظهر بس لحد ما العميل يعتمد هويته منها
             if ($key === 'journey') {
-                if (!ui_campaigns_on()) continue;
-                require_once __DIR__ . '/../../includes/journey.php';
-                if ($__section !== 'journey' && journey_finished_cached((int) $user['id'])) continue;
+                if (!function_exists('onb_start_enabled') || !onb_start_enabled() || ij_done((int) $user['id'])) continue;
             }
             if ($key === 'research' && !ui_research_on()) continue;
             // الحملات مقفولة من الأدمن: القسم يفضل بـ«خطة المحتوى» القديمة بس

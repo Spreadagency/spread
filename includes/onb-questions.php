@@ -145,5 +145,42 @@ function onb_should_offer(int $uid): bool
 {
     if (!onb_questions_on() || !empty($_SESSION['onb_offered']) || !empty($_SESSION['impersonator_admin_id'])) return false;
     $_SESSION['onb_offered'] = 1;
-    return function_exists('onb_done') ? !onb_done($uid) : false;
+    // رحلة الهوية الجديدة: أي عميل (جديد أو حالي) لسه ما اعتمدش هويته منها بيتعرض عليه مرة في كل دخول
+    return !ij_done($uid);
+}
+
+/* ═══════════ رحلة الهوية (public/start.php) ═══════════
+ * العلامة في brand_kits.data._journey_done (مفيش أعمدة جديدة).
+ */
+
+/** العميل خلّص رحلة الهوية الجديدة (اعتمد الهوية)؟ */
+function ij_done(int $uid): bool
+{
+    static $c = [];
+    if (isset($c[$uid])) return $c[$uid];
+    try {
+        $r = db_one('SELECT data FROM brand_kits WHERE user_id = ? LIMIT 1', [$uid]);
+        $d = $r ? json_decode((string) $r['data'], true) : null;
+        return $c[$uid] = is_array($d) && !empty($d['_journey_done']);
+    } catch (\Throwable $e) {
+        return $c[$uid] = true;   // لو فيه مشكلة مانحبسش العميل في الرحلة
+    }
+}
+
+/** علامة «خلّص الرحلة» + اعتماد الهوية */
+function ij_mark_done(int $uid): void
+{
+    if (function_exists('bk_get')) bk_get($uid);   // يتأكد إن فيه Kit
+    $r = db_one('SELECT id, data FROM brand_kits WHERE user_id = ? LIMIT 1', [$uid]);
+    if (!$r) return;
+    $d = json_decode((string) $r['data'], true) ?: [];
+    $d['_journey_done'] = date('c');
+    db_run('UPDATE brand_kits SET data = ? WHERE id = ?', [json_encode($d, JSON_UNESCAPED_UNICODE), $r['id']]);
+    db_run('UPDATE brand_profiles SET brand_approved_at = COALESCE(brand_approved_at, NOW()) WHERE user_id = ?', [$uid]);
+}
+
+/** أسئلة الأدمن جوه الرحلة: المجال والأسلوب ليهم شاشات خاصة في الرحلة، فمابيتكرروش */
+function ij_questions(): array
+{
+    return array_values(array_filter(onb_q_active(), fn($q) => ($q['kind'] ?? '') !== 'sector' && ($q['id'] ?? '') !== 'voice'));
 }

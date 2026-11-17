@@ -14,6 +14,7 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         <div class="dh-hero-txt">
             <h2><?= e(__($d['greeting'])) ?> <?= e($d['first']) ?> 👋</h2>
             <p><?= e(__('حوّل أفكارك إلى محتوى احترافي في دقائق مع قوة الذكاء الاصطناعي.')) ?></p>
+            <?php $__tr = $d['trial'] ?? ['state' => 'none']; include __DIR__ . '/../trial-banner.php'; ?>
             <div class="dh-hero-cta">
                 <a href="<?= url($__start) ?>" class="dh-start"><?= e(__('ابدأ الآن')) ?> <?= ui_icon('chevron', 18) ?></a>
                 <span class="dh-hint"><i></i> <?= e(__('خلّي الذكاء الاصطناعي يبدأ معك')) ?></span>

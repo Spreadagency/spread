@@ -17,7 +17,7 @@ const ONB_UNVERIFIED_PAGES = [
 ];
 
 /** الـ API الوحيد اللي الحساب غير المؤكد يقدر يبعتله POST (بناء الهوية) */
-const ONB_UNVERIFIED_API = ['brand-kit.php'];
+const ONB_UNVERIFIED_API = ['brand-kit.php', 'brand.php'];
 
 function onb_enabled(): bool
 {
@@ -65,6 +65,8 @@ function onb_gift_amount(): int
     if (get_setting('onboarding_gift', '1') !== '1') return 0;
     return max(0, (int) get_setting('brand_analyze_cost', 1))
          + max(0, (int) get_setting('brand_kit_draft_cost', 2))
+         + max(0, (int) get_setting('brand_kit_ai_cost', 1))        // ألوان مقترحة (رحلة الهوية)
+         + max(0, (int) get_setting('brand_kit_persona_cost', '1'))  // العملاء المثاليين (رحلة الهوية)
          + max(0, (int) cost_for('content_generation_cost'));
 }
 
@@ -74,7 +76,7 @@ function onb_gift_amount(): int
  */
 function onb_gift_grant(int $uid): int
 {
-    if (!onb_enabled()) return 0;
+    if (!onb_enabled() && !onb_questions_on()) return 0;   // البداية السريعة · أو رحلة الهوية
     $amount = onb_gift_amount();
     if ($amount <= 0) return 0;
     $lock = 'onb_gift_' . $uid;

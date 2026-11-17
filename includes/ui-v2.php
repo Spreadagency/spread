@@ -111,8 +111,8 @@ function ui_sections(): array
             ['المساعد الذكي', 'brand-agent.php', 'brand-agent', 'brand-agent'],
             ['المستندات', 'sources.php', 'sources', 'sources'],
         ]],
-        // ⑦ رحلتك الأولى — بتختفي من القائمة لما تخلص (السايدبار)
-        'journey' => ['رحلتك الأولى', 'star', 'journey.php', ['journey'], []],
+        // رحلة الهوية (بدل «رحلتك الأولى» القديمة) — بتظهر لحد ما العميل يعتمد هويته (السايدبار)
+        'journey' => ['كمّل هويتك', 'star', 'start.php', ['journey', 'start'], []],
         'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'my-plan', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], array_merge([
             ['حسابي', 'profile.php', 'profile', null],
         ], get_setting('plan_page_unified', '1') === '1' ? [

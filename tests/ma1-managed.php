@@ -175,7 +175,7 @@ t('لينك منتهي ← صفحة الدخول', $c === 302 && str_contains(lo
 // العميل داخل بحسابه
 [, $h] = http('GET', "$base/public/login.php", [], $jarC);
 http('POST', "$base/public/login.php", ['csrf' => csrf_of($h), 'email' => "ma1-a-$tag@test.local", 'password' => 'Test12345!'], $jarC);
-[$c, $h] = http('GET', "$base/public/dashboard.php", [], $jarC);
+[$c, $h] = http('GET', "$base/public/dashboard.php?onb=skip", [], $jarC);
 t('لوحة العميل فيها تنبيه «جهّزلك منشور»', $c === 200 && str_contains($h, 'approvals.php') && str_contains($h, 'جهّزلك'), (string) $c);
 [$c, $h] = http('GET', "$base/public/approvals.php", [], $jarC);
 http('POST', "$base/public/approvals.php", ['csrf' => csrf_of($h), 'all' => '1'], $jarC);

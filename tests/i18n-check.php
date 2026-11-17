@@ -18,6 +18,8 @@ const I18N_DONE = [
     // الدفعة 2: إطار المنصة · الرئيسية · «ابدأ» · إنشاء المحتوى
     'templates/v2/sidebar.php', 'templates/v2/topbar.php', 'templates/v2/tabbar.php', 'templates/v2/dashboard.php', 'templates/v2/quick-post.php',
     'templates/sidebar.php', 'templates/topbar.php', 'public/dashboard.php', 'public/start.php', 'public/create-content.php',
+    // رحلة الهوية الجديدة + عرض البداية
+    'templates/trial-banner.php',
 ];
 
 function i18n_keys_in(string $src): array

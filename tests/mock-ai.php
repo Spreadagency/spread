@@ -167,6 +167,20 @@ if ($out === null && !isset($content) && str_contains($text, 'MOCK_EMPTY_REPLY')
     $content = '';
 }
 
+// رحلة الهوية: ألوان مقترحة (3 باليتات) والعملاء المثاليين
+if ($out === null && str_contains($text, '{"palettes":[')) {
+    $out = ['palettes' => [
+        ['name' => 'أزرق هادي', 'why' => 'ثقة', 'primary' => '#1D4E89', 'secondary' => '#5DA9E9', 'accent' => '#F49D37', 'neutral' => '#F5F7FA'],
+        ['name' => 'أخضر طبيعي', 'why' => 'راحة', 'primary' => '#2E7D32', 'secondary' => '#A5D6A7', 'accent' => '#FFB300', 'neutral' => '#FAFAF5'],
+        ['name' => 'بنفسجي حديث', 'why' => 'تميّز', 'primary' => '#5B3CC4', 'secondary' => '#9F8CF0', 'accent' => '#FF6B6B', 'neutral' => '#F7F6FD']]];
+}
+if ($out === null && str_contains($text, '{"personas":[')) {
+    $out = ['personas' => [
+        ['name' => 'أم مشغولة', 'emoji' => '👩', 'age' => '30-40', 'gender' => 'أنثى', 'job' => 'موظفة', 'location' => 'القاهرة', 'pains' => ['مفيش وقت', 'خوف الأطفال'], 'desires' => ['مواعيد مرنة'], 'objections' => ['السعر'], 'triggers' => ['عرض عائلي'], 'channels' => ['facebook'], 'services' => [], 'voice' => 'بهدوء وطمأنة'],
+        ['name' => 'شاب بيهتم بشكله', 'emoji' => '🧑', 'age' => '20-30', 'gender' => 'ذكر', 'job' => 'طالب', 'location' => 'الجيزة', 'pains' => ['أسنان صفرا'], 'desires' => ['ابتسامة حلوة'], 'objections' => ['الألم'], 'triggers' => ['قبل وبعد'], 'channels' => ['instagram'], 'services' => [], 'voice' => 'خفيف وسريع'],
+        ['name' => 'رجل أعمال', 'emoji' => '👔', 'age' => '40-55', 'gender' => 'ذكر', 'job' => 'مدير', 'location' => 'التجمع', 'pains' => ['وقته ضيق'], 'desires' => ['خدمة VIP'], 'objections' => ['الانتظار'], 'triggers' => ['حجز فوري'], 'channels' => ['facebook'], 'services' => [], 'voice' => 'رسمي ومختصر']]];
+}
+
 // مسودة الهوية (Brand Kit) — صفحة «ابدأ» وزرار «املاها بالـ AI»
 if ($out === null && str_contains($text, 'ابني مسودة Brand Kit')) {
     $out = [

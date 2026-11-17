@@ -11,6 +11,9 @@ require_once __DIR__ . '/../includes/journey.php';
 require_login();
 $user = current_user();
 
+// «رحلتك الأولى» القديمة اتلغت ← رحلة الهوية الجديدة (start.php) — أو الرئيسية لو خلّصها
+redirect(function_exists('onb_start_enabled') && onb_start_enabled() && !ij_done((int) $user['id']) ? 'start.php' : 'dashboard.php');
+
 if (!function_exists('ui_v2_enabled') || !ui_v2_enabled() || get_setting('campaigns_enabled', '1') !== '1') {
     redirect('dashboard.php');
 }

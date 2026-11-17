@@ -402,6 +402,11 @@ function plan_start(int $uid, ?int $packageId, int $credits, ?int $days = null, 
         }
         plan_active($uid, true);   // الدورة الجديدة تبان في نفس الطلب
         if (function_exists('plan_usage')) plan_usage($uid, true);
+        // عرض البداية: الاشتراك في باقة من غير علامة مائية ← تصميمات التجربة ترجع من غير علامة
+        if ($id) {
+            require_once __DIR__ . '/trial.php';
+            trial_after_plan_start($uid, $packageId, $source);
+        }
         return $id ?: null;
     } catch (\Throwable $e) {
         error_log('[plans] start ' . $e->getMessage());

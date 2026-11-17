@@ -34,6 +34,11 @@ function watermark_ready(): bool
 function watermark_apply(string $relativePath, array $override = []): array
 {
     $logoRel = (string) get_setting('watermark_logo', '');
+    // عرض البداية: العلامة لازم تتحط (حتى لو مقفولة للمنصة) والأصل يتحفظ علشان يرجع بعد الاشتراك
+    if (wm_trial_mode()) {
+        if ($logoRel === '' || !is_file(STORAGE_PATH . '/' . $logoRel)) $logoRel = wm_trial_logo();
+        $override['keep_original'] = '1';
+    }
     if ($logoRel === '') {
         return ['ok' => false, 'error' => 'ارفع لوجو العلامة المائية أولًا'];
     }
@@ -209,6 +214,14 @@ function wm_save_image($img, string $path, int $type): bool
 /** العلامة المائية للعميل ده: مفعّلة في المنصة + باقته فيها علامة (من غير باقة = زي الأول) */
 function watermark_for_user(int $uid): bool
 {
+    // عرض البداية: تصميمات التجربة دايمًا عليها علامة (والأصل محفوظ)
+    if (function_exists('imagecreatetruecolor')) {
+        require_once __DIR__ . '/trial.php';
+        if (trial_active($uid) && wm_trial_logo() !== '') {
+            wm_trial_mode(true);
+            return true;
+        }
+    }
     if (!watermark_ready()) return false;
     if (!function_exists('plan_flags')) require_once __DIR__ . '/plans.php';
     return function_exists('plan_flags') ? plan_flags($uid)['watermark'] : true;
@@ -240,3 +253,48 @@ function design_fit_exact(string $relativePath, int $w, int $h): bool
     return (bool) $ok;
 }
 
+/** وضع «عرض البداية» للطلب ده (بيتفعّل من watermark_for_user) */
+function wm_trial_mode(?bool $set = null): bool
+{
+    static $on = false;
+    if ($set !== null) $on = $set;
+    return $on;
+}
+
+/**
+ * لوجو علامة التجربة: لوجو العلامة المائية ← لوجو المنصة ← صورة نص «اسم المنصة» بتتعمل مرة واحدة
+ * (مسار نسبةً لـ storage/ · فاضي لو مفيش GD)
+ */
+function wm_trial_logo(): string
+{
+    static $rel = null;
+    if ($rel !== null) return $rel;
+    foreach ([(string) get_setting('watermark_logo', ''), function_exists('site_setting') ? (string) site_setting('site_logo', '') : ''] as $c) {
+        if ($c !== '' && is_file(STORAGE_PATH . '/' . $c)) return $rel = $c;
+    }
+    $name = function_exists('site_name') ? (string) site_name() : (defined('APP_NAME') ? APP_NAME : 'Spread AI');
+    if (preg_match('/[^\x20-\x7E]/', $name)) $name = defined('APP_NAME') && !preg_match('/[^\x20-\x7E]/', APP_NAME) ? APP_NAME : 'Spread AI';
+    $out = 'uploads/watermark/trial-' . substr(sha1($name), 0, 8) . '.png';
+    $abs = STORAGE_PATH . '/' . $out;
+    if (is_file($abs)) return $rel = $out;
+    if (!function_exists('imagecreatetruecolor')) return $rel = '';
+    // نص صغير بخط GD الداخلي ← تكبير ×6 (حواف ناعمة) على خلفية شفافة مع ظل خفيف
+    $f = 5; $w = imagefontwidth($f) * strlen($name) + 8; $h = imagefontheight($f) + 6;
+    $s = imagecreatetruecolor($w, $h);
+    imagesavealpha($s, true);
+    imagealphablending($s, false);
+    imagefill($s, 0, 0, imagecolorallocatealpha($s, 0, 0, 0, 127));
+    imagealphablending($s, true);
+    imagestring($s, $f, 5, 4, $name, imagecolorallocatealpha($s, 0, 0, 0, 70));
+    imagestring($s, $f, 4, 3, $name, imagecolorallocate($s, 255, 255, 255));
+    $k = 6;
+    $big = imagecreatetruecolor($w * $k, $h * $k);
+    imagesavealpha($big, true);
+    imagealphablending($big, false);
+    imagefill($big, 0, 0, imagecolorallocatealpha($big, 0, 0, 0, 127));
+    imagecopyresampled($big, $s, 0, 0, 0, 0, $w * $k, $h * $k, $w, $h);
+    @mkdir(dirname($abs), 0755, true);
+    $ok = @imagepng($big, $abs, 6);
+    imagedestroy($s); imagedestroy($big);
+    return $rel = $ok ? $out : '';
+}

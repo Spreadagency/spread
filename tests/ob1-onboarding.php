@@ -82,9 +82,9 @@ $uid = uid_of($b1);
 $bal0 = credits_balance($uid);
 [$c, $page] = http('GET', "$base/public/start.php", [], $jar);
 $csrf = csrf_of($page);
-t('start.php بتفتح للحساب غير المؤكد وفيها الـ 3 خطوات', $c === 200 && str_contains($page, 'id="s1"') && str_contains($page, 'id="s2"') && str_contains($page, 'id="s3"'), (string) $c);
+t('start.php بتفتح للحساب غير المؤكد وفيها رحلة الهوية (اللينك · الأسئلة · أول بوست)', $c === 200 && str_contains($page, 'id="s-link"') && str_contains($page, 'id="s-qs"') && str_contains($page, 'id="s-post"'), (string) $c);
 $gift = (int) (db_one('SELECT COALESCE(SUM(amount),0) n FROM credit_transactions WHERE user_id = ? AND reference_type = "onboarding_gift"', [$uid])['n'] ?? 0);
-t('هدية البداية اتضافت = تكلفة (قراءة + مسودة + بوست)', $gift === onb_gift_amount() && $gift > 0 && credits_balance($uid) === $bal0 + $gift, "gift=$gift expected=" . onb_gift_amount());
+t('هدية البداية اتضافت = تكلفة (قراءة + مسودة + ألوان + عملاء + بوست)', $gift === onb_gift_amount() && $gift > 0 && credits_balance($uid) === $bal0 + $gift, "gift=$gift expected=" . onb_gift_amount());
 http('GET', "$base/public/start.php", [], $jar);
 t('الهدية مرة واحدة (فتح الصفحة تاني مايزودش)', credits_balance($uid) === $bal0 + $gift);
 
@@ -114,7 +114,10 @@ $g = json_decode($b, true);
 t('أول بوست اتولد واتحفظ', $c === 200 && !empty($g['ok']) && !empty($g['content_id']) && (bool) db_one('SELECT id FROM contents WHERE id = ? AND user_id = ?', [(int) ($g['content_id'] ?? 0), $uid]), substr($b, 0, 240));
 t('الرصيد بعد البداية ≥ رصيد التسجيل (الهدية غطّت التكلفة)', credits_balance($uid) >= $bal0, credits_balance($uid) . " vs $bal0");
 [$c, , $hd] = http('GET', "$base/public/start.php", [], $jar);
-t('بعد أول بوست start.php بتحوّل للوحة', $c === 302 && str_contains(loc($hd), 'dashboard.php'), loc($hd));
+t('قبل اعتماد الهوية start.php لسه مفتوحة (رحلة الهوية)', $c === 200, (string) $c);
+http('POST', "$base/public/start.php", ['csrf' => $csrf, 'act' => 'finish'], $jar);
+[$c, , $hd] = http('GET', "$base/public/start.php", [], $jar);
+t('بعد اعتماد الهوية start.php بتحوّل للوحة', $c === 302 && str_contains(loc($hd), 'dashboard.php'), loc($hd));
 [$c] = http('GET', "$base/public/dashboard.php", [], $jar);
 t('لوحة التحكم مفتوحة للتجربة', $c === 200, (string) $c);
 
@@ -167,7 +170,7 @@ foreach ($tags as $tg) {
     $u = uid_of($tg);
     if (!$u) continue;
     foreach (['content_versions' => 'content_id IN (SELECT id FROM contents WHERE user_id = ?)', 'contents' => 'user_id = ?', 'brand_services' => 'user_id = ?', 'brand_topics' => 'user_id = ?',
-              'brand_kits' => 'user_id = ?', 'brand_profiles' => 'user_id = ?', 'credit_transactions' => 'user_id = ?', 'credit_wallets' => 'user_id = ?'] as $tb => $w) {
+              'brand_kits' => 'user_id = ?', 'brand_profiles' => 'user_id = ?', 'credit_transactions' => 'user_id = ?', 'credit_wallets' => 'user_id = ?', 'credit_lots' => 'user_id = ?', 'user_plans' => 'user_id = ?', 'brand_personas' => 'user_id = ?'] as $tb => $w) {
         try { db_run("DELETE FROM $tb WHERE $w", [$u]); } catch (\Throwable $e) {}
     }
     try { db_run('DELETE FROM users WHERE id = ?', [$u]); } catch (\Throwable $e) { echo "  (تنضيف $tg: " . $e->getMessage() . ")\n"; }
