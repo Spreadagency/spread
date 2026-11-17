@@ -176,13 +176,29 @@ function campaign_progress(array $c, ?array $summary = null): int
  *  - done = المرحلة خلصت فعلًا من الأرقام (مش «العميل عدّى عليها»)
  *  - progress = نسبة المراحل اللي خلصت
  */
+/** خطوات الحملة: من غير «التقييم» لما الكتابة والتقييم في طلب واحد (إلا لو الحملة واقفة عليها) — نفس stepList في صفحة الحملة */
+function campaign_step_list(array $c): array
+{
+    $stage = max(1, min(6, (int) ($c['stage'] ?? 1)));
+    if (!function_exists('campaign_write_mode') && is_file(__DIR__ . '/campaign-quality.php')) require_once __DIR__ . '/campaign-quality.php';
+    $single = function_exists('campaign_write_mode') ? campaign_write_mode() === 'single' : true;
+    return $single && $stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
+}
+
+/** أبعد مرحلة مسموح يروحها: أي مرحلة وصلها + الخطوة اللي بعد أبعد مرحلة (بتعدّي «التقييم» لو مش ضمن الخطوات) */
+function campaign_stage_reachable(array $c, int $to): bool
+{
+    $max = max(1, (int) ($c['max_stage'] ?? 1));
+    if ($to <= $max) return true;
+    foreach (campaign_step_list($c) as $n) if ($n > $max) return $to === $n;   // الخطوة الجاية بس
+    return false;
+}
+
 function campaign_steps(array $c, ?array $f = null): array
 {
     $stages = campaign_stages();
     $stage = max(1, min(6, (int) ($c['stage'] ?? 1)));
-    if (!function_exists('campaign_write_mode') && is_file(__DIR__ . '/campaign-quality.php')) require_once __DIR__ . '/campaign-quality.php';
-    $single = function_exists('campaign_write_mode') ? campaign_write_mode() === 'single' : true;
-    $list = $single && $stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
+    $list = campaign_step_list($c);
     $f = $f ?? (function_exists('campaign_flow_counts') ? campaign_flow_counts((int) $c['id']) : []);
     $sel = (int) ($f['selected'] ?? 0);
     $needDesign = max(0, $sel - (int) ($f['scripts'] ?? 0));   // الفيديو سكريبت مش تصميم

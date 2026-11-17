@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-11-17',
-  'generated' => '2026-11-17 23:02',
+  'generated' => '2026-11-17 23:20',
   'update' => 
   array (
     0 => 'admin/ai-ab.php',
@@ -1363,8 +1363,8 @@ return array (
     ),
     'includes/lifecycle.php' => 
     array (
-      'h' => 'aff3d37d230f66c3f74dc242696a5c49',
-      's' => 12190,
+      'h' => 'd930110bfb68102724011feed33ce88e',
+      's' => 13023,
     ),
     'includes/mailer.php' => 
     array (
@@ -1763,8 +1763,8 @@ return array (
     ),
     'public/api/campaigns.php' => 
     array (
-      'h' => '3bcd40c25f7bf7f35af0552544b9698b',
-      's' => 8669,
+      'h' => '4dd93e4e7d018ee81863377216fe668a',
+      's' => 8868,
     ),
     'public/api/contents.php' => 
     array (
@@ -2693,8 +2693,8 @@ return array (
     ),
     'templates/v2/campaign.php' => 
     array (
-      'h' => 'a48a2eab479a166e25a48a899a051a04',
-      's' => 136060,
+      'h' => '85e0a67e66ffcfc940a3c3d88c6d10cb',
+      's' => 138859,
     ),
     'templates/v2/contents.php' => 
     array (

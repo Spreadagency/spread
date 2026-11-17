@@ -387,6 +387,29 @@
             </div>
         </div>
 
+        <!-- تقييم الخطة كاملة في «المحتوى» (لما الكتابة والتقييم في طلب واحد ومرحلة «التقييم» مش ظاهرة) -->
+        <div class="pv-c" v-if="c.stage === 2 && health.unlocked && writeMode === 'single' && withContent().length >= 2" style="margin-top:14px">
+            <section class="cf-card cf-plan-eval">
+                <div class="cf-split">
+                    <div><b>📋 تقييم الخطة كاملة</b><small class="cf-muted" style="display:block">التوازن · التكرار · تغطية العملاء والخدمات · التسلسل · الـ CTA · مناسبة الهدف</small></div>
+                    <button type="button" class="cf-btn soft sm" @click="planEval()" :disabled="bulk.on || withContent().length < 2">{{ planE ? 'قيّم تاني' : 'قيّم الخطة' }} ✨ <small class="cr" v-if="costs.plan_eval">· {{ costs.plan_eval }}</small></button>
+                </div>
+                <div class="cf-plan-body" v-if="planE">
+                    <div class="cf-plan-top">
+                        <div class="cf-ring" :class="planE.score >= evalReady ? 'ok' : 'warn'" :style="{ '--p': planE.score }"><b>{{ planE.score }}</b><small>/ 100</small></div>
+                        <p>{{ planE.summary }}<small class="cf-muted" v-if="planE.posts !== withContent().length" style="display:block">اتقيّمت على {{ planE.posts }} بوست — فيه تغييرات بعدها، قيّم تاني.</small></p>
+                    </div>
+                    <div class="cf-cats">
+                        <div v-for="(v, k) in planE.cats" :key="k"><span class="cf-split"><small>{{ k }}</small><b>{{ v }}</b></span><div class="cf-bar sm"><span :class="{ hot: v < evalReady }" :style="{ width: v + '%' }"></span></div></div>
+                    </div>
+                    <ol class="cf-plan-notes" v-if="planE.notes.length">
+                        <li v-for="(nt, k) in planE.notes" :key="k"><span><b v-if="nt.post">بوست {{ nt.post }}:</b> {{ nt.issue }}<small v-if="nt.fix"> ← {{ nt.fix }}</small></span>
+                            <button type="button" class="cf-btn primary sm" v-if="nt.idea_id && nt.fix" :disabled="bulk.on || asking" @click="applyNote(nt)">طبّق ✨</button></li>
+                    </ol>
+                </div>
+            </section>
+        </div>
+
         <!-- ══════════════ ③ التقييم ══════════════ -->
         <div class="pv-c" v-if="c.stage === 3 && health.unlocked">
             <div class="cf-headline cf-split">
@@ -994,11 +1017,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // (حملة كانت واقفة على «التقييم» قبل التحديث ← الخطوة بتفضل ظاهرة لها علشان تكمّل منها)
     stepList: function () { return this.writeMode === 'single' && this.c.stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6]; },
     nextStep: function (s, d) { var l = this.stepList(), k = l.indexOf(s); if (k < 0) return s + d; return l[Math.max(0, Math.min(l.length - 1, k + d))]; },
-    canGo: function (n) { return n <= this.c.max_stage + 1 && n >= 1 && !(n > 1 && !this.health.unlocked && n !== this.c.stage); },
+    // أي مرحلة وصلها + الخطوة اللي بعد أبعد مرحلة في القايمة (من غير «التقييم» لو مش ضمن الخطوات) — نفس campaign_stage_reachable
+    canGo: function (n) {
+      var self = this, nextAfter = this.stepList().filter(function (x) { return x > self.c.max_stage; })[0] || this.c.max_stage;
+      return n >= 1 && (n <= this.c.max_stage || n === nextAfter) && !(n > 1 && !this.health.unlocked && n !== this.c.stage);
+    },
     // ليه المرحلة مقفولة؟ (بدل زرار مقفول من غير كلام)
     lockReason: function (n) {
       if (n > 1 && !this.health.unlocked) return 'كمّل هوية براندك الأول — هويتك ' + this.health.pct + '% ومحتاجة ' + this.health.gate + '% (أو اعتمدها من «ابدأ»)';
-      if (n > this.c.max_stage + 1) { var l = this.stepList(), k = l.indexOf(this.c.max_stage + 1); return 'خلّص مرحلة «' + ((this.stages[l[k] || this.c.max_stage + 1] || {}).name || '') + '» الأول'; }
+      if (n > this.c.max_stage) { var self = this, nx = this.stepList().filter(function (x) { return x > self.c.max_stage; })[0]; if (nx && n !== nx) return 'خلّص مرحلة «' + ((this.stages[this.nextStep(nx, -1)] || {}).name || '') + '» الأول'; }
       return '';
     },
     stepCls: function (n) { return { on: this.c.stage === n, done: this.stepDoneN(n) && n !== this.c.stage, locked: !this.canGo(n) }; },
