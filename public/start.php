@@ -19,6 +19,7 @@ require_once __DIR__ . '/../includes/brand-brain.php';
 require_once __DIR__ . '/../includes/rate-limit.php';
 require_once __DIR__ . '/../includes/plans.php';
 require_once __DIR__ . '/../includes/trial.php';
+require_once __DIR__ . '/../includes/uploader.php';   // upload_url (اللوجو الحالي)
 
 require_login();
 $user = current_user();

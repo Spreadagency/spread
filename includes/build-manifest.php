@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-11-17',
-  'generated' => '2026-11-17 10:14',
+  'generated' => '2026-11-17 13:30',
   'update' => 
   array (
     0 => 'admin/ai-ab.php',
@@ -1322,8 +1322,8 @@ return array (
     ),
     'includes/google-auth.php' => 
     array (
-      'h' => '8031bee1b9a9b7f4d3548b1d41b4bb98',
-      's' => 13754,
+      'h' => '6ba16da9729325bd9bbb7b057cf6e095',
+      's' => 13834,
     ),
     'includes/helpers.php' => 
     array (
@@ -1412,8 +1412,8 @@ return array (
     ),
     'includes/onb-questions.php' => 
     array (
-      'h' => '3772ac3ae332aac39098200e99d5c192',
-      's' => 10785,
+      'h' => '3d02d01da05b73314562205c67746cd6',
+      's' => 11930,
     ),
     'includes/onboarding.php' => 
     array (
@@ -2002,13 +2002,13 @@ return array (
     ),
     'public/login-verify.php' => 
     array (
-      'h' => '1b0700dcd0ed3f6a011ed616954f78e7',
-      's' => 4387,
+      'h' => '42736b47cd0de0680c543f7b2469372d',
+      's' => 4449,
     ),
     'public/login.php' => 
     array (
-      'h' => '239f6671c12da62f38309dbdd2fe631b',
-      's' => 6464,
+      'h' => '12ecde275bc59249789b4d0d83703a87',
+      's' => 6810,
     ),
     'public/logout.php' => 
     array (
@@ -2067,8 +2067,8 @@ return array (
     ),
     'public/register.php' => 
     array (
-      'h' => 'c3a5e2d17f08462848fbee24aa3ad34d',
-      's' => 9035,
+      'h' => '56ee6f6bc2822f1c9d36a49503af39ec',
+      's' => 9073,
     ),
     'public/research-report.php' => 
     array (
@@ -2122,8 +2122,8 @@ return array (
     ),
     'public/start.php' => 
     array (
-      'h' => '0d6723f5ce94216d0255fa1a96897258',
-      's' => 62574,
+      'h' => '0798a62f5b2477c8b7cccade5258b1f9',
+      's' => 62670,
     ),
     'public/studio.php' => 
     array (

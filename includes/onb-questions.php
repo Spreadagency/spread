@@ -36,6 +36,8 @@ function onb_q_defaults(): array
 /** صفحة «ابدأ» بأسئلة الهوية بتظهر لأي حساب جديد بعد أول دخول (حتى من غير «البداية السريعة») */
 function onb_questions_on(): bool
 {
+    // صفحات زي login.php مابتحمّلش credits.php (get_setting) — من غيرها الفحص كان بيرجع «مقفول» غلط
+    if (!function_exists('get_setting') && function_exists('db_one')) require_once __DIR__ . '/credits.php';
     return function_exists('get_setting') && get_setting('onb_questions_on', '1') === '1';
 }
 
@@ -165,6 +167,18 @@ function ij_done(int $uid): bool
     } catch (\Throwable $e) {
         return $c[$uid] = true;   // لو فيه مشكلة مانحبسش العميل في الرحلة
     }
+}
+
+/**
+ * وجهة العميل بعد الدخول/التسجيل: رحلة الهوية لو لسه ما اعتمدش هويته (جديد أو حالي)، وإلا $fallback.
+ * بتتنادى من كل طرق الدخول (عادي · كود التحقق · جوجل · التسجيل بالبداية السريعة) — حتى اللي جاي
+ * من «اصنع منشورك» في الصفحة الرئيسية: منشوره بيتحفظ، والرحلة بتكمّل من البيانات اللي اتقرت منه.
+ */
+function ij_landing(int $uid, string $fallback = 'dashboard.php'): string
+{
+    if ($uid <= 0 || !onb_questions_on() || !empty($_SESSION['impersonator_admin_id']) || ij_done($uid)) return $fallback;
+    $_SESSION['onb_offered'] = 1;   // الرئيسية مترجّعهوش تاني في نفس الجلسة (فيها «تخطّي»)
+    return 'start.php';
 }
 
 /** علامة «خلّص الرحلة» + اعتماد الهوية */

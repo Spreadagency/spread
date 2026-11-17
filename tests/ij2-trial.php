@@ -126,8 +126,7 @@ try {
     $j = tempnam(sys_get_temp_dir(), 'ij');
     [, $lp] = http('GET', "$base/public/login.php", [], $j);
     [, , $h] = http('POST', "$base/public/login.php", ['csrf' => csrf_of($lp), 'email' => "tr-e-$tag@test.local", 'password' => 'Test12345!'], $j);
-    [, , $h] = http('GET', "$base/public/dashboard.php", [], $j);
-    t('عميل حالي لسه ماعداش الرحلة ← «ابدأ»', str_contains(loc($h), 'start.php'), loc($h));
+    t('عميل حالي لسه ماعداش الرحلة ← الدخول بيودّيه «ابدأ» على طول', str_contains(loc($h), 'start.php'), loc($h));
     [$code, $dp] = http('GET', "$base/public/dashboard.php", [], $j);
     t('مرة واحدة في الجلسة — بعدها الرئيسية', $code === 200);
     t('الرئيسية: «التجربة خلصت» ومحتواه متاح', str_contains($dp, 'data-trial="ended"'));
@@ -135,6 +134,10 @@ try {
     t('«رحلتك الأولى» القديمة ← رحلة الهوية', str_contains(loc($h), 'start.php'), loc($h));
     [$code, $sp] = http('GET', "$base/public/start.php", [], $j);
     t('صفحة «ابدأ» بالـ 16 شاشة', $code === 200 && substr_count($sp, 'data-step') >= 16 && str_contains($sp, 'id="s-offer"'));
+    // عميل عنده لوجو قبل كده (كان بيدّي 500: upload_url مش متحمّلة)
+    db_run('UPDATE brand_profiles SET logo_path = ? WHERE user_id = ?', ['uploads/brand/logo-test.png', $e]);
+    [$code, $sp] = http('GET', "$base/public/start.php", [], $j);
+    t('«ابدأ» لعميل عنده لوجو ← بتفتح (مش 500) واللوجو ظاهر', $code === 200 && str_contains($sp, 'logo-test.png'), (string) $code);
     $cs = csrf_of($sp);
     [, $fr] = http('POST', "$base/public/start.php", ['csrf' => $cs, 'act' => 'fields', 'f' => ['address' => "شارع $tag", 'phones' => '0100', 'password' => 'x']], $j);
     $bp = db_one('SELECT address, phones FROM brand_profiles WHERE user_id = ?', [$e]);
@@ -145,6 +148,17 @@ try {
     [, , $h] = http('GET', "$base/public/start.php", [], $j);
     t('بعد الاعتماد «ابدأ» ← الرئيسية', str_contains(loc($h), 'dashboard.php'), loc($h));
     @unlink($j);
+
+    echo "أول دخول\n";
+    $f = $mk("tr-f-$tag@test.local", '010' . random_int(10000000, 99999999));
+    $jf = tempnam(sys_get_temp_dir(), 'ij');
+    [, $lp] = http('GET', "$base/public/login.php", [], $jf);
+    [, , $h] = http('POST', "$base/public/login.php", ['csrf' => csrf_of($lp), 'email' => "tr-f-$tag@test.local", 'password' => 'Test12345!'], $jf);
+    t('الدخول ← رحلة الهوية على طول (من غير ما يعدّي على الرئيسية)', str_contains(loc($h), 'start.php'), loc($h));
+    [, , $h] = http('GET', "$base/public/dashboard.php", [], $jf);
+    t('ولو فتح الرئيسية بعدها ← مابترجعهوش (مرة في الجلسة)', loc($h) === '');
+    db_run('UPDATE users SET phone = phone WHERE id = ?', [$f]);
+    @unlink($jf);
 
     echo "الأدمن\n";
     $aj = tempnam(sys_get_temp_dir(), 'ia');

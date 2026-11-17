@@ -61,6 +61,9 @@ try {
     await p.fill('input[name="password"]', 'Test12345!');
     await Promise.all([p.waitForNavigation(), p.click('form button[type="submit"]')]);
   }
+  // جاي من لينك الصفحة الرئيسية ← بعد التسجيل والدخول: رحلة الهوية على طول (مش صفحة المنشور)
+  t('بعد الدخول ← رحلة الهوية', /start\.php/.test(p.url()), p.url());
+  if (/start\.php/.test(p.url())) t('الرحلة متعبية باسم النشاط من الهيرو', (await p.inputValue('#f-name')) === biz, await p.inputValue('#f-name'));
   const r = JSON.parse(helper('check', email));
   t('الهوية اتحفظت واتربطت بالتجربة', r.business_name === biz && r.claimed === true, JSON.stringify(r));
   t('ولغة المحتوى English', r.dialect === 'english', JSON.stringify(r));

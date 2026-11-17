@@ -313,5 +313,6 @@ function google_finish_login(array $user, array $res): void
     } elseif (!empty($res['linked'])) {
         flash_set('success', 'ربطنا حساب جوجل بحسابك — تقدر تدخل بالطريقتين من دلوقتي.');
     }
-    redirect($trialContent ? 'content-view.php?id=' . $trialContent : auth_take_next());
+    $dest = $trialContent ? 'content-view.php?id=' . $trialContent : auth_take_next();
+    redirect(function_exists('ij_landing') ? ij_landing($userId, $dest) : $dest);
 }

@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (onb_enabled()) {
                 login_user((int) $result['user_id'], false);
                 $__trialContent = trial_claim((int) $result['user_id']);
-                redirect($__trialContent ? 'content-view.php?id=' . $__trialContent : 'start.php');
+                redirect(ij_landing((int) $result['user_id'], $__trialContent ? 'content-view.php?id=' . $__trialContent : 'start.php'));
             }
 
             flash_set('success', get_setting('manual_approval', '0') === '1'

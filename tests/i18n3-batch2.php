@@ -140,8 +140,7 @@ try {
     $j = jar('en');
     [$c, , $h] = $login($email, $j);
     $dest = loc($h);
-    [$c, , $h] = http('GET', $base . '/public/' . basename(parse_url($dest ?: 'dashboard.php', PHP_URL_PATH) ?: 'dashboard.php'), [], $j);
-    t('أول دخول (من غير بوستات) ← صفحة «ابدأ» بأسئلة الهوية', $c === 302 && str_contains(loc($h), 'start.php'), "$dest → " . loc($h));
+    t('أول دخول ← صفحة «ابدأ» (رحلة الهوية) على طول', str_contains($dest, 'start.php'), $dest);
     [$c, $sp] = http('GET', "$base/public/start.php", [], $j);
     // رحلة الهوية: الأسئلة جوه data-boot — والمجال ليه شاشة خاصة («ده اللي لقيناه») فأول سؤال بقى «بتبيع لمين»
     $boot = preg_match('/data-boot="([^"]*)"/', $sp, $m) ? json_decode(html_entity_decode($m[1], ENT_QUOTES), true) : [];

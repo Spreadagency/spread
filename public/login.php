@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // البداية السريعة: يدخل يكمّل التجربة — التفعيل مطلوب قبل النشر والشراء
             login_user((int) $user['id'], !empty($_POST['remember']));
             $__trialContent = trial_claim((int) $user['id']);
-            redirect($__trialContent ? 'content-view.php?id=' . $__trialContent : (onb_done((int) $user['id']) ? 'dashboard.php' : 'start.php'));
+            redirect(ij_landing((int) $user['id'], $__trialContent ? 'content-view.php?id=' . $__trialContent : (onb_done((int) $user['id']) ? 'dashboard.php' : 'start.php')));
         } elseif (!$user['email_verified_at']) {
             $errors[] = __('الحساب لسه مش مفعل. تشيك على بريدك، أو اطلب رابط تفعيل جديد من هنا: {url}', ['url' => url('resend-verification.php')]);
         } elseif (($user['approval_status'] ?? 'approved') === 'pending') {
@@ -49,9 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $__trialContent = trial_claim((int) ($_SESSION['user_id'] ?? 0));
             if ($__trialContent) {
                 flash_set('success', 'أهلًا بيك! المنشور اللي عملته في التجربة اتحفظ في حسابك ✓');
-                redirect('content-view.php?id=' . $__trialContent);
+                redirect(ij_landing((int) ($_SESSION['user_id'] ?? 0), 'content-view.php?id=' . $__trialContent));
             }
-            redirect(auth_take_next());
+            // رحلة الهوية أول ما يدخل (لو لسه ما اعتمدش هويته) — وإلا الصفحة اللي كان رايحها
+            $__next = auth_take_next();
+            redirect(!empty($_SESSION['user_id']) ? ij_landing((int) $_SESSION['user_id'], $__next) : $__next);
         }
     } elseif (!empty($result['error'])) {
         $errors[] = $result['error'];
