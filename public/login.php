@@ -76,7 +76,7 @@ include __DIR__ . '/../templates/header.php';
     <div class="auth-card">
         <?php if (i18n_enabled()): ?><div style="display:flex;justify-content:flex-end;margin-bottom:-6px"><?= i18n_switcher(url('lang.php')) ?></div><?php endif; ?>
         <div class="brand">
-            <?= function_exists('site_logo_html') ? site_logo_html() : '<div class="brand-mark">S</div>' ?>
+            <?= function_exists('site_logo_html') ? site_logo_html() : '<img src="' . e(url('assets/img/spread-mark-128.png')) . '" width="40" height="40" alt="Spread AI">' ?>
             <div>
                 <div class="brand-name"><?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></div>
                 <div class="brand-sub"><?= e(__(function_exists('site_tagline') ? site_tagline() : APP_TAGLINE)) ?></div>

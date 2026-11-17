@@ -85,7 +85,7 @@ include __DIR__ . '/../templates/header.php';
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="brand">
-            <?= function_exists('site_logo_html') ? site_logo_html() : '<div class="brand-mark">S</div>' ?>
+            <?= function_exists('site_logo_html') ? site_logo_html() : '<img src="' . e(url('assets/img/spread-mark-128.png')) . '" width="40" height="40" alt="Spread AI">' ?>
             <div>
                 <div class="brand-name"><?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></div>
                 <div class="brand-sub">خطوة أخيرة</div>

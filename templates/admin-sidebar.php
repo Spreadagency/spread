@@ -14,7 +14,7 @@ $__logo = function_exists('site_setting') ? site_setting('site_logo', '') : '';
 ?>
 <aside class="sidebar" aria-label="قائمة الأدمن">
     <div class="a2-brand">
-        <span class="a2-logo"><?php if ($__logo !== ''): ?><img src="<?= e(url('storage/' . $__logo)) ?>" alt=""><?php else: ?><?= e(mb_substr($__siteName, 0, 1)) ?><?php endif; ?></span>
+        <span class="a2-logo"><?php if ($__logo !== ''): ?><img src="<?= e(url('storage/' . $__logo)) ?>" alt=""><?php else: ?><img src="<?= e(url('assets/img/spread-mark-128.png')) ?>" alt="Spread AI"><?php endif; ?></span>
         <span class="a2-word"><b><?= e(preg_replace('/\s*AI$/i', '', $__siteName)) ?> <i>AI</i></b><small>PLATFORM ADMIN</small></span>
     </div>
 

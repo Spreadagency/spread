@@ -43,7 +43,7 @@ include __DIR__ . '/../templates/header.php';
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="brand">
-            <div class="brand-mark">S</div>
+            <?= site_logo_html() ?>
             <div>
                 <div class="brand-name"><?= e(APP_NAME) ?></div>
                 <div class="brand-sub"><?= e(__(APP_TAGLINE)) ?></div>

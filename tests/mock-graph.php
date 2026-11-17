@@ -67,6 +67,18 @@ $id = $parts[0] ?? '';
 $edge = $parts[1] ?? '';
 $m = $state['metrics'][$id] ?? [];
 
+// صورة الصفحة (رحلة «ابدأ»: اللوجو من الصفحة) — redirect=false زي Graph
+if ($edge === 'picture') {
+    $pic = $state['pictures'][$id] ?? null;
+    if (!$pic) $err(100, 'Unsupported get request. Object with ID \'' . $id . '\' does not exist', 400);
+    echo json_encode(['data' => ['url' => $pic, 'is_silhouette' => false, 'height' => 200, 'width' => 200]]);
+    exit;
+}
+// حساب إنستجرام: صورة البروفايل
+if ($edge === '' && str_contains((string) ($_GET['fields'] ?? ''), 'profile_picture_url') && isset($state['ig_pictures'][$id])) {
+    echo json_encode(['id' => $id, 'profile_picture_url' => $state['ig_pictures'][$id]]);
+    exit;
+}
 if ($edge === 'posts') {
     echo json_encode(['data' => array_map(fn($p) => $p + ['permalink_url' => 'https://facebook.com/' . $p['id']], $state['pages'][$id] ?? [])]);
     exit;

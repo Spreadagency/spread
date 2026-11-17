@@ -22,7 +22,7 @@ if (!$reset) {
     ?>
     <div class="auth-wrap">
         <div class="auth-card text-center">
-            <div class="brand" style="justify-content:center"><div class="brand-mark">S</div></div>
+            <div class="brand" style="justify-content:center"><?= site_logo_html() ?></div>
             <div style="font-size:64px;margin-bottom:8px">⌛</div>
             <h2><?= e(__('الرابط منتهي')) ?></h2>
             <p class="sub mb-20"><?= e(__('رابط إعادة التعيين انتهت صلاحيته أو غير صحيح. اطلب رابط جديد.')) ?></p>
@@ -69,7 +69,7 @@ include __DIR__ . '/../templates/header.php';
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="brand">
-            <div class="brand-mark">S</div>
+            <?= site_logo_html() ?>
             <div>
                 <div class="brand-name"><?= e(APP_NAME) ?></div>
             </div>

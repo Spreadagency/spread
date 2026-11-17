@@ -24,7 +24,9 @@ $__asset = function (string $rel): string {
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <meta name="app-base" content="<?= e(rtrim(url(''), '/')) ?>">
     <title><?= e(__($page_title)) ?> — <?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237c6df2'/><text x='50' y='66' text-anchor='middle' fill='white' font-size='56' font-weight='bold' font-family='Arial'>S</text></svg>">
+    <?php $__fav = function_exists('site_setting') ? (string) site_setting('site_logo', '') : ''; ?>
+    <link rel="icon" type="image/png" href="<?= e($__fav !== '' ? url('storage/' . $__fav) : url('assets/img/favicon-v2.png')) ?>">
+    <link rel="apple-touch-icon" href="<?= e(url('assets/img/spread-mark-128.png')) ?>">
     <link rel="stylesheet" href="<?= url('assets/css/main.css') ?>?v=<?= @filemtime(__DIR__ . '/../assets/css/main.css') ?: time() ?>">
     <?= function_exists('site_theme_css') ? site_theme_css() : '' ?>
     <style>body.cr-off .cr{display:none!important}body:not(.cr-off) .cr-alt{display:none!important}</style>

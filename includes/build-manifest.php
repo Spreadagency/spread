@@ -3,7 +3,7 @@
 return array (
   'build' => '10.1',
   'date' => '2026-11-17',
-  'generated' => '2026-11-17 20:56',
+  'generated' => '2026-11-17 23:02',
   'update' => 
   array (
     0 => 'admin/ai-ab.php',
@@ -273,84 +273,86 @@ return array (
     264 => 'public/social/connect.php',
     265 => 'public/sources.php',
     266 => 'public/start.php',
-    267 => 'site-admin/translations.php',
-    268 => 'sql/2026_assistants.sql',
-    269 => 'sql/2026_assistants_rollback.sql',
-    270 => 'sql/2026_brand_kit.sql',
-    271 => 'sql/2026_campaign_package.sql',
-    272 => 'sql/2026_campaign_package_rollback.sql',
-    273 => 'sql/2026_ce_content.sql',
-    274 => 'sql/2026_ce_content_rollback.sql',
-    275 => 'sql/2026_ce_design.sql',
-    276 => 'sql/2026_ce_design_rollback.sql',
-    277 => 'sql/2026_ce_design_v2.sql',
-    278 => 'sql/2026_ce_design_v2_rollback.sql',
-    279 => 'sql/2026_ce_engine.sql',
-    280 => 'sql/2026_ce_engine_rollback.sql',
-    281 => 'sql/2026_ce_fixes.sql',
-    282 => 'sql/2026_ce_fixes_rollback.sql',
-    283 => 'sql/2026_ce_lab.sql',
-    284 => 'sql/2026_ce_lab_rollback.sql',
-    285 => 'sql/2026_ce_learning.sql',
-    286 => 'sql/2026_ce_learning_rollback.sql',
-    287 => 'sql/2026_ce_library.sql',
-    288 => 'sql/2026_ce_library_rollback.sql',
-    289 => 'sql/2026_ce_meta_insights.sql',
-    290 => 'sql/2026_ce_meta_insights_rollback.sql',
-    291 => 'sql/2026_ce_models.sql',
-    292 => 'sql/2026_ce_models_rollback.sql',
-    293 => 'sql/2026_ce_perf_posts.sql',
-    294 => 'sql/2026_ce_perf_posts_rollback.sql',
-    295 => 'sql/2026_ce_plan.sql',
-    296 => 'sql/2026_ce_plan_rollback.sql',
-    297 => 'sql/2026_ce_publish.sql',
-    298 => 'sql/2026_ce_publish_rollback.sql',
-    299 => 'sql/2026_ce_skills.sql',
-    300 => 'sql/2026_ce_skills_rollback.sql',
-    301 => 'sql/2026_i18n.sql',
-    302 => 'sql/2026_i18n_rollback.sql',
-    303 => 'sql/2026_managed_accounts.sql',
-    304 => 'sql/2026_managed_accounts_rollback.sql',
-    305 => 'sql/2026_mcp_ai_db.sql',
-    306 => 'sql/2026_mcp_ai_db_rollback.sql',
-    307 => 'sql/2026_mcp_foundation.sql',
-    308 => 'sql/2026_mcp_foundation_rollback.sql',
-    309 => 'sql/2026_messages_inbound.sql',
-    310 => 'sql/2026_messages_inbound_rollback.sql',
-    311 => 'sql/2026_mobile_api.sql',
-    312 => 'sql/2026_packages_v2.sql',
-    313 => 'sql/2026_packages_v2_rollback.sql',
-    314 => 'sql/2026_phase10_billing_promo_auth.sql',
-    315 => 'sql/2026_phase9_drafts_inspirations_slider.sql',
-    316 => 'sql/2026_plan_page.sql',
-    317 => 'sql/2026_plan_page_rollback.sql',
-    318 => 'sql/2026_quality_tiers.sql',
-    319 => 'sql/2026_quality_tiers_rollback.sql',
-    320 => 'sql/2026_trial_link.sql',
-    321 => 'sql/2026_video_pricing.sql',
-    322 => 'sql/2026_video_pricing_rollback.sql',
-    323 => 'sql/2026_whatsapp_messaging.sql',
-    324 => 'sql/site-home-v2.sql',
-    325 => 'templates/admin-messages-tabs.php',
-    326 => 'templates/admin-sidebar.php',
-    327 => 'templates/brand-kit-post.php',
-    328 => 'templates/footer.php',
-    329 => 'templates/header.php',
-    330 => 'templates/inbox-poll.php',
-    331 => 'templates/sidebar.php',
-    332 => 'templates/style-ref-picker.php',
-    333 => 'templates/topbar.php',
-    334 => 'templates/v2/auth.php',
-    335 => 'templates/v2/campaign.php',
-    336 => 'templates/v2/dashboard.php',
-    337 => 'templates/v2/journey.php',
-    338 => 'templates/v2/quick-post.php',
-    339 => 'templates/v2/research.php',
-    340 => 'templates/v2/settings.php',
-    341 => 'templates/v2/sidebar.php',
-    342 => 'templates/v2/studio.php',
-    343 => 'templates/v2/tabbar.php',
-    344 => 'templates/v2/topbar.php',
+    267 => 'public/verify-email.php',
+    268 => 'site-admin/translations.php',
+    269 => 'sql/2026_assistants.sql',
+    270 => 'sql/2026_assistants_rollback.sql',
+    271 => 'sql/2026_brand_kit.sql',
+    272 => 'sql/2026_campaign_package.sql',
+    273 => 'sql/2026_campaign_package_rollback.sql',
+    274 => 'sql/2026_ce_content.sql',
+    275 => 'sql/2026_ce_content_rollback.sql',
+    276 => 'sql/2026_ce_design.sql',
+    277 => 'sql/2026_ce_design_rollback.sql',
+    278 => 'sql/2026_ce_design_v2.sql',
+    279 => 'sql/2026_ce_design_v2_rollback.sql',
+    280 => 'sql/2026_ce_engine.sql',
+    281 => 'sql/2026_ce_engine_rollback.sql',
+    282 => 'sql/2026_ce_fixes.sql',
+    283 => 'sql/2026_ce_fixes_rollback.sql',
+    284 => 'sql/2026_ce_lab.sql',
+    285 => 'sql/2026_ce_lab_rollback.sql',
+    286 => 'sql/2026_ce_learning.sql',
+    287 => 'sql/2026_ce_learning_rollback.sql',
+    288 => 'sql/2026_ce_library.sql',
+    289 => 'sql/2026_ce_library_rollback.sql',
+    290 => 'sql/2026_ce_meta_insights.sql',
+    291 => 'sql/2026_ce_meta_insights_rollback.sql',
+    292 => 'sql/2026_ce_models.sql',
+    293 => 'sql/2026_ce_models_rollback.sql',
+    294 => 'sql/2026_ce_perf_posts.sql',
+    295 => 'sql/2026_ce_perf_posts_rollback.sql',
+    296 => 'sql/2026_ce_plan.sql',
+    297 => 'sql/2026_ce_plan_rollback.sql',
+    298 => 'sql/2026_ce_publish.sql',
+    299 => 'sql/2026_ce_publish_rollback.sql',
+    300 => 'sql/2026_ce_skills.sql',
+    301 => 'sql/2026_ce_skills_rollback.sql',
+    302 => 'sql/2026_i18n.sql',
+    303 => 'sql/2026_i18n_rollback.sql',
+    304 => 'sql/2026_managed_accounts.sql',
+    305 => 'sql/2026_managed_accounts_rollback.sql',
+    306 => 'sql/2026_mcp_ai_db.sql',
+    307 => 'sql/2026_mcp_ai_db_rollback.sql',
+    308 => 'sql/2026_mcp_foundation.sql',
+    309 => 'sql/2026_mcp_foundation_rollback.sql',
+    310 => 'sql/2026_messages_inbound.sql',
+    311 => 'sql/2026_messages_inbound_rollback.sql',
+    312 => 'sql/2026_mobile_api.sql',
+    313 => 'sql/2026_packages_v2.sql',
+    314 => 'sql/2026_packages_v2_rollback.sql',
+    315 => 'sql/2026_phase10_billing_promo_auth.sql',
+    316 => 'sql/2026_phase9_drafts_inspirations_slider.sql',
+    317 => 'sql/2026_plan_page.sql',
+    318 => 'sql/2026_plan_page_rollback.sql',
+    319 => 'sql/2026_quality_tiers.sql',
+    320 => 'sql/2026_quality_tiers_rollback.sql',
+    321 => 'sql/2026_trial_link.sql',
+    322 => 'sql/2026_video_pricing.sql',
+    323 => 'sql/2026_video_pricing_rollback.sql',
+    324 => 'sql/2026_whatsapp_messaging.sql',
+    325 => 'sql/site-home-v2.sql',
+    326 => 'templates/admin-header.php',
+    327 => 'templates/admin-messages-tabs.php',
+    328 => 'templates/admin-sidebar.php',
+    329 => 'templates/brand-kit-post.php',
+    330 => 'templates/footer.php',
+    331 => 'templates/header.php',
+    332 => 'templates/inbox-poll.php',
+    333 => 'templates/sidebar.php',
+    334 => 'templates/style-ref-picker.php',
+    335 => 'templates/topbar.php',
+    336 => 'templates/v2/auth.php',
+    337 => 'templates/v2/campaign.php',
+    338 => 'templates/v2/dashboard.php',
+    339 => 'templates/v2/journey.php',
+    340 => 'templates/v2/quick-post.php',
+    341 => 'templates/v2/research.php',
+    342 => 'templates/v2/settings.php',
+    343 => 'templates/v2/sidebar.php',
+    344 => 'templates/v2/studio.php',
+    345 => 'templates/v2/tabbar.php',
+    346 => 'templates/v2/topbar.php',
   ),
   'files' => 
   array (
@@ -566,8 +568,8 @@ return array (
     ),
     'admin/login.php' => 
     array (
-      'h' => '9c39c016ab6f7c8678cfdacc72058e17',
-      's' => 2653,
+      'h' => '6118979b2fed4c91961dbcd09c82cf18',
+      's' => 2811,
     ),
     'admin/logout.php' => 
     array (
@@ -1331,8 +1333,8 @@ return array (
     ),
     'includes/helpers.php' => 
     array (
-      'h' => 'b8410119c07528795ca3a71eb054a5a2',
-      's' => 30311,
+      'h' => '5e790531e10e0aaddfb60175fd211ef8',
+      's' => 30586,
     ),
     'includes/i18n.php' => 
     array (
@@ -1746,8 +1748,8 @@ return array (
     ),
     'public/api/brand-kit.php' => 
     array (
-      'h' => '6f11afda292fb984e7dc678015527f80',
-      's' => 98606,
+      'h' => 'abb61664b11a5408f94c751038186fe2',
+      's' => 101610,
     ),
     'public/api/brand.php' => 
     array (
@@ -1926,8 +1928,8 @@ return array (
     ),
     'public/complete-account.php' => 
     array (
-      'h' => 'be53eb288976259f0fec823673b53510',
-      's' => 6458,
+      'h' => '30adb088b2b804753abc8e63e854b23e',
+      's' => 6526,
     ),
     'public/content-edit.php' => 
     array (
@@ -1976,8 +1978,8 @@ return array (
     ),
     'public/forgot-password.php' => 
     array (
-      'h' => 'd4a57a3fe080647e3504b9716e232dc0',
-      's' => 3053,
+      'h' => 'cdbdd2df6cbdf7d49a1c20861e9f172a',
+      's' => 3045,
     ),
     'public/help.php' => 
     array (
@@ -2011,8 +2013,8 @@ return array (
     ),
     'public/login.php' => 
     array (
-      'h' => '12ecde275bc59249789b4d0d83703a87',
-      's' => 6810,
+      'h' => '127f3d6a009207c215ba41ce2b45cd75',
+      's' => 6878,
     ),
     'public/logout.php' => 
     array (
@@ -2071,8 +2073,8 @@ return array (
     ),
     'public/register.php' => 
     array (
-      'h' => '56ee6f6bc2822f1c9d36a49503af39ec',
-      's' => 9073,
+      'h' => 'd69f7ef1ed29fb10eb561b2c7f1e0776',
+      's' => 9141,
     ),
     'public/research-report.php' => 
     array (
@@ -2086,13 +2088,13 @@ return array (
     ),
     'public/resend-verification.php' => 
     array (
-      'h' => '099671661388cb970fdae93682cab6d6',
-      's' => 3313,
+      'h' => 'dd03ac2842d5bd819cff9bf7cd2c6b83',
+      's' => 3305,
     ),
     'public/reset-password.php' => 
     array (
-      'h' => 'ba1a80238903dc77fd9f208f5d87f756',
-      's' => 4556,
+      'h' => '323a26c5be76533c49ee3b55977571fe',
+      's' => 4540,
     ),
     'public/social-accounts.php' => 
     array (
@@ -2126,8 +2128,8 @@ return array (
     ),
     'public/start.php' => 
     array (
-      'h' => '0798a62f5b2477c8b7cccade5258b1f9',
-      's' => 62670,
+      'h' => 'eaf10844c131b8a6e0b57a04d88c5c89',
+      's' => 69385,
     ),
     'public/studio.php' => 
     array (
@@ -2136,8 +2138,8 @@ return array (
     ),
     'public/verify-email.php' => 
     array (
-      'h' => '36f6d7fc07cf3e1d15ddfd23f3f55c0b',
-      's' => 1555,
+      'h' => '7fdcb0b5b21912740831d21f409b0e50',
+      's' => 1547,
     ),
     'public/webhooks/meta.php' => 
     array (
@@ -2616,8 +2618,8 @@ return array (
     ),
     'templates/admin-header.php' => 
     array (
-      'h' => 'dc90661127f31aeb3361af0e4356e94d',
-      's' => 1332,
+      'h' => '3edf7f222455a570adeaa41bb0e4bddc',
+      's' => 1421,
     ),
     'templates/admin-messages-tabs.php' => 
     array (
@@ -2626,8 +2628,8 @@ return array (
     ),
     'templates/admin-sidebar.php' => 
     array (
-      'h' => 'c90e90ab94de331429f9bcbfa8ad5c8d',
-      's' => 9658,
+      'h' => '92a8c2d18537bf307b7de4fdb1967f85',
+      's' => 9695,
     ),
     'templates/brand-kit-post.php' => 
     array (
@@ -2646,8 +2648,8 @@ return array (
     ),
     'templates/header.php' => 
     array (
-      'h' => 'a5f8ad3416059baf8051af90f6060b6f',
-      's' => 4151,
+      'h' => 'e6ca37eba187ebe7d7f9afe7c7c1e29a',
+      's' => 4162,
     ),
     'templates/impersonation-bar.php' => 
     array (
@@ -2666,8 +2668,8 @@ return array (
     ),
     'templates/sidebar.php' => 
     array (
-      'h' => '87f587ee1f387938a7a72729f6437d20',
-      's' => 8579,
+      'h' => '524f3afdeb796ac0c1392b8d60beddbc',
+      's' => 8647,
     ),
     'templates/style-ref-picker.php' => 
     array (

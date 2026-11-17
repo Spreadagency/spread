@@ -37,7 +37,7 @@ include __DIR__ . '/../templates/admin-header.php';
 
 <div class="auth-wrap">
     <div class="auth-card">
-        <div class="brand-mark" style="background:#4a3db8">⚡</div>
+        <div class="brand-mark" style="background:transparent;box-shadow:none;overflow:hidden"><img src="<?= e(url('assets/img/spread-mark-128.png')) ?>" style="width:100%;height:100%;object-fit:contain" alt="Spread AI"></div>
         <h1>لوحة الإدارة</h1>
         <p>دخول مخصص للمسؤولين فقط</p>
 

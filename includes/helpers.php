@@ -352,7 +352,8 @@ function site_logo_html(): string
     if ($logo !== '') {
         return '<div class="brand-mark" style="background:transparent;padding:0;overflow:hidden"><img src="' . e(url('storage/' . $logo)) . '" style="width:100%;height:100%;object-fit:contain" alt="logo"></div>';
     }
-    return '<div class="brand-mark">' . e(mb_substr(site_name(), 0, 1)) . '</div>';
+    // لوجو Spread بدل أول حرف من الاسم (لو الأدمن مارفعش لوجو)
+    return '<div class="brand-mark" style="background:transparent;padding:0;overflow:hidden;box-shadow:none"><img src="' . e(url('assets/img/spread-mark-128.png')) . '" style="width:100%;height:100%;object-fit:contain" alt="' . e(site_name()) . '"></div>';
 }
 
 /** ألوان الثيم المخصصة → CSS variables */

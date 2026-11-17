@@ -120,4 +120,12 @@ return [
     'باقي لك {n} كريدت لحد {d}' => '{n} credits left until {d}',
     'استخدمت {pct}% من باقتك — لحد {d}' => 'You used {pct}% of your plan — until {d}',
     'تصميمات الباقة' => 'Plan designs',
+    // المرحلة 1: اللوجو والتصميمات من صفحة العميل
+    'صفحتك على فيسبوك أو إنستجرام؟ اربطها ونجيبلك اللوجو وتصميماتك منها على طول.' => 'Your page is on Facebook or Instagram? Connect it and we\'ll bring your logo and designs from it right away.',
+    'اربط' => 'Connect',
+    'لقينا دول في صفحتك — ده اللوجو بتاعك؟' => 'We found these on your page — is this your logo?',
+    'أو ارفعه من جهازك' => 'Or upload it from your device',
+    'دي تصميمات وصور من صفحتك — اختار اللي عاجبك (هنصمم على ذوقها)' => 'These are designs and photos from your page — pick the ones you like (we\'ll design in that taste)',
+    'اربط صفحتك ونجيبلك تصميماتك منها تختار اللي عاجبك.' => 'Connect your page and we\'ll bring your designs so you can pick the ones you like.',
+    'كفاية 6 تصميمات' => '6 designs is enough',
 ];

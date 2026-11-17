@@ -1041,6 +1041,46 @@ switch ($action) {
         }
         api_ok(['state' => bkapi_state($uid), 'read' => $src['read'], 'filled' => $filled, 'built' => $built, 'warn' => $warn, 'balance' => credits_balance($uid)]);
 
+    /* ══════════ اللوجو والتصميمات من صفحة العميل (رحلة «ابدأ») ══════════ */
+    case 'page_assets':
+        if (!rate_limit('bk_page_assets', 'u' . $uid, 10, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);
+        require_once __DIR__ . '/../../includes/page-assets.php';
+        require_once __DIR__ . '/../../includes/social.php';
+        @set_time_limit(60);
+        api_ok(page_assets($uid, api_str('url', 1000)));
+
+    case 'page_logo_use':
+        require_once __DIR__ . '/../../includes/page-assets.php';
+        $u = api_str('url', 2000);
+        if (!pa_offered($uid, $u)) api_fail('الصورة دي مش من الاقتراحات — حدّث الصفحة وجرّب تاني', 'invalid', 422);
+        $path = pa_store($u, 'logos');
+        if (!$path) api_fail('معرفناش ننزّل الصورة دي — ارفع اللوجو من جهازك', 'fetch_failed', 422);
+        $bp = bkapi_profile($uid);
+        db_run('UPDATE brand_profiles SET logo_path = ?, updated_at = NOW() WHERE id = ?', [$path, $bp['id']]);
+        brand_kit_notify($uid, ['logo_path'], 'user', 'لوجو من صفحة العميل');
+        // ألوان من اللوجو لو لسه مفيش ألوان (زي «اختار اللوجو»)
+        $abs = realpath(STORAGE_PATH . '/' . $path);
+        if ($abs && bk_get($uid)['data']['colors']['primary'] === '' && ($cols = brand_logo_colors($abs))) {
+            bk_save_section($uid, 'colors', array_merge(bk_get($uid)['data']['colors'], array_filter(['primary' => $cols[0] ?? '', 'secondary' => $cols[1] ?? '', 'accent' => $cols[2] ?? ''])), 'ai', 'ألوان من اللوجو');
+        }
+        api_ok(['logo_url' => upload_url($path), 'state' => bkapi_state($uid)]);
+
+    case 'page_insp_add':
+        require_once __DIR__ . '/../../includes/page-assets.php';
+        $bp = bkapi_profile($uid);
+        if (!brand_insp_ensure()) api_fail('الميزة مش متاحة دلوقتي', 'disabled', 503);
+        $room = max(0, brand_insp_max() - brand_insp_count((int) $bp['id']));
+        $urls = array_values(array_unique(array_filter(array_map(fn($x) => mb_substr(trim((string) $x), 0, 2000), (array) (api_input()['urls'] ?? [])))));
+        $saved = 0; $failed = 0;
+        foreach (array_slice($urls, 0, min(12, $room)) as $u) {
+            if (!pa_offered($uid, $u) || !($path = pa_store($u, 'brand-images'))) { $failed++; continue; }
+            db_insert('INSERT INTO brand_inspirations (brand_profile_id, user_id, image_path, link_url, note) VALUES (?,?,?,?,?)',
+                [$bp['id'], $uid, $path, mb_substr($u, 0, 1000), 'من صفحتك (رحلة «ابدأ»)']);
+            $saved++;
+        }
+        if (!$saved && $urls) api_fail('معرفناش ننزّل الصور دي — تقدر ترفع تصميم من جهازك', 'fetch_failed', 422);
+        api_ok(['saved' => $saved, 'failed' => $failed, 'room' => $room]);
+
     /* ══════════ الألوان: من تصميماتك + اقتراحات AI ══════════ */
     case 'palette_suggest':
         if (!rate_limit('bk_palette', 'u' . $uid, 8, 600)) api_fail('استنى شوية وجرّب تاني', 'rate_limit', 429);

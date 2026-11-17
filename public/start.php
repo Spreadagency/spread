@@ -171,6 +171,14 @@ include __DIR__ . '/../templates/header.php';
 .onb-offer .big b { display: block; font-size: 26px; }
 .onb-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 420px) { .onb-cards, .onb-grid2 { grid-template-columns: 1fr; } }
+.onb-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin: 4px 0 12px; }
+.onb-pick button { position: relative; aspect-ratio: 1; border: 2px solid var(--line); border-radius: 12px; padding: 0; overflow: hidden; background: #fff; cursor: pointer; }
+.onb-pick button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.onb-pick.logos button img { object-fit: contain; padding: 6px; }
+.onb-pick button.on { border-color: var(--primary, #4a3db8); box-shadow: 0 0 0 3px rgba(124,109,242,.25); }
+.onb-pick button.on::after { content: '✓'; position: absolute; top: 4px; inset-inline-end: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--primary, #4a3db8); color: #fff; font-size: 13px; line-height: 22px; text-align: center; }
+.onb-meta { display: flex; gap: 10px; align-items: center; border: 1px dashed var(--line); border-radius: 12px; padding: 10px 12px; margin: 12px 0 4px; font-size: 13px; line-height: 1.6; }
+.onb-meta .btn { flex: none; }
 [hidden] { display: none !important; }
 </style>
 <div class="onb-wrap">
@@ -215,6 +223,10 @@ include __DIR__ . '/../templates/header.php';
             <label for="f-file"><?= e(__('ارفع منيو أو بروشور أو صورة')) ?> <span class="text-mute"><?= e(__('(اختياري)')) ?></span></label>
             <input id="f-file" type="file" class="input" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png,.webp">
         </div>
+        <?php if ($boot['social_on'] && $verified): ?>
+        <div class="onb-meta" id="meta-early"><span><?= e(__('صفحتك على فيسبوك أو إنستجرام؟ اربطها ونجيبلك اللوجو وتصميماتك منها على طول.')) ?></span>
+            <a class="btn ghost sm" href="<?= e(url('social-accounts.php?from=start')) ?>" target="_blank" rel="noopener" data-meta-link><?= e(__('اربط')) ?></a></div>
+        <?php endif; ?>
         <button type="button" class="btn full lg" id="b-link"><?= e(__('حلّل وكمّل ←')) ?></button>
         <div style="text-align:center;margin-top:12px"><a class="text-mute" style="font-size:13px" href="<?= url('dashboard.php?onb=skip') ?>"><?= e(__('تخطّي دلوقتي — روح للوحة التحكم')) ?></a></div>
     </div>
@@ -247,6 +259,11 @@ include __DIR__ . '/../templates/header.php';
     <div class="onb-card" id="s-logo" data-step hidden>
         <h2><?= e(__('لوجو نشاطك')) ?></h2>
         <p class="sub"><?= e(__('بنحطه على تصميماتك وبناخد منه الألوان.')) ?></p>
+        <div id="pa-logos-wrap" hidden>
+            <p class="sub" style="margin-bottom:6px"><b><?= e(__('لقينا دول في صفحتك — ده اللوجو بتاعك؟')) ?></b></p>
+            <div class="onb-pick logos" id="pa-logos"></div>
+            <div class="onb-or"><?= e(__('أو ارفعه من جهازك')) ?></div>
+        </div>
         <div class="onb-logo" id="logo-box">🏷️</div>
         <input id="logo-file" type="file" class="input" accept=".jpg,.jpeg,.png,.webp">
         <div class="onb-row">
@@ -293,6 +310,14 @@ include __DIR__ . '/../templates/header.php';
         <h2><?= e(__('شكل تصميماتك')) ?></h2>
         <p class="sub"><?= e(__('اختار الاستايل اللي يعجبك — أو ارفع تصميم عاجبك وإحنا نفهم ذوقك.')) ?></p>
         <div class="onb-cards" id="styles"></div>
+        <div id="pa-imgs-wrap" hidden>
+            <p class="sub" style="margin:14px 0 6px"><b><?= e(__('دي تصميمات وصور من صفحتك — اختار اللي عاجبك (هنصمم على ذوقها)')) ?></b></p>
+            <div class="onb-pick" id="pa-imgs"></div>
+        </div>
+        <?php if ($boot['social_on'] && $verified): ?>
+        <div class="onb-meta" id="meta-style" hidden><span><?= e(__('اربط صفحتك ونجيبلك تصميماتك منها تختار اللي عاجبك.')) ?></span>
+            <a class="btn ghost sm" href="<?= e(url('social-accounts.php?from=start')) ?>" target="_blank" rel="noopener" data-meta-link><?= e(__('اربط')) ?></a></div>
+        <?php endif; ?>
         <div class="onb-or"><?= e(__('تصميم عاجبك؟ (اختياري)')) ?></div>
         <input id="insp-file" type="file" class="input" accept=".jpg,.jpeg,.png,.webp">
         <input id="insp-url" class="input" dir="ltr" inputmode="url" maxlength="1000" placeholder="<?= e(__('أو حط لينك تصميم أو صفحة')) ?>" style="margin-top:8px">
@@ -417,7 +442,7 @@ include __DIR__ . '/../templates/header.php';
     'اكتب الاسم واختار صورة', 'لازم توافق على استخدام الصور', 'التواصل', 'المواعيد', 'العملاء المثاليين', 'الاستايل', 'الأشخاص في التصميمات',
     'عرض البداية 🎁', 'هدية لحسابك الجديد — جرّب المنصة كاملة', 'محتوى', 'تصميم', 'يوم', 'تصميمات التجربة عليها علامة مائية بتتشال تلقائي لما تشترك. ولما التجربة تخلص تقدر تدخل وتشوف محتواك عادي.',
     'هويتك اتحفظت ✓', 'كمّل بباقتك الحالية — أو شوف الباقات.', 'عندك رصيد تبدأ بيه.', 'اشترك علشان تكمّل إنتاج محتوى وتصميمات.', 'اختار استايل', 'اختار جملة',
-    'بنحفظ…', 'التصميم اللي عجبك', 'جرّب تاني']) ?>
+    'بنحفظ…', 'التصميم اللي عجبك', 'جرّب تاني', 'كفاية 6 تصميمات']) ?>
 <script>
 (function () {
     var T = window.__t || function (s) { return s; };
@@ -464,10 +489,61 @@ include __DIR__ . '/../templates/header.php';
     function upState(r) { if (r && r.ok && r.state) state = r.state; return r; }
     function kit() { return (state && state.kit) || {}; }
 
+    /* ───── اللوجو والتصميمات من صفحة العميل (الموقع · صورة صفحة فيسبوك · الصفحات المربوطة بميتا) ───── */
+    var PA = { logos: [], images: [], connected: false }, paUrl = '', paBusy = null, metaOpened = false;
+    function loadPA() {
+        paBusy = api('page_assets', { url: paUrl }).then(function (r) {
+            if (r && r.ok) PA = { logos: r.logos || [], images: r.images || [], connected: !!r.connected };
+            paBusy = null;
+            if (!$('s-logo').hidden) drawLogoPicks();
+            if (!$('s-style').hidden) drawImgPicks();
+            return PA;
+        });
+        return paBusy;
+    }
+    // رجع من صفحة الربط (تاب تاني) ← نجيب اللوجو والتصميمات من الصفحة المربوطة
+    document.querySelectorAll('[data-meta-link]').forEach(function (a) { a.addEventListener('click', function () { metaOpened = true; }); });
+    window.addEventListener('focus', function () { if (metaOpened && !paBusy) { metaOpened = false; loadPA(); } });
+    function picks(box, list, multi, sel) {
+        box.textContent = '';
+        list.forEach(function (u) {
+            var b = el('button'); b.type = 'button'; b.dataset.u = u; if (sel.indexOf(u) > -1) b.classList.add('on');
+            var i = el('img'); i.src = u; i.alt = ''; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer';
+            i.onerror = function () { b.remove(); };   // صورة مابتفتحش برا الصفحة ← نشيلها
+            b.appendChild(i); box.appendChild(b);
+        });
+    }
+    var logoPick = '', logoAuto = false, imgPicks = [];
+    function drawLogoPicks() {
+        $('pa-logos-wrap').hidden = !PA.logos.length;
+        if (PA.logos.length && !logoAuto && !logoPick && !B.logo) { logoPick = PA.logos[0]; logoAuto = true; }   // أول اقتراح متعلّم مرة واحدة (يقدر يشيله)
+        picks($('pa-logos'), PA.logos, false, logoPick ? [logoPick] : []);
+        if (logoPick) { $('logo-box').textContent = ''; var i = el('img'); i.src = logoPick; i.referrerPolicy = 'no-referrer'; $('logo-box').appendChild(i); }
+    }
+    $('pa-logos').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        logoPick = b.classList.contains('on') ? '' : b.dataset.u;
+        $('logo-file').value = '';
+        drawLogoPicks();
+        if (!logoPick) { $('logo-box').textContent = '🏷️'; if (B.logo) renderLogo(); }
+    });
+    function drawImgPicks() {
+        $('pa-imgs-wrap').hidden = !PA.images.length;
+        var ms = $('meta-style'); if (ms) ms.hidden = PA.connected || PA.images.length > 3;
+        picks($('pa-imgs'), PA.images, true, imgPicks);
+    }
+    $('pa-imgs').addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        var u = b.dataset.u, k = imgPicks.indexOf(u);
+        if (k > -1) imgPicks.splice(k, 1); else if (imgPicks.length < 6) imgPicks.push(u); else return msg(T('كفاية 6 تصميمات'), 'info');
+        b.classList.toggle('on', k < 0);
+    });
+
     /* ───── 1) اللينك ───── */
     $('b-link').addEventListener('click', function () {
         var name = $('f-name').value.trim(), url = $('f-url').value.trim(), file = $('f-file').files[0];
         if (name.length < 2) { msg(T('اكتب اسم نشاطك الأول')); $('f-name').focus(); return; }
+        paUrl = url; loadPA();   // في الخلفية — بيجهز على ما العميل يراجع «ده اللي لقيناه»
         loading(url || file ? T('بنقرا صفحتك وبياناتك…') : T('لحظة…'));
         self('name', { name: name }).then(function (r) {
             if (!r.ok) { show('s-link'); msg(r.error); return null; }
@@ -560,13 +636,25 @@ include __DIR__ . '/../templates/header.php';
         show('s-logo');
         var box = $('logo-box');
         if (B.logo) { box.textContent = ''; var i = el('img'); i.src = B.logo; i.alt = ''; box.appendChild(i); }
+        drawLogoPicks();
     }
     $('logo-file').addEventListener('change', function () {
         var f = this.files[0]; if (!f) return;
+        logoPick = ''; $('pa-logos').querySelectorAll('.on').forEach(function (x) { x.classList.remove('on'); });
         var box = $('logo-box'); box.textContent = ''; var i = el('img'); i.src = URL.createObjectURL(f); box.appendChild(i);
     });
     STEPS.logo = function () {
         var f = $('logo-file').files[0];
+        if (!f && logoPick) {
+            // اللوجو من صفحته ← بيتنزل ويتحفظ (ولو مانزلش: نطلب منه يرفعه)
+            loading(T('بنحفظ…'));
+            api('page_logo_use', { url: logoPick }).then(function (r) {
+                if (!r.ok) { renderLogo(); msg(r.error); return; }
+                upState(r); B.logo = r.logo_url || logoPick; logoPick = '';
+                renderColors();
+            });
+            return;
+        }
         if (!f) { renderColors(); return; }
         loading(T('بنحفظ…'));
         var fd = new FormData(); fd.append('logo', f);
@@ -730,6 +818,7 @@ include __DIR__ . '/../templates/header.php';
     var stylePick = -1;
     function renderStyle() {
         show('s-style');
+        drawImgPicks();
         var box = $('styles'); box.textContent = '';
         STYLES.forEach(function (s, i) {
             var b = el('button', 'onb-cardopt'); b.type = 'button'; b.dataset.i = i;
@@ -750,6 +839,7 @@ include __DIR__ . '/../templates/header.php';
             jobs.push(function () { return api('save_section', { section: 'design_style', value: ds }).then(upState); });
             jobs.push(function () { return api('save_section', { section: 'visuals', value: vis }).then(upState); });
         }
+        if (imgPicks.length) jobs.push(function () { return api('page_insp_add', { urls: imgPicks.slice() }).then(function (r) { if (r.ok) imgPicks = []; return r; }); });
         if (f) jobs.push(function () { var fd = new FormData(); fd.append('file', f); fd.append('note', T('التصميم اللي عجبك')); return bapi('insp_upload', fd, true); });
         else if (u) jobs.push(function () { return bapi('insp_link', { url: u, note: T('التصميم اللي عجبك') }); });
         if (!jobs.length) { renderContact(); return; }
