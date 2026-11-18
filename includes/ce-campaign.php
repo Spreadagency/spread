@@ -45,7 +45,7 @@ function ce_wizard_options(int $uid): array
     $dna = ce_dna_get($uid) ?? ce_dna_trim(ce_dna_clean($uid, ce_dna_from_kit($uid)));
     $chars = [];
     foreach (ce_dna_options($uid)['characters'] as $c) {
-        $chars[] = $c + ['label' => $c['type'] === 'real_person' ? 'الدكتور / صاحب النشاط' : 'شخصية البراند'];
+        $chars[] = $c + ['label' => $c['type'] === 'real_person' ? 'صاحب النشاط / فريقك' : 'شخصية البراند'];
     }
     return [
         'goals' => array_map(fn($k, $v) => ['key' => $k, 'label' => $v[0], 'icon' => $v[1]], array_keys(CE_GOALS), CE_GOALS),

@@ -48,7 +48,7 @@ $toneCls = ['danger' => 'da-danger', 'violet' => 'da-violet', 'amber' => 'da-amb
         <div class="dh-act-head">
             <h3><span class="dh-bolt">⚡</span> <?= e(__('يحتاج منك إجراء')) ?>
                 <?php if ($d['actionsTotal']): ?><em class="dh-count"><?= (int) $d['actionsTotal'] ?></em><?php endif; ?></h3>
-            <?php if ($d['actions']): ?><a href="<?= url('content-history.php') ?>" class="dh-more"><?= e(__('شوف الكل ←')) ?></a><?php endif; ?>
+            <?php if ($d['actions']): ?><a href="<?= url($d['actionsAll'] ?? 'content-history.php') ?>" class="dh-more"><?= e(__('شوف الكل ←')) ?></a><?php endif; ?>
         </div>
         <?php if ($d['actions']): ?>
             <div class="dh-chips">

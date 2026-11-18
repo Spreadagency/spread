@@ -225,6 +225,27 @@ function campaign_steps(array $c, ?array $f = null): array
             'next' => $next ? $next['name'] : null, 'progress' => $all ? 100 : (int) round($n / max(1, count($list)) * 100)];
 }
 
+/**
+ * «يحتاج إجراء» — رقم واحد للرئيسية والجرس وصفحة المحتوى (نفس الحالات بالظبط):
+ *   failed (فشل النشر) · review (يحتاج مراجعة) · design (يحتاج تصميم + المحتوى جاهز ومستني تصميم)
+ *   total = مجموعهم (نفس «⚡ يحتاج إجراء» في المحتوى) · ready = التصميم جاهز ومستني جدولة (معلومة — مش في المجموع)
+ * وكل واحد ليه لينك بيفتح المحتوى بالفلتر بتاعه.
+ */
+function content_action_counts(int $uid): array
+{
+    $by = [];
+    try {
+        foreach (db_all('SELECT ' . content_status_sql('c') . ' st, COUNT(*) n FROM contents c WHERE c.user_id = ? GROUP BY st', [$uid]) as $r) $by[$r['st']] = (int) $r['n'];
+    } catch (\Throwable $e) {}
+    $o = ['failed' => $by['publish_failed'] ?? 0, 'review' => $by['needs_review'] ?? 0,
+          'design' => ($by['needs_design'] ?? 0) + ($by['content_ready'] ?? 0), 'ready' => $by['design_ready'] ?? 0];
+    $o['total'] = $o['failed'] + $o['review'] + $o['design'];
+    $o['urls'] = ['failed' => 'content-history.php?status=publish_failed', 'review' => 'content-history.php?status=needs_review',
+                  'design' => 'content-history.php?status=needs_design,content_ready', 'ready' => 'content-history.php?status=design_ready',
+                  'all' => 'content-history.php?needs=1'];
+    return $o;
+}
+
 /** تحويل صف حملة لشكل الـ API */
 function campaign_to_api(array $c, bool $withSummary = true): array
 {

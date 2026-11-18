@@ -17,6 +17,8 @@
 </style>
 <script>
 (function () {
+  // مرة واحدة بس في الصفحة (لو الجزء ده اتحمّل مرتين)
+  if (window.__spInboxOn) return; window.__spInboxOn = true;
   var wrap = document.querySelector('[data-inbox]'); if (!wrap || !window.fetch) return;
   var base = parseInt(wrap.dataset.badge, 10) || 0, unread0 = parseInt(wrap.dataset.unread, 10) || 0, dotCls = wrap.dataset.dot || 'sp-dot';
   var KEY = 'sp_inbox_max', API = <?= json_encode(url('api/inbox.php')) ?>;
@@ -36,8 +38,11 @@
     t.appendChild(tx); t.appendChild(a); t.appendChild(x); document.body.appendChild(t);
     setTimeout(function () { if (t.parentNode) t.remove(); }, 9000);
   }
-  function poll() {
-    if (document.hidden) return;
+  // fix: كان بيتطلب كذا مرة في نفس الصفحة (أول تحميل + رجوع التاب + سكريبتات تانية) — طلب واحد في نفس الوقت وبينهم 5 ثواني على الأقل
+  var busy = false, last = 0;
+  function poll(force) {
+    if (document.hidden || busy || (force !== true && Date.now() - last < 5000)) return;
+    busy = true; last = Date.now();
     fetch(API + '?action=unread', { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.json(); }).then(function (d) {
         if (!d || !d.ok) return;
@@ -48,9 +53,9 @@
           if (fresh.length) toast(fresh[0]);
         }
         try { sessionStorage.setItem(KEY, String(d.max_id)); } catch (e) {}
-      }).catch(function () {});
+      }).catch(function () {}).then(function () { busy = false; });
   }
-  window.spInbox = { set: function (n) { setBadge(n); }, poll: poll };
+  window.spInbox = { set: function (n) { setBadge(n); }, poll: function () { poll(true); } };
   poll();
   setInterval(poll, 30000);
   document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });

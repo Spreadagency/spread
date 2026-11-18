@@ -201,14 +201,25 @@ function cw_ideas_batch(int $uid, array $c, array $brand, int $n, int $batch, ar
     $ai = campaign_ai(campaign_ideas_prompt($brand, $c, $n, $avoid, $plan), $tok, 'campaign_ideas',
         ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
     $ideas = $ai['ok'] ? campaign_parse_ideas((string) $ai['response']) : [];
+    // فكرة نفس منشور قديم تقريبًا (الـ Hook أو العنوان) ← بتتشال، والناقص بيتطلب تاني تحت
+    $recent = campaign_recent_hooks($uid);
+    $dropped = [];
+    if ($recent && $ideas) {
+        $ideas = array_values(array_filter($ideas, function ($i) use ($recent, &$dropped) {
+            if (!campaign_idea_repeats($i, $recent)) return true;
+            $dropped[] = (string) ($i['title'] ?? '');
+            return false;
+        }));
+        $avoid = array_merge($avoid, $dropped);
+    }
     // الرد اتقطع أو جاب أقل من المطلوب ← نكمّل الناقص بطلب واحد (من غير ما نكرر اللي طلع)
-    if ($ideas && count($ideas) < $n) {
+    if ($ideas && count($ideas) < $n || (!$ideas && $dropped)) {
         $miss = $n - count($ideas);
         $avoid2 = array_merge(array_column($ideas, 'title'), $avoid);
         $plan2 = $seq ? campaign_setup_plan($uid, $setup, $miss, array_slice($fmtSlice, count($ideas))) : '';
         $ai2 = campaign_ai(campaign_ideas_prompt($brand, $c, $miss, $avoid2, $plan2), campaign_ideas_tokens($miss), 'campaign_ideas',
             ['user_id' => $uid, 'reference_id' => (int) $c['id'], 'temperature' => 0.95, 'json_mode' => true]);
-        if ($ai2['ok']) $ideas = array_merge($ideas, campaign_parse_ideas((string) $ai2['response']));
+        if ($ai2['ok']) $ideas = array_merge($ideas, array_values(array_filter(campaign_parse_ideas((string) $ai2['response']), fn($i) => !campaign_idea_repeats($i, $recent))));
     }
     if (!$ideas) return ['ok' => false, 'error' => $ai['ok'] ? 'الرد مكانش مظبوط — جرّب تاني' : ($ai['error'] ?? 'تعذّر التوليد'), 'n' => 0];
     $order = (int) (db_one('SELECT COALESCE(MAX(sort_order), 0) m FROM campaign_ideas WHERE campaign_id = ?', [$c['id']])['m'] ?? 0);

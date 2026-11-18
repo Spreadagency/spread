@@ -215,7 +215,8 @@ body.ui-v2 .sa-shimmer, body.ui-v2 .cp-skel i {
     .v2-logo-m b { font-size: 18px; }
     .v2-logo-m small { font-size: 8px; letter-spacing: 1.6px; }
     .v2-title, .v2-search, .v2-me-txt { display: none; }
-    .v2-top-act { margin-inline-start: auto; }
+    .v2-top-act { margin-inline-start: auto; min-width: 0; }
+    .v2-top { max-width: 100%; }
     .v2-me { padding: 0; width: 46px; justify-content: center; }
     .v2-pop { position: fixed; top: 74px; inset-inline: 12px; width: auto; }
     .v2-tabs { width: auto; margin: 0 -14px 16px; padding: 5px 14px; border-radius: 0; border-inline: 0; background: transparent; border: 0; }
@@ -1300,3 +1301,11 @@ html.v2-quick-lock, html.v2-quick-lock body { overflow: hidden; }
 .cn-chip input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
 .cn-act { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
 .sx-billing { justify-content: flex-start; gap: 16px; margin-top: 4px; }
+
+/* شاشات ضيقة جدًا (أقل من 360px): الهيدر مايطلعش برا الشاشة (تقرير الاختبار) */
+@media (max-width: 360px) {
+    .v2-top { gap: 6px; }
+    .v2-top-act { gap: 6px; }
+    .v2-logo-m b { font-size: 16px; }
+    .v2-logo-m small { display: none; }
+}

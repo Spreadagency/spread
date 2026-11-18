@@ -240,8 +240,10 @@ switch ($action) {
         $having = [];
         if (api_int('needs') === 1) {
             $having[] = 'st IN ("' . implode('","', $needSet) . '")';
-        } elseif ($status !== '' && isset(content_statuses()[$status])) {
-            $having[] = 'st = ' . db()->quote($status);
+        } elseif ($status !== '') {
+            // حالة واحدة أو أكتر بفاصلة (لينكات «يحتاج إجراء»: needs_design,content_ready)
+            $sts = array_values(array_intersect(array_map('trim', explode(',', $status)), array_keys(content_statuses())));
+            if ($sts) $having[] = 'st IN (' . implode(',', array_map(fn($x) => db()->quote($x), $sts)) . ')';
         }
         $havingSql = $having ? ' HAVING ' . implode(' AND ', $having) : '';
 

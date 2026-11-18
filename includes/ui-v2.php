@@ -230,18 +230,17 @@ function ui_notifications(int $userId): array
     } catch (\Throwable $e) { /* قبل ترحيل 10 */ }
 
     // ① محتاج تعديل — من الحالات الموحّدة (المرحلة 1)
-    if (function_exists('content_status_sql')) {
+    if (function_exists('content_action_counts')) {
         try {
-            $rows = db_all('SELECT ' . content_status_sql('c') . ' st, COUNT(*) n FROM contents c
-                            WHERE c.user_id = ? GROUP BY st', [$userId]);
-            $by = array_column($rows, 'n', 'st');
+            // نفس أرقام الرئيسية وصفحة المحتوى (content_action_counts) — وكل واحد بيفتح المحتوى بالفلتر بتاعه
+            $ac = content_action_counts($userId);
             $map = [
-                'publish_failed' => ['فشل نشر', 'alert', 'danger', 'content-history.php'],
-                'needs_review'   => ['محتاج مراجعة', 'edit', 'warn', 'content-history.php'],
-                'needs_design'   => ['محتاج تصميم', 'image', 'info', 'content-history.php'],
+                'failed' => ['فشل نشر', 'alert', 'danger', $ac['urls']['failed']],
+                'review' => ['محتاج مراجعة', 'edit', 'warn', $ac['urls']['review']],
+                'design' => ['محتاج تصميم', 'image', 'info', $ac['urls']['design']],
             ];
             foreach ($map as $st => [$lbl, $ic, $tone, $url]) {
-                $n = (int) ($by[$st] ?? 0);
+                $n = (int) ($ac[$st] ?? 0);
                 if ($n > 0) {
                     $items[] = ['type' => 'action', 'icon' => $ic, 'tone' => $tone, 'url' => $url,
                                 'title' => $n . ' ' . ($n === 1 ? 'منشور' : 'منشورات') . ' ' . $lbl];

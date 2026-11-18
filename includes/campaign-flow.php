@@ -242,6 +242,62 @@ function campaign_ideas_prompt(array $brand, array $c, int $n, array $avoidTitle
     return campaign_prompt_wrap('campaign_ideas', $brand, $c, fn() => campaign_ideas_prompt_base($brand, $c, $n, $avoidTitles, $plan));
 }
 
+/** أول جملة (الـ Hook) من آخر منشورات البراند — علشان الأفكار الجديدة ماتكررهاش */
+function campaign_recent_hooks(int $uid, int $limit = 25): array
+{
+    if ($uid <= 0) return [];
+    $out = [];
+    try {
+        foreach (db_all('SELECT generated_text FROM contents WHERE user_id = ? AND generated_text IS NOT NULL AND created_at >= NOW() - INTERVAL 90 DAY ORDER BY id DESC LIMIT ?', [$uid, $limit]) as $r) {
+            $first = trim((string) preg_split('/\R/u', trim((string) $r['generated_text']))[0]);
+            if (mb_strlen($first) >= 8) $out[] = mb_substr($first, 0, 140);
+        }
+    } catch (\Throwable $e) {}
+    return array_values(array_unique($out));
+}
+
+/** تطبيع للمقارنة: من غير تشكيل ولا إيموجي ولا علامات */
+function campaign_norm(string $s): string
+{
+    $s = mb_strtolower($s);
+    $s = preg_replace('/[\x{064B}-\x{065F}\x{0640}]/u', '', $s);
+    $s = strtr($s, ['أ' => 'ا', 'إ' => 'ا', 'آ' => 'ا', 'ة' => 'ه', 'ى' => 'ي']);
+    return trim(preg_replace('/[^\p{L}\p{N}]+/u', ' ', $s));
+}
+
+/** الفكرة دي نفس منشور قديم تقريبًا؟ (الـ Hook أو العنوان ≥ 80% تشابه) */
+function campaign_idea_repeats(array $idea, array $recentHooks): bool
+{
+    foreach ([(string) ($idea['hook'] ?? ''), (string) ($idea['title'] ?? '')] as $t) {
+        $a = campaign_norm($t);
+        if (mb_strlen($a) < 8) continue;
+        foreach ($recentHooks as $h) {
+            $b = campaign_norm($h);
+            if ($b === '') continue;
+            if ($a === $b || str_contains($b, $a) || str_contains($a, $b)) return true;
+            similar_text($a, $b, $pct);
+            if ($pct >= 80) return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * قواعد ثابتة لأي توليد أفكار (من تقرير الاختبار): الشهر والموسم · ماتكررش آخر المنشورات · ماتوعدش بحاجة مش موجودة
+ */
+function campaign_ideas_rules(array $brand): string
+{
+    $months = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    $m = (int) date('n');
+    $seasons = function_exists('bk_current_seasons') ? implode('، ', bk_current_seasons()) : '';
+    $hooks = campaign_recent_hooks((int) ($brand['user_id'] ?? 0));
+    return "\n\n=== قواعد إلزامية ===\n"
+        . '- إحنا دلوقتي في شهر ' . $months[$m] . ' ' . date('Y') . ($seasons !== '' ? " — المواسم المناسبة دلوقتي: {$seasons}" : '') . ".\n"
+        . "- ماتقترحش موسم أو مناسبة مش في الشهر ده أو الشهر الجاي (مثلًا: «موسم الدراسة» مش في نوفمبر)، وماتخليش الموسم يغطي على هدف الحملة.\n"
+        . "- ماتوعدش بخصم أو عرض أو هدية أو تجربة مجانية أو «من غير تسجيل» إلا لو مكتوب صراحةً في عروض البراند أو تفاصيل الحملة فوق.\n"
+        . ($hooks ? "- دي أول جملة في آخر منشورات البراند — ماتكررش نفس الـ Hook ولا نفس الفكرة:\n  • " . implode("\n  • ", array_slice($hooks, 0, 25)) . "\n" : '');
+}
+
 function campaign_ideas_prompt_base(array $brand, array $c, int $n, array $avoidTitles, string $plan = ''): string
 {
     $basis = campaign_flow_bases()[$c['basis'] ?? ''] ?? (campaign_bases()[$c['basis'] ?? ''] ?? 'تسويق عام');
@@ -268,12 +324,12 @@ function campaign_ideas_prompt_base(array $brand, array $c, int $n, array $avoid
         return $__filled
             . prompt_format_head() . "مطلوب {$n} أفكار بالظبط. formats من القايمة دي بس: " . implode('، ', CAMP_FORMATS) . ".\n" . $fmt
             . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}'
-            . bk_lang_tail($brand['dialect'] ?? '');
+            . bk_lang_tail($brand['dialect'] ?? '') . campaign_ideas_rules($brand);
     }
     return prompt_fill('campaign_ideas', ['n' => $n, 'dialect' => campaign_dialect($brand), 'formats' => implode('، ', CAMP_FORMATS), 'data' => $data])
         . "\n\nأعد JSON فقط بدون أي كلام قبله أو بعده بالشكل ده بالظبط:\n"
         . '{"ideas":[{"angle":"خلف الكواليس","title":"عنوان قصير","desc":"شرح في جملتين: الرسالة والزاوية","audience":"الجمهور المستهدف بالتحديد","hook":"جملة الـ Hook","formats":["منشور","ريلز"],"service":"","topic":"","pillar":"","persona":""}]}'
-        . bk_lang_tail($brand['dialect'] ?? '');
+        . bk_lang_tail($brand['dialect'] ?? '') . campaign_ideas_rules($brand);   // قواعد الشهر/الموسم/التكرار/الوعود (تقرير الاختبار)
 }
 
 /** العميل المثالي والشخصيات والـ CTA اللي الفكرة مربوطة بيهم (من إعداد الحملة) — سطور للبرومبت */

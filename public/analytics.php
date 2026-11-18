@@ -48,6 +48,15 @@ $maxM = max(1, max($months));
 $mNames = [1 => 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 $usage = ui_credits_usage($uid);
+// fix: الصفحة كانت بتطلب «اربط صفحاتك» حتى لو مربوطة — دلوقتي بتعرف الصفحات المربوطة وأرقام الوصول اللي اتجمعت منها
+require_once __DIR__ . '/../includes/social.php';
+$conns = function_exists('user_connections') ? user_connections($uid, 'active') : [];
+$connNames = array_values(array_filter(array_merge(array_column($conns, 'page_name'), array_map(fn($u) => $u ? '@' . $u : '', array_column($conns, 'ig_username')))));
+$perf = null;
+try {
+    $perf = db_one('SELECT COUNT(*) posts, COALESCE(SUM(reach),0) reach, COALESCE(SUM(likes),0) likes, COALESCE(SUM(comments),0) comments,
+                           COALESCE(SUM(shares),0) shares, MAX(synced_at) synced FROM ce_perf_posts WHERE user_id = ? AND sync_status = "ok"', [$uid]);
+} catch (\Throwable $e) {}
 $thisM = (int) ($posts['this_month'] ?? 0);
 $lastM = (int) ($posts['last_month'] ?? 0);
 $delta = $lastM > 0 ? (int) round(($thisM - $lastM) / $lastM * 100) : null;
@@ -125,7 +134,22 @@ include __DIR__ . '/../templates/header.php';
             </div>
         </section>
 
-        <p class="sub an-note"><?= ui_icon('alert', 16) ?> تحليلات التفاعل والوصول هتظهر هنا لما نربط بيانات صفحاتك على ميتا.</p>
+        <?php if (!$conns): ?>
+        <p class="sub an-note"><?= ui_icon('alert', 16) ?> اربط صفحتك على فيسبوك وإنستجرام علشان أرقام الوصول والتفاعل تظهر هنا. <a href="<?= url('social-accounts.php') ?>">اربط الصفحة ←</a></p>
+        <?php elseif ($perf && (int) $perf['posts'] > 0): ?>
+        <section class="card an-card" style="margin-top:14px">
+            <h2>الوصول والتفاعل من ميتا</h2>
+            <p class="sub">من <?= (int) $perf['posts'] ?> منشور على <?= e(implode(' · ', $connNames)) ?><?php if ($perf['synced']): ?> · آخر تحديث <?= e(function_exists('time_ago') ? time_ago($perf['synced']) : $perf['synced']) ?><?php endif; ?></p>
+            <div class="an-split">
+                <div><b><?= number_format((int) $perf['reach']) ?></b><span>وصول</span></div>
+                <div><b><?= number_format((int) $perf['likes']) ?></b><span>إعجاب</span></div>
+                <div><b><?= number_format((int) $perf['comments']) ?></b><span>تعليق</span></div>
+                <div><b><?= number_format((int) $perf['shares']) ?></b><span>مشاركة</span></div>
+            </div>
+        </section>
+        <?php else: ?>
+        <p class="sub an-note"><?= ui_icon('check', 16) ?> صفحتك مربوطة (<?= e(implode(' · ', $connNames)) ?>) — أرقام الوصول والتفاعل بتظهر هنا بعد ما منشوراتك تتنشر من المنصة بيوم.</p>
+        <?php endif; ?>
     </main>
 </div>
 <?php include __DIR__ . '/../templates/footer.php'; ?>

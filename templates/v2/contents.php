@@ -311,7 +311,7 @@
                 <div class="lib-field"><b>فكرة التصوير</b>
                     <textarea class="textarea" rows="2" v-model="d.video.brief.script.shoot" @input="videoDirty = true" :readonly="videoLocked() || null"></textarea></div>
                 <div class="lib-field"><b>ملاحظاتك لفريق التنفيذ</b>
-                    <textarea class="textarea" rows="2" v-model="d.video.brief.notes" maxlength="1000" @input="videoDirty = true" :readonly="videoLocked() || null" placeholder="مثلًا: عايز الدكتور يظهر بنفسه · التصوير في العيادة"></textarea></div>
+                    <textarea class="textarea" rows="2" v-model="d.video.brief.notes" maxlength="1000" @input="videoDirty = true" :readonly="videoLocked() || null" placeholder="مثلًا: عايز صاحب المكان يظهر بنفسه · التصوير في المحل"></textarea></div>
 
                 <div class="lib-save" v-if="!videoLocked()">
                     <button type="button" class="btn ghost" v-if="videoDirty" @click="videoSave()" :disabled="vBusy">حفظ التعديلات</button>

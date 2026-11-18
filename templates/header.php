@@ -50,7 +50,8 @@ $__asset = function (string $rel): string {
 <?php endif; ?>
 <?php if (!empty($use_app)): ?>
     <!-- الشاشات التفاعلية: petite-vue (~7KB) + مكتبة الواجهة — بتتحمّل هنا بس -->
-    <style>[v-cloak]{display:none!important}</style>
+    <?php /* قبل ما الواجهة تجهز: مؤشر تحميل مكان الصفحة البيضا (القالب نفسه بيفضل مخفي) */ ?>
+    <style>[v-cloak]{position:relative;min-height:55vh}[v-cloak]>*{visibility:hidden!important}[v-cloak]::before{content:'';position:absolute;top:90px;inset-inline-start:50%;width:36px;height:36px;margin-inline-start:-18px;border:3px solid rgba(124,109,242,.18);border-top-color:#7c6df2;border-radius:50%;animation:vcspin .9s linear infinite;z-index:2}@keyframes vcspin{to{transform:rotate(360deg)}}</style>
     <script src="<?= $__asset('assets/vendor/petite-vue.iife.js') ?>" defer></script>
     <script src="<?= $__asset('assets/js/spread-app.js') ?>" defer></script>
 <?php endif; ?>

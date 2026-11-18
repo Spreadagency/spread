@@ -99,7 +99,7 @@ include __DIR__ . '/../templates/header.php';
                     </div>
                     <div class="field">
                         <label>توجيهات إضافية (اختياري)</label>
-                        <textarea id="st-idea-ba" class="textarea" rows="2" placeholder="مثال: خلفية العيادة، لون كحلي، اسم الدكتور تحت"></textarea>
+                        <textarea id="st-idea-ba" class="textarea" rows="2" placeholder="مثال: خلفية المكان، لون كحلي، اسم النشاط تحت"></textarea>
                     </div>
                 </div>
 

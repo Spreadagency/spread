@@ -151,7 +151,7 @@
                     </div>
 
                     <!-- الخدمة: الخدمات الرئيسية بس (معلومة عامة للحملة كلها) -->
-                    <label class="cf-lbl">🩺 الحملة عن أنهي خدمة؟ <small>(اختار خدمة أو اتنين — أو سيبها لكل الخدمات)</small></label>
+                    <label class="cf-lbl">🏷️ الحملة عن أنهي خدمة أو منتج؟ <small>(اختار خدمة أو اتنين — أو سيبها لكل الخدمات)</small></label>
                     <div class="cf-chips" v-if="opts.services.length">
                         <button type="button" :class="{ on: !setup.services.length }" @click="setup.services.splice(0); touch()">كل الخدمات</button>
                         <button type="button" v-for="sv in opts.services" :key="sv.id" :class="{ on: setup.services.indexOf(sv.id) > -1 }" @click="pickService(sv.id)">{{ sv.focus ? '⭐ ' : '' }}{{ sv.name }}</button>
@@ -170,13 +170,13 @@
                     <p class="cf-muted sm" v-else>مفيش عملاء مثاليين لسه —
                         <button type="button" class="cf-btn sm" @click="genPersonas()" :disabled="personasBusy">{{ personasBusy ? 'بنجهّزهم…' : '✨ اعملهم دلوقتي' }}</button></p>
 
-                    <!-- صورة الدكتور / الشخصية -->
-                    <label class="cf-lbl">🧑‍⚕️ صورة الدكتور / الشخصية <small>(هتظهر في التصميمات)</small></label>
+                    <!-- الأشخاص في التصميمات (مش طبي بس — كل المجالات) -->
+                    <label class="cf-lbl">🧑 مين يظهر في التصميمات؟ <small>(صاحب المكان · فريقك · شخصية)</small></label>
                     <div class="cf-faces">
                         <button type="button" class="cf-face none" :class="{ on: !setup.characters.length }" @click="setup.characters.splice(0); touch()"><span>🚫</span>من غير صورة</button>
                         <button type="button" v-for="ch in opts.characters" :key="ch.id" class="cf-face" :class="{ on: setup.characters.indexOf(ch.id) > -1 }" @click="pickArr(setup.characters, ch.id, 4)"><img :src="ch.img" alt="">{{ ch.name }}</button>
                     </div>
-                    <p class="cf-muted sm" v-if="!opts.characters.length"><a :href="base + '/brand-kit.php#bk-characters'">ارفع صورة الدكتور أو ضيف شخصية في الهوية</a> علشان تظهر هنا.</p>
+                    <p class="cf-muted sm" v-if="!opts.characters.length"><a :href="base + '/brand-kit.php#bk-characters'">ارفع صورة ليك أو لحد من فريقك أو ضيف شخصية في الهوية</a> علشان تظهر هنا.</p>
 
                     <!-- المطلوب -->
                     <label class="cf-lbl">📦 محتاج كام؟</label>
@@ -197,9 +197,16 @@
                     <div class="cf-muted" v-if="questions.length" style="font-size:13px;margin:-2px 0 6px">💡 جاوب في التفاصيل على اللي يهمك (من خبرة مجالك):
                         <ul style="margin:4px 0 0;padding-inline-start:18px"><li v-for="q in questions" :key="q">{{ q }}</li></ul></div>
                     <textarea id="cf-notes" class="cf-input" rows="3" v-model="c.notes" @input="touch()" maxlength="2000" placeholder="أضف أي تفاصيل تحب... مثلًا: عرض 30% على التبييض لحد آخر الشهر"></textarea>
-                    <button type="button" class="cf-btn primary big" @click="genIdeas()" :disabled="bulk.on || !c.basis || !setupTotal()">
-                        {{ ideas.length ? 'إعادة توليد الأفكار ✨' : 'ابدأ توليد الأفكار ✨' }}
+                    <button type="button" class="cf-btn primary big" @click="genIdeas()" :disabled="bulk.on" :aria-disabled="!c.basis || !setupTotal() ? 'true' : null">
+                        {{ bulk.on ? 'بنجهّز الأفكار…' : (ideas.length ? 'إعادة توليد الأفكار ✨' : 'ابدأ توليد الأفكار ✨') }}
                     </button>
+                    <!-- ليه الزرار مش جاهز · وإن التوليد شغال (بياخد 20–30 ثانية) — جنب الزرار نفسه -->
+                    <small class="cf-muted" v-if="!bulk.on && !c.basis" style="display:block;margin-top:6px">☝️ اختار «الأساس اللي تحب نبني عليه الحملة» فوق الأول</small>
+                    <small class="cf-muted" v-else-if="!bulk.on && !setupTotal()" style="display:block;margin-top:6px">☝️ حدد محتاج كام منشور فوق الأول</small>
+                    <div class="cf-gen-live" v-if="bulk.on" role="status" style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px">
+                        <span class="cf-spin" style="width:16px;height:16px;border:2px solid rgba(124,109,242,.25);border-top-color:#7c6df2;border-radius:50%;display:inline-block;animation:vcspin .9s linear infinite"></span>
+                        <span>{{ ai.msg || 'بنفكّر في أفكار حملتك…' }} <small class="cf-muted" v-if="bulk.total > 1">({{ bulk.done }} من {{ bulk.total }})</small></span>
+                    </div>
                     <small class="cf-cost"><span class="cr">{{ costs.ideas[setupTotal()] || 0 }} كريدت · رصيدك {{ costs.balance }}</span><span v-if="ideas.length"><span class="cr"> · </span>الأفكار اللي ليها محتوى بتفضل زي ما هي</span></small>
                 </section>
 
@@ -245,7 +252,7 @@
                                 <h4>{{ i.title }}</h4>
                                 <p>{{ i.desc }}</p>
                                 <small class="cf-pbrief" v-if="i.brief && (i.brief.service || i.brief.persona || i.brief.topic || (i.brief.character_names && i.brief.character_names.length))">
-                                    <span v-if="i.brief.service">🩺 {{ i.brief.service }}</span><span v-if="i.brief.persona">{{ i.brief.service ? ' · ' : '' }}👥 {{ i.brief.persona }}</span><span v-if="i.brief.topic"> · 📌 {{ i.brief.topic }}</span><span v-if="i.brief.character_ids && i.brief.character_ids.length" class="cf-mini-faces"> · <img v-for="cid in i.brief.character_ids.filter(x => charImg(x))" :key="cid" :src="charImg(cid)" alt="">{{ (i.brief.character_names || []).join('، ') }}</span></small>
+                                    <span v-if="i.brief.service">🏷️ {{ i.brief.service }}</span><span v-if="i.brief.persona">{{ i.brief.service ? ' · ' : '' }}👥 {{ i.brief.persona }}</span><span v-if="i.brief.topic"> · 📌 {{ i.brief.topic }}</span><span v-if="i.brief.character_ids && i.brief.character_ids.length" class="cf-mini-faces"> · <img v-for="cid in i.brief.character_ids.filter(x => charImg(x))" :key="cid" :src="charImg(cid)" alt="">{{ (i.brief.character_names || []).join('، ') }}</span></small>
                                 <dl class="cf-idea-meta" v-if="i.audience || i.hook">
                                     <div v-if="i.audience"><dt>الجمهور</dt><dd>{{ i.audience }}</dd></div>
                                     <div v-if="i.hook"><dt>الـ Hook</dt><dd><b>«{{ i.hook }}»</b></dd></div>
@@ -1186,7 +1193,11 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       // لو طلب وقع في النص (مهلة السيرفر/النت) الأفكار ممكن تكون اتحفظت — نقرا اللي في الحملة فعلًا
       if (res.fail || !this.ideas.length) await this.reload();
-      if (res.ok) this.notify('جهزنا أفكار حملتك ✨');
+      if (res.ok) {
+        this.notify('جهزنا أفكار حملتك ✨');
+        // النتايج في عمود تاني ← نودّي العميل عندها
+        var box = document.querySelector('.cf-ideas'); if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     },
     async toggleIdea(i) {
       i.selected = !i.selected;

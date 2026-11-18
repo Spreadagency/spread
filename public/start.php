@@ -811,7 +811,7 @@ include __DIR__ . '/../templates/header.php';
         { e: '⚪', n: 'بسيط ونضيف', d: 'مساحات بيضا وعناصر قليلة', notes: 'minimal, clean, lots of white space, one focal element', vis: { kind: 'photo', light: 'bright' } },
         { e: '✨', n: 'فخم وهادي', d: 'ألوان غامقة وتفاصيل راقية', notes: 'premium, elegant, dark tones with subtle gold accents', vis: { kind: 'photo', light: 'dramatic' } },
         { e: '🎈', n: 'مرح وملوّن', d: 'ألوان مبهجة وأشكال دايرية', notes: 'playful, colorful, rounded shapes, youthful', vis: { kind: 'flat', light: 'bright' } },
-        { e: '🩺', n: 'موثوق ومهني', d: 'صور حقيقية وأيقونات خط رفيع', notes: 'trustworthy professional look, thin line icons, real photos', vis: { kind: 'photo', light: 'bright' } },
+        { e: '🛡️', n: 'موثوق ومهني', d: 'صور حقيقية وأيقونات خط رفيع', notes: 'trustworthy professional look, thin line icons, real photos', vis: { kind: 'photo', light: 'bright' } },
         { e: '🧊', n: '3D حديث', d: 'مجسمات وإضاءة ناعمة', notes: 'modern 3D renders, soft studio lighting', vis: { kind: '3d', light: 'bright' } },
         { e: '☕', n: 'دافي وطبيعي', d: 'صور حقيقية بإضاءة دافية', notes: 'warm natural photography, cozy feel', vis: { kind: 'photo', light: 'warm' } }
     ];

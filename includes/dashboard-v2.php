@@ -27,26 +27,26 @@ function dashboard_v2_data(array $user): array
     $health = function_exists('brand_health') ? brand_health($brand) : ['pct' => 0, 'gate' => 75, 'unlocked' => true];
 
     // ─── يحتاج منك إجراء (من الحالات الموحّدة) ───
-    $st = dash_safe(function () use ($uid) {
-        if (!function_exists('content_status_sql')) return [];
-        $rows = db_all('SELECT ' . content_status_sql('c') . ' st, COUNT(*) n FROM contents c WHERE c.user_id = ? GROUP BY st', [$uid]);
-        return array_map('intval', array_column($rows, 'n', 'st'));
-    }, []);
-    $needDesign = ($st['needs_design'] ?? 0) + ($st['content_ready'] ?? 0);
-    $needReview = $st['needs_review'] ?? 0;
-    $failed = $st['publish_failed'] ?? 0;
-    $readySched = $st['design_ready'] ?? 0;
+    // نفس الأرقام في الرئيسية والجرس وصفحة المحتوى (content_action_counts) — وكل شريحة بتفتح المحتوى بالفلتر بتاعها
+    $ac = dash_safe(fn() => function_exists('content_action_counts') ? content_action_counts($uid) : null, null)
+        ?: ['failed' => 0, 'review' => 0, 'design' => 0, 'ready' => 0, 'total' => 0, 'urls' => ['failed' => 'content-history.php', 'review' => 'content-history.php', 'design' => 'content-history.php', 'ready' => 'content-history.php', 'all' => 'content-history.php']];
+    $needDesign = $ac['design'];
+    $needReview = $ac['review'];
+    $failed = $ac['failed'];
+    $readySched = $ac['ready'];
     $needSchedCampaigns = dash_safe(fn() => (int) (db_one(
         'SELECT COUNT(DISTINCT c.campaign_id) n FROM contents c
          WHERE c.user_id = ? AND c.campaign_id IS NOT NULL AND ' . content_status_sql('c') . ' = "design_ready"', [$uid])['n'] ?? 0), 0);
     $actions = [];
-    if ($failed)      $actions[] = ['n' => $failed,     'label' => $failed === 1 ? 'منشور فشل نشره' : 'منشورات فشل نشرها', 'tone' => 'danger', 'url' => 'content-history.php'];
-    if ($needDesign)  $actions[] = ['n' => $needDesign, 'label' => $needDesign === 1 ? 'منشور يحتاج تصميم' : 'منشورات تحتاج تصميم', 'tone' => 'violet', 'url' => 'content-history.php'];
-    if ($needReview)  $actions[] = ['n' => $needReview, 'label' => 'تحتاج مراجعة', 'tone' => 'amber', 'url' => 'content-history.php'];
+    if ($failed)      $actions[] = ['n' => $failed,     'label' => $failed === 1 ? 'منشور فشل نشره' : 'منشورات فشل نشرها', 'tone' => 'danger', 'url' => $ac['urls']['failed']];
+    if ($needDesign)  $actions[] = ['n' => $needDesign, 'label' => $needDesign === 1 ? 'منشور يحتاج تصميم' : 'منشورات تحتاج تصميم', 'tone' => 'violet', 'url' => $ac['urls']['design']];
+    if ($needReview)  $actions[] = ['n' => $needReview, 'label' => 'تحتاج مراجعة', 'tone' => 'amber', 'url' => $ac['urls']['review']];
+    // الجدولة معلومة (مش في عدّاد «يحتاج إجراء» — نفس صفحة المحتوى)
+    $info = [];
     if ($needSchedCampaigns) {
-        $actions[] = ['n' => $needSchedCampaigns, 'label' => $needSchedCampaigns === 1 ? 'حملة تحتاج جدولة' : 'حملات تحتاج جدولة', 'tone' => 'blue', 'url' => 'campaigns.php'];
+        $info[] = ['n' => $needSchedCampaigns, 'label' => $needSchedCampaigns === 1 ? 'حملة تحتاج جدولة' : 'حملات تحتاج جدولة', 'tone' => 'blue', 'url' => 'campaigns.php'];
     } elseif ($readySched) {
-        $actions[] = ['n' => $readySched, 'label' => 'جاهزة للجدولة', 'tone' => 'blue', 'url' => 'content-history.php'];
+        $info[] = ['n' => $readySched, 'label' => 'جاهزة للجدولة', 'tone' => 'blue', 'url' => $ac['urls']['ready']];
     }
 
     // ─── رحلتك الأولى ───
@@ -122,8 +122,9 @@ function dashboard_v2_data(array $user): array
         // كارت الهوية (موبايل): بس لما الهوية محتاجة تكمل — نفس قاعدة السايدبار (من غير «جاهزة ✓» جنب «كمّل هويتك»)
         'showBrand' => empty($health['unlocked']) && (int) ($health['pct'] ?? 0) < $bHide,
         'brandUrl' => function_exists('onb_start_enabled') && onb_start_enabled() && function_exists('ij_done') && !ij_done($uid) ? 'start.php' : 'brand-kit.php',
-        'actions'  => $actions,
-        'actionsTotal' => array_sum(array_column($actions, 'n')),
+        'actions'  => array_merge($actions, $info),
+        'actionsTotal' => (int) $ac['total'],   // = «⚡ يحتاج إجراء» في صفحة المحتوى
+        'actionsAll'   => $ac['urls']['all'],
         'journey'  => ['steps' => $journey, 'done' => $jDone, 'total' => count($journey),
                        'pct' => $jPct, 'next' => $jNext, 'show' => $jNext !== null && $jPct < $jHide],
         'campaign' => $campaign,
