@@ -2,8 +2,8 @@
 // ملف مولّد تلقائيًا مع الحزمة — ماتعدّلوش. بيستخدمه «فحص التحديث» (admin/ui-diagnose.php)
 return array (
   'build' => '10.1',
-  'date' => '2026-11-18',
-  'generated' => '2026-11-18 07:58',
+  'date' => '2026-11-19',
+  'generated' => '2026-11-19 13:21',
   'update' => 
   array (
     0 => 'admin/ai-ab.php',
@@ -1136,8 +1136,8 @@ return array (
     ),
     'includes/brand-kit.php' => 
     array (
-      'h' => '14a30d115bdabfd393d8823e43569969',
-      's' => 134169,
+      'h' => 'a1206266200e5684fc5de0757f7a24a3',
+      's' => 134764,
     ),
     'includes/campaign-allowance.php' => 
     array (
@@ -1811,8 +1811,8 @@ return array (
     ),
     'public/api/studio.php' => 
     array (
-      'h' => '051fbecf6b3789d795bece8abd63e569',
-      's' => 32351,
+      'h' => '42079b9e72d32b8bd3d725d8f2c79764',
+      's' => 34946,
     ),
     'public/api/v1/_init.php' => 
     array (
@@ -2736,8 +2736,8 @@ return array (
     ),
     'templates/v2/studio.php' => 
     array (
-      'h' => '3fd3868675e7f1fbc3de04594a03aa11',
-      's' => 58941,
+      'h' => '56ae8bf098032bbd34ff93958e0eb98f',
+      's' => 58965,
     ),
     'templates/v2/tabbar.php' => 
     array (

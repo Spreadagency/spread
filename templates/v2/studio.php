@@ -511,7 +511,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var r = await SpreadAPI.post('studio', 'trend_ideas', { trend_id: this.trend.id });
       this.busy = false;
       if (!r.ok) { if (window.SpreadThinking) SpreadThinking.fail(); return this.notify(r.error, 'danger'); }
-      if (window.SpreadThinking) SpreadThinking.done('3 أفكار جاهزة ✓');
+      if (window.SpreadThinking) SpreadThinking.done((r.ideas || []).length + ' أفكار جاهزة ✓');
       this.ideas = r.ideas; this.home.costs.balance = r.balance;
     },
     useIdea: function () {

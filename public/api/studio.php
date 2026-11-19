@@ -250,9 +250,27 @@ switch ($action) {
         $__u = $brand ? bk_brand_block($brand, 'ideas') : null;
         if ($__u !== null) { $ctx = [str_replace("\n", "\n  ", $__u)]; $dialect = bk_dialect_label((string) ($brand['dialect'] ?? 'egyptian')); }
         $isReel = $t['type'] === 'Reel';
+        // fix (تقرير الترند): الهوية البصرية كاملة — الألوان والاستايل صريحين + اللوجو وصورة الترند كصور للموديل
+        $vis = [];
+        if (function_exists('bk_enabled') && bk_enabled()) {
+            $kd = bk_get($uid)['data'];
+            $cols = array_values(array_filter([$kd['colors']['primary'] ?? '', $kd['colors']['secondary'] ?? '', $kd['colors']['accent'] ?? '']));
+            if ($cols) $vis[] = 'ألوان البراند: ' . implode(' · ', $cols);
+            if (trim((string) ($kd['design_style']['notes'] ?? '')) !== '') $vis[] = 'استايل التصميم: ' . mb_substr(trim((string) $kd['design_style']['notes']), 0, 300);
+        } elseif (!empty($brand['colors'])) {
+            $vis[] = 'ألوان البراند: ' . mb_substr((string) $brand['colors'], 0, 200);
+        }
+        if (!empty($brand['design_rules'])) $vis[] = 'قواعد التصميم: ' . mb_substr((string) $brand['design_rules'], 0, 300);
+        require_once __DIR__ . '/../../includes/uploader.php';
+        $imgs = [];
+        $imgNote = [];
+        if (!empty($t['ref_path']) && ($u = image_data_uri((string) $t['ref_path']))) { $imgs[] = $u; $imgNote[] = 'الصورة ' . count($imgs) . ' = صورة الترند الأصلية (اتعلم منها الهيكل والإيقاع والتكوين بس — ماتنسخش الناس ولا النص ولا البراند اللي فيها)'; }
+        if (!empty($brand['logo_path']) && ($u = image_data_uri((string) $brand['logo_path']))) { $imgs[] = $u; $imgNote[] = 'الصورة ' . count($imgs) . ' = لوجو البراند (الأفكار والعناوين لازم تمشي مع شكله وألوانه)'; }
         $prompt = "انت مدير إبداعي. عندك ترند سوشيال ميديا، وعايزين نفصّله على براند العميل — **نستخدم هيكل الترند، مش نسخة منه**.\n\n"
             . trend_blueprint_text($t) . "\n"
-            . ($ctx ? "براند العميل:\n- " . implode("\n- ", $ctx) . "\n\n" : '')
+            . ($ctx ? "براند العميل:\n- " . implode("\n- ", $ctx) . "\n" : '')
+            . ($vis ? "الهوية البصرية:\n- " . implode("\n- ", $vis) . "\n" : '')
+            . ($imgNote ? "الصور المرفقة:\n- " . implode("\n- ", $imgNote) . "\n" : '') . "\n"
             . "اقترح 3 أفكار مختلفة. رجّع JSON بس — من غير أي كلام قبله أو بعده:\n"
             . '{"ideas":[{"title":"","desc":"","headline":"","cta":"","caption":"","hashtags":""' . ($isReel ? ',"script":""' : '') . '}]}' . "\n\n"
             . "القواعد:\n"
@@ -270,15 +288,15 @@ switch ($action) {
         if (function_exists('ai_log_set_context')) {
             ai_log_set_context(['kind' => 'studio', 'user_id' => $uid, 'reference_type' => 'trends', 'reference_id' => $t['id']]);
         }
+        // fix: الرد كان بيتقطع (الحد الافتراضي 1000 توكن على 3 أفكار بكابشن وهاشتاجات وسكريبت بالعربي) ← «رد مش مفهوم»
+        $tok = $isReel ? 4500 : 3500;
         $ai = (function_exists('smart_ai_enabled') && smart_ai_enabled())
-            ? smart_ai_generate($prompt, [], 'content_generation', ['user_id' => $uid, 'job_type' => 'trend_ideas', 'temperature' => 0.8])
-            : ai_generate($prompt);
+            ? smart_ai_generate($prompt, $imgs, 'content_generation', ['user_id' => $uid, 'job_type' => 'trend_ideas', 'temperature' => 0.8, 'max_tokens' => $tok])
+            : ai_generate($prompt, $imgs, ['max_tokens' => $tok]);
         $ideas = [];
         if (!empty($ai['ok'])) {
-            $raw = trim(preg_replace('/^```(?:json)?|```$/m', '', (string) $ai['response']));
-            $a = strpos($raw, '{'); $b = strrpos($raw, '}');
-            $j = ($a !== false && $b > $a) ? json_decode(substr($raw, $a, $b - $a + 1), true) : null;
-            foreach ((array) ($j['ideas'] ?? []) as $i) {
+            // بيقرا الرد حتى لو جه قايمة من غير مفتاح أو اتقطع في النص (بياخد الأفكار الكاملة)
+            foreach (ai_json_list((string) $ai['response'], ['ideas', 'الأفكار', 'items', 'data'], 'title') as $i) {
                 if (!is_array($i) || trim((string) ($i['title'] ?? '')) === '') continue;
                 $ideas[] = array_map(fn($v) => mb_substr(trim(is_array($v) ? implode("\n", $v) : (string) $v), 0, 2000),
                     array_intersect_key($i + ['desc' => '', 'headline' => '', 'cta' => '', 'caption' => '', 'hashtags' => '', 'script' => ''],
@@ -287,6 +305,7 @@ switch ($action) {
         }
         if (!$ideas) {
             if ($cost > 0) credits_add($uid, $cost, 'استرداد: أفكار الترند ماطلعتش', null, 'refund', $t['id']);
+            error_log('[trend_ideas] u' . $uid . ' t' . $t['id'] . ' ' . (!empty($ai['ok']) ? 'unparsable: ' . mb_substr((string) $ai['response'], 0, 300) : 'ai: ' . ($ai['error'] ?? '')));
             api_fail(!empty($ai['ok']) ? 'الـ AI رجّع رد مش مفهوم — الكريدت رجعلك، جرّب تاني' : ($ai['error'] ?? 'تعذّر — الكريدت رجعلك'), 'ai_failed', 502);
         }
         api_ok(['ideas' => array_slice($ideas, 0, 3), 'balance' => credits_balance($uid)]);
@@ -362,8 +381,8 @@ switch ($action) {
             ai_log_set_context(['kind' => 'studio', 'user_id' => $uid, 'reference_type' => 'studio_brief', 'options' => ['method' => $method]]);
         }
         $ai = (function_exists('smart_ai_enabled') && smart_ai_enabled())
-            ? smart_ai_generate($prompt, [], 'content_generation', ['user_id' => $uid, 'job_type' => 'studio_brief', 'temperature' => 0.7])
-            : ai_generate($prompt);
+            ? smart_ai_generate($prompt, [], 'content_generation', ['user_id' => $uid, 'job_type' => 'studio_brief', 'temperature' => 0.7, 'max_tokens' => 2500])
+            : ai_generate($prompt, [], ['max_tokens' => 2500]);   // نفس مشكلة الترند: الحد الافتراضي 1000 كان بيقطع الـ Brief بالكابشن والسكريبت
         $j = null;
         if (!empty($ai['ok'])) {
             $raw = trim(preg_replace('/^```(?:json)?|```$/m', '', (string) $ai['response']));

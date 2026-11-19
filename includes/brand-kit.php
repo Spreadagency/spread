@@ -1041,16 +1041,25 @@ function bk_json_from_ai(string $raw): array
  */
 function bk_personas_parse(string $raw): array
 {
+    return ai_json_list($raw, ['personas', 'buyer_personas', 'customers', 'items', 'data'], 'name');
+}
+
+/**
+ * قايمة من رد الـ AI (مشترك: العملاء المثاليين · أفكار الترند …) — بيستحمل الأشكال المختلفة:
+ * {"<key>":[…]} بأي مفتاح من $keys · [ … ] من غير مفتاح · عنصر واحد {…} · رد مقطوع في النص (بياخد كل عنصر كامل)
+ * $required: حقل لازم يبقى مش فاضي في كل عنصر
+ */
+function ai_json_list(string $raw, array $keys, string $required): array
+{
     $raw = trim(preg_replace('/^```(?:json)?|```$/m', '', $raw));
-    $pick = function ($j) {
+    $pick = function ($j) use ($keys, $required) {
         if (!is_array($j)) return [];
-        foreach (['personas', 'buyer_personas', 'customers', 'items', 'data'] as $k) if (isset($j[$k]) && is_array($j[$k])) return $j[$k];
-        if (isset($j['name'])) return [$j];
+        foreach ($keys as $k) if (isset($j[$k]) && is_array($j[$k])) return $j[$k];
+        if (isset($j[$required])) return [$j];
         return array_is_list($j) ? $j : [];
     };
-    $ok = fn(array $l) => array_values(array_filter($l, fn($p) => is_array($p) && trim((string) ($p['name'] ?? '')) !== ''));
-    $j = json_decode($raw, true);
-    if (($l = $ok($pick($j)))) return $l;
+    $ok = fn(array $l) => array_values(array_filter($l, fn($p) => is_array($p) && trim(is_scalar($p[$required] ?? null) ? (string) $p[$required] : '') !== ''));
+    if (($l = $ok($pick(json_decode($raw, true))))) return $l;
     if (($l = $ok($pick(bk_json_from_ai($raw))))) return $l;
     $a = strpos($raw, '['); $b = strrpos($raw, ']');
     if ($a !== false && $b > $a && ($l = $ok($pick(json_decode(substr($raw, $a, $b - $a + 1), true))))) return $l;
