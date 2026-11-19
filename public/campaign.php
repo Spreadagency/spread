@@ -34,6 +34,16 @@ if ($reqStage >= 1 && $reqStage <= min(6, (int) $c['max_stage'] + 1) && $reqStag
 require_once __DIR__ . '/../includes/campaign-flow.php';
 require_once __DIR__ . '/../includes/ui-v2.php';
 $cfInit = campaign_board_payload($c, (int) $user['id']);
+// خطة الحملات (المرحلة 5): الحملة في الباقة · الشغل في الخلفية · طريقة الكتابة · أسئلة البريف من الـ Skill
+require_once __DIR__ . '/../includes/campaign-quality.php';
+require_once __DIR__ . '/../includes/campaign-allowance.php';
+require_once __DIR__ . '/../includes/campaign-jobs.php';
+$cfInit['package'] = ca_campaign_view($c);
+$cfInit['allowance'] = ca_status((int) $user['id']);
+$cfInit['jobs'] = cj_active((int) $user['id'], (int) $c['id']);
+$cfInit['write_mode'] = campaign_write_mode();
+$cfInit['bg'] = get_setting('campaign_bg_jobs', '1') === '1';
+$cfInit['questions'] = function_exists('ce_skill_questions') ? ce_skill_questions(campaign_skill(brand_for_user((int) $user['id']) ?: [], $c)) : [];
 
 $active = 'campaigns';
 $page_title = $c['title'];

@@ -1,0 +1,11 @@
+# /etc/systemd/system/spread-mcp-checks.timer — كل يوم جمعة 4:17 الفجر (بتوقيت السيرفر)
+[Unit]
+Description=Run Spread AI weekly security checks
+
+[Timer]
+OnCalendar=Fri *-*-* 04:17:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

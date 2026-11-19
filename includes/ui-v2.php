@@ -66,7 +66,7 @@ function ui_icons(): array
 function ui_icon(string $name, int $size = 20, string $class = ''): string
 {
     $p = ui_icons()[$name] ?? ui_icons()['star'];
-    return '<svg class="ui-ic ' . htmlspecialchars($class, ENT_QUOTES) . '" width="' . $size . '" height="' . $size
+    return '<svg class="ui-ic ui-ic-' . $name . ' ' . htmlspecialchars($class, ENT_QUOTES) . '" width="' . $size . '" height="' . $size
         . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
         . ' stroke-linejoin="round" aria-hidden="true">' . $p . '</svg>';
 }
@@ -78,12 +78,23 @@ function ui_icon(string $name, int $size = 20, string $class = ''): string
  */
 function ui_sections(): array
 {
+    // صفحة واحدة للهوية (مركز الهوية) لما يكون مفعّل
+    $__bk = is_file(__DIR__ . '/brand-kit.php') && (require_once __DIR__ . '/brand-kit.php') && bk_enabled();
+    $__brandUrl = $__bk ? 'brand-kit.php' : 'brand-brain.php';
+    // محرك المحتوى الجديد: بيظهر بس للعملاء اللي الأدمن فتحهولهم
+    $__ce = false;
+    if (is_file(__DIR__ . '/ce-jobs.php') && function_exists('current_user')) {
+        require_once __DIR__ . '/ce-jobs.php';
+        $__u = current_user();
+        // خطة الحملات §4: معالج المحرك اتشال من القايمة — بيفضل للي عنده حملات محرك قديمة بس
+        $__ce = $__u && ce_enabled_for((int) $__u['id']) && (ce_engine_new_open() || ce_engine_has_campaigns((int) $__u['id']));
+    }
+    $__campSubs = [['حملاتي', 'campaigns.php', 'campaigns', null]];
+    if ($__ce) $__campSubs[] = [ce_engine_new_open() ? 'محرك المحتوى ✨' : 'حملات المحرك (القديمة)', 'engine.php', 'engine', null];
+    $__campSubs[] = ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'];
     return [
         'dashboard' => ['الرئيسية', 'home', 'dashboard.php', ['dashboard'], []],
-        'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan'], [
-            ['حملاتي', 'campaigns.php', 'campaigns', null],
-            ['خطة المحتوى', 'content-plan.php', 'plan', 'content-plan'],
-        ]],
+        'campaigns' => ['حملاتي', 'calendar', 'campaigns.php', ['campaigns', 'plan', 'engine'], $__campSubs],
         'contents' => ['المحتويات', 'folder', 'content-history.php', ['history', 'create'], [
             ['كل المحتويات', 'content-history.php', 'history', 'content-history'],
             ['منشور سريع', 'create-content.php', 'create', 'create-content'],
@@ -94,22 +105,27 @@ function ui_sections(): array
         ]],
         'analytics' => ['التحليلات', 'chart', 'analytics.php', ['analytics'], []],
         // ⑦-ب البحث العميق: صفحة مستقلة زي ما هي — بس جوه Brand Brain (بيقرا الهوية وبيسجّل فيها)
-        'brand' => ['Brand Brain · الهوية', 'brain', 'brand-brain.php', ['brand-brain', 'brand', 'brand-agent', 'sources', 'research'], [
-            ['Brand Brain', 'brand-brain.php', 'brand-brain', null],
+        'brand' => [$__bk ? 'هوية البراند' : 'Brand Brain · الهوية', 'brain', $__brandUrl, ['brand-brain', 'brand', 'brand-agent', 'sources', 'research', 'brand-kit'], [
+            [$__bk ? 'هوية البراند' : 'Brand Brain', $__brandUrl, $__bk ? 'brand-kit' : 'brand-brain', null],
             ['البحث العميق', 'research.php', 'research', 'research'],
             ['المساعد الذكي', 'brand-agent.php', 'brand-agent', 'brand-agent'],
             ['المستندات', 'sources.php', 'sources', 'sources'],
         ]],
-        // ⑦ رحلتك الأولى — بتختفي من القائمة لما تخلص (السايدبار)
-        'journey' => ['رحلتك الأولى', 'star', 'journey.php', ['journey'], []],
-        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], [
+        // رحلة الهوية (بدل «رحلتك الأولى» القديمة) — بتظهر لحد ما العميل يعتمد هويته (السايدبار)
+        'journey' => ['كمّل هويتك', 'star', 'start.php', ['journey', 'start'], []],
+        'settings' => ['الإعدادات', 'settings', 'profile.php', ['profile', 'my-plan', 'credits', 'packages', 'referrals', 'social-accounts', 'help'], array_merge([
             ['حسابي', 'profile.php', 'profile', null],
+        ], get_setting('plan_page_unified', '1') === '1' ? [
+            // «باقتي»: الاشتراك والرصيد وادع واكسب في صفحة واحدة
+            ['باقتي', 'my-plan.php', 'my-plan', 'credits'],
+        ] : [
             ['الباقات والاشتراك', 'packages.php', 'packages', null],
             ['الرصيد', 'credits.php', 'credits', 'credits'],
             [(function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت', 'referrals.php', 'referrals', 'referrals'],
+        ], [
             ['ربط السوشيال', 'social-accounts.php', 'social-accounts', 'social-accounts'],
             ['دليل المنصة', 'help.php', 'help', 'help'],
-        ]],
+        ])],
     ];
 }
 
@@ -162,6 +178,7 @@ function ui_credits_usage(int $userId): array
             'used' => $p['credits']['used'], 'total' => $p['credits']['total'], 'balance' => $p['credits']['balance'],
             'pct' => $p['pct'], 'expires_at' => $p['plan']['ends'], 'days_left' => $p['days_left'],
             'show' => credits_show_numbers(), 'plan' => $p['plan']['name'], 'units' => $p['units'], 'ends_label' => $p['ends_label'],
+            'headline' => function_exists('usage_headline') ? usage_headline($userId) : null,   // الرقم الواحد في كل الصفحات
         ];
     }
     $balance = function_exists('credits_balance') ? credits_balance($userId) : 0;
@@ -213,18 +230,17 @@ function ui_notifications(int $userId): array
     } catch (\Throwable $e) { /* قبل ترحيل 10 */ }
 
     // ① محتاج تعديل — من الحالات الموحّدة (المرحلة 1)
-    if (function_exists('content_status_sql')) {
+    if (function_exists('content_action_counts')) {
         try {
-            $rows = db_all('SELECT ' . content_status_sql('c') . ' st, COUNT(*) n FROM contents c
-                            WHERE c.user_id = ? GROUP BY st', [$userId]);
-            $by = array_column($rows, 'n', 'st');
+            // نفس أرقام الرئيسية وصفحة المحتوى (content_action_counts) — وكل واحد بيفتح المحتوى بالفلتر بتاعه
+            $ac = content_action_counts($userId);
             $map = [
-                'publish_failed' => ['فشل نشر', 'alert', 'danger', 'content-history.php'],
-                'needs_review'   => ['محتاج مراجعة', 'edit', 'warn', 'content-history.php'],
-                'needs_design'   => ['محتاج تصميم', 'image', 'info', 'content-history.php'],
+                'failed' => ['فشل نشر', 'alert', 'danger', $ac['urls']['failed']],
+                'review' => ['محتاج مراجعة', 'edit', 'warn', $ac['urls']['review']],
+                'design' => ['محتاج تصميم', 'image', 'info', $ac['urls']['design']],
             ];
             foreach ($map as $st => [$lbl, $ic, $tone, $url]) {
-                $n = (int) ($by[$st] ?? 0);
+                $n = (int) ($ac[$st] ?? 0);
                 if ($n > 0) {
                     $items[] = ['type' => 'action', 'icon' => $ic, 'tone' => $tone, 'url' => $url,
                                 'title' => $n . ' ' . ($n === 1 ? 'منشور' : 'منشورات') . ' ' . $lbl];
@@ -239,7 +255,7 @@ function ui_notifications(int $userId): array
         if ($vr) {
             $n = count($vr);
             $items[] = ['type' => 'action', 'icon' => 'camera', 'tone' => 'ok', 'url' => 'content-history.php?open=' . (int) $vr[0]['id'],
-                        'title' => $n === 1 ? 'الفيديو بتاعك جاهز 🎬' : $n . ' فيديوهات جاهزة 🎬', 'sub' => 'افتحه وأكّد الاستلام'];
+                        'title' => $n === 1 ? 'الفيديو بتاعك جاهز 🎬' : __('{n} فيديوهات جاهزة 🎬', ['n' => $n]), 'sub' => 'افتحه وأكّد الاستلام'];
         }
     } catch (\Throwable $e) { /* قبل ترحيل ⑦-ج */ }
 
@@ -249,8 +265,9 @@ function ui_notifications(int $userId): array
     $low = ($show ? $u['balance'] <= 3 : $u['pct'] >= 85) || ($u['days_left'] !== null && $u['days_left'] <= 7);
     $items[] = [
         'type' => 'credits', 'icon' => 'coin', 'tone' => $low ? 'warn' : 'ok', 'url' => 'credits.php',
-        'title' => $show ? ('باقي لك ' . $u['balance'] . ' كريدت') : ('استخدمت ' . $u['pct'] . '% من باقة الشهر'),
-        'sub' => $u['days_left'] !== null ? (($show ? 'بتنتهي' : 'بتتجدد') . ' بعد ' . $u['days_left'] . ' يوم') : ('استخدمت ' . $u['pct'] . '%'),
+        // الترجمة: نفس الجمل العربي بالحرف — بمتغيرات علشان تتترجم
+        'title' => !empty($u['headline']) ? $u['headline']['text'] : ($show ? __('باقي لك {n} كريدت', ['n' => $u['balance']]) : __('استخدمت {pct}% من باقة الشهر', ['pct' => $u['pct']])),
+        'sub' => $u['days_left'] !== null ? __($show ? 'بتنتهي بعد {d} يوم' : 'بتتجدد بعد {d} يوم', ['d' => $u['days_left']]) : __('استخدمت {pct}%', ['pct' => $u['pct']]),
     ];
 
     // ③ إعلان سريع (آخر إعلان شغال للعميل — بيحترم «لكل العملاء / لباقة معيّنة»)

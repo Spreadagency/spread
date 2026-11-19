@@ -3,7 +3,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/rate-limit.php';
 
 if (is_admin_logged_in()) {
-    redirect('admin/dashboard.php');
+    redirect('admin/today.php');   // المرحلة 5: أول صفحة = «اليوم» (اللوحة لسه admin/dashboard.php)
 }
 
 $errors = [];
@@ -13,18 +13,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    if (!rate_limit_ok('admin_login', client_ip(), 5, 900)) {
+    if (!rate_limit_ok('admin_login', client_ip(), 5, 900) || !rate_limit_ok('admin_login_acct', login_acct_key($email), LOGIN_ACCT_MAX, LOGIN_ACCT_WINDOW)) {
         $result = ['ok' => false, 'error' => 'محاولات كتير. استنى 15 دقيقة وجرب تاني.'];
     } else {
         $result = authenticate_admin($email, $password);
         if (!$result['ok']) {
             rate_limit_hit('admin_login', client_ip());
+            rate_limit_hit('admin_login_acct', login_acct_key($email));   // المرحلة 6: حد لكل حساب كمان
         }
     }
     if ($result['ok']) {
         login_admin((int) $result['admin']['id']);
         admin_log('login', null, null, 'admin login');
-        redirect('admin/dashboard.php');
+        redirect('admin/today.php');   // المرحلة 5: أول صفحة = «اليوم» (اللوحة لسه admin/dashboard.php)
     } else {
         $errors[] = $result['error'];
     }
@@ -36,7 +37,7 @@ include __DIR__ . '/../templates/admin-header.php';
 
 <div class="auth-wrap">
     <div class="auth-card">
-        <div class="brand-mark" style="background:#4a3db8">⚡</div>
+        <div class="brand-mark" style="background:transparent;box-shadow:none;overflow:hidden"><img src="<?= e(url('assets/img/spread-mark-128.png')) ?>" style="width:100%;height:100%;object-fit:contain" alt="Spread AI"></div>
         <h1>لوحة الإدارة</h1>
         <p>دخول مخصص للمسؤولين فقط</p>
 

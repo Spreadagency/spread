@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/i18n.php';   // الترجمة: __() · لغة الواجهة
 
 /**
  * Escape HTML output
@@ -34,6 +35,16 @@ function redirect(string $path): void
 /**
  * Flash messages
  */
+/**
+ * نص جوه JavaScript داخل attribute (onclick · onsubmit …) — بيرجّع literal كامل بعلاماته.
+ * e() لوحده مش كفاية هنا: المتصفح بيفك &#039; لـ ' قبل ما يشغّل الكود.
+ *   onclick="rev(1, <?= js_str($name) ?>)"   ·   onsubmit="return confirm(<?= js_str('حذف «' . $name . '»؟') ?>)"
+ */
+function js_str($v): string
+{
+    return htmlspecialchars((string) json_encode((string) $v, JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+}
+
 function flash_set(string $type, string $message): void
 {
     $_SESSION['flash'][] = ['type' => $type, 'message' => $message];
@@ -50,7 +61,7 @@ function render_flash(): string
 {
     $out = '';
     foreach (flash_get() as $f) {
-        $out .= '<div class="alert ' . e($f['type']) . '">' . e($f['message']) . '</div>';
+        $out .= '<div class="alert ' . e($f['type']) . '">' . e(__((string) $f['message'])) . '</div>';   // الترجمة: الرسالة كلها لو ليها ترجمة
     }
     return $out;
 }
@@ -71,6 +82,13 @@ function csrf_token(): string
  * PHP بيقفل ملف الجلسة طول الطلب — فطلب تصميم بياخد دقيقة كان بيوقّف أي صفحة تانية
  * لنفس العميل لحد ما يخلص («السيستم كله بيقف» على Apache). القراءة من $_SESSION بتفضل شغالة بعدها.
  */
+/** حد رقمي من الإعدادات (خريطة التطوير · المرحلة 5) — القيمة الافتراضية = اللي كان مكتوب في الكود */
+function setting_int(string $key, int $default, int $min = 1, int $max = 100000): int
+{
+    $v = function_exists('get_setting') ? (int) get_setting($key, (string) $default) : $default;
+    return $v >= $min && $v <= $max ? $v : $default;
+}
+
 function session_release(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
@@ -105,6 +123,27 @@ function require_csrf(): void
 function random_token(int $length = 64): string
 {
     return bin2hex(random_bytes($length / 2));
+}
+
+/** توكن استرجاع الباسورد في القاعدة = بصمته (sha256) مش التوكن نفسه — تسريب القاعدة مايدّيش حد دخول (المرحلة 6) */
+function reset_token_hash(string $token): string
+{
+    return hash('sha256', 'pr|' . $token);
+}
+
+/**
+ * من إمتى التوكنز بقت بتتخزن كبصمة — التوكنز النص بتتقبل بس لو اتعملت قبلها (لحد ما تنتهي)،
+ * عشان البصمة نفسها (لو القاعدة اتسربت) ماتشتغلش كتوكن.
+ */
+function reset_hash_since(): string
+{
+    if (!function_exists('get_setting')) require_once __DIR__ . '/credits.php';   // get_setting / set_setting
+    $v = (string) get_setting('reset_hash_since', '');
+    if ($v === '') {
+        $v = date('Y-m-d H:i:s');
+        set_setting('reset_hash_since', $v);
+    }
+    return $v;
 }
 
 /**
@@ -178,6 +217,12 @@ function str_limit(string $str, int $limit = 100, string $suffix = '...'): strin
  */
 function json_response(array $data, int $status = 200): void
 {
+    // تطبيق الموبايل: حفظ الرد لمفتاح العملية (منع الخصم المكرر) — مابيتعرّفش غير في /api/v1
+    if (function_exists('mobile_on_response')) {
+        mobile_on_response($data, $status);
+    }
+    // الترجمة: رسالة الخطأ بلغة العميل لو ليها ترجمة (العربي زي ما هو)
+    if (isset($data['error']) && is_string($data['error']) && function_exists('i18n_is_en') && i18n_is_en()) $data['error'] = __($data['error']);
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -307,7 +352,8 @@ function site_logo_html(): string
     if ($logo !== '') {
         return '<div class="brand-mark" style="background:transparent;padding:0;overflow:hidden"><img src="' . e(url('storage/' . $logo)) . '" style="width:100%;height:100%;object-fit:contain" alt="logo"></div>';
     }
-    return '<div class="brand-mark">' . e(mb_substr(site_name(), 0, 1)) . '</div>';
+    // لوجو Spread بدل أول حرف من الاسم (لو الأدمن مارفعش لوجو)
+    return '<div class="brand-mark" style="background:transparent;padding:0;overflow:hidden;box-shadow:none"><img src="' . e(url('assets/img/spread-mark-128.png')) . '" style="width:100%;height:100%;object-fit:contain" alt="' . e(site_name()) . '"></div>';
 }
 
 /** ألوان الثيم المخصصة → CSS variables */
@@ -442,6 +488,8 @@ function menu_visible(string $key): bool
     if ($hidden === null) {
         $hidden = array_filter(array_map('trim', explode(',', (string) (function_exists('get_setting') ? get_setting('menu_hidden', '') : ''))));
     }
+    // البحث بيختفي لو مش في باقة العميل
+    if ($key === 'research' && !empty($_SESSION['user_id']) && function_exists('pkg_research_allowed') && !pkg_research_allowed((int) $_SESSION['user_id'])) return false;
     return !in_array($key, $hidden, true);
 }
 
@@ -463,13 +511,19 @@ function trial_capture_token(): void
 function trial_claim(int $userId): ?int
 {
     $token = preg_replace('/[^a-f0-9]/', '', (string) ($_SESSION['trial_token'] ?? ''));
-    if ($token === '') {
-        return null;
-    }
     unset($_SESSION['trial_token']);
+    if (is_file(__DIR__ . '/trial-brand.php')) {
+        require_once __DIR__ . '/trial-brand.php';
+    }
 
     try {
-        $t = db_one('SELECT * FROM trial_sessions WHERE token = ? AND claimed_user_id IS NULL', [$token]);
+        $t = $token !== '' ? db_one('SELECT * FROM trial_sessions WHERE token = ? AND claimed_user_id IS NULL', [$token]) : null;
+        // مفيش توكن في الجلسة (أكّد الإيميل من متصفح تاني مثلًا)؟ آخر تجربة للزائر ده (الكوكي ← نفس الـ IP والمتصفح)
+        $fallback = false;
+        if (!$t && function_exists('trial_find_open')) {
+            $t = trial_find_open(3);
+            $fallback = (bool) $t;
+        }
         if (!$t) {
             return null;
         }
@@ -491,6 +545,10 @@ function trial_claim(int $userId): ?int
                 if ($v === null || $v === '') {
                     continue;
                 }
+                // من غير توكن صريح: مانكتبش فوق هوية العميل الموجودة — الحقول الفاضية بس
+                if ($fallback && trim((string) ($brand[$k] ?? '')) !== '') {
+                    continue;
+                }
                 $set[] = "`{$k}` = ?";
                 $vals[] = $v;
             }
@@ -505,6 +563,11 @@ function trial_claim(int $userId): ?int
                  VALUES (?, ?, ?, ?, ?, ?, ?)',
                 [$userId, $t['business_name'] ?: 'براندي', $t['industry'], $t['audience'], $t['services'], $t['tone'], $t['dialect'] ?: 'egyptian']
             );
+        }
+
+        // معلومات الرابط (الموقع / صفحة الفيسبوك): الوصف · الروابط · التليفونات · مصدر معرفة
+        if (function_exists('trial_claim_profile')) {
+            trial_claim_profile($t, (int) $brandId, $userId);
         }
 
         // 2) المنشور اللي اتولد في التجربة
@@ -530,6 +593,13 @@ function trial_claim(int $userId): ?int
         }
 
         db_run('UPDATE trial_sessions SET claimed_user_id = ?, claimed_at = NOW() WHERE id = ?', [$userId, $t['id']]);
+        if (is_file(__DIR__ . '/brand-brain.php')) {
+            require_once __DIR__ . '/brand-brain.php';
+            brand_kit_notify($userId, ['business_name', 'industry', 'audience', 'services', 'tone', 'dialect', 'description', 'phones', 'website', 'social_facebook'], 'user', 'من التجربة المجانية');
+        }
+        if (function_exists('trial_set_cookie')) {
+            trial_set_cookie('');
+        }
         return $contentId ? (int) $contentId : null;
     } catch (\Throwable $e) {
         return null;

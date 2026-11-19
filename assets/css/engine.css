@@ -1,0 +1,200 @@
+/* Spread AI — محرك المحتوى v3 · فوق brand-kit.css (نفس الألوان والأزرار) */
+.ce .bk-card { margin-bottom: 14px; }
+.ce h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.ce h3 { font-size: 14px; font-weight: 600; margin: 12px 0 2px; color: var(--bk-mute); }
+.ce .bk-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.ce-hero { background: linear-gradient(135deg, #E6FBF7, #DCEBFF); }
+.ce-hero h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+.ce-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.ce-h h2 { margin: 0; }
+.ce .bk-pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; background: var(--bk-soft); color: var(--bk-mute); }
+.ce .bk-pill.ok { background: #E3F8F2; color: #0B7F68; }
+.ce .bk-pill.warn { background: #FFF4DE; color: #9A6200; }
+.ce-top { display: flex; justify-content: space-between; align-items: center; margin: 0 0 10px; }
+
+/* الشغلانة */
+.ce-job { margin: 12px 0 4px; }
+.ce-bar { height: 10px; border-radius: 99px; background: var(--bk-soft); overflow: hidden; }
+.ce-bar i { display: block; height: 100%; background: linear-gradient(90deg, #0FA9C0, var(--bk-pri)); transition: width .5s; }
+.ce-job-row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; margin-top: 6px; }
+.ce-err { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: #FDECEC; color: #A3261F; font-size: 13.5px; }
+.ce-ok { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: #E3F8F2; color: #0B7F68; font-size: 13.5px; }
+
+/* الحملات */
+.ce-camp { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px; border: 1.5px solid var(--bk-line); border-radius: 14px; margin-top: 8px; cursor: pointer; }
+.ce-camp:hover { border-color: var(--bk-pri); }
+.ce-cr { font-size: 12.5px; color: var(--bk-mute); white-space: nowrap; }
+
+/* تعديل الـ DNA */
+.ce-item { padding: 10px 0; border-top: 1px solid var(--bk-line); }
+.ce-item:first-of-type { border-top: 0; }
+.ce-sel { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.ce-sel .bk-in { width: auto; min-width: 140px; flex: 1; }
+.ce-x { border: 0; background: none; color: inherit; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 0 0 2px; opacity: .6; }
+.ce-x:hover { opacity: 1; }
+.ce-add { min-height: 36px; width: 150px; padding: 0 12px; border-radius: 999px; border: 1.5px dashed var(--bk-line); font: inherit; font-size: 13px; background: transparent; }
+.ce-add:focus { outline: none; border-color: var(--bk-pri); } /* نفس العرض: لو اتغير مع الـ blur الزرار اللي جنبه بيتحرك والضغطة بتضيع */
+.bk-chip.no { border-color: #F2B8B4; background: #FDECEC; color: #A3261F; }
+.ce-colors { display: flex; gap: 10px; flex-wrap: wrap; }
+.ce-sw { position: relative; width: 44px; height: 44px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--bk-line); cursor: pointer; }
+.ce-sw input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.ce-chars { display: flex; gap: 8px; flex-wrap: wrap; }
+.ce-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin: 6px 0 20px; position: sticky; bottom: 10px; }
+.ce-actions .bk-btn.pri { box-shadow: 0 6px 18px rgba(12,135,239,.25); }
+
+/* الـ Wizard */
+.ce-steps { display: flex; gap: 5px; margin-bottom: 12px; }
+.ce-steps i { flex: 1; height: 5px; border-radius: 9px; background: var(--bk-line); }
+.ce-steps i.done { background: #9CCBF5; }
+.ce-steps i.on { background: var(--bk-pri); }
+.ce-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 8px; }
+.ce-opt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 92px; padding: 12px; border-radius: 16px;
+  border: 1.5px solid var(--bk-line); background: #fff; font: inherit; font-size: 14px; font-weight: 600; color: var(--bk-ink); cursor: pointer; text-align: center; }
+.ce-opt span { font-size: 24px; }
+.ce-opt small { font-weight: 400; font-size: 12px; color: var(--bk-mute); }
+.ce-opt.on { border-color: var(--bk-pri); background: #E8F3FF; color: var(--bk-pri-2); }
+.ce-per { align-items: flex-start; text-align: start; }
+.ce-av { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.ce-slide { display: grid; grid-template-columns: 140px 1fr 36px; gap: 10px; align-items: center; margin: 10px 0; }
+.ce-slide input[type=range] { width: 100%; accent-color: var(--bk-pri); }
+.ce-slide b { text-align: center; }
+.ce-num { max-width: 160px; }
+.ce-list { list-style: none; padding: 0; margin: 6px 0 12px; line-height: 2; font-size: 14px; }
+.ce-est { border-top: 1px solid var(--bk-line); padding-top: 12px; }
+.ce-est-main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+.ce-est-main div { padding: 12px; border-radius: 14px; background: var(--bk-soft); text-align: center; }
+.ce-est-main b { display: block; font-size: 22px; }
+.ce-est-main span { font-size: 12px; color: var(--bk-mute); }
+.ce-est-main div:first-child { background: #E8F3FF; color: var(--bk-pri-2); }
+.ce-est-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--bk-line); }
+.ce details summary { cursor: pointer; font-size: 13.5px; color: var(--bk-pri); margin-bottom: 6px; }
+@media (max-width: 560px) {
+  .ce-slide { grid-template-columns: 1fr 36px; }
+  .ce-slide label { grid-column: 1 / -1; }
+  .ce-est-main b { font-size: 18px; }
+}
+
+/* ─── خطة الحملة (المرحلة E) ─── */
+.ce-score-top { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
+.ce-ring { flex: none; width: 92px; height: 92px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #FFF4DE; color: #9A6200; border: 3px solid #F5C66B; }
+.ce-ring.ok { background: #E3F8F2; color: #0B7F68; border-color: #7FD8C0; }
+.ce-ring b { font-size: 26px; line-height: 1; }
+.ce-ring small { font-size: 11px; }
+.ce-dims { display: grid; gap: 6px; margin: 4px 0 10px; }
+.ce-dim { display: grid; grid-template-columns: 110px 1fr 34px; gap: 8px; align-items: center; font-size: 13px; }
+.ce-dim .ce-bar { height: 8px; }
+.ce-dim .ce-bar i.low { background: linear-gradient(90deg, #F5A524, #E0524A); }
+.ce-dim b { text-align: center; font-size: 13px; }
+.ce-issues { display: grid; gap: 4px; margin: 6px 0; font-size: 13px; }
+.ce-issues .hard { color: #A3261F; font-weight: 600; }
+.ce-mix { font-size: 12.5px; margin-bottom: 8px; }
+.ce-slot { border: 1.5px solid var(--bk-line); border-inline-start: 5px solid #9CCBF5; border-radius: 14px; padding: 10px 12px; margin-top: 8px; background: #fff; }
+.ce-slot.f-mofu { border-inline-start-color: #7C6CF0; }
+.ce-slot.f-bofu { border-inline-start-color: #13A89E; }
+.ce-slot.tail { background: #FBFFFE; }
+.ce-slot.locked { background: #F6F8FB; }
+.ce-slot.over { outline: 2px dashed var(--bk-pri); }
+.ce-slot[draggable=true] { cursor: grab; }
+.ce-slot-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+.ce-slot-h b { font-size: 15px; }
+.ce-grip { color: var(--bk-mute); letter-spacing: -2px; }
+.ce-sp { flex: 1; }
+.ce-badge { padding: 2px 8px; border-radius: 99px; background: var(--bk-soft); font-size: 11.5px; color: var(--bk-mute); }
+.ce-ic { min-width: 34px; height: 34px; border-radius: 10px; border: 1.5px solid var(--bk-line); background: #fff; cursor: pointer; font-size: 14px; }
+.ce-ic.on { border-color: var(--bk-pri); background: #E8F3FF; }
+.ce-ic:disabled { opacity: .35; cursor: default; }
+.ce-slot-g { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.ce-slot-g .bk-in { min-height: 36px; padding: 0 8px; font-size: 13px; }
+.ce-obj { margin: 6px 0 0; font-size: 13px; color: var(--bk-mute); }
+
+/* ─── المحتوى والجودة (المرحلة F) ─── */
+.ce-piece { border-inline-start: 5px solid var(--bk-line); }
+.ce-piece.ok { border-inline-start-color: #13A89E; }
+.ce-piece.warn { border-inline-start-color: #F5A524; }
+.ce-piece.bad { border-inline-start-color: #E0524A; }
+.ce-piece details { margin-top: 8px; }
+.ce-piece summary { cursor: pointer; font-weight: 600; font-size: 13.5px; padding: 6px 0; }
+.ce-hooks { display: grid; gap: 4px; margin: 8px 0; }
+.ce-hooks span { font-size: 13px; color: var(--bk-mute); padding: 4px 10px; border-radius: 10px; background: var(--bk-soft); }
+.ce-hooks span.on { color: inherit; font-weight: 700; font-size: 15px; background: #E8F3FF; }
+.ce-text { white-space: pre-line; margin: 6px 0; line-height: 1.75; font-size: 14px; overflow-wrap: anywhere; }
+.ce-cta { margin: 6px 0; font-weight: 600; }
+.ce-slides { margin: 8px 0; padding-inline-start: 22px; display: grid; gap: 4px; font-size: 14px; }
+.ce-scenes { display: grid; gap: 6px; margin: 8px 0; }
+.ce-scene { display: grid; gap: 2px; padding: 8px 10px; border-radius: 10px; background: var(--bk-soft); font-size: 13px; }
+.ce-brief { display: grid; gap: 4px; font-size: 13px; }
+.ce-brief b { color: var(--bk-mute); font-weight: 600; margin-inline-end: 6px; }
+.ce-idea { display: grid; gap: 2px; padding: 8px 10px; border: 1.5px solid var(--bk-line); border-radius: 12px; margin-top: 6px; font-size: 13.5px; }
+.ce-idea.on { border-color: var(--bk-pri); background: #F4F9FF; }
+.ce-idea.dup { opacity: .55; }
+.ce-idea .bk-link { justify-self: start; }
+.ce-notes ol { margin: 6px 0 0; padding-inline-start: 22px; display: grid; gap: 4px; font-size: 13.5px; }
+.bk-pill.bad { background: #FDECEB; color: #A3261F; }
+.ce-go .ce-est-row { margin: 8px 0 2px; }
+
+/* ─── التصميم (المرحلة G) ─── */
+.ce-check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; font-size: 13.5px; cursor: pointer; }
+.ce-check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--bk-pri); flex-shrink: 0; }
+.ce-designs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.ce-dsg { margin: 0; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.ce-dsg-img { display: block; width: 100%; padding: 0; border: 1.5px solid var(--bk-line); border-radius: 14px; overflow: hidden; background: var(--bk-soft); cursor: zoom-in; position: relative; }
+.ce-dsg-img.r1x1 { aspect-ratio: 1 / 1; } .ce-dsg-img.r4x5 { aspect-ratio: 4 / 5; } .ce-dsg-img.r9x16 { aspect-ratio: 9 / 16; max-height: 320px; }
+.ce-dsg-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ce-dsg-img span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 13px; }
+.ce-dsg.warn .ce-dsg-img { border-color: #F5A524; } .ce-dsg.bad .ce-dsg-img { border-color: #E0524A; }
+.ce-dsg figcaption { display: grid; gap: 4px; font-size: 12.5px; }
+.ce-dsg-act { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.ce-warn { color: #95600A; }
+.ce-dedit { display: grid; gap: 6px; padding: 10px; border: 1.5px solid var(--bk-line); border-radius: 12px; background: #fff; }
+.ce-dedit label { display: grid; gap: 3px; font-size: 12.5px; font-weight: 600; }
+.ce-dedit .bk-in { min-height: 38px; font-size: 13.5px; }
+.ce-zoom { position: fixed; inset: 0; z-index: 90; background: rgba(8, 14, 28, .82); display: grid; place-items: center; padding: 16px; cursor: zoom-out; }
+.ce-zoom img { max-width: 100%; max-height: 92vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, .4); }
+.ce-zoom .ce-ic { position: absolute; top: 14px; inset-inline-end: 14px; }
+
+@media (max-width: 560px) {
+  .ce-designs { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ce-slot-g { grid-template-columns: 1fr 1fr; }
+  .ce-dim { grid-template-columns: 90px 1fr 30px; }
+}
+
+/* أسئلة المجال (Skill التخصص) */
+.ce-skillq { margin-top: 16px; display: grid; gap: 10px; }
+.ce-skillq h3 { margin: 0; font-size: 15px; }
+.ce-skillq-i { display: grid; gap: 4px; font-size: 13.5px; }
+.ce-skillq-i span { color: var(--bk-ink-2, #4A5468); }
+
+/* نتايج بعد النشر (حلقة التعلّم) */
+.ce-perf summary { cursor: pointer; }
+.ce-perf-f { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.ce-perf-f label { display: grid; gap: 4px; font-size: 13px; }
+.ce-perf-f .bk-row, .ce-perf-f small { grid-column: 1 / -1; }
+.ce-perf-sum { margin: 8px 0 0; font-size: 14px; }
+.ce-perf-f label { align-content: end; }
+
+/* Meta Insights */
+.ce-meta { margin: 10px 0; display: grid; gap: 8px; }
+.ce-meta-pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ce-meta-pick .bk-in { flex: 1 1 220px; }
+.ce-meta-posts { display: grid; gap: 6px; max-height: 360px; overflow: auto; }
+.ce-meta-post { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border: 1px solid var(--bk-line, #E2E8F0); border-radius: 10px; cursor: pointer; font-size: 13px; }
+.ce-meta-post img { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; flex: none; }
+.ce-meta-post.off { opacity: .5; cursor: not-allowed; }
+.ce-meta-post span { min-width: 0; overflow-wrap: anywhere; }
+.ce-meta-warn { color: #9A5B00; background: #FFF4E0; padding: 6px 10px; border-radius: 8px; font-size: 13px; }
+.ce-perf-nums { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.ce-perf-split { display: grid; gap: 4px; font-size: 12px; color: var(--bk-mute, #667); }
+.ce-perf-split b { color: inherit; font-weight: 700; margin-inline-end: 4px; }
+.ce-contents { display: contents; }
+
+/* النشر من المحرك */
+.ce-pub summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ce-pub .pub-published { background: #DFF6F2; color: #0B6B78; }
+.ce-pub .pub-pending, .ce-pub .pub-processing { background: #E3F1FF; color: #0A5FCF; }
+.ce-pub .pub-failed { background: #FDECEC; color: #C2362E; }
+.ce-pub-row { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--bk-line, #E2E8F0); font-size: 13.5px; }
+.ce-pub-row .ce-meta-warn { flex-basis: 100%; }
+.ce-pub-f { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.ce-pub-f .bk-in { flex: 1 1 200px; }
+.ce-pub-all { margin-top: 10px; display: grid; gap: 4px; }

@@ -13,6 +13,9 @@ require_once __DIR__ . '/../includes/ui-v2.php';
 require_login();
 $user = current_user();
 
+if (empty($_GET['classic']) && brand_kit_on()) {
+    redirect('brand-kit.php' . (!empty($_GET['field']) ? '#bk-basics' : ''));   // صفحة واحدة للهوية
+}
 if (!ui_v2_enabled()) {
     redirect('brand-profile.php');   // الشكل القديم له صفحته
 }
@@ -301,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var init = <?= json_encode($initial, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?>;
   var base = document.querySelector('meta[name="app-base"]').content;
   var TONES = { simple: 'بسيط', formal: 'رسمي', fun: 'مرح', professional: 'احترافي' };
-  var DIALECTS = { egyptian: 'مصري', khaleeji: 'خليجي', levantine: 'شامي', msa: 'فصحى' };
+  var DIALECTS = { egyptian: 'مصري', khaleeji: 'خليجي', levantine: 'شامي', msa: 'فصحى', english: 'English' };
 
   // ويدجت السايدبار بيترسم مع الصفحة — نحدّثه لحظيًا مع أي تغيير في الهوية
   function syncSidebar(h) {

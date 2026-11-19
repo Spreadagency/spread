@@ -17,7 +17,7 @@ function rs_cites(string $expr): string
 <div id="rs" class="rs" v-cloak>
     <!-- البحث العميق جوه Brand Brain: بيقرا الهوية وبيسجّل فيها -->
     <nav class="rs-crumb" aria-label="مسار الصفحة">
-        <a href="<?= url('brand-brain.php') ?>">🧠 Brand Brain</a> <span>›</span> <b>البحث العميق</b>
+        <a href="<?= url('brand-brain.php') ?>">🧬 هوية البراند</a> <span>›</span> <b>البحث العميق</b>
         <small>بيقرا هوية {{ brand.name }} · واللي يلاقيه بيتسجّل في الهوية</small>
     </nav>
     <header class="rs-head">

@@ -22,9 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = db_one('SELECT * FROM users WHERE email = ? LIMIT 1', [$email]);
         if ($user) {
             $token = random_token(64);
+            reset_hash_since();   // أول توكن متخزن كبصمة بيثبّت تاريخ التحويل
             db_run(
                 'INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)',
-                [$user['id'], $token, date('Y-m-d H:i:s', time() + RESET_TOKEN_TTL)]
+                [$user['id'], reset_token_hash($token), date('Y-m-d H:i:s', time() + RESET_TOKEN_TTL)]
             );
             send_reset_email($user['name'], $email, $token);
         }
@@ -35,42 +36,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $page_title = 'نسيت كلمة المرور';
+$i18n_ready = true;   // الترجمة: الصفحة دي مترجمة بالكامل
 include __DIR__ . '/../templates/header.php';
 ?>
 
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="brand">
-            <div class="brand-mark">S</div>
+            <?= site_logo_html() ?>
             <div>
                 <div class="brand-name"><?= e(APP_NAME) ?></div>
-                <div class="brand-sub"><?= e(APP_TAGLINE) ?></div>
+                <div class="brand-sub"><?= e(__(APP_TAGLINE)) ?></div>
             </div>
         </div>
 
-        <h2>نسيت كلمة المرور؟ 🔑</h2>
-        <p class="sub">دخّل بريدك الإلكتروني وهنبعت لك رابط إعادة التعيين</p>
+        <h2><?= e(__('نسيت كلمة المرور؟ 🔑')) ?></h2>
+        <p class="sub"><?= e(__('دخّل بريدك الإلكتروني وهنبعت لك رابط إعادة التعيين')) ?></p>
 
         <?php if ($message): ?>
-            <div class="alert <?= e($messageType) ?>"><?= e($message) ?></div>
+            <div class="alert <?= e($messageType) ?>"><?= e(__($message)) ?></div>
         <?php endif; ?>
 
         <form method="POST" autocomplete="off">
             <?= csrf_field() ?>
 
             <div class="field">
-                <label>البريد الإلكتروني</label>
+                <label><?= e(__('البريد الإلكتروني')) ?></label>
                 <input type="email" name="email" class="input" required placeholder="you@example.com">
             </div>
 
             <button type="submit" class="btn full lg">
-                إرسال رابط الاستعادة
+                <?= e(__('إرسال رابط الاستعادة')) ?>
             </button>
         </form>
 
-        <div class="auth-divider">أو</div>
+        <div class="auth-divider"><?= e(__('أو')) ?></div>
 
-        <a href="<?= url('login.php') ?>" class="btn ghost full">العودة لتسجيل الدخول</a>
+        <a href="<?= url('login.php') ?>" class="btn ghost full"><?= e(__('العودة لتسجيل الدخول')) ?></a>
     </div>
 </div>
 

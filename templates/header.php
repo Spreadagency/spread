@@ -5,6 +5,9 @@
  */
 
 $page_title = $page_title ?? APP_NAME;
+// الترجمة: الصفحة بتتعرض بالإنجليزي بس لو اتترجمت ($i18n_ready = true قبل الهيدر) — غير كده بتفضل عربي ومن اليمين للشمال
+// زي ما هي، حتى لو العميل مختار English (علشان مايبقاش فيه صفحة نصها عربي واتجاهها إنجليزي لحد ما دفعتها تتترجم)
+if (empty($i18n_ready)) i18n_set('ar');
 $body_class = $body_class ?? '';
 $__v2 = function_exists('ui_v2_enabled') && ui_v2_enabled();
 // 8-ب: العميل بيشوف نسب % بس؟ → .cr (أرقام الكريدت) بتستخبى و .cr-alt بتظهر
@@ -14,14 +17,16 @@ $__asset = function (string $rel): string {
 };
 ?>
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html <?= i18n_html_attrs() ?>>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
     <meta name="app-base" content="<?= e(rtrim(url(''), '/')) ?>">
-    <title><?= e($page_title) ?> — <?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237c6df2'/><text x='50' y='66' text-anchor='middle' fill='white' font-size='56' font-weight='bold' font-family='Arial'>S</text></svg>">
+    <title><?= e(__($page_title)) ?> — <?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></title>
+    <?php $__fav = function_exists('site_setting') ? (string) site_setting('site_logo', '') : ''; ?>
+    <link rel="icon" type="image/png" href="<?= e($__fav !== '' ? url('storage/' . $__fav) : url('assets/img/favicon-v2.png')) ?>">
+    <link rel="apple-touch-icon" href="<?= e(url('assets/img/spread-mark-128.png')) ?>">
     <link rel="stylesheet" href="<?= url('assets/css/main.css') ?>?v=<?= @filemtime(__DIR__ . '/../assets/css/main.css') ?: time() ?>">
     <?= function_exists('site_theme_css') ? site_theme_css() : '' ?>
     <style>body.cr-off .cr{display:none!important}body:not(.cr-off) .cr-alt{display:none!important}</style>
@@ -39,9 +44,14 @@ $__asset = function (string $rel): string {
     <link rel="icon" type="image/png" href="<?= url('assets/img/favicon-v2.png') ?>">
     <meta name="theme-color" content="#EEF5FB">
 <?php endif; ?>
+<?php if (i18n_dir() === 'ltr'): ?>
+    <!-- الترجمة: الواجهة الإنجليزي (من الشمال لليمين) — تظبيطات الاتجاه بس -->
+    <link rel="stylesheet" href="<?= $__asset('assets/css/ltr.css') ?>">
+<?php endif; ?>
 <?php if (!empty($use_app)): ?>
     <!-- الشاشات التفاعلية: petite-vue (~7KB) + مكتبة الواجهة — بتتحمّل هنا بس -->
-    <style>[v-cloak]{display:none!important}</style>
+    <?php /* قبل ما الواجهة تجهز: مؤشر تحميل مكان الصفحة البيضا (القالب نفسه بيفضل مخفي) */ ?>
+    <style>[v-cloak]{position:relative;min-height:55vh}[v-cloak]>*{visibility:hidden!important}[v-cloak]::before{content:'';position:absolute;top:90px;inset-inline-start:50%;width:36px;height:36px;margin-inline-start:-18px;border:3px solid rgba(124,109,242,.18);border-top-color:#7c6df2;border-radius:50%;animation:vcspin .9s linear infinite;z-index:2}@keyframes vcspin{to{transform:rotate(360deg)}}</style>
     <script src="<?= $__asset('assets/vendor/petite-vue.iife.js') ?>" defer></script>
     <script src="<?= $__asset('assets/js/spread-app.js') ?>" defer></script>
 <?php endif; ?>

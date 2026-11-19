@@ -10,7 +10,7 @@ require_login();
 $user = current_user();
 
 $genCost    = cost_for('content_generation_cost');
-$designCost = cost_for('content_design_cost');
+$designCost = design_credit_cost();
 $ideasCost  = (int) get_setting('plan_ideas_cost', 2);
 $sumCost    = (int) get_setting('source_summary_cost', 1);
 $stIdeaCost = (int) get_setting('studio_idea_cost', 1);
@@ -95,7 +95,7 @@ include __DIR__ . '/../templates/header.php';
                 <li>✔ <b>صورة العميل / المنتج</b> — بتظهر في التصميم</li>
                 <li>📎 <b>صورة ستايل مرجعية</b> — ارفعها أو اختارها من معرض الإلهام أو صورك، والموديل يلتزم بستايلها بالظبط</li>
             </ul>
-            <p style="margin-top:8px"><b><a href="<?= url('design-studio.php') ?>">✨ استوديو التصميم</a></b> — تصميمات مستقلة من غير بوست، بأربع أوضاع: من محتوى (مع اقتراح فكرة بـ <?= $stIdeaCost ?> ◇) / <b>قبل وبعد</b> بصورتين / برومبت حر / <b>تصور لصورتك الشخصية</b>. وفي كله تقدر تختار <b>قالب ستايل</b> جاهز. (كل تصميم <?= $designCost ?> ◇)</p>
+            <p style="margin-top:8px"><b><a href="<?= url('design-studio.php') ?>">✨ استوديو التصميم</a></b> — تصميمات مستقلة من غير بوست، بأربع أوضاع: من محتوى (مع اقتراح فكرة بـ <?= $stIdeaCost ?> ◇) / <b>قبل وبعد</b> بصورتين / برومبت حر / <b>تصور لصورتك الشخصية</b>. وفي كله تقدر تختار <b>قالب ستايل</b> جاهز. (كل تصميم <?= e(design_cost_text('◇')) ?>)</p>
         </div>
 
         <!-- النشر -->
@@ -113,7 +113,7 @@ include __DIR__ . '/../templates/header.php';
                 <thead><tr><th>العملية</th><th>التكلفة</th></tr></thead>
                 <tbody>
                     <tr><td>توليد منشور / بوست من الخطة</td><td><?= $genCost ?> ◇</td></tr>
-                    <tr><td>توليد تصميم (من البوست أو الاستوديو)</td><td><?= $designCost ?> ◇</td></tr>
+                    <tr><td>توليد تصميم (من البوست أو الاستوديو)</td><td><?= e(design_cost_text('◇')) ?></td></tr>
                     <tr><td>أفكار خطة كاملة (لحد 30 فكرة)</td><td><?= $ideasCost ?> ◇</td></tr>
                     <tr><td>فكرة تصميم في الاستوديو</td><td><?= $stIdeaCost ?> ◇</td></tr>
                     <tr><td>تلخيص مستند هوية</td><td><?= $sumCost ?> ◇</td></tr>

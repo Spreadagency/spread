@@ -9,23 +9,24 @@ if ($token) {
     $reset = db_one(
         'SELECT pr.*, u.email FROM password_resets pr
          JOIN users u ON u.id = pr.user_id
-         WHERE pr.token = ? AND pr.used_at IS NULL AND pr.expires_at > NOW()
+         WHERE (pr.token = ? OR (pr.token = ? AND pr.created_at < ?)) AND pr.used_at IS NULL AND pr.expires_at > NOW()
          LIMIT 1',
-        [$token]
+        [reset_token_hash($token), $token, reset_hash_since()]   // المرحلة 6: البصمة · والتوكنز النص القديمة (اللي قبل التحويل) لحد ما تنتهي
     );
 }
 
 if (!$reset) {
     $page_title = 'رابط منتهي';
+    $i18n_ready = true;   // الترجمة: الصفحة دي مترجمة بالكامل
     include __DIR__ . '/../templates/header.php';
     ?>
     <div class="auth-wrap">
         <div class="auth-card text-center">
-            <div class="brand" style="justify-content:center"><div class="brand-mark">S</div></div>
+            <div class="brand" style="justify-content:center"><?= site_logo_html() ?></div>
             <div style="font-size:64px;margin-bottom:8px">⌛</div>
-            <h2>الرابط منتهي</h2>
-            <p class="sub mb-20">رابط إعادة التعيين انتهت صلاحيته أو غير صحيح. اطلب رابط جديد.</p>
-            <a href="<?= url('forgot-password.php') ?>" class="btn full lg">طلب رابط جديد</a>
+            <h2><?= e(__('الرابط منتهي')) ?></h2>
+            <p class="sub mb-20"><?= e(__('رابط إعادة التعيين انتهت صلاحيته أو غير صحيح. اطلب رابط جديد.')) ?></p>
+            <a href="<?= url('forgot-password.php') ?>" class="btn full lg"><?= e(__('طلب رابط جديد')) ?></a>
         </div>
     </div>
     <?php
@@ -47,7 +48,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'UPDATE users SET password = ? WHERE id = ?',
             [password_hash($password, PASSWORD_BCRYPT), $reset['user_id']]
         );
-        db_run('UPDATE password_resets SET used_at = NOW() WHERE id = ?', [$reset['id']]);
+        // كل روابط الاسترجاع المفتوحة للحساب ده بتتقفل (مش اللي اتستخدم بس)
+        db_run('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$reset['user_id']]);
         // ⑥-أ: تاريخ آخر تغيير + خروج كل الأجهزة (لو الحساب اتسرق، الجلسات القديمة تقفل)
         try {
             db_run('UPDATE users SET password_changed_at = NOW() WHERE id = ?', [$reset['user_id']]);
@@ -60,23 +62,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $page_title = 'إعادة تعيين كلمة المرور';
+$i18n_ready = true;   // الترجمة: الصفحة دي مترجمة بالكامل
 include __DIR__ . '/../templates/header.php';
 ?>
 
 <div class="auth-wrap">
     <div class="auth-card">
         <div class="brand">
-            <div class="brand-mark">S</div>
+            <?= site_logo_html() ?>
             <div>
                 <div class="brand-name"><?= e(APP_NAME) ?></div>
             </div>
         </div>
 
-        <h2>كلمة مرور جديدة 🔐</h2>
-        <p class="sub">اختر كلمة مرور جديدة لحسابك (<?= e($reset['email']) ?>)</p>
+        <h2><?= e(__('كلمة مرور جديدة 🔐')) ?></h2>
+        <p class="sub"><?= e(__('اختر كلمة مرور جديدة لحسابك ({email})', ['email' => $reset['email']])) ?></p>
 
         <?php foreach ($errors as $err): ?>
-            <div class="alert danger"><?= e($err) ?></div>
+            <div class="alert danger"><?= e(__($err)) ?></div>
         <?php endforeach; ?>
 
         <form method="POST" autocomplete="off">
@@ -84,16 +87,16 @@ include __DIR__ . '/../templates/header.php';
             <input type="hidden" name="token" value="<?= e($token) ?>">
 
             <div class="field">
-                <label>كلمة المرور الجديدة</label>
+                <label><?= e(__('كلمة المرور الجديدة')) ?></label>
                 <input type="password" name="password" class="input" required minlength="6">
             </div>
 
             <div class="field">
-                <label>تأكيد كلمة المرور</label>
+                <label><?= e(__('تأكيد كلمة المرور')) ?></label>
                 <input type="password" name="password_confirm" class="input" required minlength="6">
             </div>
 
-            <button type="submit" class="btn full lg">حفظ كلمة المرور الجديدة</button>
+            <button type="submit" class="btn full lg"><?= e(__('حفظ كلمة المرور الجديدة')) ?></button>
         </form>
     </div>
 </div>

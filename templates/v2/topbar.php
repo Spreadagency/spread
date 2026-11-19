@@ -11,6 +11,8 @@ $user = $user ?? current_user();
 $active = $active ?? '';
 $__section = ui_section_of($active);
 $__notif = ui_notifications((int) $user['id']);
+// عدد غير المقروء من user_notifications وقت الرسم — الـ polling بيحدّث العداد بالفرق
+try { $__unread0 = (int) (db_one('SELECT COUNT(*) n FROM user_notifications WHERE user_id = ? AND read_at IS NULL', [(int) $user['id']])['n'] ?? 0); } catch (\Throwable $e) { $__unread0 = 0; }
 $__secLabel = $__section ? ui_sections()[$__section][0] : '';
 $__title = $page_title ?? $__secLabel;
 if ($__section === 'dashboard') $__title = 'لوحة التحكم';
@@ -27,31 +29,36 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
 
     <!-- ديسكتوب: التاريخ والعنوان -->
     <div class="v2-title">
-        <small><?= e(ui_arabic_date()) ?></small>
-        <h1><?= e($__title) ?></h1>
+        <small><?= e(i18n_is_en() ? date('l, j F Y') : ui_arabic_date()) ?></small>
+        <h1><?= e(__($__title)) ?></h1>
     </div>
 
     <form class="v2-search" action="<?= url('content-history.php') ?>" method="get" role="search">
         <?= ui_icon('search', 18) ?>
-        <input type="search" name="q" placeholder="ابحث في حملاتك ومحتواك..." aria-label="بحث" value="<?= e($_GET['q'] ?? '') ?>">
+        <input type="search" name="q" placeholder="<?= e(__('ابحث في حملاتك ومحتواك...')) ?>" aria-label="<?= e(__('بحث')) ?>" value="<?= e($_GET['q'] ?? '') ?>">
     </form>
 
     <div class="v2-top-act">
-        <div class="v2-bell-wrap">
-            <button type="button" class="v2-iconbtn v2-bell" aria-label="الإشعارات" aria-expanded="false" aria-haspopup="true"
+        <?php // زرار اللغة: في الصفحات اللي اتترجمت بس (غيرها لسه عربي)
+        if (!empty($i18n_ready) && i18n_enabled()) echo i18n_switcher(url('lang.php'), 'lang-sw v2-lang'); ?>
+        <?php if (!function_exists('get_setting') || get_setting('issues_enabled', '1') === '1'): ?>
+        <button type="button" class="v2-iconbtn" data-report title="<?= e(__('بلّغ عن مشكلة')) ?>" aria-label="<?= e(__('بلّغ عن مشكلة')) ?>" style="font-size:17px">⚑</button>
+        <?php endif; ?>
+        <div class="v2-bell-wrap" data-inbox data-dot="v2-dot" data-badge="<?= (int) $__notif['badge'] ?>" data-unread="<?= $__unread0 ?>">
+            <button type="button" class="v2-iconbtn v2-bell" data-inbox-btn aria-label="<?= e(__('الإشعارات')) ?>" aria-expanded="false" aria-haspopup="true"
                     onclick="v2Bell(event)">
                 <?= ui_icon('bell', 20) ?>
                 <?php if ($__notif['badge'] > 0): ?><em class="v2-dot"><?= $__notif['badge'] ?></em><?php endif; ?>
             </button>
             <div class="v2-pop" id="v2-bell-pop" hidden>
-                <div class="v2-pop-head">الإشعارات</div>
+                <div class="v2-pop-head"><?= e(__('الإشعارات')) ?></div>
                 <?php foreach ($__notif['items'] as $n): ?>
                     <?php $tag = $n['url'] ? 'a' : 'div'; ?>
                     <<?= $tag ?> class="v2-note v2-note-<?= e($n['tone']) ?>" <?= $n['url'] ? 'href="' . e(preg_match('#^https?://#', $n['url']) ? $n['url'] : url($n['url'])) . '"' : '' ?>>
                         <span class="v2-note-ic"><?= ui_icon($n['icon'], 18) ?></span>
                         <span class="v2-note-txt">
-                            <b><?= e($n['title']) ?></b>
-                            <?php if (!empty($n['sub'])): ?><small><?= e($n['sub']) ?></small><?php endif; ?>
+                            <b><?= e(__($n['title'])) ?></b>
+                            <?php if (!empty($n['sub'])): ?><small><?= e(__($n['sub'])) ?></small><?php endif; ?>
                             <?php if ($n['type'] === 'credits'): ?>
                                 <span class="bar"><span class="bar-fill" style="width:<?= 100 - (int) $__notif['usage']['pct'] ?>%"></span></span>
                             <?php endif; ?>
@@ -59,55 +66,59 @@ $__tabs = $__section ? ui_subtabs($__section) : [];
                     </<?= $tag ?>>
                 <?php endforeach; ?>
                 <?php if (count(array_filter($__notif['items'], fn($i) => $i['type'] === 'action')) === 0): ?>
-                    <div class="v2-note-empty">✓ مفيش حاجة محتاجة تعديل</div>
+                    <div class="v2-note-empty"><?= e(__('✓ مفيش حاجة محتاجة تعديل')) ?></div>
                 <?php endif; ?>
+                <a class="v2-note-all" href="<?= url('notifications.php') ?>"><?= e(__('عرض كل الرسايل ←')) ?></a>
             </div>
         </div>
 
         <div class="v2-me-wrap">
-        <button type="button" class="v2-me" aria-label="قائمة الحساب" aria-haspopup="true" aria-expanded="false" aria-controls="v2-me-pop" onclick="v2Me(event)">
+        <button type="button" class="v2-me" aria-label="<?= e(__('قائمة الحساب')) ?>" aria-haspopup="true" aria-expanded="false" aria-controls="v2-me-pop" onclick="v2Me(event)">
             <?php
             // صورة الحساب (من الإعدادات أو جوجل) — وإلا الحروف الأولى
             $__av = (string) ($user['avatar_url'] ?? '');
             if ($__av !== '' && !preg_match('#^https?://#i', $__av)) { require_once __DIR__ . '/../../includes/uploader.php'; $__av = (string) upload_url($__av); }
             ?>
             <span class="v2-avatar"><?php if ($__av !== ''): ?><img src="<?= e($__av) ?>" alt="" referrerpolicy="no-referrer"><?php else: ?><?= e(function_exists('initials') ? initials($__name) : mb_substr($__name, 0, 1)) ?><?php endif; ?></span>
-            <span class="v2-me-txt"><b><?= e(mb_substr($__first, 0, 14)) ?></b><small><?= ($__notif['usage']['show'] ?? true) ? (int) $__notif['usage']['balance'] . ' كريدت' : 'استخدمت ' . (int) $__notif['usage']['pct'] . '%' ?></small></span>
+            <span class="v2-me-txt"><b><?= e(mb_substr($__first, 0, 14)) ?></b><small><?= e($__notif['usage']['headline']['short'] ?? (($__notif['usage']['show'] ?? true) ? __('{n} كريدت', ['n' => (int) $__notif['usage']['balance']]) : __('استخدمت {pct}%', ['pct' => (int) $__notif['usage']['pct']]))) ?></small></span>
         </button>
         <?php
         // 10: الإعدادات خرجت من الشريط السفلي ← قائمة الحساب
         $__menu = [
             ['profile.php', 'user', 'حسابي'],
             ['profile.php#sx-h-sec', 'lock', 'كلمة المرور والأمان'],
-            ['packages.php', 'star', 'الاشتراك والباقات'],
+            ['my-plan.php', 'star', 'باقتي (الاشتراك والرصيد)'],
             ['payments.php', 'file', 'المدفوعات والفواتير'],
-            ['credits.php', 'coin', 'الرصيد'],
+            ['my-plan.php?tab=refer', 'coin', 'ادع واكسب'],
             ['profile.php#sx-h-acc', 'link', 'الحسابات المرتبطة'],
             ['social-accounts.php', 'send', 'ربط السوشيال'],
+            ['notifications.php', 'bell', 'الرسايل والإشعارات'],
             ['help.php', 'help', 'دليل المنصة'],
         ];
         ?>
         <div class="v2-pop v2-me-pop" id="v2-me-pop" hidden>
             <div class="v2-me-head"><b><?= e($__name) ?></b><small dir="ltr"><?= e((string) ($user['email'] ?? '')) ?></small></div>
             <?php foreach ($__menu as [$href, $icon, $label]): ?>
-                <a href="<?= e(url($href)) ?>" class="v2-me-item"><?= ui_icon($icon, 18) ?><span><?= e($label) ?></span></a>
+                <a href="<?= e(url($href)) ?>" class="v2-me-item"><?= ui_icon($icon, 18) ?><span><?= e(__($label)) ?></span></a>
             <?php endforeach; ?>
-            <a href="<?= url('logout.php') ?>" class="v2-me-item danger"><?= ui_icon('logout', 18) ?><span>تسجيل الخروج</span></a>
+            <a href="<?= url('logout.php') ?>" class="v2-me-item danger"><?= ui_icon('logout', 18) ?><span><?= e(__('تسجيل الخروج')) ?></span></a>
         </div>
         </div>
     </div>
 </header>
 
 <?php if (count($__tabs) > 1): ?>
-<nav class="v2-tabs" aria-label="<?= e($__secLabel) ?>">
+<nav class="v2-tabs" aria-label="<?= e(__($__secLabel)) ?>">
     <?php foreach ($__tabs as [$lbl, $href, $key]): ?>
-        <a href="<?= url($href) ?>" class="<?= $active === $key ? 'on' : '' ?>"><?= e($lbl) ?></a>
+        <a href="<?= url($href) ?>" class="<?= $active === $key ? 'on' : '' ?>"><?= e(__($lbl)) ?></a>
     <?php endforeach; ?>
 </nav>
 <?php endif; ?>
 
 <?= render_flash() ?>
 
+<style>.v2-note-all { display: block; text-align: center; padding: 10px; font-size: 13px; font-weight: 700; color: var(--primary-deep, #0A5FCF); text-decoration: none; border-top: 1px solid var(--line-2, #E6EEF6); }</style>
+<?php include __DIR__ . '/../inbox-poll.php'; ?>
 <script>
 function v2Bell(e) {
   e.stopPropagation();

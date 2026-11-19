@@ -26,6 +26,10 @@ function feature_allows(int $userId, string $key = 'social_publishing'): bool
         if ($mode === 'off') {
             return $cache[$ck] = false;
         }
+        // النشر المباشر: الباقة فيها نشر ← مفتوح تلقائيًا طول ما الباقة شغالة
+        if ($key === 'social_publishing' && function_exists('plan_flags') && plan_flags($userId)['publish']) {
+            return $cache[$ck] = true;
+        }
         $row = db_one('SELECT * FROM user_feature_access WHERE user_id = ? AND feature_key = ?', [$userId, $key]);
         if ($mode === 'on') {
             // مفتوحة للكل إلا من عُطّل صراحة

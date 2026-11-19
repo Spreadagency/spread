@@ -488,3 +488,166 @@ body.adm2 .st-nav a { color: #4A5468; } body.adm2 .st-nav a.on { color: #fff; } 
 .dg-row b { color: #4A5468; } .dg-row b.bad { color: #C2362E; }
 .dg-sum.warn { border-color: #F2A93B; }
 .dg-list.warn { color: #8A5A10; }
+
+/* ─── القائمة: مجموعات بتتقفل وتتفتح — المفتوحة بس هي مجموعة الصفحة الحالية ─── */
+body.adm2 .nav .nav-gbtn {
+    width: 100%; display: flex; align-items: center; gap: 8px; border: 0; background: transparent; cursor: pointer;
+    border-radius: 10px; margin-top: 2px; text-align: start;
+}
+body.adm2 .nav .nav-gbtn > span:first-child { flex: 1; text-align: right; }
+body.adm2 .nav .nav-gbtn:hover { color: #5B6478; background: rgba(12, 135, 239, .04); }
+body.adm2 .nav .nav-gbtn svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform .25s cubic-bezier(.16, 1, .3, 1); transform: rotate(180deg); }
+body.adm2 .nav .nav-grp.open > .nav-gbtn { color: #0A5FCF; }
+body.adm2 .nav .nav-grp.open > .nav-gbtn svg { transform: rotate(90deg); }
+body.adm2 .nav .nav-gitems { overflow: hidden; }
+body.adm2 .nav .nav-gitems > a { transition: height .25s cubic-bezier(.16, 1, .3, 1), opacity .2s, margin .25s, background .25s, color .2s; }
+body.adm2 .nav .nav-grp:not(.open) .nav-gitems > a { height: 0; margin: 0; opacity: 0; pointer-events: none; visibility: hidden; }
+body.adm2 .nav .a2-gcnt {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; display: inline-grid; place-items: center;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0; background: #FDECEC; color: #C2362E;
+}
+body.adm2 .nav .nav-grp.open .a2-gcnt { display: none; }
+/* القائمة المصغّرة: كل الأيقونات ظاهرة والعناوين فواصل بس */
+body.adm2.a2-mini .nav .nav-gbtn { justify-content: center; pointer-events: none; }
+body.adm2.a2-mini .nav .nav-gbtn svg, body.adm2.a2-mini .nav .a2-gcnt { display: none; }
+body.adm2.a2-mini .nav .nav-grp:not(.open) .nav-gitems > a { height: 42px; margin: 1px 0; opacity: 1; pointer-events: auto; visibility: visible; }
+
+/* ─── محرك المحتوى: خانات الإعدادات ─── */
+.ce-adm .form-control { width: 100%; min-height: 44px; padding: 0 12px; border: 1.5px solid #DCE6F0; background: #fff; border-radius: 12px; font-family: inherit; font-size: 14px; color: #0B1526; box-sizing: border-box; transition: border-color .15s, box-shadow .15s; }
+.ce-adm .form-control:focus { border-color: #0C87EF; box-shadow: 0 0 0 4px rgba(12, 135, 239, .12); outline: none; }
+.ce-adm .a2-tbl .form-control { min-height: 38px; border-radius: 10px; font-size: 13px; }
+.ce-adm .a2-tbl input.form-control[inputmode] { text-align: center; font-family: "Readex Pro", sans-serif; }
+.ce-fgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.ce-f { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 12px 12px 10px; background: #F7FAFD; border: 1px solid #E6EDF5; border-radius: 16px; transition: border-color .15s, background .15s; min-width: 0; }
+.ce-f:focus-within { border-color: #9CCBF5; background: #fff; }
+.ce-f > span { flex: 1; font-size: 12.5px; font-weight: 600; color: #27324A; line-height: 1.5; }
+.ce-f .form-control { text-align: center; font-family: "Readex Pro", sans-serif; font-size: 16px; font-weight: 600; }
+.ce-f > small { color: #8391A6; font-size: 11.5px; line-height: 1.5; }
+.ce-kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.ce-sum { margin-inline-start: auto; padding: 3px 10px; border-radius: 999px; background: #DFF6F2; color: #0B6B78; font-size: 12px; font-weight: 700; }
+.ce-sum.bad { background: #FDECEC; color: #C2362E; }
+.ce-sw { margin-top: 14px; padding: 12px; border: 1px solid #E6EDF5; border-radius: 14px; background: #F7FAFD; }
+.ce-sw b { font-size: 13.5px; color: #27324A; }
+.ce-tpls { display: grid; gap: 14px; }
+.ce-tpl { display: grid; gap: 10px; padding: 12px; border: 1px solid #E6EDF5; border-radius: 18px; background: #fff; }
+.ce-tpl-prev { display: grid; grid-template-columns: 4fr 5fr; gap: 8px; max-width: 420px; }
+.ce-tpl-prev img { width: 100%; border-radius: 12px; border: 1px solid #E6EDF5; display: block; }
+.ce-tpl-ed { display: grid; gap: 10px; }
+.ce-tpl-ed[open] { gap: 10px; }
+.ce-tpl-ed > summary { cursor: pointer; font-size: 13.5px; color: #27324A; padding: 4px 0; }
+.ce-tpl-ed > summary b { color: #0A5FCF; }
+.ce-tpl-ed > *:not(summary) { margin-top: 8px; }
+.ce-fgrid-sm { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ce-fgrid-sm .ce-f { padding: 8px 10px; border-radius: 12px; }
+.ce-fgrid-sm .ce-f .form-control { font-size: 13.5px; font-weight: 500; min-height: 38px; font-family: inherit; }
+.ce-f-wide { grid-column: span 2; }
+.ce-f input[type=color] { width: 100%; height: 28px; border: 0; padding: 0; background: none; cursor: pointer; }
+.ce-tpl-sw { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; }
+.ce-upl { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.ce-upl .form-control { flex: 1; min-width: 200px; padding-top: 9px; }
+@media (min-width: 1100px) { .ce-tpls { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .ce-fgrid { grid-template-columns: 1fr 1fr; gap: 8px; } .ce-f { padding: 10px 10px 8px; } .ce-f-wide { grid-column: 1 / -1; } }
+
+/* ─── البرومبتات والـ Playground (المرحلة H) ─── */
+[v-cloak] { display: none; }
+.lab-stages { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.lab-stages button { flex: 0 0 auto; display: grid; gap: 2px; padding: 9px 13px; border: 1.5px solid #E6EDF5; border-radius: 14px; background: #fff; font: inherit; cursor: pointer; text-align: start; }
+.lab-stages button b { font-size: 13px; color: #27324A; }
+.lab-stages button small { font-size: 11.5px; color: #8391A6; }
+.lab-stages button.on { border-color: #0C87EF; background: #F4F9FF; box-shadow: 0 0 0 3px rgba(12, 135, 239, .1); }
+.lab-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; align-items: start; }
+.lab-grid .lab-wide { grid-column: 1 / -1; }
+.lab-ed { position: relative; height: 420px; border: 1.5px solid #DCE6F0; border-radius: 14px; background: #FBFCFE; overflow: hidden; }
+.lab-ed pre, .lab-ed textarea { position: absolute; inset: 0; margin: 0; padding: 12px 14px; font: 13.5px/1.75 "IBM Plex Mono", ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; tab-size: 2; direction: auto; unicode-bidi: plaintext; text-align: start; }
+.lab-ed pre { color: transparent; pointer-events: none; }
+.lab-ed textarea { width: 100%; height: 100%; border: 0; resize: none; background: transparent; color: #0B1526; caret-color: #0C87EF; outline: none; }
+.lab-ed mark { border-radius: 4px; color: transparent; }
+.lab-ed mark.ok { background: #DFF6F2; box-shadow: 0 0 0 1px #8BD8CB; }
+.lab-ed mark.bad { background: #FDECEC; box-shadow: 0 0 0 1px #F2A7A1; }
+.lab-unknown { margin-top: 8px; color: #C2362E; font-size: 13px; }
+.lab-unknown code { margin-inline-start: 6px; }
+.lab-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.lab-row .form-control { flex: 1; min-width: 200px; }
+.lab-vars { display: grid; gap: 6px; position: sticky; top: 80px; }
+.lab-var { display: grid; gap: 1px; text-align: start; padding: 8px 10px; border: 1px solid #E6EDF5; border-radius: 12px; background: #F7FAFD; font: inherit; cursor: pointer; }
+.lab-var:hover { border-color: #9CCBF5; background: #fff; }
+.lab-var code { color: #0B6B78; font-size: 12.5px; direction: ltr; text-align: start; }
+.lab-var span { font-size: 12.5px; font-weight: 600; color: #27324A; }
+.lab-var small { color: #8391A6; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lab-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+tr.lab-on td { background: #F4FBF9; }
+.lab-diff-bar { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.lab-diff-bar label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.lab-diff { margin-top: 10px; max-height: 360px; overflow: auto; padding: 10px; border-radius: 12px; background: #FBFCFE; border: 1px solid #E6EDF5; font: 12.5px/1.7 ui-monospace, monospace; white-space: pre-wrap; direction: auto; }
+.lab-diff .da { background: #E3F8F2; color: #0B6B5C; display: block; }
+.lab-diff .dr { background: #FDECEC; color: #A3261F; display: block; text-decoration: line-through; text-decoration-color: rgba(163, 38, 31, .35); }
+.lab-diff .dk { color: #5B6478; display: block; }
+.lab-sel { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.lab-models { grid-column: 1 / -1; }
+.lab-models .lab-m { display: inline-flex; gap: 6px; align-items: center; margin: 2px 10px 2px 0; padding: 5px 10px; border: 1px solid #E6EDF5; border-radius: 10px; background: #fff; font-size: 13px; cursor: pointer; }
+.lab-models .lab-m.on { border-color: #0C87EF; background: #F4F9FF; }
+.lab-input { margin-top: 10px; }
+.lab-input summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+.lab-input textarea { margin-top: 8px; font: 12.5px/1.7 ui-monospace, monospace; direction: auto; }
+.lab-img { max-width: 160px; border-radius: 10px; margin-top: 8px; display: block; }
+.lab-results { display: grid; gap: 12px; margin-top: 14px; }
+.lab-res { min-width: 0; }
+.lab-res .a2-h h3 { font-size: 14px; overflow-wrap: anywhere; }
+.lab-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12.5px; color: #5B6478; align-items: center; margin-bottom: 8px; }
+.lab-issues { margin: 6px 0; padding-inline-start: 18px; color: #9A5B00; font-size: 12.5px; }
+.lab-score { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px; background: #F4F9FF; margin: 6px 0; }
+.lab-score b { font: 700 22px "Readex Pro", sans-serif; color: #0A5FCF; }
+.lab-score small { color: #5B6478; font-size: 12.5px; }
+.lab-prev { font-size: 13.5px; line-height: 1.8; border-top: 1px dashed #E6EDF5; padding-top: 8px; margin-top: 4px; overflow-wrap: anywhere; }
+.lab-prev .lab-hook { display: block; font-size: 15px; }
+.lab-prev .lab-cta { font-weight: 600; }
+.lab-prev .lab-idea { display: grid; gap: 2px; padding: 6px 0; border-bottom: 1px dashed #E6EDF5; }
+.lab-prev .lab-idea small { color: #8391A6; }
+.lab-prev .lab-bar { display: grid; grid-template-columns: 1fr 2fr 40px; gap: 8px; align-items: center; font-size: 12px; }
+.lab-prev .lab-bar i { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #2EE3CC, #0C87EF); display: block; }
+.lab-prev .lab-bar b { text-align: end; }
+.lab-json { max-height: 320px; overflow: auto; padding: 10px; background: #0B1526; color: #D7E3F4; border-radius: 12px; font: 12px/1.6 ui-monospace, monospace; direction: ltr; text-align: left; white-space: pre-wrap; }
+.lab-pipe { display: grid; gap: 8px; }
+.lab-step { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid #E6EDF5; border-radius: 14px; background: #fff; }
+.lab-step.cur { border-color: #0C87EF; background: #F4F9FF; }
+.lab-step.done { background: #F7FBFA; }
+.lab-step details { flex-basis: 100%; }
+.lab-step textarea { margin-top: 6px; font: 12px/1.6 ui-monospace, monospace; direction: ltr; text-align: left; }
+.lab-sum { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 10px 0; }
+.lab-toast { position: fixed; bottom: 18px; inset-inline-start: 50%; transform: translateX(50%); z-index: 99; padding: 10px 16px; border-radius: 12px; background: #0B1526; color: #fff; font-size: 13.5px; box-shadow: 0 10px 30px rgba(0, 0, 0, .2); }
+.lab-toast.bad { background: #A3261F; }
+.ce-adm .ce-bar { height: 8px; border-radius: 99px; background: #EEF3F9; overflow: hidden; }
+.ce-adm .ce-bar i { display: block; height: 100%; background: linear-gradient(90deg, #2EE3CC, #0C87EF); }
+.ce-adm .ce-warn { color: #9A5B00; }
+@media (max-width: 1000px) { .lab-grid { grid-template-columns: 1fr; } .lab-vars { position: static; } .lab-results { grid-template-columns: 1fr !important; } }
+
+
+/* ─── Skills التخصصات (H2) ─── */
+.ce-adm .ce-row-btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ce-adm .ce-row-btns form { display: inline-flex; gap: 6px; align-items: center; margin: 0; }
+.ce-adm .ce-skill-up .ce-f, .ce-adm form > .ce-f { display: block; margin-bottom: 10px; }
+.ce-adm .ce-skill-map { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; font-size: 13px; }
+.ce-adm .ce-skill-blk { border: 1px solid #DCE6F0; border-radius: 10px; padding: 8px 12px; margin: 6px 0; }
+.ce-adm .ce-skill-blk summary { cursor: pointer; font-weight: 600; }
+.ce-adm .ce-skill-blk pre { white-space: pre-wrap; max-height: 280px; overflow: auto; background: #F6F9FC; padding: 10px; border-radius: 8px; font-size: 12px; line-height: 1.7; margin: 8px 0 0; }
+.ce-adm .ce-skill-ed { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.7; min-height: 360px; }
+.ce-adm .ce-skill-run { margin-top: 14px; }
+.ce-adm .a2-tbl tr.on td { background: #F2F8FF; }
+@media (max-width: 860px) { .ce-adm .ce-fgrid[style] { grid-template-columns: minmax(0, 1fr) !important; } }
+
+/* ─── الاستخدام والتعلّم (I) ─── */
+.ce-adm .ce-ins-filter { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.ce-adm .ce-kpis .ce-f small { display: block; color: #6B7689; font-size: 11.5px; margin-top: 2px; }
+.ce-adm .ce-bars { display: flex; align-items: flex-end; gap: 3px; height: 140px; padding: 6px 0; border-bottom: 1px solid #DCE6F0; }
+.ce-adm .ce-bars i { flex: 1 1 0; min-width: 3px; background: #0C87EF; border-radius: 3px 3px 0 0; opacity: .85; }
+.ce-adm .ce-bars i:hover { opacity: 1; }
+.ce-adm .ce-scatter { margin: 10px 0; }
+.ce-adm .ce-scatter svg { width: 100%; max-width: 560px; height: auto; direction: ltr; }
+.ce-adm .ce-scatter circle { fill: #0C87EF; fill-opacity: .7; }
+.ce-adm .ce-scatter .ax { stroke: #B8C4D4; }
+.ce-adm .ce-scatter text { font-size: 10px; fill: #6B7689; }
+.ce-adm .ce-ins-post { border: 1px solid #DCE6F0; border-radius: 10px; padding: 8px 12px; margin: 6px 0; }
+.ce-adm .ce-ins-post p { margin: 4px 0 0; }
+.ce-adm .ce-ins-post.weak { border-style: dashed; }
+.ce-adm .ce-ins-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #EEF2F7; }
+.ce-adm .ce-ins-row form { margin: 0; }

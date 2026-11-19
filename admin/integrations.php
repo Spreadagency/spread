@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_admin();
+require_admin_can('site_settings');
 $__to = ['meta' => 'social', 'paymob' => 'payments', 'crm' => 'access', 'ai' => 'ai'][is_string($_GET['s'] ?? null) ? $_GET['s'] : ''] ?? 'social';
 flash_set('info', 'التكاملات بقت جوه «مركز الإعدادات» ✓');
 redirect('admin/settings.php?tab=' . $__to);

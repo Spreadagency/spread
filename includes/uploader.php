@@ -56,6 +56,30 @@ function upload_image(array $file, string $subfolder = 'brand-images'): array
 /**
  * Delete uploaded file
  */
+/**
+ * المستند فعلًا من النوع اللي امتداده بيقول عليه؟ (finfo — مش الامتداد بس) · المرحلة 6
+ * لو finfo مش متاح على السيرفر بنكمّل زي الأول (الامتداد بس).
+ */
+function upload_doc_type_ok(string $tmpPath, string $ext): bool
+{
+    if (!function_exists('finfo_open') || !is_file($tmpPath)) return true;
+    $fi = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = (string) finfo_file($fi, $tmpPath);
+    finfo_close($fi);
+    $ok = [
+        'pdf' => ['application/pdf', 'application/x-pdf'],
+        'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'application/octet-stream'],
+        'doc' => ['application/msword', 'application/vnd.ms-office', 'application/octet-stream', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        'txt' => ['text/plain', 'text/csv', 'text/markdown', 'application/csv', 'inode/x-empty'],
+    ];
+    if (!isset($ok[$ext]) || !in_array($mime, $ok[$ext], true)) return false;
+    // DOCX = ZIP لازم يبدأ بـ PK · TXT مافيهوش علامات HTML/سكربت في أوله
+    $head = (string) @file_get_contents($tmpPath, false, null, 0, 512);
+    if ($ext === 'docx' && strncmp($head, "PK\x03\x04", 4) !== 0) return false;
+    if ($ext === 'txt' && preg_match('/<\s*(script|html|svg|iframe|\?php)/i', $head)) return false;
+    return true;
+}
+
 function delete_upload(string $relativePath): bool
 {
     if (empty($relativePath)) return false;
@@ -114,24 +138,14 @@ function remote_image_data_uri(string $url): ?string
     if (!preg_match('#^https?://#i', $url) || !filter_var($url, FILTER_VALIDATE_URL)) {
         return null;
     }
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 3,
-        CURLOPT_TIMEOUT => 20,
-        CURLOPT_CONNECTTIMEOUT => 8,
-        CURLOPT_USERAGENT => 'SpreadAI/2.0',
-        CURLOPT_MAXFILESIZE => 8 * 1024 * 1024,
-    ]);
-    $body = curl_exec($ch);
-    $type = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($body === false || $code < 200 || $code >= 300 || strlen($body) > 8 * 1024 * 1024) {
+    // safe_http: بيمنع اللينكات اللي بتشاور على السيرفر نفسه أو شبكته الداخلية (SSRF) — حتى بعد التحويلات
+    require_once __DIR__ . '/safe-http.php';
+    $r = safe_http_get($url, 8 * 1024 * 1024, 20, 3);
+    if (empty($r['ok']) || $r['body'] === '' || (int) $r['status'] < 200 || (int) $r['status'] >= 300) {
         return null;
     }
+    $body = (string) $r['body'];
+    $type = (string) $r['content_type'];
     $type = trim(explode(';', $type)[0]);
     if (strpos($type, 'image/') !== 0) {
         $info = @getimagesizefromstring($body);

@@ -5,6 +5,7 @@
  * ⚠️ امسحه بعد ما تخلص.
  */
 declare(strict_types=1);
+require __DIR__ . '/includes/diag-gate.php';
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 

@@ -39,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // استحقاق مكافأة المُحيل (لو الحساب جاي من إحالة)
         referral_on_activation($userId);
         admin_log('approve_user', 'user', $userId, $u['email']);
+        // واتساب + داخل المنصة: الحساب اتفعّل
+        require_once __DIR__ . '/../includes/Notifier.php';
+        Notifier::notify($userId, 'account_activated', [], ['url' => 'dashboard.php', 'tone' => 'ok']);
 
         // إيميل ترحيب (فشله مش بيوقف الموافقة)
         try {
@@ -107,6 +110,14 @@ include __DIR__ . '/../templates/admin-header.php';
         </div>
 
         <?= render_flash() ?>
+
+        <?php $__onb = onb_time_to_first_post(30); $__onbOn = get_setting('onboarding_quick', '0') === '1'; ?>
+        <div class="alert <?= $__onbOn && !$manualOn ? 'success' : 'warning' ?>">
+            <b>البداية السريعة:</b>
+            <?= $__onbOn ? ($manualOn ? 'متفعّلة في الإعدادات لكنها <b>واقفة</b> طول ما الموافقة اليدوية شغالة.' : 'شغالة ✓') : 'مقفولة (الإعدادات ← عام ← العملاء الجدد).' ?>
+            · آخر 30 يوم: <?= (int) $__onb['signups'] ?> تسجيل · <?= (int) $__onb['with_post'] ?> عملوا أول بوست
+            <?php if ($__onb['median_min'] !== null): ?> · الوقت الوسيط من التسجيل لأول بوست: <b><?= e((string) $__onb['median_min']) ?> دقيقة</b><?php endif; ?>
+        </div>
 
         <div class="alert <?= $manualOn ? 'success' : 'warning' ?>">
             <?= $manualOn

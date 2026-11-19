@@ -13,7 +13,7 @@ $balance = user_credits();
 ?>
 <aside class="sidebar">
     <div class="brand">
-        <?= function_exists('site_logo_html') ? site_logo_html() : '<div class="brand-mark">S</div>' ?>
+        <?= function_exists('site_logo_html') ? site_logo_html() : '<img src="' . e(url('assets/img/spread-mark-128.png')) . '" width="40" height="40" alt="Spread AI">' ?>
         <div>
             <div class="brand-name"><?= e(function_exists('site_name') ? site_name() : APP_NAME) ?></div>
             <div class="brand-sub"><?= e(function_exists('site_tagline') ? site_tagline() : APP_TAGLINE) ?></div>
@@ -21,63 +21,79 @@ $balance = user_credits();
     </div>
 
     <div class="nav">
-        <div class="nav-section">القائمة الرئيسية</div>
+        <div class="nav-section"><?= e(__('القائمة الرئيسية')) ?></div>
         <a href="<?= url('dashboard.php') ?>" class="<?= $active === 'dashboard' ? 'active' : '' ?>">
-            <span class="ico">◉</span> الرئيسية
+            <span class="ico">◉</span> <?= e(__('الرئيسية')) ?>
         </a>
         <?php if (menu_visible('create-content')): ?>
         <?php if (function_exists('ui_v2_enabled') && ui_v2_enabled() && get_setting('campaigns_enabled', '1') === '1'): ?>
         <a href="<?= url('campaigns.php') ?>" class="<?= $active === 'campaigns' ? 'active' : '' ?>">
-            <span class="ico">📣</span> حملاتي
+            <span class="ico">📣</span> <?= e(__('حملاتي')) ?>
+        </a>
+        <?php endif; ?>
+        <?php if (is_file(__DIR__ . '/../includes/ce-jobs.php') && (require_once __DIR__ . '/../includes/ce-jobs.php') && ($__ceU = (int) ($user['id'] ?? (current_user()['id'] ?? 0))) && ce_enabled_for($__ceU)
+                  && (ce_engine_new_open() || ce_engine_has_campaigns($__ceU))): /* خطة الحملات §4: المعالج اتشال — بيفضل للحملات القديمة بس */ ?>
+        <a href="<?= url('engine.php') ?>" class="<?= $active === 'engine' ? 'active' : '' ?>">
+            <span class="ico">✨</span> <?= ce_engine_new_open() ? 'محرك المحتوى' : 'حملات المحرك (القديمة)' ?>
         </a>
         <?php endif; ?>
         <a href="<?= url('create-content.php') ?>" class="<?= $active === 'create' ? 'active' : '' ?>">
-            <span class="ico">✎</span> إنشاء منشور
+            <span class="ico">✎</span> <?= e(__('إنشاء منشور')) ?>
         </a>
         <?php endif; ?>
         <?php if (menu_visible('content-plan')): ?>
         <a href="<?= url('content-plan.php') ?>" class="<?= $active === 'plan' ? 'active' : '' ?>">
-            <span class="ico">🗓</span> خطة المحتوى
+            <span class="ico">🗓</span> <?= e(__('خطة المحتوى')) ?>
         </a>
         <?php endif; ?>
         <?php if (menu_visible('design-studio')): ?>
         <a href="<?= url('design-studio.php') ?>" class="<?= $active === 'design-studio' ? 'active' : '' ?>">
-            <span class="ico">✨</span> استوديو التصميم
+            <span class="ico">✨</span> <?= e(__('استوديو التصميم')) ?>
         </a>
         <?php endif; ?>
         <?php if (menu_visible('brand-agent')): ?>
         <a href="<?= url('brand-agent.php') ?>" class="<?= $active === 'brand-agent' ? 'active' : '' ?>">
-            <span class="ico">🤖</span> مساعد الهوية
+            <span class="ico">🤖</span> <?= e(__('مساعد الهوية')) ?>
         </a>
         <?php endif; ?>
         <?php if (menu_visible('studio')): ?>
         <a href="<?= url('studio.php') ?>" class="<?= $active === 'studio' ? 'active' : '' ?>">
-            <span class="ico">🎨</span> معرض الإلهام
+            <span class="ico">🎨</span> <?= e(__('معرض الإلهام')) ?>
         </a>
         <?php endif; ?>
         <?php if (menu_visible('content-history')): ?>
         <a href="<?= url('content-history.php') ?>" class="<?= $active === 'history' ? 'active' : '' ?>">
-            <span class="ico">▤</span> المحتوى السابق
+            <span class="ico">▤</span> <?= e(__('المحتوى السابق')) ?>
         </a>
         <?php endif; ?>
-        <?php if (menu_visible('brand-profile')): ?>
+        <?php $__bkOn = is_file(__DIR__ . '/../includes/brand-kit.php') && (require_once __DIR__ . '/../includes/brand-kit.php') && bk_enabled(); ?>
+        <?php if ($__bkOn): ?>
+        <a href="<?= url('brand-kit.php') ?>" class="<?= in_array($active, ['brand-kit', 'brand-brain', 'brand'], true) ? 'active' : '' ?>">
+            <span class="ico">🧬</span> <?= e(__('هوية البراند')) ?>
+        </a>
+        <?php elseif (menu_visible('brand-profile')): ?>
         <?php if (function_exists('ui_v2_enabled') && ui_v2_enabled()): ?>
         <a href="<?= url('brand-brain.php') ?>" class="<?= in_array($active, ['brand-brain', 'brand'], true) ? 'active' : '' ?>">
-            <span class="ico">🧠</span> Brand Brain · الهوية
+            <span class="ico">🧠</span> <?= e(__('Brand Brain · الهوية')) ?>
         </a>
         <?php else: ?>
         <a href="<?= url('brand-profile.php') ?>" class="<?= $active === 'brand' ? 'active' : '' ?>">
-            <span class="ico">◈</span> هوية البراند
+            <span class="ico">◈</span> <?= e(__('هوية البراند')) ?>
         </a>
         <?php endif; ?>
         <?php endif; ?>
         <?php if (menu_visible('sources')): ?>
         <a href="<?= url('sources.php') ?>" class="<?= $active === 'sources' ? 'active' : '' ?>">
-            <span class="ico">📄</span> مستندات الهوية
+            <span class="ico">📄</span> <?= e(__('مستندات الهوية')) ?>
         </a>
         <?php endif; ?>
 
-        <div class="nav-section">الحساب</div>
+        <div class="nav-section"><?= e(__('الحساب')) ?></div>
+        <?php if (get_setting('plan_page_unified', '1') === '1'): /* «باقتي»: الاشتراك والرصيد وادع واكسب في صفحة واحدة */ ?>
+        <a href="<?= url('my-plan.php') ?>" class="<?= in_array($active, ['my-plan', 'credits', 'referrals', 'packages'], true) ? 'active' : '' ?>">
+            <span class="ico">💎</span> <?= e(__('باقتي')) ?> <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
+        </a>
+        <?php else: ?>
         <?php if (menu_visible('referrals')): ?>
         <a href="<?= url('referrals.php') ?>" class="<?= $active === 'referrals' ? 'active' : '' ?>">
             <span class="ico">🎁</span> <?= (function_exists('credits_show_numbers') && !credits_show_numbers()) ? 'ادعُ واكسب' : 'اربح كريدت' ?>
@@ -85,26 +101,27 @@ $balance = user_credits();
         <?php endif; ?>
         <?php if (menu_visible('credits')): ?>
         <a href="<?= url('credits.php') ?>" class="<?= $active === 'credits' ? 'active' : '' ?>">
-            <span class="ico">◇</span> <span class="cr">الرصيد</span><span class="cr-alt">الباقة والاستهلاك</span> <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
+            <span class="ico">◇</span> <span class="cr"><?= e(__('الرصيد')) ?></span><span class="cr-alt"><?= e(__('الباقة والاستهلاك')) ?></span> <span class="pill cr"><?= $balance ?></span><span class="pill cr-alt"><?= function_exists('plan_usage') ? (int) plan_usage((int) (current_user()['id'] ?? 0))['pct'] : 0 ?>%</span>
         </a>
         <?php endif; ?>
+        <?php endif; ?>
         <a href="<?= url('profile.php') ?>" class="<?= $active === 'profile' ? 'active' : '' ?>">
-            <span class="ico">○</span> الملف الشخصي
+            <span class="ico">○</span> <?= e(__('الملف الشخصي')) ?>
         </a>
         <a href="<?= url('logout.php') ?>">
-            <span class="ico">⏻</span> تسجيل خروج
+            <span class="ico">⏻</span> <?= e(__('تسجيل خروج')) ?>
         </a>
         <?php if (function_exists('feature_allows') || is_file(__DIR__ . '/../includes/social.php')): require_once __DIR__ . '/../includes/social.php';
             if (!empty($_SESSION['user_id']) && feature_allows((int) $_SESSION['user_id'])): ?>
         <?php if (menu_visible('social-accounts')): ?>
         <a href="<?= url('social-accounts.php') ?>" class="<?= $active === 'social-accounts' ? 'active' : '' ?>">
-            <span class="ico">🔗</span> حساباتي المربوطة
+            <span class="ico">🔗</span> <?= e(__('حساباتي المربوطة')) ?>
         </a>
         <?php endif; ?>
         <?php endif; endif; ?>
         <?php if (menu_visible('help')): ?>
         <a href="<?= url('help.php') ?>" class="<?= $active === 'help' ? 'active' : '' ?>">
-            <span class="ico">❓</span> دليل المنصة
+            <span class="ico">❓</span> <?= e(__('دليل المنصة')) ?>
         </a>
         <?php endif; ?>
     </div>

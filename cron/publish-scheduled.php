@@ -11,6 +11,8 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/credits.php';
 require_once __DIR__ . '/../includes/integrations.php';
+if (is_file(__DIR__ . '/../includes/mobile-push.php')) require_once __DIR__ . '/../includes/mobile-push.php'; // إشعارات تطبيق الموبايل
+if (is_file(__DIR__ . '/../includes/Notifier.php')) require_once __DIR__ . '/../includes/Notifier.php'; // واتساب + جرس المنصة (الـ push جوّاه)
 
 // Auth: secret required (CLI arg or GET param)
 $provided = '';
@@ -19,7 +21,12 @@ if (php_sapi_name() === 'cli') {
         if (strpos($arg, 'cron_secret=') === 0) $provided = substr($arg, 12);
     }
 } else {
-    $provided = $_GET['cron_secret'] ?? '';
+    // المرحلة 6: الأفضل الـ header (X-Cron-Secret) — السر في اللينك بيتسجل في سجلات السيرفر. اللينك القديم لسه شغال عشان الكرون الحالي مايقفش
+    $provided = (string) ($_SERVER['HTTP_X_CRON_SECRET'] ?? '');
+    if ($provided === '' && isset($_GET['cron_secret'])) {
+        $provided = (string) $_GET['cron_secret'];
+        $__cronViaQuery = true;
+    }
 }
 $secret = get_setting('cron_secret', '');
 if (!$secret || !hash_equals($secret, $provided)) {
@@ -38,7 +45,7 @@ if (!$lockFile || !flock($lockFile, LOCK_EX | LOCK_NB)) {
 }
 
 // 8: آخر تشغيل (بيظهر في «صحة النظام» في لوحة التشغيل)
-try { set_setting('cron_publish_last_run', date('Y-m-d H:i:s')); } catch (\Throwable $e) {}
+try { set_setting('cron_publish_last_run', date('Y-m-d H:i:s')); set_setting('cron_publish_via_query', !empty($__cronViaQuery) ? '1' : '0'); } catch (\Throwable $e) { error_log('[cron] last_run: ' . $e->getMessage()); }
 
 // ─── ⑥-أ: حسابات طلبت الحذف وعدّت مهلة الـ 14 يوم ← مسح نهائي (مرة كل ساعة بالكتير) ───
 try {
@@ -61,6 +68,10 @@ db_run(
 /* ═══════════ المسار الجديد: اتصالات المستخدمين ═══════════ */
 $uuid = bin2hex(random_bytes(18));
 
+// إدارة الحسابات (المرحلة 2): منشور في مسار الموافقة مايتنشرش قبل ما العميل يوافق
+require_once __DIR__ . '/../includes/managed-accounts.php';
+$__maSql = ma_publish_sql();
+
 // حجز ذري للصفوف المستحقة
 db_run(
     'UPDATE contents
@@ -68,7 +79,7 @@ db_run(
      WHERE publish_status = "pending"
        AND connection_id IS NOT NULL
        AND scheduled_at IS NOT NULL AND scheduled_at <= NOW()
-       AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())
+       AND (next_attempt_at IS NULL OR next_attempt_at <= NOW())' . $__maSql . '
      ORDER BY scheduled_at ASC
      LIMIT 10',
     [$uuid]
@@ -122,6 +133,9 @@ foreach ($claimed as $content) {
         $r = social_publish($content, $conn, $tg);
         if ($r['ok']) {
             $postIds[] = $tg . ':' . $r['post_id'];
+            // احفظ نجاح المنصة دي فورًا: لو المنصة التانية فشلت أو السكربت وقع، إعادة المحاولة مش هتنشر عليها تاني (بوست مكرر)
+            $already = trim($already . ($already !== '' ? ' | ' : '') . $tg . ':' . $r['post_id']);
+            db_run('UPDATE contents SET publish_post_id = ? WHERE id = ?', [mb_substr($already, 0, 250), $cid]);
         } else {
             $ok = false;
             $lastErr = '[' . $tg . '] ' . $r['error'];
@@ -133,9 +147,15 @@ foreach ($claimed as $content) {
     if ($ok) {
         db_run(
             'UPDATE contents SET publish_status = "published", published_at = NOW(), publish_post_id = ?, publish_error = NULL, lock_token = NULL WHERE id = ?',
-            [implode(' | ', $postIds), $cid]
+            [mb_substr($already, 0, 250), $cid]
         );
         echo "#$cid published (" . implode(', ', $postIds) . ")\n";
+        if (class_exists('Notifier')) {
+            Notifier::notify((int) $content['user_id'], 'post_published', ['page_name' => (string) ($conn['page_name'] ?? implode(' و', $targets))],
+                ['url' => 'content-view.php?id=' . $cid, 'tone' => 'ok']);
+        } elseif (function_exists('mobile_push_user')) {
+            mobile_push_user((int) $content['user_id'], 'منشورك اتنشر ✓', 'المنشور اتنشر على ' . implode(' و', $targets) . ' بنجاح.', ['screen' => 'content', 'id' => $cid]);
+        }
     } else {
         // توكن ميت → علّم الاتصال منتهي، وفشل نهائي
         if (!empty($classified['token_dead'])) {
@@ -147,6 +167,13 @@ foreach ($claimed as $content) {
                 [mb_substr($lastErr, 0, 900), $cid]);
             if (function_exists('plan_event_release')) plan_event_release((int) $content['user_id'], 'publishes', (int) $cid); // 8-ب: ماتنشرش → الحصة ترجع
             echo "#$cid FAILED permanently: $lastErr\n";
+            if (class_exists('Notifier')) {
+                $when = !empty($content['scheduled_at']) ? date('j/n H:i', strtotime((string) $content['scheduled_at'])) : '';
+                Notifier::notify((int) $content['user_id'], 'post_failed', ['page_name' => (string) ($conn['page_name'] ?? implode(' و', $targets)), 'date' => $when],
+                    ['url' => 'content-view.php?id=' . $cid, 'tone' => 'danger']);
+            } elseif (function_exists('mobile_push_user')) {
+                mobile_push_user((int) $content['user_id'], 'تعذّر نشر منشورك', mb_substr((string) $lastErr, 0, 200), ['screen' => 'content', 'id' => $cid]);
+            }
         } else {
             $mins = $classified['retry_minutes'] ?? social_backoff_minutes((int) $content['attempts']);
             db_run('UPDATE contents SET publish_status = "pending", lock_token = NULL, next_attempt_at = DATE_ADD(NOW(), INTERVAL ? MINUTE), publish_error = ? WHERE id = ?',

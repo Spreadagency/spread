@@ -40,8 +40,13 @@ try {
 $crShow = !function_exists('credits_show_numbers') || credits_show_numbers();
 $pu = function_exists('plan_usage') ? plan_usage((int) $user['id']) : null;
 
+// صفحة «باقتي» الموحدة: الصفحة دي بقت تبويب جوّاها (GET بيتحوّل — والروابط القديمة بتفضل شغالة)
+if (!defined('BL_EMBED') && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && get_setting('plan_page_unified', '1') === '1') {
+    redirect('my-plan.php?tab=balance' . (($_SERVER['QUERY_STRING'] ?? '') !== '' ? '&' . $_SERVER['QUERY_STRING'] : ''));
+}
 $active = 'credits';
 $page_title = $crShow ? 'الرصيد' : 'الباقة والاستهلاك';
+if (!defined('BL_EMBED')):
 include __DIR__ . '/../templates/header.php';
 ?>
 
@@ -56,6 +61,7 @@ include __DIR__ . '/../templates/header.php';
         </div>
 
         <?= render_flash() ?>
+<?php endif; ?>
 
         <?php if (!$crShow && $pu): ?>
         <div class="card" style="margin-bottom:20px">
@@ -84,7 +90,7 @@ include __DIR__ . '/../templates/header.php';
         </div>
         <?php endif; ?>
 
-        <?php if (!empty($packages)): ?>
+        <?php if (!empty($packages) && !(defined('BL_EMBED') && $billingOn)): /* جوه «باقتي»: الشراء من تبويب الاشتراك */ ?>
         <div class="card mb-20" style="margin-bottom:20px">
             <div class="card-head"><h3><?= $crShow ? '💳 اشحن رصيدك' : '💳 الباقات' ?></h3></div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
@@ -185,7 +191,8 @@ include __DIR__ . '/../templates/header.php';
             جدّد اشتراكك قبل <b><?= e(date('Y-m-d', strtotime(($wallet['expired_at'] ?? 'now') . ' +3 days'))) ?></b> وهيرجعلك بالكامل مع الشحنة الجديدة.
         </div>
         <?php elseif (!empty($wallet['expires_at'])): ?>
-        <div class="field-help cr" style="margin-bottom:20px">صلاحية رصيدك الحالي حتى: <b><?= e(date('Y-m-d', strtotime($wallet['expires_at']))) ?></b> — التجديد خلال 3 أيام من الانتهاء بيرجّع أي رصيد متبقي.</div>
+        <?php /* تاريخ واحد في كل الصفحات: نهاية دورة الباقة (plan_usage) — مش تاريخ المحفظة */ ?>
+        <div class="field-help cr" style="margin-bottom:20px">صلاحية رصيدك الحالي حتى: <b><?= e($pu ? $pu['ends_label'] : date('Y-m-d', strtotime($wallet['expires_at']))) ?></b> — التجديد خلال 3 أيام من الانتهاء بيرجّع أي رصيد متبقي.</div>
         <?php endif; ?>
 
         <?php if ($crShow): ?>
@@ -271,8 +278,10 @@ include __DIR__ . '/../templates/header.php';
             <?php endif; ?>
         </div>
         <?php endif; /* crShow: الأرقام والسجل */ ?>
+<?php if (!defined('BL_EMBED')): ?>
     </main>
 </div>
+<?php endif; ?>
 
 <script>
 async function buyPackage(id, btn) {
@@ -300,4 +309,4 @@ function copyPay(id, btn) {
     });
 }
 </script>
-<?php include __DIR__ . '/../templates/footer.php'; ?>
+<?php if (!defined('BL_EMBED')) include __DIR__ . '/../templates/footer.php'; ?>

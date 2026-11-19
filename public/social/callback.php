@@ -197,7 +197,7 @@ try {
                             $errorTech = 'لازم تكون أدمن على صفحة واحدة على الأقل. ولو التطبيق لسه في Development Mode، لازم حسابك يكون مضاف كـ Tester من App Roles.';
                         } else {
                             $_SESSION['fb_pages_pending'] = $pagesToPick;
-                            $_SESSION['fb_oauth_scopes'] = 'pages_manage_posts,pages_read_engagement,instagram_content_publish';
+                            $_SESSION['fb_oauth_scopes'] = 'pages_manage_posts,pages_read_engagement,read_insights,instagram_content_publish,instagram_manage_insights';
                             // تأكد إن الجداول جاهزة قبل خطوة الحفظ
                             social_ensure_schema();
                         }

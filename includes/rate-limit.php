@@ -8,6 +8,18 @@
 
 require_once __DIR__ . '/db.php';
 
+/** العمليات اللي لو العدّاد وقع بتترفض بدل ما تعدّي (المرحلة 6) */
+const RATE_FAIL_CLOSED = ['login', 'login_acct', 'admin_login', 'admin_login_acct', 'login_verify', '2fa_verify', 'forgot', 'register'];
+/** حد المحاولات الغلط لكل حساب (من أي IP) — بيوقف التخمين الموزّع على حساب واحد */
+const LOGIN_ACCT_MAX = 10;
+const LOGIN_ACCT_WINDOW = 900;
+
+/** مفتاح الحساب في عدّاد الدخول (الإيميل متشفّر — مش بيتخزن نص) */
+function login_acct_key(string $email): string
+{
+    return 'e' . substr(hash('sha256', mb_strtolower(trim($email))), 0, 40);
+}
+
 /**
  * Client IP (best effort behind cPanel/proxies)
  */
@@ -30,8 +42,9 @@ function rate_limit_ok(string $action, string $key, int $maxAttempts, int $windo
         );
         return $count < $maxAttempts;
     } catch (\Throwable $e) {
-        // If the table is missing, fail open so the site keeps working
-        return true;
+        // المرحلة 6: الدخول والتحقق والتسجيل بيقفلوا لو العدّاد مش شغال (مايبقوش من غير حماية في صمت) — الباقي بيكمّل زي الأول
+        error_log('[rate_limit] ' . $action . ': ' . $e->getMessage());
+        return !in_array($action, RATE_FAIL_CLOSED, true);
     }
 }
 

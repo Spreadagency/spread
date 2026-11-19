@@ -1,0 +1,11 @@
+# /etc/systemd/system/spread-mcp-checks.service — الفحوصات الأسبوعية (npm audit · ZAP · اختبار الموقع)
+[Unit]
+Description=Spread AI weekly security checks (npm audit, OWASP ZAP baseline, site E2E)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/spread-mcp/app/deploy/weekly-checks.sh
+TimeoutStartSec=45min
+Nice=10

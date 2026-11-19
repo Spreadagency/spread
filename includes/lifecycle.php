@@ -170,6 +170,82 @@ function campaign_progress(array $c, ?array $summary = null): int
     return (int) round($stagePct * .5 + $summary['pct'] * .5);
 }
 
+/**
+ * مراحل الحملة الحقيقية (مصدر واحد للرئيسية و«حملاتي» وصفحة الحملة):
+ *  - الخطوات: من غير «التقييم» لما الكتابة والتقييم في طلب واحد (إلا لو الحملة واقفة عليها)
+ *  - done = المرحلة خلصت فعلًا من الأرقام (مش «العميل عدّى عليها»)
+ *  - progress = نسبة المراحل اللي خلصت
+ */
+/** خطوات الحملة: من غير «التقييم» لما الكتابة والتقييم في طلب واحد (إلا لو الحملة واقفة عليها) — نفس stepList في صفحة الحملة */
+function campaign_step_list(array $c): array
+{
+    $stage = max(1, min(6, (int) ($c['stage'] ?? 1)));
+    if (!function_exists('campaign_write_mode') && is_file(__DIR__ . '/campaign-quality.php')) require_once __DIR__ . '/campaign-quality.php';
+    $single = function_exists('campaign_write_mode') ? campaign_write_mode() === 'single' : true;
+    return $single && $stage !== 3 ? [1, 2, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
+}
+
+/** أبعد مرحلة مسموح يروحها: أي مرحلة وصلها + الخطوة اللي بعد أبعد مرحلة (بتعدّي «التقييم» لو مش ضمن الخطوات) */
+function campaign_stage_reachable(array $c, int $to): bool
+{
+    $max = max(1, (int) ($c['max_stage'] ?? 1));
+    if ($to <= $max) return true;
+    foreach (campaign_step_list($c) as $n) if ($n > $max) return $to === $n;   // الخطوة الجاية بس
+    return false;
+}
+
+function campaign_steps(array $c, ?array $f = null): array
+{
+    $stages = campaign_stages();
+    $stage = max(1, min(6, (int) ($c['stage'] ?? 1)));
+    $list = campaign_step_list($c);
+    $f = $f ?? (function_exists('campaign_flow_counts') ? campaign_flow_counts((int) $c['id']) : []);
+    $sel = (int) ($f['selected'] ?? 0);
+    $needDesign = max(0, $sel - (int) ($f['scripts'] ?? 0));   // الفيديو سكريبت مش تصميم
+    $all = ($c['status'] ?? '') === 'completed';
+    $done = [
+        1 => $sel > 0,
+        2 => $sel > 0 && (int) ($f['posts'] ?? 0) >= $sel,
+        3 => !empty($c['eval_skipped']) || ((int) ($f['posts'] ?? 0) > 0 && (int) ($f['evaluated'] ?? 0) >= (int) ($f['posts'] ?? 0)),
+        4 => $sel > 0 && ($needDesign === 0 || (int) ($f['designed'] ?? 0) >= $needDesign),
+        5 => $sel > 0 && (int) ($f['planned'] ?? 0) >= $sel,
+        6 => $sel > 0 && (int) ($f['published'] ?? 0) >= $sel,
+    ];
+    $steps = [];
+    $n = 0;
+    foreach ($list as $k) {
+        $d = $all || $done[$k];
+        if ($d) $n++;
+        $steps[] = ['n' => $k, 'name' => $stages[$k]['name'], 'done' => $d];
+    }
+    $next = null;
+    foreach ($steps as $st) if (!$st['done']) { $next = $st; break; }
+    $pos = array_search($stage, $list, true);
+    return ['steps' => $steps, 'total' => count($list), 'pos' => $pos === false ? 1 : $pos + 1, 'done' => $n,
+            'next' => $next ? $next['name'] : null, 'progress' => $all ? 100 : (int) round($n / max(1, count($list)) * 100)];
+}
+
+/**
+ * «يحتاج إجراء» — رقم واحد للرئيسية والجرس وصفحة المحتوى (نفس الحالات بالظبط):
+ *   failed (فشل النشر) · review (يحتاج مراجعة) · design (يحتاج تصميم + المحتوى جاهز ومستني تصميم)
+ *   total = مجموعهم (نفس «⚡ يحتاج إجراء» في المحتوى) · ready = التصميم جاهز ومستني جدولة (معلومة — مش في المجموع)
+ * وكل واحد ليه لينك بيفتح المحتوى بالفلتر بتاعه.
+ */
+function content_action_counts(int $uid): array
+{
+    $by = [];
+    try {
+        foreach (db_all('SELECT ' . content_status_sql('c') . ' st, COUNT(*) n FROM contents c WHERE c.user_id = ? GROUP BY st', [$uid]) as $r) $by[$r['st']] = (int) $r['n'];
+    } catch (\Throwable $e) {}
+    $o = ['failed' => $by['publish_failed'] ?? 0, 'review' => $by['needs_review'] ?? 0,
+          'design' => ($by['needs_design'] ?? 0) + ($by['content_ready'] ?? 0), 'ready' => $by['design_ready'] ?? 0];
+    $o['total'] = $o['failed'] + $o['review'] + $o['design'];
+    $o['urls'] = ['failed' => 'content-history.php?status=publish_failed', 'review' => 'content-history.php?status=needs_review',
+                  'design' => 'content-history.php?status=needs_design,content_ready', 'ready' => 'content-history.php?status=design_ready',
+                  'all' => 'content-history.php?needs=1'];
+    return $o;
+}
+
 /** تحويل صف حملة لشكل الـ API */
 function campaign_to_api(array $c, bool $withSummary = true): array
 {
@@ -189,7 +265,8 @@ function campaign_to_api(array $c, bool $withSummary = true): array
         'stage_name'  => $stages[$stage]['name'],
         'status'      => $c['status'],
         'revision'    => (int) $c['revision'],
-        'progress'    => campaign_progress($c, $sum),
+        'progress'    => ($__st = function_exists('campaign_flow_counts') ? campaign_steps($c) : null) ? $__st['progress'] : campaign_progress($c, $sum),
+        'steps'       => $__st,   // المراحل الحقيقية (✓ = خلصت فعلًا) — نفس الرقم في كل الصفحات
         'contents'    => $sum,
         // ⑥-ب: أرقام الأفكار ← المحتوى ← التصميم ← النشر (للقايمة)
         'flow'        => function_exists('campaign_flow_counts') ? campaign_flow_counts((int) $c['id']) : null,

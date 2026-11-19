@@ -42,6 +42,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'UPDATE contents SET generated_text=?, hashtags=?, cta=?, status=?, updated_at=NOW() WHERE id=?',
             [$newText, $newHashtags, $newCta, 'edited', $id]
         );
+        require_once __DIR__ . '/../includes/brand-kit.php';
+        bk_feedback_text_edit((int) $user['id'], $id, (string) $content['generated_text'], (string) $newText);
 
         if ($editNote) {
             db_run(
@@ -85,7 +87,7 @@ include __DIR__ . '/../templates/header.php';
             <div class="card">
                 <div class="field">
                     <label>نص المنشور</label>
-                    <textarea name="generated_text" class="textarea auto" rows="10" required><?= e($content['generated_text']) ?></textarea>
+                    <textarea name="generated_text" class="textarea auto bidi-auto" rows="10" required><?= e($content['generated_text']) ?></textarea>
                 </div>
 
                 <div class="field">

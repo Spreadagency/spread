@@ -67,10 +67,10 @@ $heroFirst = $first && $first['type'] === 'hero';
 $suffix = s_setting('seo_title_suffix') !== '' ? s_setting('seo_title_suffix') : ' — ' . $siteName;
 $canonical = trim((string) ($page['canonical_url'] ?? '')) ?: s_page_url($slug, true);
 $meta = [
-    'title' => (trim((string) ($page['seo_title'] ?? '')) ?: $page['title']) . $suffix,
-    'description' => trim((string) ($page['seo_description'] ?? '')) ?: (string) ($page['subtitle'] ?: s_setting('tagline')),
-    'og_title' => (string) ($page['og_title'] ?? ''),
-    'og_description' => (string) ($page['og_description'] ?? ''),
+    'title' => __((string) (trim((string) ($page['seo_title'] ?? '')) ?: $page['title'])) . $suffix,
+    'description' => __((string) (trim((string) ($page['seo_description'] ?? '')) ?: (string) ($page['subtitle'] ?: s_setting('tagline')))),
+    'og_title' => __((string) ($page['og_title'] ?? '')),
+    'og_description' => __((string) ($page['og_description'] ?? '')),
     'og_image' => (string) (($page['og_image'] ?? '') ?: ($page['featured_image'] ?? '')),
     'canonical' => $canonical,
     'noindex' => !empty($page['noindex']) || $status !== 'published' || $isPreview,
@@ -83,8 +83,8 @@ $jsV = @filemtime(dirname(__DIR__) . '/site-assets/js/home-v2.js') ?: 1;
 include __DIR__ . '/parts/site-head.php';
 ?>
 <body class="hv2">
-<a href="#main" class="sr-only">تخطّي للمحتوى</a>
-<?php if ($isPreview): ?><div class="pg-preview" role="status">👁 دي معاينة للأدمن بس — <?= e($__previewNote) ?><?php if ($__editUrl): ?> · <a href="<?= e($__editUrl) ?>">رجوع للتعديل</a><?php endif; ?></div><?php endif; ?>
+<a href="#main" class="sr-only"><?= e(__('تخطّي للمحتوى')) ?></a>
+<?php if ($isPreview): ?><div class="pg-preview" role="status"><?= e(__('👁 دي معاينة للأدمن بس —')) ?> <?= e($__previewNote) ?><?php if ($__editUrl): ?> · <a href="<?= e($__editUrl) ?>"><?= e(__('رجوع للتعديل')) ?></a><?php endif; ?></div><?php endif; ?>
 <?php include __DIR__ . '/parts/site-header.php'; ?>
 
 <main id="main" class="pg-main">
@@ -92,9 +92,9 @@ include __DIR__ . '/parts/site-head.php';
   <section class="pg-head">
     <div class="h-dots" aria-hidden="true"></div>
     <div class="pg-head-in">
-      <nav class="pg-crumbs" aria-label="مسار الصفحة"><a href="<?= e($homeHref) ?>">الرئيسية</a><?= s_icon('arrow', 13, 2) ?><span aria-current="page"><?= e($page['title']) ?></span></nav>
-      <h1><?= e($page['title']) ?></h1>
-      <?php if (!empty($page['subtitle'])): ?><p><?= e($page['subtitle']) ?></p><?php endif; ?>
+      <nav class="pg-crumbs" aria-label="<?= e(__('مسار الصفحة')) ?>"><a href="<?= e($homeHref) ?>"><?= e(__('الرئيسية')) ?></a><?= s_icon('arrow', 13, 2) ?><span aria-current="page"><?= e(__((string) ($page['title']))) ?></span></nav>
+      <h1><?= e(__((string) ($page['title']))) ?></h1>
+      <?php if (!empty($page['subtitle'])): ?><p><?= e(__((string) ($page['subtitle']))) ?></p><?php endif; ?>
     </div>
     <?php if ($fi !== ''): ?><div class="pg-head-img"><img src="<?= e($fi) ?>" alt="" loading="eager"></div><?php endif; ?>
   </section>

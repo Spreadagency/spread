@@ -103,8 +103,15 @@ if (typeof window.pickStyleRef !== 'function') {
         d.dataset.ref = 'url:' + url;
         d.title = 'صورة بلينك';
         d.style.cssText = 'position:relative;flex:0 0 auto;width:74px;height:74px;border-radius:10px;overflow:hidden;cursor:pointer;border:3px solid transparent';
-        d.innerHTML = '<img src="' + url.replace(/"/g, '&quot;') + '" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.opacity=\'.3\';this.parentElement.title=\'اللينك مش شغال\'">'
-                    + '<span style="position:absolute;top:2px;right:4px;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.6)">🔗</span>';
+        // عناصر بالـ DOM (مش innerHTML) — اللينك اللي اتكتب مايتحوّلش لكود (المرحلة 6)
+        const im = document.createElement('img');
+        im.src = url;
+        im.style.cssText = 'width:100%;height:100%;object-fit:cover';
+        im.onerror = function () { d.style.opacity = '.3'; d.title = 'اللينك مش شغال'; };
+        const ic = document.createElement('span');
+        ic.style.cssText = 'position:absolute;top:2px;right:4px;font-size:11px;text-shadow:0 1px 3px rgba(0,0,0,.6)';
+        ic.textContent = '🔗';
+        d.appendChild(im); d.appendChild(ic);
         d.onclick = function () { window.pickStyleRef(d); };
         strip.prepend(d);
         window.pickStyleRef(d);

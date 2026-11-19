@@ -23,7 +23,7 @@ include __DIR__ . '/../templates/header.php';
 <div class="auth-wrap">
     <div class="auth-card text-center">
         <div class="brand" style="justify-content:center">
-            <div class="brand-mark">S</div>
+            <?= site_logo_html() ?>
         </div>
 
         <?php if ($ok): ?>

@@ -215,7 +215,8 @@ body.ui-v2 .sa-shimmer, body.ui-v2 .cp-skel i {
     .v2-logo-m b { font-size: 18px; }
     .v2-logo-m small { font-size: 8px; letter-spacing: 1.6px; }
     .v2-title, .v2-search, .v2-me-txt { display: none; }
-    .v2-top-act { margin-inline-start: auto; }
+    .v2-top-act { margin-inline-start: auto; min-width: 0; }
+    .v2-top { max-width: 100%; }
     .v2-me { padding: 0; width: 46px; justify-content: center; }
     .v2-pop { position: fixed; top: 74px; inset-inline: 12px; width: auto; }
     .v2-tabs { width: auto; margin: 0 -14px 16px; padding: 5px 14px; border-radius: 0; border-inline: 0; background: transparent; border: 0; }
@@ -265,7 +266,7 @@ body.ui-v2 .bar .bar-fill { display: block; height: 100%; }
 body.v2-auth-page { min-height: 100vh; overflow-x: clip; }
 body.v2-auth-page .deco-blobs, body.v2-auth-page .gsep { display: none !important; }
 .au { max-width: 1400px; margin: 0 auto; padding: 22px 40px 40px; min-height: 100vh; display: flex; flex-direction: column; }
-.au-top { display: flex; align-items: center; padding: 4px 0 20px; }
+.au-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 20px; }
 .au-grid { flex: 1; display: grid; grid-template-columns: minmax(380px, 520px) 1fr; gap: 48px; align-items: center; }
 
 /* ── الكارت ── */
@@ -1190,6 +1191,27 @@ body.ui-v2 .cp-pop a { color: var(--ink); }
 .lib-vgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
 .lib-vgrid label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--mute); }
 .btn.lib-wa { background: linear-gradient(90deg, #128C7E, #25D366); border-color: transparent; color: #fff; }
+/* المرحلة 6: نوع الفيديو ومدته والدفع + «شوف فيديوهات زيه» */
+.lib-vpay { border: 1px solid #DCE7F3; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.lib-vpay-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.lib-vpay-disc { font-size: 12px; font-weight: 700; color: #0A7A5C; background: #E2F6EE; border-radius: 999px; padding: 3px 10px; }
+.lib-vtypes { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.lib-vtype { border: 1.5px solid #DCE7F3; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.lib-vtype.on { border-color: #2F80ED; background: #F2F8FE; }
+.lib-vtype-b { all: unset; cursor: pointer; display: flex; flex-direction: column; gap: 2px; width: 100%; }
+.lib-vtype-b:focus-visible { outline: 2px solid #2F80ED; outline-offset: 3px; border-radius: 6px; }
+.lib-vtype-b small { color: var(--mute); font-size: 11.5px; line-height: 1.5; }
+.lib-vtype-b .lib-vfrom { color: #0A5FCF; font-weight: 700; }
+.lib-vdurs { display: flex; flex-direction: column; gap: 6px; }
+.lib-vdur { display: flex; align-items: center; gap: 10px; border: 1px solid #DCE7F3; border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.lib-vdur.on { border-color: #2F80ED; background: #F2F8FE; }
+.lib-vdur > span:nth-of-type(1) { flex: 1; display: flex; flex-direction: column; } .lib-vdur small { color: var(--mute); font-size: 11.5px; }
+.lib-vprice { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; } .lib-vprice s { color: var(--mute); font-size: 12px; }
+.lib-vpay-pending { background: #FFF6E5; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+.lib-vmodal { position: fixed; inset: 0; z-index: 95; background: rgba(15, 23, 42, .45); display: grid; place-items: center; padding: 16px; }
+.lib-vmodal-in { background: #fff; border-radius: 16px; padding: 16px; width: min(440px, 100%); max-height: 80vh; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.lib-vsample { display: flex; justify-content: space-between; gap: 10px; border: 1px solid #DCE7F3; border-radius: 10px; padding: 10px 12px; text-decoration: none; color: inherit; font-weight: 700; }
+.lib-vsample:hover { background: #F2F8FE; } .lib-vsample small { color: var(--mute); font-weight: 500; }
 
 /* 8-ب: حصص الشهر في كارت الباقة */
 .sx-quotas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 18px; margin-top: 14px; }
@@ -1279,3 +1301,11 @@ html.v2-quick-lock, html.v2-quick-lock body { overflow: hidden; }
 .cn-chip input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
 .cn-act { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
 .sx-billing { justify-content: flex-start; gap: 16px; margin-top: 4px; }
+
+/* شاشات ضيقة جدًا (أقل من 360px): الهيدر مايطلعش برا الشاشة (تقرير الاختبار) */
+@media (max-width: 360px) {
+    .v2-top { gap: 6px; }
+    .v2-top-act { gap: 6px; }
+    .v2-logo-m b { font-size: 16px; }
+    .v2-logo-m small { display: none; }
+}

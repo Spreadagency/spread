@@ -7,6 +7,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/account.php';   // الجلسات النشطة · التحقق بخطوتين (⑥-أ)
 require_once __DIR__ . '/remember.php';  // «افتكرني» — دخول مستمر بتوكن آمن (10)
+require_once __DIR__ . '/onboarding.php'; // البداية السريعة (خريطة التطوير · المرحلة 1)
 
 /**
  * Currently logged in user
@@ -39,8 +40,19 @@ function require_login(): void
     // Block inactive / unverified users
     $u = current_user();
     if (!$u['email_verified_at']) {
-        flash_set('warning', 'الحساب لسه مش مفعل. راجع بريدك أو أعد إرسال التفعيل.');
-        redirect('login.php');
+        // البداية السريعة (المرحلة 1): الحساب الجديد بيجرّب في صفحات محددة قبل تأكيد الإيميل — النشر والشراء لأ
+        if (!onb_unverified_ok($u)) {
+            $msg = 'فعّل إيميلك الأول عشان تكمّل — هتلاقي رابط التفعيل في بريدك.';
+            if (strpos((string) ($_SERVER['SCRIPT_NAME'] ?? ''), '/ajax/') !== false) {
+                json_response(['ok' => false, 'error' => $msg, 'code' => 'verify'], 403);
+            }
+            if (onb_enabled() && onb_in_window($u)) {
+                redirect('start.php?verify=1');
+            }
+            unset($_SESSION['user_id']);
+            flash_set('warning', 'الحساب لسه مش مفعل. راجع بريدك أو أعد إرسال التفعيل.');
+            redirect('login.php');
+        }
     }
     if (($u['approval_status'] ?? 'approved') !== 'approved') {
         session_destroy();
@@ -59,6 +71,11 @@ function require_login(): void
         session_regenerate_id(true);
         flash_set('warning', 'الجلسة دي اتنهت من جهاز تاني — سجّل دخول تاني');
         redirect('login.php');
+    }
+    // الفريق داخل بحساب عميل مُدار ← المنشورات اللي بتتعمل بتتعلّم باسمه (إدارة الحسابات · المرحلة 2)
+    if (!empty($_SESSION['impersonator_admin_id'])) {
+        require_once __DIR__ . '/managed-accounts.php';
+        ma_impersonation_hook();
     }
     // حساب جوجل من غير رقم موبايل ← لازم يكمّل بياناته الأول (10)
     if (account_needs_phone($u) && basename((string) ($_SERVER['SCRIPT_NAME'] ?? '')) !== 'complete-account.php' && empty($_SESSION['impersonator_admin_id'])) {
@@ -122,6 +139,28 @@ function login_user(int $userId, ?bool $remember = null): void
     $remember = $remember ?? (isset($_SESSION['remember_me']) ? (bool) $_SESSION['remember_me'] : remember_default());
     unset($_SESSION['remember_me']);
     if ($remember) remember_issue($userId);
+    i18n_user_sync($userId);
+}
+
+/**
+ * لغة الواجهة بعد الدخول (الترجمة · المرحلة 2): اختيار الحساب بيمشي معاه على أي جهاز،
+ * ولو الحساب لسه مااختارش ← اللغة اللي العميل كان فاتح بيها قبل الدخول بتتحفظ له.
+ */
+function i18n_user_sync(int $userId): void
+{
+    try {
+        $row = db_one('SELECT locale FROM users WHERE id = ?', [$userId]);
+    } catch (\Throwable $e) {
+        return;   // ترحيل 2026_i18n.sql لسه ماتشغّلش ← الكوكي بس
+    }
+    $saved = (string) ($row['locale'] ?? '');
+    $cookie = (string) ($_COOKIE[I18N_COOKIE] ?? '');
+    if (i18n_valid($saved)) {
+        i18n_remember($saved);
+        i18n_set($saved);
+    } elseif (i18n_valid($cookie) && $cookie !== I18N_DEFAULT) {
+        db_run('UPDATE users SET locale = ? WHERE id = ?', [$cookie, $userId]);
+    }
 }
 
 /**
@@ -155,12 +194,17 @@ function register_user(string $name, string $email, string $password): array
         [$name, $email, password_hash($password, PASSWORD_BCRYPT), 'user', 'active']
     );
 
-    // Create credit wallet with starter credits
-    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, STARTER_CREDITS]);
-    db_run(
-        'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, ?, ?, ?, ?)',
-        [$userId, 'add', STARTER_CREDITS, 'signup', 'كريدت ترحيبي عند التسجيل']
-    );
+    // Create credit wallet with starter credits (لو الأدمن اختار «باقة التسجيل» ← الكريدت والحصص بييجوا منها)
+    require_once __DIR__ . '/credits.php';
+    $starter = function_exists('pkg_signup_starter') ? pkg_signup_starter() : STARTER_CREDITS;
+    db_run('INSERT INTO credit_wallets (user_id, balance) VALUES (?, ?)', [$userId, $starter]);
+    if ($starter > 0) {
+        db_run(
+            'INSERT INTO credit_transactions (user_id, action_type, amount, reference_type, notes) VALUES (?, ?, ?, ?, ?)',
+            [$userId, 'add', $starter, 'signup', 'كريدت ترحيبي عند التسجيل']
+        );
+    }
+    if (function_exists('pkg_signup_grant')) pkg_signup_grant((int) $userId);
 
     // Create empty brand profile
     db_run(

@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../includes/credits.php';
 require_once __DIR__ . '/../../includes/ai.php';
 require_once __DIR__ . '/../../includes/rate-limit.php';
 require_once __DIR__ . '/../../includes/brand-brain.php';
+require_once __DIR__ . '/../../includes/prompt-builder.php';   // برومبت «مساعد الهوية» من الأدمن
 
 require_login();
 require_csrf();
@@ -20,6 +21,8 @@ $user = current_user();
 $action = $_POST['action'] ?? 'load';
 
 const AGENT_GREETING = "أهلًا بيك! 👋 أنا مساعد الهوية — هسألك شوية أسئلة بسيطة وأظبطلك هوية براندك كاملة على المنصة.\n\nخلينا نبدأ: **إيه اسم البيزنس بتاعك، وشغال في أنهي مجال؟** (مثلًا: عيادة أسنان، مطعم، براند ملابس...)";
+
+const AGENT_OFF_TOPIC = "أنا مساعد مخصص لهوية البراند بس 🙂 ومش بجاوب على أي حاجة برّه الهوية.\n\nأقدر أساعدك في: بيانات نشاطك، خدماتك، جمهورك، طريقة الكلام، الألوان واللوجو والتصميم، الشخصيات والمواضيع والعروض.\nولكتابة بوستات أو تصميمات استخدم «اعمل محتوى». نكمّل هويتك؟";
 
 /**
  * أول رسالة: ملخص اللي اتعمل في الهوية + يبدأ من أول معلومة ناقصة (بالترتيب الأساسي)
@@ -130,9 +133,45 @@ if ($__brand) {
     foreach (brand_overview($__brand, (int) $user['id'])['missing'] as $m) $__missing[] = $m['label'];
 }
 
-$system = "أنت «مساعد الهوية» — خبير استراتيجية براندات مصري ودود على منصة محتوى بالذكاء الاصطناعي. مهمتك تبني هوية العميل بالكامل عبر المحادثة.\n\n"
-    . ($__known ? "المعلومات الموجودة فعلًا في هوية العميل (ماتسألش عنها تاني إلا لو طلب يعدّلها):\n" . implode("\n", $__known) . "\n\n" : '')
+// مركز الهوية: الخدمات · المواضيع · طريقة الكلام · الاتجاهات · العروض — المساعد يقدر يعدّلهم كمان
+$__kitOn = brand_kit_on();
+$__kitKnown = '';
+if ($__kitOn) {
+    BrandContext::flush((int) $user['id']);
+    $__k = bk_get((int) $user['id']);
+    $__svc = array_column(bk_services((int) $user['id'], true), 'name');
+    $__tp = array_column(array_slice(bk_topics((int) $user['id']), 0, 15), 'title');
+    $__kitKnown = "هوية المحتوى الحالية (مركز الهوية):\n"
+        . '- الخدمات: ' . ($__svc ? implode('، ', $__svc) : 'لسه مفيش') . "\n"
+        . '- مواضيع: ' . ($__tp ? implode('، ', $__tp) : 'لسه مفيش') . "\n"
+        . '- طريقة الكلام: ' . BrandContext::voiceText($__k['data']['voice']) . "\n"
+        . '- اتجاهات المحتوى: ' . ($__k['data']['pillars'] ? implode('، ', array_map(fn($p) => $p['name'] . ' ' . $p['percent'] . '%', $__k['data']['pillars'])) : 'لسه مفيش') . "\n"
+        . '- عروض شغالة: ' . ($__k['data']['offers'] ? implode('، ', array_column($__k['data']['offers'], 'title')) : 'مفيش') . "\n\n";
+}
+$__tones = $__kitOn ? implode('، ', array_column(db_all('SELECT name FROM style_presets WHERE kind = "tone" AND is_active = 1'), 'name')) : '';
+
+$__known_block = ($__known ? "المعلومات الموجودة فعلًا في هوية العميل (ماتسألش عنها تاني إلا لو طلب يعدّلها):\n" . implode("\n", $__known) . "\n\n" : '')
     . ($__missing ? "المعلومات الناقصة — ابدأ منها بالترتيب ده: " . implode('، ', $__missing) . "\n\n" : '')
+    . $__kitKnown;
+// برومبت «مساعد الهوية» الكامل (v1): الهوية والمحادثة ورسالة العميل في متغيراته — وبروتوكول الرد اللي الكود بيقراه ([KIT] · [PROFILE] · [OFF_TOPIC]) تحت
+$__adm = get_active_prompt('brand_agent');
+$__full = prompt_is_full($__adm);
+$__prev = '';
+foreach (array_slice($messages, 0, -1) as $m) $__prev .= ($m['role'] === 'user' ? "العميل: " : "المساعد: ") . $m['content'] . "\n\n";
+$system = ($__full
+        ? prompt_apply($__adm, ['brand_identity' => trim($__known_block) ?: 'لسه مفيش', 'chat_history' => trim($__prev) ?: 'دي أول رسالة', 'user_message' => $text]
+            + prompt_brand_vars((int) $user['id'], $__brand ?: null, 'brand', ['identity' => false]), ['strip_output' => true])
+          . prompt_format_head() . "اكتب ردك للعميل نص عادي بالمصري (من غير تاجات [CONTENT] وغيره) — وبالبروتوكول ده:\n\n"
+        : "أنت «مساعد الهوية» — خبير استراتيجية براندات مصري ودود على منصة محتوى بالذكاء الاصطناعي. مهمتك تبني هوية العميل بالكامل عبر المحادثة.\n\n"
+          . $__known_block)
+    . ($__kitOn ? "تقدر كمان تعدّل هوية المحتوى فورًا لما العميل يطلب (يضيف خدمة أو موضوع أو عرض، يغيّر الاتجاهات أو النبرة، كلمات أو مواضيع ممنوعة، يركّز على خدمة الشهر ده):\n"
+        . "اكتب رد قصير يأكد اللي هتعمله + [KIT] ثم JSON فيه المفاتيح اللي محتاجها بس: "
+        . '{"add_services":[{"name":"","description":"","priority":"high|medium|low"}],"add_topics":[""],"add_offers":[{"title":"","until":"YYYY-MM-DD"}],'
+        . '"pillars":[{"name":"","percent":30}],"focus_service":"","voice_preset":"","forbidden_words":[""],"forbidden_topics":[""]}'
+        . " ثم [/KIT]. voice_preset واحدة من: {$__tones}. ماتحطش [KIT] غير لما العميل يطلب تغيير صريح.\n\n" : '')
+    . "⛔ إنت مخصص لهوية البراند بس. لو آخر رسالة من العميل مش عن هوية البراند (نشاطه، خدماته، جمهوره، طريقة الكلام، الألوان، اللوجو، التصميم، الشخصيات، المواضيع، العروض، بيانات التواصل) — "
+    . "زي أسئلة عامة أو معلومات أو أخبار أو برمجة أو ترجمة أو واجبات أو وصفات أو نصايح شخصية أو كتابة بوست/مقال/إعلان كامل أو أي حاجة تانية — ماتجاوبش خالص، واكتب بالظبط: [OFF_TOPIC] ومن غير أي كلام تاني.\n"
+    . "التحيات والشكر والرد على أسئلتك عادي ومش خارج الموضوع.\n\n"
     . "القواعد:\n"
     . "1. اسأل سؤال واحد بس في كل رد — قصير وواضح بالعامية المصرية، وممكن تدي مثال يساعده.\n"
     . "2. لازم تجمع بالترتيب: اسم البيزنس والمجال، وصف النشاط وأهم الخدمات/المنتجات، الجمهور المستهدف، نبرة الكلام (رسمي/ودود/شبابي...)، الألوان المفضلة، اللهجة (مصري/فصحى/خليجي)، كلمات أو عبارات يحب تظهر، كلمات ممنوعة، شروط التصميم (مكان اللوجو، ألوان ممنوعة، الستايل).\n"
@@ -140,8 +179,7 @@ $system = "أنت «مساعد الهوية» — خبير استراتيجية 
     . "4. لما تكون جمعت كل التفاصيل المهمة (على الأقل: الاسم، المجال، الوصف، الجمهور، النبرة، الألوان)، اختم بالظبط بالصيغة دي:\n"
     . "رسالة قصيرة تلخص اللي فهمته + السطر [PROFILE] ثم JSON بالمفاتيح: business_name, industry, description, audience, tone, colors, dialect, keywords_use, keywords_avoid, design_rules, summary (ملخص شامل 100-150 كلمة للهوية) ثم [/PROFILE]\n"
     . "5. متكتبش [PROFILE] غير لما تكون فعلًا خلصت كل الأسئلة الأساسية.\n\n"
-    . "المحادثة حتى الآن:\n" . $transcript
-    . "المساعد:";
+    . ($__full ? "رسالة العميل الحالية: " . $text . "\nالمساعد:" : "المحادثة حتى الآن:\n" . $transcript . "المساعد:");
 
 $ai = ai_generate($system);
 if (!$ai['ok']) {
@@ -152,7 +190,22 @@ if (!$ai['ok']) {
 }
 
 $reply = trim($ai['response']);
+// لو الموديل رد بشكل مكتبة v1 ([CONTENT] الرد · [CTA] السؤال الجاي) ← نحوّله لرد عادي
+if (preg_match('/\[CONTENT\](.*?)\[\/CONTENT\]/su', $reply, $__cm)) {
+    $__q = preg_match('/\[CTA\](.*?)\[\/CTA\]/su', $reply, $__qm) ? trim($__qm[1]) : '';
+    $__keep = preg_match_all('/\[(KIT|PROFILE)\].*?\[\/\1\]|\[OFF_TOPIC\]/su', $reply, $__km) ? implode("\n", $__km[0]) : '';
+    $reply = trim(trim($__cm[1]) . ($__q !== '' ? "\n\n" . $__q : '') . ($__keep !== '' ? "\n" . $__keep : ''));
+}
 $profileSaved = false;
+
+// ── برّه الهوية: رد ثابت ومن غير أي إجابة (والكريدت بيرجع) ──
+if (str_contains($reply, '[OFF_TOPIC]')) {
+    if ($cost > 0) credits_add((int) $user['id'], $cost, 'استرداد: مساعد الهوية (سؤال برّه الهوية)', null, 'refund');
+    $reply = AGENT_OFF_TOPIC;
+    $messages[] = ['role' => 'assistant', 'content' => $reply];
+    agent_save($s['id'], $messages);
+    json_response(['ok' => true, 'reply' => $reply, 'profile_saved' => false, 'off_topic' => true]);
+}
 
 // ── هل الايجنت خلّص وطلع البروفايل؟ ──
 if (preg_match('/\[PROFILE\](.*?)\[\/PROFILE\]/s', $reply, $m)) {
@@ -188,6 +241,9 @@ if (preg_match('/\[PROFILE\](.*?)\[\/PROFILE\]/s', $reply, $m)) {
                 }
             }
             $profileSaved = true;
+            $__bkF = [];
+            foreach ($sets as $__s) if (preg_match('/`(\w+)`/', $__s, $__m)) $__bkF[] = $__m[1];
+            brand_kit_notify((int) $user['id'], $__bkF, 'ai', 'من المساعد الذكي');
         }
     }
 
@@ -199,6 +255,15 @@ if (preg_match('/\[PROFILE\](.*?)\[\/PROFILE\]/s', $reply, $m)) {
     if ($profileSaved) {
         $reply .= "\n\n✅ **حفظتلك الهوية كاملة!** راجعها وعدّل أي حاجة من صفحة «هوية البراند» — ودلوقتي أي محتوى أو تصميم هيتبني عليها. يلا نبدأ أول خطة؟ 🗓";
     }
+}
+
+// ── تعديلات مركز الهوية من المحادثة ──
+$kitSaved = [];
+if ($__kitOn && preg_match('/\[KIT\](.*?)\[\/KIT\]/su', $reply, $km)) {
+    $kj = bk_json_from_ai($km[1]);
+    if ($kj) $kitSaved = bk_agent_apply((int) $user['id'], $kj);
+    $reply = trim(preg_replace('/\[KIT\].*?\[\/KIT\]/su', '', $reply)) ?: 'تمام ✓';
+    if ($kitSaved) $reply .= "\n\n✅ اتحدّث في هوية البراند: " . implode('، ', $kitSaved);
 }
 
 $messages[] = ['role' => 'assistant', 'content' => $reply];

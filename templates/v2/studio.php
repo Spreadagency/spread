@@ -16,7 +16,8 @@
             <h2>حوّل فكرتك إلى تصميم جاهز للنشر</h2>
         </div>
         <div class="st-usage" v-if="home">
-            <span><b>{{ home.month }}</b> تصميم الشهر ده</span>
+            <span><b>{{ home.month }}</b> تصميم في باقتك</span>
+            <span v-if="home.headline">{{ home.headline }}</span>
             <span class="cr">رصيدك <b>{{ home.costs.balance }}</b> كريدت</span>
         </div>
     </header>
@@ -510,7 +511,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var r = await SpreadAPI.post('studio', 'trend_ideas', { trend_id: this.trend.id });
       this.busy = false;
       if (!r.ok) { if (window.SpreadThinking) SpreadThinking.fail(); return this.notify(r.error, 'danger'); }
-      if (window.SpreadThinking) SpreadThinking.done('3 أفكار جاهزة ✓');
+      if (window.SpreadThinking) SpreadThinking.done((r.ideas || []).length + ' أفكار جاهزة ✓');
       this.ideas = r.ideas; this.home.costs.balance = r.balance;
     },
     useIdea: function () {

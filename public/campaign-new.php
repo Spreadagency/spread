@@ -20,6 +20,26 @@ if (get_setting('campaigns_enabled', '1') !== '1' || !ui_v2_enabled()) {
     redirect('content-plan.php');
 }
 
+// الإعداد كله بقى جوه الحملة (المواضيع · العملاء · الشخصيات · المطلوب) — البريف القديم بـ ?classic=1
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && empty($_GET['classic'])) {
+    $open = (int) (db_one('SELECT COUNT(*) n FROM campaigns WHERE user_id = ? AND status = "active" AND NOT ' . campaign_blank_sql(), [$uid])['n'] ?? 0);
+    $months = ['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    $title = 'حملة ' . $months[(int) date('n')];
+    // fix: فتح الصفحة كان بيعمل حملة جديدة كل مرة ← دلوقتي أي حملة فاضية عند العميل (مهما كان عمرها) بنكمّل عليها
+    // ونحدّث اسمها وشهرها — يعني عمره ما هيبقى عنده غير مسودة فاضية واحدة بالكتير
+    $blank = db_one('SELECT id, title, period_month FROM campaigns WHERE user_id = ? AND status = "active" AND ' . campaign_blank_sql() . ' ORDER BY id DESC LIMIT 1', [$uid]);
+    if ($blank) {
+        if ((string) $blank['period_month'] !== date('Y-m')) {
+            db_run('UPDATE campaigns SET title = ?, period_month = ? WHERE id = ?', [campaign_unique_title($uid, $title, (int) $blank['id']), date('Y-m'), $blank['id']]);
+        }
+        redirect('campaign.php?id=' . (int) $blank['id']);
+    }
+    if ($open >= 30) { flash_set('danger', 'عندك 30 حملة نشطة — خلّص أو أرشف واحدة الأول'); redirect('campaigns.php'); }
+    $id = db_insert('INSERT INTO campaigns (user_id, title, ideas_count, period_month, prefs_json) VALUES (?,?,?,?,?)',
+        [$uid, campaign_unique_title($uid, $title), 7, date('Y-m'), json_encode(['platform' => 'both'], JSON_UNESCAPED_UNICODE)]);
+    redirect('campaign.php?id=' . $id);
+}
+
 $goals = campaign_goals();
 $platforms = ['facebook' => 'فيسبوك', 'instagram' => 'إنستجرام', 'tiktok' => 'تيك توك', 'linkedin' => 'لينكدإن', 'x' => 'X (تويتر)'];
 $durations = ['7' => 'أسبوع', '14' => 'أسبوعين', '30' => 'شهر', '60' => 'شهرين', '90' => '3 شهور'];

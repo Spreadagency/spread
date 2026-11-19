@@ -25,7 +25,7 @@ switch ($action) {
     case 'list':
         $status = in_array($_GET['status'] ?? '', ['active', 'completed', 'archived'], true) ? $_GET['status'] : 'active';
         $q = api_str('q', 100);
-        $w = ['user_id = ?', 'status = ?'];
+        $w = ['user_id = ?', 'status = ?', 'NOT ' . campaign_blank_sql()];   // الحملات الفاضية مابتظهرش
         $p = [$uid, $status];
         if ($q !== '') {
             $w[] = '(title LIKE ? OR topic LIKE ?)';
@@ -35,7 +35,7 @@ switch ($action) {
         $rows = db_all('SELECT * FROM campaigns WHERE ' . implode(' AND ', $w) . ' ORDER BY updated_at DESC LIMIT 100', $p);
 
         $counts = ['active' => 0, 'completed' => 0, 'archived' => 0];
-        foreach (db_all('SELECT status, COUNT(*) n FROM campaigns WHERE user_id = ? GROUP BY status', [$uid]) as $r) {
+        foreach (db_all('SELECT status, COUNT(*) n FROM campaigns WHERE user_id = ? AND NOT ' . campaign_blank_sql() . ' GROUP BY status', [$uid]) as $r) {
             $counts[$r['status']] = (int) $r['n'];
         }
         api_ok([
@@ -95,6 +95,14 @@ switch ($action) {
                 $vals[] = $fn();
             }
         }
+        // إعداد الحملة (المواضيع · العملاء المثاليين · الشخصيات · عدد كل شكل · CTA)
+        if (array_key_exists('setup', $in)) {
+            require_once __DIR__ . '/../../includes/campaign-flow.php';
+            $pr = campaign_prefs($c);
+            $pr['setup'] = campaign_setup_clean($uid, $in['setup']);
+            $set[] = '`prefs_json` = ?';
+            $vals[] = json_encode($pr, JSON_UNESCAPED_UNICODE);
+        }
         if (!$set) {
             api_ok(['campaign' => campaign_to_api($c, false), 'unchanged' => true]);
         }
@@ -114,7 +122,8 @@ switch ($action) {
         $c = api_own('campaigns', api_int('id'), $uid);
         $to = api_int('stage', 1, 1, 6);
         // مسموح ترجع لأي مرحلة، أو تتقدم خطوة واحدة بعد أبعد مرحلة وصلتها
-        if ($to > (int) $c['max_stage'] + 1) {
+        // fix: في وضع «الكتابة والتقييم في طلب واحد» الخطوة اللي بعد المحتوى هي التصميم (4) — كانت بتترفض لأن 4 > 2 + 1
+        if (!campaign_stage_reachable($c, $to)) {
             api_fail('كمّل المرحلة الحالية الأول', 'locked', 422);
         }
         // Brand Brain: المحتوى والتصميم بيفتحوا عند نسبة صحة الهوية المحددة (الأفكار مفتوحة دايمًا)

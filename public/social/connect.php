@@ -51,7 +51,8 @@ $authUrl = fb_oauth_base() . '/dialog/oauth?' . http_build_query([
     'client_id' => meta_app_id(),
     'redirect_uri' => social_callback_url(),
     'state' => $state,
-    'scope' => 'pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,business_management',
+    // read_insights + instagram_manage_insights: نتايج البوستات (الوصول والمشاهدات) لحلقة التعلّم في محرك المحتوى
+    'scope' => 'pages_show_list,pages_manage_posts,pages_read_engagement,read_insights,instagram_basic,instagram_content_publish,instagram_manage_insights,business_management',
     'response_type' => 'code',
 ]);
 

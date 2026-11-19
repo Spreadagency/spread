@@ -13,9 +13,11 @@ DirectoryIndex public/index.php index.php
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # ─── Block sensitive paths ────────────────────────────────
-    RewriteRule ^(includes|sql)/ - [F,L]
+    RewriteRule ^(includes|sql|lang)/ - [F,L]
     RewriteRule ^site/(config|db)\.php$ - [F,L]
     RewriteRule ^storage/logs/ - [F,L]
+    # مستندات العملاء (PDF/Word) مابتتفتحش بلينك مباشر — التنزيل من source-download.php بس (بيتأكد من صاحب الملف)
+    RewriteRule ^storage/uploads/sources/ - [F,L]
     RewriteRule ^storage/.*\.log$ - [F,L]
 
     # ─── Pass through real folders ────────────────────────────

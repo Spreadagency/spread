@@ -66,10 +66,14 @@ include __DIR__ . '/../templates/header.php';
             </div>
             <?php endif; ?>
             <?php if ($req['status'] === 'rejected' && $req['reject_reason']): ?>
-                <div class="alert danger">سبب الرفض: <?= e($req['reject_reason']) ?> — <a href="<?= url('checkout.php?package=' . (int) $req['package_id']) ?>">ابعت طلب جديد ←</a></div>
+                <div class="alert danger">سبب الرفض: <?= e($req['reject_reason']) ?> — <a href="<?= url(!empty($req['video_order_id']) ? 'checkout.php?video=' . (int) $req['video_order_id'] : 'checkout.php?package=' . (int) $req['package_id']) ?>">ابعت طلب جديد ←</a></div>
             <?php endif; ?>
             <?php if ($req['status'] === 'approved'): ?>
+                <?php if (!empty($req['video_order_id'])): ?>
+                <div class="alert success">🎬 اتأكدنا من الدفع والفيديو راح لفريق التنفيذ. <a href="<?= url('content-history.php') ?>">تابعه من المكتبة ←</a></div>
+                <?php else: ?>
                 <div class="alert success">🎉 الباقة اتفعّلت واتضاف <?= (int) $req['credits'] + (int) $req['bonus_credits'] ?> كريدت لمحفظتك. <a href="<?= url('credits.php') ?>">المحفظة ←</a></div>
+                <?php endif; ?>
             <?php endif; ?>
 
             <div class="bl-req-grid">
@@ -77,8 +81,10 @@ include __DIR__ . '/../templates/header.php';
                 <?php if ((float) $req['discount_amount'] > 0): ?><div><span>خصم<?= $req['promo_code'] ? ' (' . e($req['promo_code']) . ')' : '' ?></span><b>−<?= number_format((float) $req['discount_amount'], 2) ?> ج</b></div><?php endif; ?>
                 <div class="total"><span>المدفوع</span><b><?= number_format((float) $req['final_amount'], 2) ?> ج</b></div>
                 <div><span>طريقة الدفع</span><b><?= e($req['method_label']) ?></b></div>
+                <?php if (empty($req['video_order_id'])): ?>
                 <div><span>الكريدت</span><b><?= (int) $req['credits'] ?><?= (int) $req['bonus_credits'] ? ' + 🎁 ' . (int) $req['bonus_credits'] : '' ?></b></div>
                 <div><span>المدة</span><b><?= (int) $req['validity_days'] + (int) $req['extra_days'] ?> يوم</b></div>
+                <?php endif; ?>
                 <?php if ($req['transaction_ref']): ?><div><span>رقم العملية</span><b dir="ltr"><?= e($req['transaction_ref']) ?></b></div><?php endif; ?>
                 <?php if ($req['transferred_at']): ?><div><span>وقت التحويل</span><b><?= e(fmt_date($req['transferred_at'], true)) ?></b></div><?php endif; ?>
                 <?php if ($req['proof_path']): ?><div><span>الإيصال</span><b><a href="<?= e(billing_proof_url((int) $req['id'])) ?>" target="_blank" rel="noopener">عرض ↗</a></b></div><?php endif; ?>

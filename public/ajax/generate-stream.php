@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/credits.php';
 require_once __DIR__ . '/../../includes/prompt-builder.php';
+require_once __DIR__ . '/../../includes/brand-kit.php';
 require_once __DIR__ . '/../../includes/ai.php';
 require_once __DIR__ . '/../../includes/rate-limit.php';
 
@@ -40,7 +41,7 @@ function sse_fail(string $error): void
     exit;
 }
 
-if (!rate_limit('generate', 'u' . $user['id'], 10, 600)) {
+if (!rate_limit('generate', 'u' . $user['id'], setting_int('limit_generate_per_10min', 10, 1, 200), 600)) {
     sse_fail('وصلت للحد الأقصى من التوليد. استنى شوية وجرب تاني.');
 }
 if (!$brand || empty($brand['business_name'])) {
@@ -53,8 +54,8 @@ $options = [
     'content_type' => $_POST['content_type'] ?? 'introductory',
     'platform'     => $_POST['platform'] ?? 'both',
     'length'       => $_POST['length'] ?? 'medium',
-    'tone'         => $_POST['tone'] ?? 'simple',
-    'dialect'      => in_array($_POST['dialect'] ?? '', ['egyptian', 'gulf', 'msa']) ? $_POST['dialect'] : 'egyptian',
+    'tone'         => (string) ($_POST['tone'] ?? 'simple'),
+    'dialect'      => in_array($_POST['dialect'] ?? '', ['egyptian', 'gulf', 'khaleeji', 'levantine', 'msa', 'mixed', 'english'], true) ? $_POST['dialect'] : 'egyptian',
     'template_id'  => (int) ($_POST['template_id'] ?? 0),
     'extra_notes'  => mb_substr(trim($_POST['extra_notes'] ?? ''), 0, 500),
 ];
@@ -67,12 +68,18 @@ if (!empty($_POST['use_personal_image']) && !empty($brand['personal_image_path']
     $visionUrls[] = rtrim(APP_URL, '/') . '/storage/' . $brand['personal_image_path'];
 }
 
+// Brand Kit: بريف البوست (خدمة · موضوع · شخصية · شكل · طريقة كتابة) — طلب العميل له الأولوية
+$bkOverrides = bk_overrides_from_input($_POST, $options['extra_notes']);
+$bkBrief = bk_enabled() ? BrandContext::brief((int) $user['id'], $bkOverrides) : null;
+$options['bk_brief'] = $bkBrief;
 $finalPrompt = build_final_prompt($brand, $options, $options['extra_notes']);
 
 // 8-ب: حصة المنشورات
 if ($__g = plan_gate((int) $user['id'], 'posts')) {
     sse_fail($__g);
 }
+// الكريدت اتخصم ← الطلب يكمّل حتى لو العميل قفل الصفحة (المنشور يتحفظ بدل ما الكريدت يروح على الفاضي)
+ignore_user_abort(true);
 // Credits first — refund on failure
 if (!credits_consume((int) $user['id'], $cost, 'توليد محتوى', 'content', null)) {
     sse_fail(credits_short_msg($cost));
@@ -88,29 +95,49 @@ if (!$ai['ok']) {
 }
 
 $parsed = parse_ai_response($ai['response']);
+$bkWhy = BrandContext::parseWhy((string) $ai['response']);
+$parsed['content'] = BrandContext::enforce(BrandContext::stripWhy($parsed['content']), (int) $user['id']);
+$parsed['cta'] = BrandContext::enforce((string) $parsed['cta'], (int) $user['id']);
+$parsed['hashtags'] = BrandContext::enforce((string) $parsed['hashtags'], (int) $user['id']);
 
-$contentId = db_insert_row('contents', [
-    'user_id'            => $user['id'],
-    'brand_profile_id'   => $brand['id'],
-    'content_type'       => $options['content_type'],
-    'platform'           => $options['platform'],
-    'length'             => $options['length'],
-    'tone'               => $options['tone'],
-    'dialect'            => $options['dialect'],
-    'template_id'        => $options['template_id'] ?: null,
-    'model'              => $ai['model'] ?? null,
-    'tokens_in'          => $ai['usage']['in'] ?? 0,
-    'tokens_out'         => $ai['usage']['out'] ?? 0,
-    'extra_notes'        => $options['extra_notes'],
-    'use_logo'           => !empty($_POST['use_logo']) ? 1 : 0,
-    'use_personal_image' => !empty($_POST['use_personal_image']) ? 1 : 0,
-    'final_prompt'       => $finalPrompt,
-    'generated_text'     => $parsed['content'],
-    'hashtags'           => $parsed['hashtags'],
-    'cta'                => $parsed['cta'],
-    'status'             => 'generated',
-    'credits_used'       => $cost,
-]);
+// رد فاضي = مفيش منشور ← الكريدت يرجع
+if (trim((string) $parsed['content']) === '') {
+    credits_add((int) $user['id'], $cost, 'استرداد: الرد جه فاضي', null, 'refund', null);
+    sse_fail('الرد جه فاضي — الكريدت رجعلك، جرّب تاني');
+}
+
+// الحفظ فشل = مفيش منشور ← الكريدت يرجع
+try {
+    $contentId = db_insert_row('contents', [
+        'user_id'            => $user['id'],
+        'brand_profile_id'   => $brand['id'],
+        'content_type'       => $options['content_type'],
+        'platform'           => $options['platform'],
+        'length'             => $options['length'],
+        'tone'               => $options['tone'] ?: null,
+        'dialect'            => $options['dialect'],
+        'template_id'        => $options['template_id'] ?: null,
+        'model'              => $ai['model'] ?? null,
+        'tokens_in'          => $ai['usage']['in'] ?? 0,
+        'tokens_out'         => $ai['usage']['out'] ?? 0,
+        'extra_notes'        => $options['extra_notes'],
+        'use_logo'           => !empty($_POST['use_logo']) ? 1 : 0,
+        'use_personal_image' => !empty($_POST['use_personal_image']) ? 1 : 0,
+        'final_prompt'       => $finalPrompt,
+        'generated_text'     => $parsed['content'],
+        'hashtags'           => $parsed['hashtags'],
+        'cta'                => $parsed['cta'],
+        'status'             => 'generated',
+        'credits_used'       => $cost,
+    ]);
+} catch (\Throwable $e) {
+    error_log('[generate] save: ' . $e->getMessage());
+    $contentId = 0;
+}
+if (!$contentId) {
+    credits_add((int) $user['id'], $cost, 'استرداد: المنشور ماتحفظش', null, 'refund', null);
+    sse_fail('معرفناش نحفظ المنشور — الكريدت رجعلك، جرّب تاني');
+}
 
 // ربط المنشور بالحملة لو جاي منها (المرحلة 1)
 $__campaignId = (int) ($_POST['campaign_id'] ?? 0);
@@ -122,8 +149,10 @@ if ($__campaignId > 0 && $contentId > 0) {
     }
 }
 
+if ($bkBrief && $contentId) BrandContext::attach((int) $contentId, (int) $user['id'], $bkBrief, $bkWhy, $bkOverrides);
 save_content_version($contentId, $parsed['content'], $parsed['hashtags'], $parsed['cta'], 'ai', 'الإصدار الأول');
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? '', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'content', $ai);
 
 sse([
     'done' => true,

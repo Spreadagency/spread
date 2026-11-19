@@ -1,0 +1,17 @@
+# Internal API: مفيش فهرسة · ومفيش ملفات غير index.php
+Options -Indexes
+<FilesMatch "^(?!index\.php$).*\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+# بعض الاستضافات بتشيل Authorization — نرجّعه للـ PHP
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>

@@ -48,10 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tc = trial_claim((int) $user['id']);
                 if ($tc) {
                     flash_set('success', 'أهلًا بيك! المنشور اللي عملته في التجربة اتحفظ في حسابك ✓');
-                    redirect('content-view.php?id=' . $tc);
+                    redirect(ij_landing((int) $user['id'], 'content-view.php?id=' . $tc));
                 }
             }
-            redirect(preg_match('/^[a-z0-9\-]+\.php(\?[^\s]*)?$/i', $next) ? $next : 'dashboard.php');
+            redirect(ij_landing((int) $user['id'], preg_match('/^[a-z0-9\-]+\.php(\?[^\s]*)?$/i', $next) ? $next : 'dashboard.php'));
         }
     }
 }

@@ -27,7 +27,8 @@ if (function_exists('ui_v2_enabled') && ui_v2_enabled()) {
 $filters = [
     'platform' => $_GET['platform'] ?? '',
     'content_type' => $_GET['type'] ?? '',
-    'status' => $_GET['status'] ?? '',
+    // الشكل القديم بيفلتر بالحالات القديمة بس (لينكات «يحتاج إجراء» بحالات الشكل الجديد مابتفضّيش الصفحة)
+    'status' => in_array($_GET['status'] ?? '', ['generated', 'edited', 'saved'], true) ? $_GET['status'] : '',
     'date_from' => $_GET['from'] ?? '',
     'date_to' => $_GET['to'] ?? '',
     'q' => trim((string) ($_GET['q'] ?? '')),

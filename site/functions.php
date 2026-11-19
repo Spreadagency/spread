@@ -1,6 +1,49 @@
 <?php
 /** دوال الموقع المشتركة */
 require_once __DIR__ . '/db.php';
+require_once dirname(__DIR__) . '/includes/i18n.php';   // الترجمة: __() · لغة الزائر (نفس كوكي المنصة)
+
+/* ─── الترجمة الإنجليزي لمحتوى الموقع (site-admin/translations.php) ─── */
+
+/** جدول الترجمات: النص العربي (المصدر) ← الإنجليزي اللي الأدمن كتبه · scope = home أو page:slug */
+function s_tr_ensure(): bool
+{
+    static $ok = null;
+    if ($ok !== null) return $ok;
+    try {
+        sdb()->exec("CREATE TABLE IF NOT EXISTS `site_translations` (
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `src_hash` CHAR(40) NOT NULL,
+            `src` MEDIUMTEXT NOT NULL,
+            `en` MEDIUMTEXT NULL,
+            `scope` VARCHAR(90) NOT NULL DEFAULT '',
+            `updated_by` INT NULL,
+            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`), UNIQUE KEY `uq_tr_hash` (`src_hash`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        return $ok = true;
+    } catch (\Throwable $e) {
+        error_log('[site-i18n] ' . $e->getMessage());
+        return $ok = false;
+    }
+}
+
+/** القاموس من الإدارة (بيتدمج في __() على صفحات الموقع) — الجدول مش موجود ← فاضي */
+function i18n_db_dict(string $l): array
+{
+    if ($l !== 'en') return [];
+    $out = [];
+    foreach (s_all("SELECT src, en FROM site_translations WHERE en IS NOT NULL AND en <> ''") as $r) $out[(string) $r['src']] = (string) $r['en'];
+    return $out;
+}
+
+/** لينك تغيير اللغة على الموقع ← lang.php بتاع المنصة (جنب login.php) — بيرجّع لنفس الصفحة */
+function s_lang_switcher(): string
+{
+    if (!i18n_enabled()) return '';
+    $ep = preg_replace('#/login\.php$#', '/lang.php', PLATFORM_LOGIN);
+    return i18n_switcher($ep, 'lang-sw h-lang');
+}
 
 // محمية ضد التعارض مع دالة المنصة لو الملفين اتحمّلوا مع بعض
 if (!function_exists('e')) {

@@ -201,6 +201,10 @@ function ai_gw_chain(string $task, array $ctx = []): array
     $cap = (string) ($route['capability'] ?? usage_task_capability($task));
     $custData = $ctx['customer_data'] ?? true;
     $chain = [];
+    // مستوى الجودة: موديل المستوى أول السلسلة — والأساسي بعده كبديل
+    if (!empty($ctx['tier_route']['p']) && ($tp = ai_gw_provider((string) $ctx['tier_route']['p']))) {
+        $chain[] = ['p' => $tp, 'm' => (string) $ctx['tier_route']['m']];
+    }
     $explicit = json_decode((string) ($route['chain_json'] ?? ''), true);
     if (is_array($explicit) && $explicit) {
         foreach ($explicit as $e) {
@@ -439,6 +443,10 @@ function ai_gw_text_call(array $p, string $model, array $req, int $timeout): arr
         $payload['temperature'] = (float) ($req['temperature'] ?? 0.8);
     }
     if ($p['kind'] === 'openrouter') $payload['usage'] = ['include' => true];
+    // JSON mode: بيتطلب من المزود لو الكود محتاج JSON (OpenAI بيشترط كلمة json في الرسايل)
+    if (!empty($req['json']) && stripos(json_encode($req['messages'], JSON_UNESCAPED_UNICODE), 'json') !== false) {
+        $payload['response_format'] = ['type' => 'json_object'];
+    }
     $h = ai_gw_http($p['base'] . '/chat/completions', ai_gw_headers($p), json_encode($payload, JSON_UNESCAPED_UNICODE), $timeout);
     // الموديل رفض باراميتر؟ نعدّل ونجرّب مرة واحدة (موديلات جديدة/مزودين متوافقين بقواعد مختلفة)
     for ($fx = 0; $fx < 2 && $h['http'] === 400 && ($fixed = ai_gw_fix_params($payload, (string) $h['raw'])); $fx++) {
@@ -462,6 +470,10 @@ function ai_gw_fix_params(array $payload, string $raw): ?array
     } elseif (str_contains($m, "'max_completion_tokens'") && isset($payload['max_completion_tokens']) && (str_contains($m, 'unsupported') || str_contains($m, 'not supported') || str_contains($m, 'unrecognized'))) {
         $payload['max_tokens'] = $payload['max_completion_tokens'];
         unset($payload['max_completion_tokens']);
+        $changed = true;
+    }
+    if (str_contains($m, 'response_format') && isset($payload['response_format'])) {
+        unset($payload['response_format']);   // الموديل مابيدعمش JSON mode → من غيره (الرد بيتراجع بعدها)
         $changed = true;
     }
     if (str_contains($m, 'temperature') && isset($payload['temperature']) && (str_contains($m, 'unsupported') || str_contains($m, 'not supported') || str_contains($m, 'only the default'))) {
@@ -585,8 +597,11 @@ function ai_gw_parse_chat(array $h): array
     $text = ai_gw_msg_text($data['choices'][0]['message']['content'] ?? null);
     $base['tin'] = (int) ($data['usage']['prompt_tokens'] ?? 0);
     $base['tout'] = (int) ($data['usage']['completion_tokens'] ?? 0);
+    // توكنز الكاش (OpenAI · OpenRouter · Gemini المتوافق) — من رد المزود، مش تقدير
+    $base['tcached'] = (int) ($data['usage']['prompt_tokens_details']['cached_tokens'] ?? ($data['usage']['cached_tokens'] ?? 0));
     $base['cost'] = isset($data['usage']['cost']) ? (float) $data['usage']['cost'] : null;
     $finish = (string) ($data['choices'][0]['finish_reason'] ?? '');
+    $base['finish'] = $finish;
     if (trim($text) === '') {
         if ($finish === 'content_filter') return array_merge($base, ['class' => 'policy', 'error' => 'content_filter']);
         return array_merge($base, ['class' => 'empty', 'error' => 'رد فاضي']);
@@ -708,6 +723,14 @@ function ai_run(string $task, array $req, array $ctx = []): array
     $route = ai_gw_route_row($task);
     $cap = (string) ($route['capability'] ?? 'text');
     $t0 = microtime(true);
+    // حرارة المرحلة من «الموديلات ← خريطة المراحل» (لو متحددة) بتغلب على اللي الكود باعته
+    if ($cap === 'text' && isset($route['temperature']) && $route['temperature'] !== null && $route['temperature'] !== '' && !isset($ctx['temperature_locked'])) {
+        $req['temperature'] = (float) $route['temperature'];
+    }
+    // مستوى الجودة (من باقة العميل): موديل المستوى للمهمة دي بيتقدّم · والحرارة بتاعته لو متحددة — اختبارات الأدمن من غير مستوى
+    $tier = (string) ($ctx['tier'] ?? ((($ctx['customer_data'] ?? true) && function_exists('qt_for_user')) ? qt_for_user(isset($ctx['user_id']) ? (int) $ctx['user_id'] : qt_price_user()) : 'standard'));
+    $tierRoute = function_exists('qt_route') ? qt_route($tier, $task) : null;
+    if ($cap === 'text' && $tierRoute && $tierRoute['temp'] !== null && !isset($ctx['temperature_locked'])) $req['temperature'] = $tierRoute['temp'];
 
     if (!empty($ctx['only'])) {
         $p = ai_gw_provider((string) $ctx['only']['p'], true);
@@ -717,12 +740,15 @@ function ai_run(string $task, array $req, array $ctx = []): array
             'customer_data' => $ctx['customer_data'] ?? true, // افتراضيًا بيانات عميل — اختبارات الأدمن بس بتبعت false
             'has_refs' => $cap === 'image' && !empty($req['refs']),
             'vision' => $cap === 'text' && ai_gw_has_images($req['messages'] ?? []),
+            'tier_route' => $tierRoute,
         ]);
     }
 
     $runId = usage_run_start([
         'task' => $task, 'feature' => $ctx['feature'] ?? usage_feature(), 'route' => 'gateway',
         'user_id' => $ctx['user_id'] ?? null, 'ref_type' => $ctx['ref_type'] ?? null, 'ref_id' => $ctx['ref_id'] ?? null,
+        'campaign_id' => $ctx['campaign_id'] ?? null, 'prompt_version_id' => $ctx['prompt_version_id'] ?? null,
+        'retry_of' => $ctx['retry_of'] ?? null, 'sandbox' => !empty($ctx['sandbox']),
     ]);
     $result = ['ok' => false, 'text' => '', 'bin' => null, 'mime' => null, 'data' => null, 'provider' => null, 'model' => null,
                'usage' => ['in' => 0, 'out' => 0], 'cost_usd' => 0.0, 'run_id' => $runId, 'error' => null, 'error_class' => null,
@@ -740,7 +766,8 @@ function ai_run(string $task, array $req, array $ctx = []): array
     $forced = false;
     if (!$allowed) { $allowed = [$chain[0]]; $forced = true; }
 
-    $maxAtt = max(1, (int) ($route['max_attempts'] ?? 3));
+    // الحد بيعدّ كل المحاولات (إعادة + إصلاح JSON) — فلازم يكفي إن كل مزود في السلسلة ياخد فرصته على الأقل (الوقت والتكلفة لسه حاكمين)
+    $maxAtt = min(8, max(1, (int) ($route['max_attempts'] ?? 3), count($allowed) + 1));
     $budget = max(15, (int) ($route['time_budget_s'] ?? 120));
     $deadline = $t0 + $budget;
     $costCap = isset($route['cost_budget_usd']) && $route['cost_budget_usd'] !== null && (float) $route['cost_budget_usd'] > 0 ? (float) $route['cost_budget_usd'] : null;
@@ -772,8 +799,17 @@ function ai_run(string $task, array $req, array $ctx = []): array
             } else {
                 $r = ai_gw_text_call($p, $model, $req, $timeout);
             }
+            // رد اتقطع (finish_reason=length) والمهمة محتاجة JSON → نفس الموديل بمساحة أكبر مرة واحدة
+            $wantJson = (int) ($route['json_required'] ?? 0) === 1 || !empty($req['json']);
+            if ($r['ok'] && $cap === 'text' && $wantJson && ($r['finish'] ?? '') === 'length' && empty($grown) && $seq < $maxAtt && microtime(true) < $deadline - 15) {
+                $spent += usage_attempt($runId, ai_gw_att($seq, $p, $model, $cap, $r, 'failed', 'truncated', 'الرد اتقطع (max_tokens)'));
+                $grown = true;
+                $req['max_tokens'] = min(16000, (int) ceil(((int) ($req['max_tokens'] ?? 1000)) * 1.6));
+                $tries--;
+                continue;
+            }
             // JSON مطلوب → إصلاح واحد على نفس الموديل
-            if ($r['ok'] && $cap === 'text' && (int) ($route['json_required'] ?? 0) === 1 && !ai_gw_json_ok($r['text'])) {
+            if ($r['ok'] && $cap === 'text' && $wantJson && !ai_gw_json_ok($r['text'])) {
                 $spent += usage_attempt($runId, ai_gw_att($seq, $p, $model, $cap, $r, 'failed', 'bad_json', 'JSON غير صالح'));
                 $r = ['ok' => false, 'class' => 'bad_json', 'error' => 'JSON غير صالح'] + $r;
                 if (!$repaired && $seq < $maxAtt && microtime(true) < $deadline - 10 && ($costCap === null || $spent < $costCap)) {
@@ -807,7 +843,7 @@ function ai_run(string $task, array $req, array $ctx = []): array
                 return array_merge($result, [
                     'ok' => true, 'text' => (string) ($r['text'] ?? ''), 'bin' => $r['bin'] ?? null, 'mime' => $r['mime'] ?? null,
                     'data' => $r['data'] ?? null, 'provider' => $p['name'], 'kind' => $p['kind'], 'model' => $model,
-                    'usage' => ['in' => (int) ($r['tin'] ?? 0), 'out' => (int) ($r['tout'] ?? 0)],
+                    'usage' => ['in' => (int) ($r['tin'] ?? 0), 'out' => (int) ($r['tout'] ?? 0), 'cached' => (int) ($r['tcached'] ?? 0)],
                     'cost_usd' => $spent, 'failover' => $failover, 'attempts' => $seq, 'size' => $r['size'] ?? null,
                 ]);
             }
@@ -864,7 +900,7 @@ function ai_gw_att(int $seq, array $p, string $model, string $cap, array $r, str
     return [
         'seq' => $seq, 'provider' => $p['name'], 'model' => $model, 'capability' => $cap,
         'status' => $status, 'error_class' => $cls, 'error' => $status === 'ok' ? null : $err, 'http_code' => $r['http'] ?? null,
-        'tokens_in' => (int) ($r['tin'] ?? 0), 'tokens_out' => (int) ($r['tout'] ?? 0),
+        'tokens_in' => (int) ($r['tin'] ?? 0), 'tokens_out' => (int) ($r['tout'] ?? 0), 'tokens_cached' => (int) ($r['tcached'] ?? 0),
         'images' => $cap === 'image' && $status === 'ok' ? 1 : 0, 'size' => $r['size'] ?? null,
         'requests' => $status === 'ok' ? (int) ($r['requests'] ?? 0) : 0, 'provider_cost' => $r['cost'] ?? null, 'duration_ms' => (int) ($r['ms'] ?? 0),
     ];
@@ -916,15 +952,16 @@ function ai_gw_debug_log(string $kind, array $ctx, string $prompt, array $images
 /**
  * نص بنفس شكل ai_generate() القديمة: ['ok','response','error','usage','model']
  */
-function ai_gw_generate_text(string $prompt, array $imageUrls = [], int $maxTokens = 1000, float $temperature = 0.8, ?string $taskOverride = null): array
+function ai_gw_generate_text(string $prompt, array $imageUrls = [], int $maxTokens = 1000, float $temperature = 0.8, ?string $taskOverride = null, array $opts = []): array
 {
     $ctx = function_exists('ai_log_context') ? ai_log_context() : [];
     $kind = (string) ($ctx['kind'] ?? 'text');
     $task = $taskOverride ?: usage_task_for_kind($kind);
     $messages = function_exists('ai_build_messages') ? ai_build_messages($prompt, $imageUrls) : [['role' => 'user', 'content' => $prompt]];
-    $r = ai_run($task, ['messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => $temperature], [
+    $r = ai_run($task, ['messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => $temperature, 'json' => !empty($opts['json'])], [
         'user_id' => $ctx['user_id'] ?? null, 'ref_type' => $ctx['reference_type'] ?? null, 'ref_id' => $ctx['reference_id'] ?? null,
         'feature' => $kind !== 'text' ? $kind : null,
+        'campaign_id' => $opts['campaign_id'] ?? null, 'prompt_version_id' => $opts['prompt_version_id'] ?? null, 'sandbox' => !empty($opts['sandbox']),
     ]);
     ai_gw_debug_log($kind, $ctx, $prompt, $imageUrls, $r);
     return [

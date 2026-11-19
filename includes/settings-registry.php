@@ -26,11 +26,15 @@ function settings_registry(): array
                 ['title' => 'المنصة', 'fields' => [
                     ['key' => 'site_name', 'label' => 'اسم المنصة', 'type' => 'text', 'default' => $appName, 'len' => 100, 'required' => true],
                     ['key' => 'site_tagline', 'label' => 'السطر التعريفي', 'type' => 'text', 'default' => '', 'len' => 150, 'help' => 'بيظهر تحت الاسم في صفحات الدخول والتسجيل'],
+                    ['key' => 'i18n_enabled', 'label' => 'زرار اللغة «ع | EN» في صفحات الدخول والتسجيل والمنصة', 'type' => 'bool', 'default' => '0', 'help' => 'الصفحات اللي اتترجمت بس بتتعرض بالإنجليزي — الباقي بيفضل عربي لحد ما دفعته تتترجم · زرار الموقع نفسه من «SEO» في إعدادات الموقع · محتوى البوستات بالإنجليزي من «English» في لغة الكتابة (من غير الإعداد ده)'],
                     ['key' => 'max_brand_images', 'label' => 'أقصى عدد لصور الهوية', 'type' => 'number', 'default' => defined('MAX_BRAND_IMAGES') ? (string) MAX_BRAND_IMAGES : '10', 'min' => 1, 'max' => 50],
                 ]],
                 ['title' => 'العملاء الجدد', 'fields' => [
                     ['key' => 'manual_approval', 'label' => 'الحسابات الجديدة محتاجة موافقة من الإدارة', 'type' => 'bool', 'default' => '0', 'sensitive' => true, 'help' => 'لو شغال، العميل الجديد بيستنى في «الموافقات» قبل ما يستخدم المنصة'],
                     ['key' => 'google_require_phone', 'label' => 'حسابات جوجل لازم تسجّل رقم موبايل قبل الدخول', 'type' => 'bool', 'default' => '1', 'help' => 'صفحة «أكمل حسابك» بتظهر لأي حساب جوجل مفيهوش رقم'],
+                    ['key' => 'onboarding_quick', 'label' => 'البداية السريعة: دخول تلقائي بعد التسجيل + صفحة «ابدأ» (لينكات · 5 أسئلة · أول بوست)', 'type' => 'bool', 'default' => '0', 'sensitive' => true, 'help' => 'العميل بيجرّب قبل تأكيد الإيميل (النشر والشراء لسه محتاجين تأكيد) · بتتقفل لوحدها لو «الموافقة اليدوية» شغالة · وبتبسّط فورم «منشور جديد» لـ 3 حقول'],
+                    ['key' => 'onboarding_unverified_days', 'label' => 'مهلة التجربة قبل تأكيد الإيميل (يوم)', 'type' => 'number', 'default' => '3', 'min' => 1, 'max' => 30, 'help' => 'بعدها الحساب لازم يأكد إيميله عشان يدخل'],
+                    ['key' => 'onboarding_gift', 'label' => 'هدية البداية: كريدت يغطي قراءة اللينك + مسودة الهوية + أول بوست', 'type' => 'bool', 'default' => '1', 'help' => 'مرة واحدة لكل حساب ولكل رقم موبايل — القيمة محسوبة من إعدادات التكلفة الحالية'],
                 ]],
                 ['title' => 'الدخول المستمر («افتكرني»)', 'fields' => [
                     ['key' => 'remember_default', 'label' => '«افتكرني» متعلّم افتراضيًا (وبيتطبّق على الدخول بجوجل)', 'type' => 'bool', 'default' => '1'],
@@ -46,6 +50,13 @@ function settings_registry(): array
                     ['key' => 'trial_enabled', 'label' => 'تشغيل التجربة المجانية على الموقع', 'type' => 'bool', 'default' => '1'],
                     ['key' => 'trial_ideas_count', 'label' => 'عدد الأفكار في التجربة', 'type' => 'number', 'default' => '4', 'min' => 3, 'max' => 6],
                     ['key' => 'trial_per_ip_hour', 'label' => 'أقصى محاولات لكل IP في الساعة', 'type' => 'number', 'default' => '5', 'min' => 1, 'max' => 50],
+                ]],
+                ['title' => 'الحدود (كانت مكتوبة في الكود)', 'fields' => [
+                    ['key' => 'limit_sources_max', 'label' => 'أقصى عدد مستندات للبراند الواحد', 'type' => 'number', 'default' => '15', 'min' => 1, 'max' => 100],
+                    ['key' => 'limit_source_mb', 'label' => 'أقصى حجم للمستند (ميجا)', 'type' => 'number', 'default' => '20', 'min' => 1, 'max' => 50, 'help' => 'لازم يكون أقل من upload_max_filesize على السيرفر'],
+                    ['key' => 'limit_generate_per_10min', 'label' => 'أقصى توليد منشورات لكل عميل كل 10 دقايق', 'type' => 'number', 'default' => '10', 'min' => 1, 'max' => 200],
+                    ['key' => 'limit_design_per_10min', 'label' => 'أقصى تصميمات لكل عميل كل 10 دقايق', 'type' => 'number', 'default' => '6', 'min' => 1, 'max' => 200],
+                    ['key' => 'limit_design_bulk_per_10min', 'label' => 'أقصى تصميمات بالجملة (الحملات) كل 10 دقايق', 'type' => 'number', 'default' => '30', 'min' => 1, 'max' => 500],
                 ]],
                 ['title' => 'المدفوعات', 'fields' => [
                     ['key' => 'billing_email_notify', 'label' => 'إيميل للعميل عند اعتماد/رفض الدفع أو طلب معلومات', 'type' => 'bool', 'default' => '1'],
@@ -90,6 +101,9 @@ function settings_registry(): array
                     ['key' => 'ai_model_fallback', 'label' => 'الموديل الاحتياطي', 'type' => 'text', 'default' => '', 'ltr' => true, 'ph' => 'anthropic/claude-3-5-haiku'],
                     ['key' => 'ai_image_model', 'label' => 'موديل توليد الصور', 'type' => 'text', 'default' => '', 'ltr' => true, 'ph' => 'google/gemini-2.5-flash-image'],
                 ]],
+                ['title' => 'مركز الهوية (Brand Kit)', 'fields' => [
+                    ['key' => 'brand_kit_enabled', 'label' => 'مركز الهوية وتأثيره على المحتوى', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل — كل Agent بيقرا الهوية المنظّمة وبيطلع بريف لكل بوست', '0' => 'مقفول — المحتوى يرجع زي الأول (بيانات الهوية القديمة بس)'], 'help' => 'الممنوعات وبريف البوست و«ليه الـ AI عمل كده» بيشتغلوا لما ده مفعّل. المكتبة والقطاعات من «مركز الـ AI».'],
+                ]],
                 ['title' => 'البحث العميق', 'fields' => [
                     ['key' => 'research_enabled', 'label' => 'البحث العميق للعملاء', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل', '0' => 'مقفول']],
                     ['key' => 'research_auto_brain', 'label' => 'البحث بيسجّل في Brand Brain تلقائيًا', 'type' => 'select', 'default' => '1', 'options' => ['1' => 'مفعّل — الرؤى تتضاف للهوية + اقتراحات للحقول الناقصة', '0' => 'العميل يختار بنفسه'], 'help' => 'البحث العميق شغّال على الـ Smart Router بس — الموديل بيتحدد من «الموديلات والـ Router» (مهمة بحث الويب)'],
@@ -100,6 +114,8 @@ function settings_registry(): array
                 ['الموديلات والـ Router', 'admin/ai-router.php', 'سلسلة البدائل لكل مهمة وتشغيل البوابة', 'ai_settings'],
                 ['تكاليف الـ AI', 'admin/ai-costs.php', 'أسعار الموديلات وسعر الدولار', 'view_costs'],
                 ['مكتبة البرومبتات', 'admin/prompts.php', 'برومبت كل نوع محتوى وتصميم', 'ai_settings'],
+                ['مكتبة التعلّم', 'admin/brand-learning.php', 'طرق الكتابة والـ Hooks والقواعد والمراجع ← مواضيع', 'ai_settings'],
+                ['هويات العملاء', 'admin/brand-kits.php', 'Brand Kit لكل عميل · جرّب · مراجعة الجودة', 'view_users'],
                 ['إعدادات التصميم', 'admin/studio-settings.php', 'المقاسات والأنماط', 'site_settings'],
             ],
         ],
@@ -338,6 +354,10 @@ function settings_portable_extra(): array
         'alerts_email' => ['type' => 'email'], 'alerts_email_min_level' => ['type' => 'select', 'options' => ['warn' => 1, 'critical' => 1]],
         'ai_breaker_threshold' => $n(1, 50), 'ai_breaker_window_min' => $n(1, 120), 'ai_breaker_cooldown_min' => $n(1, 1440), 'ai_failover_alert_per_hour' => $n(1, 1000),
         'margin_alert_pct' => $n(0, 100), 'video_whatsapp' => ['type' => 'digits'],
+        'brand_kit_ai_cost' => $n(0, 999), 'brand_kit_draft_cost' => $n(0, 999),
+        'brand_kit_character_cost' => $n(0, 999), 'brand_kit_persona_cost' => $n(0, 999), 'brand_visual_cost' => $n(0, 999),
+        'brand_insights_cost' => $n(0, 999), 'campaign_plan_eval_cost' => $n(0, 999), 'brand_personas_default' => $n(1, 6),
+        'campaign_eval_ready' => $n(50, 95), 'campaign_eval_cats' => ['type' => 'text', 'len' => 800],
     ];
 }
 

@@ -11,7 +11,7 @@ $__section = ui_section_of($active ?? '');
 $__t = function (string $sec, string $icon, string $label, string $href) use ($__section) {
     $on = $__section === $sec;
     return '<a href="' . e(url($href)) . '" class="' . ($on ? 'on' : '') . '"' . ($on ? ' aria-current="page"' : '') . '>'
-        . ui_icon($icon, 22) . '<span>' . e($label) . '</span></a>';
+        . ui_icon($icon, 22) . '<span>' . e(__($label)) . '</span></a>';
 };
 $__campOn = ui_campaigns_on();
 $__quick = [
@@ -20,10 +20,10 @@ $__quick = [
     ['create-content.php', 'edit', 'منشور جديد', 'النوع · المنصة · الطول · النبرة · اللهجة', 'qa-post'],
 ];
 ?>
-<nav class="v2-dock" aria-label="التنقل السريع">
+<nav class="v2-dock" aria-label="<?= e(__('التنقل السريع')) ?>">
     <?= $__t('dashboard', 'home', 'الرئيسية', 'dashboard.php') ?>
     <?= $__t('campaigns', 'calendar', 'حملاتي', $__campOn ? 'campaigns.php' : 'content-plan.php') ?>
-    <button type="button" class="v2-fab" id="v2-fab" aria-label="إنشاء جديد" aria-haspopup="true" aria-expanded="false" aria-controls="v2-quick">
+    <button type="button" class="v2-fab" id="v2-fab" aria-label="<?= e(__('إنشاء جديد')) ?>" aria-haspopup="true" aria-expanded="false" aria-controls="v2-quick">
         <?= ui_icon('plus', 28) ?>
     </button>
     <?= $__t('contents', 'folder', 'المحتويات', 'content-history.php') ?>
@@ -34,13 +34,13 @@ $__quick = [
     <div class="v2-quick-bg" data-close></div>
     <div class="v2-quick-sheet" role="dialog" aria-modal="true" aria-labelledby="v2-quick-t">
         <div class="v2-quick-head">
-            <b id="v2-quick-t">عايز تعمل إيه؟</b>
-            <button type="button" class="v2-quick-x" data-close aria-label="إغلاق"><?= ui_icon('x', 20) ?></button>
+            <b id="v2-quick-t"><?= e(__('عايز تعمل إيه؟')) ?></b>
+            <button type="button" class="v2-quick-x" data-close aria-label="<?= e(__('إغلاق')) ?>"><?= ui_icon('x', 20) ?></button>
         </div>
         <?php foreach ($__quick as [$href, $icon, $label, $hint, $cls]): ?>
             <a href="<?= e(url($href)) ?>" class="v2-quick-item <?= $cls ?>">
                 <span class="v2-quick-ic"><?= ui_icon($icon, 22) ?></span>
-                <span class="v2-quick-txt"><b><?= e($label) ?></b><small><?= e($hint) ?></small></span>
+                <span class="v2-quick-txt"><b><?= e(__($label)) ?></b><small><?= e(__($hint)) ?></small></span>
                 <?= ui_icon('chevron', 18) ?>
             </a>
         <?php endforeach; ?>

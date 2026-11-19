@@ -41,5 +41,7 @@ db_run(
     'UPDATE contents SET generated_text=?, hashtags=?, cta=?, status=?, updated_at=NOW() WHERE id = ?',
     [$newText, $newHashtags, $newCta, 'edited', $contentId]
 );
+require_once __DIR__ . '/../../includes/brand-kit.php';
+bk_feedback_text_edit((int) $user['id'], $contentId, (string) $content['generated_text'], (string) $newText);
 
 json_response(['ok' => true]);

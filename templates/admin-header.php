@@ -12,6 +12,7 @@ $__a2v = static fn(string $f) => @filemtime(__DIR__ . '/../' . $f) ?: time();
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="robots" content="noindex, nofollow">
     <title><?= e($page_title) ?> — أدمن <?= e(APP_NAME) ?></title>
+    <link rel="icon" type="image/png" href="<?= e(url('assets/img/favicon-v2.png')) ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">

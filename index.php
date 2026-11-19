@@ -14,11 +14,11 @@ s_track_view('/');
 $ctx = s_home_ctx();
 extract($ctx, EXTR_SKIP);
 
-$__title = s_setting('seo_home_title') ?: $siteName . ' — ' . (s_setting('tagline') ?: 'فريق تسويق كامل بالذكاء الاصطناعي');
+$__title = __(s_setting('seo_home_title')) ?: $siteName . ' — ' . __(s_setting('tagline') ?: 'فريق تسويق كامل بالذكاء الاصطناعي');   // الترجمة: العنوان والوصف بلغة الزائر
 $jsV  = @filemtime(__DIR__ . '/site-assets/js/home-v2.js') ?: 1;
 $meta = [
     'title' => $__title,
-    'description' => s_setting('seo_home_description') ?: s_setting('tagline', 'فريق تسويق كامل بالذكاء الاصطناعي — من الفكرة للمحتوى للتصميم للنشر.'),
+    'description' => __(s_setting('seo_home_description') ?: s_setting('tagline', 'فريق تسويق كامل بالذكاء الاصطناعي — من الفكرة للمحتوى للتصميم للنشر.')),
     'og_image' => s_setting('seo_og_image') ?: $img('bot-wave.webp'),
     'canonical' => rtrim(SITE_URL, '/') . '/',
 ];
@@ -45,7 +45,7 @@ $ctaHref = $trialOn ? '#s-create' : $regUrl;
 include __DIR__ . '/site/parts/site-head.php';
 ?>
 <body class="hv2">
-<a href="#main" class="sr-only">تخطّي للمحتوى</a>
+<a href="#main" class="sr-only"><?= e(__('تخطّي للمحتوى')) ?></a>
 
 <!-- ═══ الهيدر ═══ -->
 <?php include __DIR__ . '/site/parts/site-header.php'; ?>
@@ -60,7 +60,7 @@ include __DIR__ . '/site/parts/site-head.php';
 
 <!-- ═══ الروبوت المرافق ═══ -->
 <div class="h-comp" id="h-comp" aria-hidden="true">
-  <button type="button" id="h-comp-btn" aria-label="روبوت Spread AI — اصنع منشورك" tabindex="-1"><span class="ws-bot" id="h-comp-bot"><img src="<?= e($img('bot-idle.webp')) ?>" alt="" loading="lazy" width="104" height="161"></span></button>
+  <button type="button" id="h-comp-btn" aria-label="<?= e(__('روبوت Spread AI — اصنع منشورك')) ?>" tabindex="-1"><span class="ws-bot" id="h-comp-bot"><img src="<?= e($img('bot-idle.webp')) ?>" alt="" loading="lazy" width="104" height="161"></span></button>
   <span class="h-say ws-glass-l" id="h-say" role="status"></span>
 </div>
 

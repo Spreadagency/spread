@@ -3,6 +3,7 @@ require_once __DIR__ . '/../includes/admin-auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 
 require_admin();
+require_admin_can('view_users');
 
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 50;

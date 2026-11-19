@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/credits.php';
 require_once __DIR__ . '/../../includes/prompt-builder.php';
+require_once __DIR__ . '/../../includes/brand-kit.php';
 require_once __DIR__ . '/../../includes/ai.php';
 
 require_once __DIR__ . '/../../includes/rate-limit.php';
@@ -16,7 +17,7 @@ $user = current_user();
 $brand = user_brand();
 
 // Rate limit: 10 generations per 10 minutes per user
-if (!rate_limit('generate', 'u' . $user['id'], 10, 600)) {
+if (!rate_limit('generate', 'u' . $user['id'], setting_int('limit_generate_per_10min', 10, 1, 200), 600)) {
     json_response(['ok' => false, 'error' => 'وصلت للحد الأقصى من التوليد. استنى شوية وجرب تاني.']);
 }
 
@@ -36,8 +37,8 @@ $options = [
     'content_type' => $_POST['content_type'] ?? 'introductory',
     'platform'     => $_POST['platform'] ?? 'both',
     'length'       => $_POST['length'] ?? 'medium',
-    'tone'         => $_POST['tone'] ?? 'simple',
-    'dialect'      => in_array($_POST['dialect'] ?? '', ['egyptian', 'gulf', 'msa']) ? $_POST['dialect'] : 'egyptian',
+    'tone'         => (string) ($_POST['tone'] ?? 'simple'),
+    'dialect'      => in_array($_POST['dialect'] ?? '', ['egyptian', 'gulf', 'khaleeji', 'levantine', 'msa', 'mixed', 'english'], true) ? $_POST['dialect'] : 'egyptian',
     'template_id'  => (int) ($_POST['template_id'] ?? 0),
     // Max 500 chars: limits prompt-injection surface and API cost abuse
     'extra_notes'  => mb_substr(trim($_POST['extra_notes'] ?? ''), 0, 500),
@@ -53,6 +54,10 @@ if (!empty($_POST['use_personal_image']) && !empty($brand['personal_image_path']
 }
 
 // Build prompt
+// Brand Kit: بريف البوست (خدمة · موضوع · شخصية · شكل · طريقة كتابة) — طلب العميل له الأولوية
+$bkOverrides = bk_overrides_from_input($_POST, $options['extra_notes']);
+$bkBrief = bk_enabled() ? BrandContext::brief((int) $user['id'], $bkOverrides) : null;
+$options['bk_brief'] = $bkBrief;
 $finalPrompt = build_final_prompt($brand, $options, $options['extra_notes']);
 
 // Consume credits FIRST (atomic, FOR UPDATE) so no free generations on races
@@ -75,30 +80,50 @@ if (!$ai['ok']) {
 
 // Parse response
 $parsed = parse_ai_response($ai['response']);
+$bkWhy = BrandContext::parseWhy((string) $ai['response']);
+$parsed['content'] = BrandContext::enforce(BrandContext::stripWhy($parsed['content']), (int) $user['id']);
+$parsed['cta'] = BrandContext::enforce((string) $parsed['cta'], (int) $user['id']);
+$parsed['hashtags'] = BrandContext::enforce((string) $parsed['hashtags'], (int) $user['id']);
+
+// رد فاضي = مفيش منشور ← الكريدت يرجع
+if (trim((string) $parsed['content']) === '') {
+    credits_add((int) $user['id'], $cost, 'استرداد: الرد جه فاضي', null, 'refund', null);
+    json_response(['ok' => false, 'error' => 'الرد جه فاضي — الكريدت رجعلك، جرّب تاني']);
+}
 
 // Insert content
-$contentId = db_insert_row('contents', [
-    'user_id'           => $user['id'],
-    'brand_profile_id'  => $brand['id'],
-    'content_type'      => $options['content_type'],
-    'platform'          => $options['platform'],
-    'length'            => $options['length'],
-    'tone'              => $options['tone'],
-    'dialect'           => $options['dialect'],
-    'template_id'       => $options['template_id'] ?: null,
-    'model'             => $ai['model'] ?? null,
-    'tokens_in'         => $ai['usage']['in'] ?? 0,
-    'tokens_out'        => $ai['usage']['out'] ?? 0,
-    'extra_notes'       => $options['extra_notes'],
-    'use_logo'          => !empty($_POST['use_logo']) ? 1 : 0,
-    'use_personal_image' => !empty($_POST['use_personal_image']) ? 1 : 0,
-    'final_prompt'      => $finalPrompt,
-    'generated_text'    => $parsed['content'],
-    'hashtags'          => $parsed['hashtags'],
-    'cta'               => $parsed['cta'],
-    'status'            => 'generated',
-    'credits_used'      => $cost,
-]);
+// الحفظ فشل = مفيش منشور ← الكريدت يرجع
+try {
+    $contentId = db_insert_row('contents', [
+        'user_id'           => $user['id'],
+        'brand_profile_id'  => $brand['id'],
+        'content_type'      => $options['content_type'],
+        'platform'          => $options['platform'],
+        'length'            => $options['length'],
+        'tone'              => $options['tone'] ?: null,
+        'dialect'           => $options['dialect'],
+        'template_id'       => $options['template_id'] ?: null,
+        'model'             => $ai['model'] ?? null,
+        'tokens_in'         => $ai['usage']['in'] ?? 0,
+        'tokens_out'        => $ai['usage']['out'] ?? 0,
+        'extra_notes'       => $options['extra_notes'],
+        'use_logo'          => !empty($_POST['use_logo']) ? 1 : 0,
+        'use_personal_image' => !empty($_POST['use_personal_image']) ? 1 : 0,
+        'final_prompt'      => $finalPrompt,
+        'generated_text'    => $parsed['content'],
+        'hashtags'          => $parsed['hashtags'],
+        'cta'               => $parsed['cta'],
+        'status'            => 'generated',
+        'credits_used'      => $cost,
+    ]);
+} catch (\Throwable $e) {
+    error_log('[generate] save: ' . $e->getMessage());
+    $contentId = 0;
+}
+if (!$contentId) {
+    credits_add((int) $user['id'], $cost, 'استرداد: المنشور ماتحفظش', null, 'refund', null);
+    json_response(['ok' => false, 'error' => 'معرفناش نحفظ المنشور — الكريدت رجعلك، جرّب تاني']);
+}
 
 // ربط المنشور بالحملة لو جاي منها (المرحلة 1)
 $__campaignId = (int) ($_POST['campaign_id'] ?? 0);
@@ -110,11 +135,13 @@ if ($__campaignId > 0 && $contentId > 0) {
     }
 }
 
+if ($bkBrief && $contentId) BrandContext::attach((int) $contentId, (int) $user['id'], $bkBrief, $bkWhy, $bkOverrides);
 // Save first version
 save_content_version($contentId, $parsed['content'], $parsed['hashtags'], $parsed['cta'], 'ai', 'الإصدار الأول');
 
 // Actual usage tracking (feature 25)
 ai_log_usage((int) $user['id'], 'generate', $ai['model'] ?? '', $ai['usage'] ?? [], $contentId);
+ai_stamp('contents', (int) $contentId, 'content', $ai);
 
 json_response([
     'ok' => true,

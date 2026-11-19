@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/source-extract.php';
+require_once __DIR__ . '/../includes/uploader.php';   // upload_doc_type_ok (المرحلة 6)
 
 require_login();
 
@@ -18,8 +19,8 @@ if (!$brand || empty($brand['business_name'])) {
 }
 $brandId = (int) $brand['id'];
 
-$MAX_SOURCES = 15;
-$MAX_SIZE = 20 * 1024 * 1024; // 20MB
+$MAX_SOURCES = setting_int('limit_sources_max', 15, 1, 100);            // الإعدادات ← عام ← الحدود
+$MAX_SIZE = setting_int('limit_source_mb', 20, 1, 50) * 1024 * 1024;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
@@ -37,7 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!isset($allowed[$ext])) {
                 flash_set('danger', 'النوع غير مدعوم — المسموح: PDF, DOCX, TXT');
             } elseif ($_FILES['file']['error'] !== UPLOAD_ERR_OK || $_FILES['file']['size'] > $MAX_SIZE) {
-                flash_set('danger', 'فشل الرفع أو الملف أكبر من 20 ميجا');
+                flash_set('danger', 'فشل الرفع أو الملف أكبر من ' . (int) ($MAX_SIZE / 1048576) . ' ميجا');
+            } elseif (!upload_doc_type_ok((string) $_FILES['file']['tmp_name'], $ext)) {
+                flash_set('danger', 'محتوى الملف مش ' . strtoupper($ext) . ' فعلًا — ارفع الملف الأصلي');
             } else {
                 $dir = UPLOADS_PATH . '/sources';
                 if (!is_dir($dir)) @mkdir($dir, 0755, true);
